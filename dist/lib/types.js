@@ -1,0 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.urlRegex = exports.emailRegex = exports.uuidRegex = exports.FREE = exports.MONEY_MAX = exports.MONEY_MIN = exports.UINT_MIN = exports.UINT_MAX = exports.UINT32_MIN = exports.UINT32_MAX = exports.UINT16_MIN = exports.UINT16_MAX = exports.UINT8_MIN = exports.UINT8_MAX = exports.INT_MIN = exports.INT_MAX = exports.INT32_MIN = exports.INT32_MAX = exports.INT16_MIN = exports.INT16_MAX = exports.INT8_MIN = exports.INT8_MAX = void 0;
+exports.INT8_MAX = 0x7f;
+exports.INT8_MIN = (-exports.INT8_MAX - 1);
+exports.INT16_MAX = 0x7fff;
+exports.INT16_MIN = (-exports.INT16_MAX - 1);
+exports.INT32_MAX = 0x7fffffff;
+exports.INT32_MIN = (-exports.INT32_MAX - 1);
+exports.INT_MAX = (Number.MAX_SAFE_INTEGER - 1);
+exports.INT_MIN = (Number.MIN_SAFE_INTEGER + 1);
+exports.UINT8_MAX = 0xff;
+exports.UINT8_MIN = 0;
+exports.UINT16_MAX = 0xffff;
+exports.UINT16_MIN = 0;
+exports.UINT32_MAX = 0xffffffff;
+exports.UINT32_MIN = 0;
+exports.UINT_MAX = (Number.MAX_SAFE_INTEGER - 1);
+exports.UINT_MIN = 0;
+exports.MONEY_MIN = -999999999;
+exports.MONEY_MAX = +999999999;
+exports.FREE = 0;
+exports.uuidRegex = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i;
+exports.emailRegex = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/;
+exports.urlRegex = /^(?:(?:(?:https?|ftp):)?\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z0-9\u00a1-\uffff][a-z0-9\u00a1-\uffff_-]{0,62})?[a-z0-9\u00a1-\uffff]\.)+(?:[a-z\u00a1-\uffff]{2,}\.?))(?::\d{2,5})?(?:[/?#]\S*)?$/i;
+//# sourceMappingURL=types.js.map
