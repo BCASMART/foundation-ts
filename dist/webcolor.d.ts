@@ -1,0 +1,38 @@
+import { StringDictionary, uint, uint8 } from "./types";
+export declare const WebColorNames: StringDictionary;
+export declare function $lighter(c: number): uint8;
+export declare function $darker(c: number): uint8;
+export declare function $lightest(c: number): uint8;
+export declare function $darkest(c: number): uint8;
+export declare class WebColor {
+    red: uint8;
+    green: uint8;
+    blue: uint8;
+    alpha: uint8;
+    static readonly red: WebColor;
+    static readonly green: WebColor;
+    static readonly yellow: WebColor;
+    static readonly blue: WebColor;
+    static readonly cyan: WebColor;
+    static readonly magenta: WebColor;
+    static readonly white: WebColor;
+    static readonly black: WebColor;
+    static darkWriteColor: WebColor;
+    static lightWriteColor: WebColor;
+    constructor(stringColor: string);
+    constructor(colorDefinition: number);
+    constructor(r: number, g: number, b: number, a?: number);
+    isEqual(other: any): boolean;
+    luminance(): number;
+    isPale(): boolean;
+    lighterColor(): WebColor;
+    darkerColor(): WebColor;
+    lightestColor(): WebColor;
+    darkestColor(): WebColor;
+    matchingColor(): WebColor;
+    writingColor(): WebColor;
+    toNumber(): number;
+    toUnsigned(): uint;
+    toString(removeAlpha?: boolean): string;
+    toJSON(): string;
+}

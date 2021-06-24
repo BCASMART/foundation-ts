@@ -19,11 +19,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "skipLibCheck": false,
     "sourceMap": true,
     "strict": true,
     "strictNullChecks": true,
-    "target": "es6"
+    "target": "es6",
+    "declaration": true
   }
 }
