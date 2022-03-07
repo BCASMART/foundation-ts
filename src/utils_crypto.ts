@@ -14,7 +14,7 @@ export function $uuid(namespace?:string, data?:string) : uuid
 }
 
 export enum HashMethod {
-	SHA256 ='SHA256',
+	SHA256 = 'SHA256',
 	SHA384 = 'SHA384',
 	SHA512 = 'SHA512'
 }

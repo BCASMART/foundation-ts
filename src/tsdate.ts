@@ -2,8 +2,10 @@
  * This is a timestamp (commencing at 01/01/2001) oriented date class
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date } from "./tsdatecomp"
-import { $isint, $isnumber, $div, $ok, $isstring } from "./commons";
-import { uint } from "./types";
+import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
+import { Comparison, Same, uint, UINT32_MAX } from "./types";
+import { Class, TSObject } from "./tsobject";
+import { UnsignedMask } from "./tsrange";
 
 const TSMinute	= 60 ;
 const TSHour 	= 3600 ;
@@ -49,10 +51,11 @@ export function $minuteFromTimestamp(t: number) : uint { return <uint>$div(Math.
 export function $hourFromTimestamp(t: number) : uint { return <uint>$div(Math.floor((t+TSSecsFrom00010101To20010101) %  TSDay),  TSHour) ; }
 export function $daytimestamp(ts:number) : number { return Math.floor(ts - _timeFromTimestamp(ts)) ; }
 
-
-export class TSDate {
+export class TSDate implements TSObject<TSDate> {
 	public timestamp: number ;
-    
+    public static readonly FUTURE = 'future' ;
+    public static readonly PAST = 'past' ;
+
 	// =================== constructors ==========================
     constructor(year: number, month: number, day: number);
     constructor(year: number, month: number, day: number, hours: number, minutes: number, seconds: number);
@@ -87,7 +90,18 @@ export class TSDate {
 			else {
 				let comps:TSDateComp|null = null ;
 
-				if ($isstring(t)) { comps = $isostring2components(t) ; }
+				if ($isstring(t)) {
+                    if (t === TSDate.FUTURE) {
+                        this.timestamp = UINT32_MAX ;
+                        return ;
+                    } 
+                    else if (t === TSDate.PAST) {
+                        comps = { year:<uint>1, month:<uint>1, day:<uint>1, hour:<uint>0, minute:<uint>0, second:<uint>0 } ;
+                    }
+                    else { 
+                        comps = $isostring2components(t) ; 
+                    } 
+                }
 				else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
 
 				if (!$ok(comps)) { throw "Bad TSDate constructor parameters" ; }
@@ -120,7 +134,6 @@ export class TSDate {
 
 	// ================= instance methods ========================
 
-    public isEqual(other:any) : boolean { return other instanceof TSDate && other.timestamp === this.timestamp; }
     public isLeap() : boolean { return $isleap($components(this.timestamp).year); }
 
 	public dateWithoutTime() { return new TSDate($daytimestamp(this.timestamp)) ; }
@@ -186,8 +199,20 @@ export class TSDate {
         return $components2date($components(this.timestamp)) ;
     }
 	public toIsoString() : string { return $components2string($components(this.timestamp), TSDateForm.ISO8601) ; }
+    public toRangeLocation() : number { return (this.timestamp / 60) & UnsignedMask ; }
+
+	// ============ TSObject conformance =============== 
+	public get isa():Class<TSDate> { return this.constructor as Class<TSDate> ; }
+	public get className():string { return this.constructor.name ; }
+    public compare(other:any) : Comparison {
+        if (this === other) { return Same ; }
+        if (other instanceof TSDate) { return $numcompare(this.timestamp, other.timestamp) ; }
+        return undefined ;
+    }
+    public isEqual(other:any) : boolean { return this === other || (other instanceof TSDate && other.timestamp === this.timestamp) ; }
 	public toString(form:TSDateForm=TSDateForm.Standard) : string { return $components2string($components(this.timestamp), form) ; }
 	public toJSON() : string { return $components2string($components(this.timestamp), TSDateForm.ISO8601) ; }
+	public toArray():TSDate[] { return [this] ; }
 }
 
 function _timeFromTimestamp(t: number) { return ((t+TSSecsFrom00010101To20010101) % TSDay) ; }

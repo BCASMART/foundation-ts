@@ -118,6 +118,12 @@ export const NO_HEADERS = {} ;
 export type RequestHeaders = { [key:string]: string | string[] | number}
 export type RequestAuth = { login:string, password:string }
 
+interface WRequestError {
+    status?:number ;
+    statusCode?:number ;
+    code?:string ;
+} ;
+
 export class WRequest {
 	public channel:AxiosInstance ;
 	public token:string = '' ;
@@ -167,6 +173,7 @@ export class WRequest {
 		}
 	}
 
+    
 	public async request(
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
@@ -205,18 +212,18 @@ export class WRequest {
 			status = response.status ;
 		}
 		catch (e) {
-			if (e === timeoutError || e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') { 
+			if (e === timeoutError || (e as WRequestError).code === 'ECONNABORTED' || (e as WRequestError).code === 'ETIMEDOUT') { 
 				// AxiosError contains a 'code' field
 				ret = null ;
 				status = Resp.TimeOut ;
 			}
-			else if ($isnumber(e.statusCode)) {
+			else if ($isnumber((e as WRequestError).statusCode)) {
 				ret = null ;
-				status = e.statusCode ;
+				status = (e as WRequestError).statusCode as number ;
 			}
-			else if ($isnumber(e.status)) {
+			else if ($isnumber((e as WRequestError).status)) {
 				ret = null ;
-				status = e.status ;
+				status = (e as WRequestError).status as number ;
 			}
 			else {
 				// all other errors must throw
@@ -225,5 +232,4 @@ export class WRequest {
 		}
 		return [ret, status]  ;
 	}
-
 }

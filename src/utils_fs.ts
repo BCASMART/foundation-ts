@@ -74,7 +74,7 @@ export function $filesize(src:string|null|undefined) : number
 
 }
 
-export function $uniquefile(src:string|null|undefined) : string
+export function $uniquefile(src?:string|null|undefined) : string
 {
 	const rand = $uuid() ;
 	if (!$length(src)) { return rand ; }
@@ -199,7 +199,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 			done = true ;
 		}
 		catch (e) { 
-			console.log(`File rename error ${e.message}`) ;
+			console.log(`File rename error ${(e as Error).message}`) ;
 			done = false ;
 		}
 		if (!done) {
@@ -211,7 +211,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 				done = true ;
 			}	
 			catch (e) {
-				console.log(`File copy error ${e.message}`) ;
+				console.log(`File copy error ${(e as Error).message}`) ;
 				done = false ; 
 			}
 		}
@@ -233,7 +233,7 @@ export function $copyFile(src:string|null|undefined, dest:string|null|undefined,
 			done = true ;
 		}	
 		catch (e) {
-			console.log(`File copy error ${e.message}`) ;
+			console.log(`File copy error ${(e as Error).message}`) ;
 			done = false ; 
 		}
 	}

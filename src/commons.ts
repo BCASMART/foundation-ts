@@ -1,4 +1,5 @@
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex } from "./types";
+import { FoundationASCIIConversion } from "./string_tables";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending} from "./types";
 import { $filename } from "./utils_fs";
 
 export function $ok(o:any | undefined | null) : boolean
@@ -71,6 +72,10 @@ export function $unsigned(n:string|number|null|undefined, defaultValue:uint=<uin
 export function $div(a: number, b: number) : number
 { return a/b | 0 ; }
 
+export function $string(v:any) : string {
+	if (!$ok(v)) return '' ;
+	return typeof v === 'object' && 'toString' in v ? v.toString() : `${v}`;
+}
 
 export function $strings(e: string[] | string | undefined | null) : string[]
 {
@@ -82,15 +87,110 @@ export function $trim(s: string | undefined | null) : string
 	return $length(s) ? (<string>s).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ;
 }
 
-export function $count(a:any[] | undefined | null) : number
+export function $ascii(source: string | undefined | null) : string
 {
-	return $ok(a) && Array.isArray(a) ? (<any[]>a).length : 0 ;
+	const l = $length(source) ;
+	if (!l) return '' ;
+	let s = (source as string).replace(/\s/g, ' ') ; // replace all weird spaces to ascii space
+	s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFKD") ; // does most of the job
+	// finally we will try to convert (or remove) the remaining non ascii characters
+	return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '') ;
+}
+export function $numcompare(a:number, b:number):Comparison {
+    if (a === b) {return Same ; }
+    if (isNaN(a) || isNaN(b)) { return undefined ; }
+    return a < b ? Ascending : Descending ;
 }
 
-export function $length(s:string | Buffer | undefined | null) : number
-{
-	return $ok(s) ? (<string|Buffer>s).length : 0 ;
+export function $compare(a:any, b:any):Comparison {
+	if (a === b) return Same ;
+    if (!$ok(a) || !$ok(b)) { return undefined ; }
+
+    if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
+    if ($isstring(a) && $isstring(b)) {
+        return Buffer.compare(Buffer.from(a, 'utf-8'), Buffer.from(b, 'utf-8')) as Comparison ;
+    }
+	if ($isarray(a) && $isarray(b)) {
+        const na = a.length, nb = b.length ;
+        let i = 0 ;
+        while (i < na && i < nb) {
+            const c = $compare(a[i], b[i]) ;
+            if (c !== Same) { return c ; }
+            i++ ;
+        }
+        return na === nb ? Same : (i < na ? Descending : Ascending) ;
+    }
+	if (a instanceof Date && b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) ; }
+	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
+	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
+		a = new Uint8Array(a as ArrayBufferLike) ;
+		b = new Uint8Array(b as ArrayBufferLike) ;
+        const na = a.length, nb = b.length ;
+        let i = 0 ;
+        while (i < na && i < nb) {
+            const c = $numcompare(a[i], b[i]) ;
+            if (c !== Same) { return c ; }
+            i++ ;
+        }
+        return na === nb ? Same : (i < na ? Descending : Ascending) ;
+    }
+    return ('compare' in a) ? a.compare(b) : undefined ; 
 }
+
+export function $equal(a:any, b:any) {
+	if (a === b) { return true ; }
+	if (typeof a === 'number' && typeof b === 'number') return a === b ; // in order to cover NaN inequality and infinity equality
+	if (!$ok(a) || !$ok(b)) return false ;
+	if ($isarray(a) && $isarray(b)) {
+		const n = a.length ;
+		if (n !== b.length) return false ;
+		for(let i = 0 ; i < n ; i++) { if (!$equal(a[i], b[i])) return false ; }
+		return true ;
+	}
+	if ('isEqual' in a && 'isEqual' in b) return a.isEqual(b) ;	
+	if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime() ;
+	if (a instanceof Set && b instanceof Set) {
+		return a.size === b.size && [...a.keys()].every(e => b.has(e)) ;
+	}
+	if (a instanceof Map && b instanceof Map) {
+		const ak = a.keys() ;
+		const bk = b.keys() ;
+		const keys = a.size >= b.size ? ak : bk ;
+		// we may have different expressed keys with undefined as value...
+		// eg: MapA{a:1, b:undefined} equals MapB{a:1} since MapB.get('b') returns undefined 
+		for (let k of keys) { if (!$equal(a.get(k), b.get(k))) return false ; }
+		return true ;
+	}
+	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
+	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
+		a = new Uint8Array(a as ArrayBufferLike) ;
+		b = new Uint8Array(b as ArrayBufferLike) ;
+		const n = a.length ;
+		if (n !== b.length) return false ;
+		for(let i = 0 ; i < n ; i++) { if (a[i] !== b[i]) return false ; }
+		return true ;
+	}
+
+	if (Object.getPrototypeOf(a) === Object.prototype && Object.getPrototypeOf(b) === Object.prototype) {
+		const ak = Object.getOwnPropertyNames(a) ;
+		const bk = Object.getOwnPropertyNames(a) ;
+		const keys = ak.length >= bk.length ? ak : bk ;
+		// we may have different expressed keys with undefined as value...
+		// eg: {a:1, b:undefined} equals {a:1}
+		for (let k of keys) { if (!$equal(a[k], b[k])) return false ; }
+		return true ;
+	}
+	return false ; 
+}
+
+export function $count(a:any[] | undefined | null) : number
+{ return $ok(a) && Array.isArray(a) ? (<any[]>a).length : 0 ; }
+
+export function $length(s:string | Buffer | undefined | null) : number
+{ return $ok(s) ? (<string|Buffer>s).length : 0 ; }
+
+export function $lengthin(s:string | Buffer | undefined | null, min:number=0, max:number=INT_MAX) : boolean
+{ const l = $length(s) ; return l >= min && l <= max ; }
 
 /*
 	This is a map function where callback returns as null or undefined are
@@ -106,10 +206,26 @@ export function $map<T, R>(a:Array<T> | undefined | null, callBack:(e:T) => R|nu
 	return ret ;
 }
 
-export function $json(v:any): string
+export function $jsonobj(v:any): any
 {
-	return JSON.stringify(v, null , 2) ;
+	if (v === null || v === undefined) return v ;
+
+	const t = typeof v ;
+	switch(t) {
+		case 'object':
+			return 'toJSON' in v ? v.toJSON() : v ; 
+		case 'boolean':
+		case 'number':
+		case 'bigint':
+		case 'string':
+			return v ;
+		default:
+			return undefined ;
+	} 
 }
+
+export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
+{ return JSON.stringify(v, replacer, space) ; }
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;
@@ -134,3 +250,4 @@ export function $exit(reason:string='', status:number=0, name?:string) {
 	else if ($length(reason)) { console.log(reason) ; }
 	process.exit(status) ;
 }
+
