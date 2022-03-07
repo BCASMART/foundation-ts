@@ -2,7 +2,7 @@ import { AnyDictionary } from './types';
 import * as qs from 'querystring'
 import { $isnumber, $isstring, $length, $ok, $unsigned, $timeout } from './commons';
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
-import { UniqueError } from './errors';
+import { TSUniqueError } from './tserrors';
 
 
 export function $basicauth(login:string, pwd:string) : string
@@ -205,7 +205,7 @@ export class WRequest {
 		let ret = null ;
 		let status = 0 ;
 
-		const timeoutError = UniqueError.singleton() ; // we use a singleton to avoid to use Symbol() in browsers
+		const timeoutError = TSUniqueError.singleton() ; // we use a singleton to avoid to use Symbol() in browsers
 		try {
 			const response = await $timeout(this.channel(config), timeout, timeoutError)
 			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;

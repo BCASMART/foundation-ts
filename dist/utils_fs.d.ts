@@ -11,7 +11,7 @@ export declare function $isfile(src: string | null | undefined): boolean;
 export declare function $isdirectory(src: string | null | undefined): boolean;
 export declare function $createDirectory(p: string | null | undefined): boolean;
 export declare function $filesize(src: string | null | undefined): number;
-export declare function $uniquefile(src: string | null | undefined): string;
+export declare function $uniquefile(src?: string | null | undefined): string;
 export declare function $path(...paths: string[]): string;
 export declare function $ext(s: string): string;
 export declare function $withoutext(s: string): string;

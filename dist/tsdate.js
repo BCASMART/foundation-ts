@@ -2,7 +2,9 @@
  * This is a timestamp (commencing at 01/01/2001) oriented date class
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateForm, $components2string, $components2timestamp, $components2date } from "./tsdatecomp";
-import { $isint, $isnumber, $div, $ok, $isstring } from "./commons";
+import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
+import { Same, UINT32_MAX } from "./types";
+import { UnsignedMask } from "./tsrange";
 const TSMinute = 60;
 const TSHour = 3600;
 const TSDay = 86400;
@@ -78,7 +80,16 @@ export class TSDate {
             else {
                 let comps = null;
                 if ($isstring(t)) {
-                    comps = $isostring2components(t);
+                    if (t === TSDate.FUTURE) {
+                        this.timestamp = UINT32_MAX;
+                        return;
+                    }
+                    else if (t === TSDate.PAST) {
+                        comps = { year: 1, month: 1, day: 1, hour: 0, minute: 0, second: 0 };
+                    }
+                    else {
+                        comps = $isostring2components(t);
+                    }
                 }
                 else if (!$ok(t) || t instanceof Date) {
                     comps = $components(t);
@@ -110,7 +121,6 @@ export class TSDate {
         return this.fromComponents($parsedate(s, form));
     }
     // ================= instance methods ========================
-    isEqual(other) { return other instanceof TSDate && other.timestamp === this.timestamp; }
     isLeap() { return $isleap($components(this.timestamp).year); }
     dateWithoutTime() { return new TSDate($daytimestamp(this.timestamp)); }
     year() { return $components(this.timestamp).year; }
@@ -171,9 +181,26 @@ export class TSDate {
         return $components2date($components(this.timestamp));
     }
     toIsoString() { return $components2string($components(this.timestamp), TSDateForm.ISO8601); }
+    toRangeLocation() { return (this.timestamp / 60) & UnsignedMask; }
+    // ============ TSObject conformance =============== 
+    get isa() { return this.constructor; }
+    get className() { return this.constructor.name; }
+    compare(other) {
+        if (this === other) {
+            return Same;
+        }
+        if (other instanceof TSDate) {
+            return $numcompare(this.timestamp, other.timestamp);
+        }
+        return undefined;
+    }
+    isEqual(other) { return this === other || (other instanceof TSDate && other.timestamp === this.timestamp); }
     toString(form = TSDateForm.Standard) { return $components2string($components(this.timestamp), form); }
     toJSON() { return $components2string($components(this.timestamp), TSDateForm.ISO8601); }
+    toArray() { return [this]; }
 }
+TSDate.FUTURE = 'future';
+TSDate.PAST = 'past';
 function _timeFromTimestamp(t) { return ((t + TSSecsFrom00010101To20010101) % TSDay); }
 function _dayOfWeekFromTimestamp(t, offset = 0) {
     return ($dayFromTimestamp(t) + TSDaysFrom00010101To20010101 + 7 - (offset % 7)) % 7;

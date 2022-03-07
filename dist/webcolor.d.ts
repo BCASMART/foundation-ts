@@ -1,10 +1,11 @@
-import { StringDictionary, uint, uint8 } from "./types";
+import { Class, TSObject } from "./tsobject";
+import { Comparison, StringDictionary, uint, uint8 } from "./types";
 export declare const WebColorNames: StringDictionary;
 export declare function $lighter(c: number): uint8;
 export declare function $darker(c: number): uint8;
 export declare function $lightest(c: number): uint8;
 export declare function $darkest(c: number): uint8;
-export declare class WebColor {
+export declare class WebColor implements TSObject<WebColor> {
     red: uint8;
     green: uint8;
     blue: uint8;
@@ -22,7 +23,6 @@ export declare class WebColor {
     constructor(stringColor: string);
     constructor(colorDefinition: number);
     constructor(r: number, g: number, b: number, a?: number);
-    isEqual(other: any): boolean;
     luminance(): number;
     isPale(): boolean;
     lighterColor(): WebColor;
@@ -33,6 +33,11 @@ export declare class WebColor {
     writingColor(): WebColor;
     toNumber(): number;
     toUnsigned(): uint;
+    get isa(): Class<WebColor>;
+    get className(): string;
+    isEqual(other: any): boolean;
+    compare(other: any): Comparison;
     toString(removeAlpha?: boolean): string;
     toJSON(): string;
+    toArray(): uint8[];
 }

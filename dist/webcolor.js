@@ -1,5 +1,5 @@
-import { $isnumber, $isstring, $isunsigned, $ok } from "./commons";
-import { UINT32_MAX, UINT8_MAX } from "./types";
+import { $isnumber, $isstring, $isunsigned, $numcompare, $ok } from "./commons";
+import { Same, UINT32_MAX, UINT8_MAX } from "./types";
 export const WebColorNames = {
     aliceblue: "#f0f8ff",
     antiquewhite: "#faebd7",
@@ -221,13 +221,6 @@ export class WebColor {
         }
         throw "Bad color constructor parameters";
     }
-    isEqual(other) {
-        return (other instanceof WebColor &&
-            other.red === this.red &&
-            other.green === this.green &&
-            other.blue === this.blue &&
-            other.alpha === this.alpha);
-    }
     luminance() {
         return (0.3 * this.red + 0.59 * this.green + 0.11 * this.blue) / 255.0;
     }
@@ -261,6 +254,21 @@ export class WebColor {
     toUnsigned() {
         return this.toNumber();
     }
+    // ============ TSObject conformance =============== 
+    get isa() { return this.constructor; }
+    get className() { return this.constructor.name; }
+    isEqual(other) {
+        return this === other || (other instanceof WebColor &&
+            other.red === this.red &&
+            other.green === this.green &&
+            other.blue === this.blue &&
+            other.alpha === this.alpha);
+    }
+    compare(other) {
+        return this === other ?
+            Same :
+            (other instanceof WebColor ? $numcompare(this.luminance(), other.luminance()) : undefined);
+    }
     toString(removeAlpha = false) {
         return this.alpha === 255 || removeAlpha
             ? `#${_toHex(this.red)}${_toHex(this.green)}${_toHex(this.blue)}`
@@ -271,6 +279,7 @@ export class WebColor {
             ? `#${_toHex(this.red)}${_toHex(this.green)}${_toHex(this.blue)}`
             : `#${_toHex(this.red)}${_toHex(this.green)}${_toHex(this.blue)}${_toHex(this.alpha)}`;
     }
+    toArray() { return [this.red, this.green, this.blue, this.alpha]; }
 }
 WebColor.red = new WebColor(0xff, 0, 0);
 WebColor.green = new WebColor(0, 0xff, 0);

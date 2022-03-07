@@ -2,7 +2,8 @@
  * This is a timestamp (commencing at 01/01/2001) oriented date class
  */
 import { TSDateComp, TSDateForm } from "./tsdatecomp";
-import { uint } from "./types";
+import { Comparison, uint } from "./types";
+import { Class, TSObject } from "./tsobject";
 export declare const TSDaysFrom00000229To20010101 = 730792;
 export declare const TSSecsFrom19700101To20010101 = 978307200;
 export declare function $isleap(y: number): boolean;
@@ -14,8 +15,10 @@ export declare function $secondFromTimestamp(t: number): uint;
 export declare function $minuteFromTimestamp(t: number): uint;
 export declare function $hourFromTimestamp(t: number): uint;
 export declare function $daytimestamp(ts: number): number;
-export declare class TSDate {
+export declare class TSDate implements TSObject<TSDate> {
     timestamp: number;
+    static readonly FUTURE = "future";
+    static readonly PAST = "past";
     constructor(year: number, month: number, day: number);
     constructor(year: number, month: number, day: number, hours: number, minutes: number, seconds: number);
     constructor(interval: number);
@@ -27,7 +30,6 @@ export declare class TSDate {
     static fromComponents(comp: TSDateComp | undefined | null): TSDate | null;
     static fromString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
     static fromDateString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
-    isEqual(other: any): boolean;
     isLeap(): boolean;
     dateWithoutTime(): TSDate;
     year(): number;
@@ -54,6 +56,12 @@ export declare class TSDate {
     toEpochTimestamp(): number;
     toDate(): Date;
     toIsoString(): string;
+    toRangeLocation(): number;
+    get isa(): Class<TSDate>;
+    get className(): string;
+    compare(other: any): Comparison;
+    isEqual(other: any): boolean;
     toString(form?: TSDateForm): string;
     toJSON(): string;
+    toArray(): TSDate[];
 }

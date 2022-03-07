@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import * as qs from 'querystring';
 import { $isnumber, $isstring, $length, $ok, $unsigned, $timeout } from './commons';
 import axios from 'axios';
-import { UniqueError } from './errors';
+import { TSUniqueError } from './tserrors';
 export function $basicauth(login, pwd) {
     return 'Basic ' + Buffer.from(`${login}:${pwd}`).toString('base64');
 }
@@ -111,6 +111,7 @@ export var RespType;
 })(RespType || (RespType = {}));
 export const NO_BODY = undefined;
 export const NO_HEADERS = {};
+;
 export class WRequest {
     constructor(baseURL = '', commonHeaders = {}, auth = null, commonTimeout) {
         this.baseURL = baseURL;
@@ -187,7 +188,7 @@ export class WRequest {
             }
             let ret = null;
             let status = 0;
-            const timeoutError = UniqueError.singleton(); // we use a singleton to avoid to use Symbol() in browsers
+            const timeoutError = TSUniqueError.singleton(); // we use a singleton to avoid to use Symbol() in browsers
             try {
                 const response = yield $timeout(this.channel(config), timeout, timeoutError);
                 ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data;
