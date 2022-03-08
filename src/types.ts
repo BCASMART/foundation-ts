@@ -71,8 +71,6 @@ export type FlagDictionary = 		{ [key: string]: boolean } ;
 export type StringArrayDictionary = { [key: string]: string[] } ;
 export type NumberArrayDictionary = { [key: string]: number[] } ;
 
-export type Translation = { [key in language]:string }
-export type TranslationDictionary = { [key:string]:Translation }
 
 // ========== interfaces =====================
 export interface Address {

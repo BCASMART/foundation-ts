@@ -1,18 +1,25 @@
 import { $div, $isnumber, $length, $ok, $unsigned } from "./commons";
-import { $dayisvalid, $timeisvalid, $dayFromTimestamp, $hourFromTimestamp, $minuteFromTimestamp, $secondFromTimestamp, TSDaysFrom00000229To20010101, TSDate, $timestamp } from "./tsdate";
+import { $dayisvalid, $timeisvalid, $dayFromTimestamp, $hourFromTimestamp, $minuteFromTimestamp, $secondFromTimestamp, TSDaysFrom00000229To20010101, TSDate, TSDay, $timestamp, TSHour, TSMinute } from "./tsdate";
 import { uint, UINT_MIN } from "./types";
 
 export interface TimeComp {
-	hour:uint,
-	minute:uint,
-	second:uint
+	hour:uint;
+	minute:uint;
+	second:uint;
 }
 
 export interface TSDateComp extends TimeComp {
-	year:uint,
-	month:uint,
-	day:uint,
-	dayOfWeek?:uint,
+	year:uint;
+	month:uint;
+	day:uint;
+	dayOfWeek?:uint;
+}
+
+export interface TSDurationComp {
+    days:uint;
+    hours:uint;
+    minutes:uint;
+    seconds:uint;
 }
 
 export enum TSDateForm {
@@ -222,6 +229,50 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 						 : `${_fpad4(c.year)}/${_fpad2(c.month)}/${_fpad4(c.day)}` ;
 	}
 }
+
+export function $durationcomponents(duration: number|null|undefined) : TSDurationComp {
+    let time:number = $unsigned(duration, 0 as uint) ;
+    let d:number, h:number, m:number ;
+
+    d = $div(time,TSDay) ;
+    time -= d*TSDay ;
+    h = $div(time, TSHour) ;
+    time -= h*TSHour ;
+    m = $div(time, TSMinute) ;
+
+    return { 
+        days:d as uint, 
+        hours:h as uint, 
+        minutes:m as uint, 
+        seconds:(time-m*TSMinute) as uint 
+    }
+}
+
+export function $duration(comps:TSDurationComp):number {
+    return comps.days*TSDay+comps.hours*TSHour+comps.minutes*TSMinute+comps.seconds ;
+}
+
+export function duration2String(comps:TSDurationComp):string {
+    // we reexport in number before constructing the string in order
+    // to normalize the number of days, hours, minutes and seconds
+    return durationNumber2String($duration(comps)) ;
+}
+
+export function durationNumber2String(duration: number|null|undefined) : string {
+    const c = $durationcomponents(duration) ;
+    if (c.days || c.hours || c.minutes || c.seconds) {
+        if (c.days) {
+            return c.seconds ? 
+                `${_fpad2(c.days)}-${_fpad2(c.hours)}:${_fpad2(c.minutes)}:${_fpad2(c.seconds)}` : 
+                `${_fpad2(c.days)}-${_fpad2(c.hours)}:${_fpad2(c.minutes)}` ; 
+        }
+        return c.seconds ? 
+            `${_fpad2(c.hours)}:${_fpad2(c.minutes)}:${_fpad2(c.seconds)}` : 
+            `${_fpad2(c.hours)}:${_fpad2(c.minutes)}` ; 
+    }
+    return '00:00' ;
+}
+
 
 
 //////////////////// private functions

@@ -65,12 +65,6 @@ export declare type StringArrayDictionary = {
 export declare type NumberArrayDictionary = {
     [key: string]: number[];
 };
-export declare type Translation = {
-    [key in language]: string;
-};
-export declare type TranslationDictionary = {
-    [key: string]: Translation;
-};
 export interface Address {
     streetNumber?: string;
     street?: string;

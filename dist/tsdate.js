@@ -5,10 +5,10 @@ import { $components, $isostring2components, $parsedate, $parsedatetime, $compon
 import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
 import { Same, UINT32_MAX } from "./types";
 import { UnsignedMask } from "./tsrange";
-const TSMinute = 60;
-const TSHour = 3600;
-const TSDay = 86400;
-const TSWeek = 604800;
+export const TSMinute = 60;
+export const TSHour = 3600;
+export const TSDay = 86400;
+export const TSWeek = 604800;
 const TSDaysFrom00010101To20010101 = 730485;
 const TSSecsFrom00010101To20010101 = 63113904000;
 const TSDaysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];

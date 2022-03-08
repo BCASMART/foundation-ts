@@ -11,6 +11,12 @@ export interface TSDateComp extends TimeComp {
     day: uint;
     dayOfWeek?: uint;
 }
+export interface TSDurationComp {
+    days: uint;
+    hours: uint;
+    minutes: uint;
+    seconds: uint;
+}
 export declare enum TSDateForm {
     Standard = 0,
     English = 1,
@@ -89,3 +95,7 @@ export declare function $isostring2components(source: string | null | undefined,
 export declare function $components2timestamp(c: TSDateComp): number;
 export declare function $components2date(c: TSDateComp): Date;
 export declare function $components2string(c: TSDateComp, form?: TSDateForm): string;
+export declare function $durationcomponents(duration: number | null | undefined): TSDurationComp;
+export declare function $duration(comps: TSDurationComp): number;
+export declare function duration2String(comps: TSDurationComp): string;
+export declare function durationNumber2String(duration: number | null | undefined): string;

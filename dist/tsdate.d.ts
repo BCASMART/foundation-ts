@@ -4,6 +4,10 @@
 import { TSDateComp, TSDateForm } from "./tsdatecomp";
 import { Comparison, uint } from "./types";
 import { Class, TSObject } from "./tsobject";
+export declare const TSMinute = 60;
+export declare const TSHour = 3600;
+export declare const TSDay = 86400;
+export declare const TSWeek = 604800;
 export declare const TSDaysFrom00000229To20010101 = 730792;
 export declare const TSSecsFrom19700101To20010101 = 978307200;
 export declare function $isleap(y: number): boolean;

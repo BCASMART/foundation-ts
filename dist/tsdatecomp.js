@@ -1,5 +1,5 @@
 import { $div, $isnumber, $length, $ok, $unsigned } from "./commons";
-import { $dayisvalid, $timeisvalid, $dayFromTimestamp, $hourFromTimestamp, $minuteFromTimestamp, $secondFromTimestamp, TSDaysFrom00000229To20010101, TSDate, $timestamp } from "./tsdate";
+import { $dayisvalid, $timeisvalid, $dayFromTimestamp, $hourFromTimestamp, $minuteFromTimestamp, $secondFromTimestamp, TSDaysFrom00000229To20010101, TSDate, TSDay, $timestamp, TSHour, TSMinute } from "./tsdate";
 import { UINT_MIN } from "./types";
 export var TSDateForm;
 (function (TSDateForm) {
@@ -177,6 +177,43 @@ export function $components2string(c, form = TSDateForm.Standard) {
             return timed ? `${_fpad4(c.year)}/${_fpad2(c.month)}/${_fpad4(c.day)}-${_fpad2(c.hour)}:${_fpad2(c.minute)}:${_fpad2(c.second)}`
                 : `${_fpad4(c.year)}/${_fpad2(c.month)}/${_fpad4(c.day)}`;
     }
+}
+export function $durationcomponents(duration) {
+    let time = $unsigned(duration, 0);
+    let d, h, m;
+    d = $div(time, TSDay);
+    time -= d * TSDay;
+    h = $div(time, TSHour);
+    time -= h * TSHour;
+    m = $div(time, TSMinute);
+    return {
+        days: d,
+        hours: h,
+        minutes: m,
+        seconds: (time - m * TSMinute)
+    };
+}
+export function $duration(comps) {
+    return comps.days * TSDay + comps.hours * TSHour + comps.minutes * TSMinute + comps.seconds;
+}
+export function duration2String(comps) {
+    // we reexport in number before constructing the string in order
+    // to normalize the number of days, hours, minutes and seconds
+    return durationNumber2String($duration(comps));
+}
+export function durationNumber2String(duration) {
+    const c = $durationcomponents(duration);
+    if (c.days || c.hours || c.minutes || c.seconds) {
+        if (c.days) {
+            return c.seconds ?
+                `${_fpad2(c.days)}-${_fpad2(c.hours)}:${_fpad2(c.minutes)}:${_fpad2(c.seconds)}` :
+                `${_fpad2(c.days)}-${_fpad2(c.hours)}:${_fpad2(c.minutes)}`;
+        }
+        return c.seconds ?
+            `${_fpad2(c.hours)}:${_fpad2(c.minutes)}:${_fpad2(c.seconds)}` :
+            `${_fpad2(c.hours)}:${_fpad2(c.minutes)}`;
+    }
+    return '00:00';
 }
 //////////////////// private functions
 // since IE does not support padStart() ...
