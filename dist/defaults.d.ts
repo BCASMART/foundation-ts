@@ -29,10 +29,18 @@ export declare class LocalDefaults {
     private static __subfolders;
     private static __translations;
     defaultPath: string;
+    tmpDirectory: string;
     defaultLanguage: language;
+    private _values;
     private constructor();
     translations(lang?: language | undefined | null): Translations;
     static setSubfolders(folders: string[]): void;
     setDefaultLanguage(l: language): language;
+    setTmpDirectory(path: string): void;
+    setValue(key: string, value: any): void;
+    getValue(key: string): any;
     static defaults(): LocalDefaults;
 }
+export declare function $default(key: string): any;
+export declare function $setdefault(key: string, value?: any): void;
+export declare function $removedefault(key: string): void;

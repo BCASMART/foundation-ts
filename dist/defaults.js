@@ -1,8 +1,11 @@
-import { $ok } from "./commons";
-import { $dir, $filename } from "./utils_fs";
+import { $length, $ok } from "./commons";
+import { $dir, $filename, $isdirectory } from "./utils_fs";
+import os from 'os';
 export class LocalDefaults {
     constructor() {
+        this.tmpDirectory = os.tmpdir();
         this.defaultLanguage = 'fr';
+        this._values = {};
         this.defaultPath = __dirname;
         for (let sf in LocalDefaults.__subfolders) {
             if ($filename(this.defaultPath) === sf) {
@@ -25,6 +28,23 @@ export class LocalDefaults {
         }
         return this.defaultLanguage;
     }
+    setTmpDirectory(path) {
+        if ($isdirectory(path)) {
+            this.tmpDirectory = path;
+        }
+    }
+    // these 3 methods permits using software to store global values on unique Defaults instance
+    setValue(key, value) {
+        if ($length(key)) {
+            if ($ok(value)) {
+                this._values[key] = value;
+            }
+            else if ($ok(this._values[key])) {
+                delete this._values[key];
+            }
+        }
+    }
+    getValue(key) { return this._values[key]; }
     static defaults() {
         if (!this.__instance) {
             this.__instance = new LocalDefaults();
@@ -68,4 +88,7 @@ LocalDefaults.__translations = {
         year: { singular: 'year', plural: 'years', short: 'y.', shorts: 'y.' }
     }
 };
+export function $default(key) { return LocalDefaults.defaults().getValue(key); }
+export function $setdefault(key, value = undefined) { return LocalDefaults.defaults().setValue(key, value); }
+export function $removedefault(key) { return LocalDefaults.defaults().setValue(key, undefined); }
 //# sourceMappingURL=defaults.js.map

@@ -1,7 +1,7 @@
-import { $ok } from "./commons";
-import { language } from "./types";
-import { $dir, $filename } from "./utils_fs";
-
+import { $length, $ok } from "./commons";
+import { AnyDictionary, language } from "./types";
+import { $dir, $filename, $isdirectory } from "./utils_fs";
+import os from 'os'
 /**
  * if you want to change the subfolders to be tested
  * you should use the static method setSubfolders() before
@@ -65,7 +65,10 @@ export class LocalDefaults {
         }
     } ;
 	public defaultPath ;
+    public tmpDirectory = os.tmpdir() ;
     public defaultLanguage:language = 'fr' ;
+    private _values:AnyDictionary = {} ;
+
     private constructor() {
 		this.defaultPath = __dirname ;
 		for (let sf in LocalDefaults.__subfolders) {
@@ -92,11 +95,34 @@ export class LocalDefaults {
         }
         return this.defaultLanguage ;
     }
+    
+    public setTmpDirectory(path:string) {
+        if ($isdirectory(path)) {
+            this.tmpDirectory = path ;
+        }
+    }
 
-	public static defaults(): LocalDefaults {
+    // these 3 methods permits using software to store global values on unique Defaults instance
+    public setValue(key:string, value:any) {
+        if ($length(key)) {
+            if ($ok(value)) {
+                this._values[key] = value ;
+            }
+            else if ($ok(this._values[key])) {
+                delete this._values[key] ;
+            }
+        }
+    }
+    public getValue(key:string):any { return this._values[key] ; }
+
+    public static defaults(): LocalDefaults {
 		if (!this.__instance) {
 			this.__instance = new LocalDefaults() ;
 		}
 		return this.__instance ;
 	}
 }
+
+export function $default(key:string):any { return LocalDefaults.defaults().getValue(key) ; }
+export function $setdefault(key:string, value:any=undefined) { return LocalDefaults.defaults().setValue(key, value) ; }
+export function $removedefault(key:string) { return LocalDefaults.defaults().setValue(key, undefined) ; }

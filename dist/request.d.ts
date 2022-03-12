@@ -94,14 +94,14 @@ export declare type RequestAuth = {
     password: string;
 };
 export declare class WRequest {
-    baseURL: string;
-    commonHeaders: RequestHeaders;
     channel: AxiosInstance;
     token: string;
     basicAuth: string;
     defaultTimeOut: number;
+    baseURL: string;
+    commonHeaders: RequestHeaders;
     static instantRequest(url: string, method?: Verb, responseType?: RespType, statuses?: number[], body?: object | Buffer | ArrayBuffer | null | undefined, suplHeaders?: RequestHeaders, auth?: RequestAuth | string | null | undefined, timeout?: number): Promise<[Buffer | object | string | ReadableStream | null, number]>;
-    constructor(baseURL?: string, commonHeaders?: RequestHeaders, auth?: RequestAuth | string | null | undefined, commonTimeout?: number);
+    constructor(baseURL?: string, headers?: RequestHeaders, auth?: RequestAuth | string | null | undefined, commonTimeout?: number);
     setAuth(auth?: RequestAuth | null | undefined): void;
     setToken(token?: string | null | undefined): void;
     request(relativeURL: string, method?: Verb, responseType?: RespType, statuses?: number[], body?: object | Buffer | ArrayBuffer | null | undefined, suplHeaders?: RequestHeaders, timeout?: number): Promise<[Buffer | object | string | ReadableStream | null, number]>;

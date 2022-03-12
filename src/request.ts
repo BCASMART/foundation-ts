@@ -129,6 +129,8 @@ export class WRequest {
 	public token:string = '' ;
 	public basicAuth:string = '' ;
 	public defaultTimeOut = 1000 ;
+    public baseURL:string = '' ;
+    public commonHeaders:RequestHeaders={} ;
 
 	public static async instantRequest(
 		url:string, 
@@ -147,12 +149,14 @@ export class WRequest {
 		return await req.request(url, method, responseType, statuses, body, suplHeaders, timeout) ;
 	}
 
-	constructor(public baseURL:string='', public commonHeaders:RequestHeaders={}, auth:RequestAuth|string|null|undefined=null, commonTimeout?:number) {
+	public constructor(baseURL:string='', headers:RequestHeaders={}, auth:RequestAuth|string|null|undefined=null, commonTimeout?:number) {
+        this.baseURL = baseURL ;
+        this.commonHeaders= headers ;
 		if ($isstring(auth)) { this.setToken(<string>auth) ; }
 		else if ($ok(auth)) { this.setAuth(<RequestAuth>auth) ; }
 		commonTimeout = $unsigned(commonTimeout) ;
 		if (commonTimeout>0) { this.defaultTimeOut = commonTimeout ; }
-		this.channel = axios.create({baseURL:baseURL, headers:commonHeaders}) ;
+		this.channel = axios.create({baseURL:baseURL, headers:headers}) ;
 	} 
 
 	public setAuth(auth?:RequestAuth|null|undefined) {

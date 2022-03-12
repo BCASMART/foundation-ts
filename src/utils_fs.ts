@@ -13,6 +13,7 @@ import {
 	readFileSync, 
 	renameSync,
 	statSync,
+    accessSync,
 	unlinkSync,
 	writeFileSync,
 	constants
@@ -24,97 +25,133 @@ import {
 	extname,
 	join 
 } from 'path' ;
-import { $length, $ok } from './commons';
+import { $length, $ok, $trim } from './commons';
 import { LocalDefaults } from './defaults';
 import { $uuid } from './utils_crypto';
 
 export function $isfile(src:string | null | undefined) {
 	let ret:boolean = false ;
-	try {
-		ret =  $length(src) && statSync(<string>src).isFile() ? true : false ;
-	}
-	catch {
-		ret = false ;
-	}
+    if ($length(src)) {
+        try { ret = statSync(<string>src).isFile() ; }
+	    catch { ret = false ; }
+    }
 	return ret ;
 }
 
+export function $isexecutable(src:string | null | undefined) {
+	let ret:boolean = false ;
+    if ($length(src)) {
+        try {
+            if (statSync(<string>src).isFile()) {
+                // we cound use stats.mode but we should take care of who we are, so better to rely on accessSync(-)
+                accessSync(src as string, constants.R_OK | constants.X_OK);
+                ret = true ;
+            }
+        }
+        catch { ret = false ; }    
+    }
+	return ret ;
+}
+
+
 export function $isdirectory(src:string | null | undefined) {
-	let ret = false ;
-	try {
-		ret =  $length(src) && statSync(<string>src).isDirectory() ? true : false ;
-	}
-	catch {
-		ret = false ;
-	}
+	let ret:boolean = false ;
+    if ($length(src)) {
+        try { ret = statSync(<string>src).isDirectory() ; }
+	    catch { ret = false ; }
+    }
 	return ret ;
 }
 
 export function $createDirectory(p:string|null|undefined) : boolean
 {
-	if (!$length(p)) { return false ; }
-	if ($isdirectory(p)) { return true ; }
-	if ($isfile(p)) { return false } ;
-	let ret = false ;
-	try { 
-		mkdirSync(<string>p, { recursive: true }) ; 
-		ret = true ;
-	}
-	catch { 
-		ret = false ; 
-	}
-	return ret ;
+    let ret:boolean = false ;
+    if ($length(p)) {
+        try { 
+            const stats = statSync(p!) ;
+            ret = stats.isDirectory() ;
+            if (!ret && !stats.isFile()) {
+                mkdirSync(p!, { recursive: true }) ; 
+                ret = true ;
+            }
+        } 
+        catch { ret = false ; }
+    }
+    return ret ;
 }
 
 export function $filesize(src:string|null|undefined) : number
 {
-	if (!$isfile(src)) return 0 ;
-	let stats = statSync(<string>src);
-	return $ok(stats) ? stats.size : 0 ;
+	let ret:number = 0 ;
+    if ($length(src)) {
+        try { ret = statSync(<string>src).size ; }
+	    catch { ret = 0 ; }
+    }
+    return ret ;
+}
 
+export function $temporarypath(ext:string|null|undefined='', src:string|null|undefined='') : string 
+{
+    ext = $trim(ext) ;
+    let file = $uniquefile(src) ;
+    if ($length(ext)) { file = $newext(file, ext) ; }
+    return $path(LocalDefaults.defaults().tmpDirectory, file) ;
 }
 
 export function $uniquefile(src?:string|null|undefined) : string
 {
 	const rand = $uuid() ;
 	if (!$length(src)) { return rand ; }
-	const ext = $ext(<string>src) ;
+	const ext = $ext(src) ;
 	return $length(ext) ? `${$withoutext(<string>src)}-${rand}.${ext}` : `${src}-${rand}` ;
 }
 
 export function $path(...paths:string[]): string { return join(...paths) ; }
-export function $ext(s:string):string 
+export function $ext(s:string|null|undefined):string 
 { 
-	const e = extname(s) ; 
-	return $length(e) ? e.slice(1) : '' ;
+    if (!$length(s)) { 
+	    const e = extname(s!) ;
+        if ($length(e)) { return e.slice(1) ; }
+    } 
+	return '' ;
 }
-export function $withoutext(s:string):string
+
+export function $withoutext(s:string|null|undefined):string
 {
-	const e = extname(s) ;
-	return $length(e) ? s.slice(0, s.length - e.length) : s ;
+    if (!$length(s)) { return '' ;}
+	const e = $ext(s) ;
+	return e.length ? s!.slice(0, s!.length - e.length) : s! ;
 }
 
-export function $dir(s:string):string 			 { return dirname(s) ; }
-export function $filename(s:string):string 	     { return basename(s) ; }
+export function $newext(s:string|null|undefined, e:string|null|undefined=undefined):string {
+    let b = $withoutext(s) ;
+    return $length(e) ? `${b}.${e}` : b ;
+}
 
-export function $loadJSON(src:string|null|undefined) : any | null
+export function $dir(s:string|null|undefined):string      { return $length(s) ? dirname(s!) : '' ; }
+export function $filename(s:string|null|undefined):string { return $length(s) ? basename(s!) : '' ; }
+
+export function $loadJSON(src:string|null|undefined|Buffer) : any | null
 {
 	let ret = null ;
-	let loadedString = $readString(src) ;
-	if ($length(loadedString)) {
-		try {
-			ret = JSON.parse(<string>loadedString) ;
-			ret = $ok(ret) ? ret : null ;
-		}
-		catch (e) {
-			console.log(`Impossible to parse JSON file ${src}`) ;
-			ret = null ;			
-		}
-	}
+    if ($length(src)) {
+        let loadedString = src instanceof Buffer ? src.toString('utf-8') : $readString(src, 'utf-8') ;
+        if ($length(loadedString)) {
+            try {
+                ret = JSON.parse(<string>loadedString) ;
+                ret = $ok(ret) ? ret : null ;
+            }
+            catch (e) {
+                console.log(`Impossible to parse JSON file ${src}`) ;
+                ret = null ;			
+            }
+        }    
+    }
 	return ret ;
 }
 
 export function $defaultpath() : string { return LocalDefaults.defaults().defaultPath ; }
+export function $defaulttmp() : string { return LocalDefaults.defaults().tmpDirectory ; }
 
 export function $readString(src:string|null|undefined, encoding:BufferEncoding='utf-8') : string|null
 {
@@ -156,7 +193,7 @@ export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
 	let done = false ;
 	if ($length(src)) {
 		try {
-			writeFileSync(<string>src, buf) ;
+			writeFileSync(src!, buf) ;
 			done = true ;
 		}
 		catch(e) {
@@ -171,7 +208,7 @@ export function $removeFile(src:string|null|undefined) : boolean
 	let done = false
 	if ($isfile(src)) {
 		try {
-			unlinkSync(<string>src) ;
+			unlinkSync(src!) ;
 			done = true ;	
 		}
 		catch (e) {
@@ -187,33 +224,26 @@ export function $removeFile(src:string|null|undefined) : boolean
  */
 export function $realMoveFile(src:string|null|undefined, dest:string|null|undefined) : boolean
 {
-	console.log(`$realMoveFile('${src}', '${dest}')`) ;
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {
-			dest = $path(<string>dest, $filename(<string>src)) ;
+			dest = $path(dest!, $filename(src)) ;
 			if (src === dest) { return false ; }
 		}
 		try {
-			renameSync(<string>src, <string>dest) ;
+			renameSync(src!, dest!) ;
 			done = true ;
 		}
-		catch (e) { 
-			console.log(`File rename error ${(e as Error).message}`) ;
-			done = false ;
-		}
+		catch { done = false ; }
 		if (!done) {
 			// rename function did not work, so we will try to copy
 			// the file
 			try {
-				copyFileSync(<string>src, <string>dest) ;
-				unlinkSync(<string>src) ;
+				copyFileSync(src!, dest!) ;
+				unlinkSync(src!) ;
 				done = true ;
 			}	
-			catch (e) {
-				console.log(`File copy error ${(e as Error).message}`) ;
-				done = false ; 
-			}
+			catch { done = false ; } // WARNING: if we fails here, we may made the copy() but not the unlink()
 		}
 	}
 	return done ;
@@ -221,21 +251,17 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 
 export function $copyFile(src:string|null|undefined, dest:string|null|undefined, overwrite:boolean=false) : boolean
 {
-	console.log(`$copyFile('${src}', '${dest}')`) ;
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {
-			dest = $path(<string>dest, $filename(<string>src)) ;
+			dest = $path(dest!, $filename(src)) ;
 		}
 		if (src === dest || $isdirectory(dest) || (!overwrite && $isfile(dest))) { return false ; }
 		try {
-			copyFileSync(<string>src, <string>dest, (overwrite?0:constants.COPYFILE_EXCL)) ;
+			copyFileSync(src!, dest!, (overwrite?0:constants.COPYFILE_EXCL)) ;
 			done = true ;
 		}	
-		catch (e) {
-			console.log(`File copy error ${(e as Error).message}`) ;
-			done = false ; 
-		}
+        catch { done = false ; }
 	}
 	return done ;
 }

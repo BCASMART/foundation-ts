@@ -61,9 +61,16 @@ export function $decrypt(source, key) {
     return returnValue;
 }
 export function $hash(buf, method) {
-    let hash = crypto.createHash($length(method) ? method.toLowerCase() : 'sha256');
-    hash.update(buf);
-    return hash.digest('hex');
+    let ret = null;
+    try {
+        let hash = crypto.createHash($length(method) ? method.toLowerCase() : 'sha256');
+        hash.update(buf);
+        ret = hash.digest('hex');
+    }
+    catch (e) {
+        ret = null;
+    }
+    return ret;
 }
 export function $hashfile(filePath, method) {
     return __awaiter(this, void 0, void 0, function* () {

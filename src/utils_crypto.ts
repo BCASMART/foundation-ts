@@ -54,11 +54,16 @@ export function $decrypt(source:string, key:string) : string|null
 	return returnValue ;
 }
 
-export function $hash(buf:Buffer, method?:HashMethod):string
+export function $hash(buf:Buffer, method?:HashMethod):string|null
 {
-	let hash = crypto.createHash($length(method) ? (<string>method).toLowerCase() : 'sha256') ;
-	hash.update(buf) ;
-	return hash.digest('hex') ;
+    let ret:string|null = null ;
+    try {
+	    let hash = crypto.createHash($length(method) ? (<string>method).toLowerCase() : 'sha256') ;
+	    hash.update(buf) ;
+	    ret = hash.digest('hex') ;
+    }
+    catch(e) { ret = null ; }
+    return ret ;
 }
 
 export async function $hashfile(filePath:string|null|undefined, method?:HashMethod):Promise<string|null>

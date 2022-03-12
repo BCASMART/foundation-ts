@@ -113,12 +113,14 @@ export const NO_BODY = undefined;
 export const NO_HEADERS = {};
 ;
 export class WRequest {
-    constructor(baseURL = '', commonHeaders = {}, auth = null, commonTimeout) {
-        this.baseURL = baseURL;
-        this.commonHeaders = commonHeaders;
+    constructor(baseURL = '', headers = {}, auth = null, commonTimeout) {
         this.token = '';
         this.basicAuth = '';
         this.defaultTimeOut = 1000;
+        this.baseURL = '';
+        this.commonHeaders = {};
+        this.baseURL = baseURL;
+        this.commonHeaders = headers;
         if ($isstring(auth)) {
             this.setToken(auth);
         }
@@ -129,7 +131,7 @@ export class WRequest {
         if (commonTimeout > 0) {
             this.defaultTimeOut = commonTimeout;
         }
-        this.channel = axios.create({ baseURL: baseURL, headers: commonHeaders });
+        this.channel = axios.create({ baseURL: baseURL, headers: headers });
     }
     static instantRequest(url, method = Verb.Get, responseType = RespType.Json, statuses = [200], body = null, suplHeaders = {}, auth = null, timeout) {
         return __awaiter(this, void 0, void 0, function* () {

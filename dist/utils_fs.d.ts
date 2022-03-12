@@ -8,17 +8,21 @@
  */
 /// <reference types="node" />
 export declare function $isfile(src: string | null | undefined): boolean;
+export declare function $isexecutable(src: string | null | undefined): boolean;
 export declare function $isdirectory(src: string | null | undefined): boolean;
 export declare function $createDirectory(p: string | null | undefined): boolean;
 export declare function $filesize(src: string | null | undefined): number;
+export declare function $temporarypath(ext?: string | null | undefined, src?: string | null | undefined): string;
 export declare function $uniquefile(src?: string | null | undefined): string;
 export declare function $path(...paths: string[]): string;
-export declare function $ext(s: string): string;
-export declare function $withoutext(s: string): string;
-export declare function $dir(s: string): string;
-export declare function $filename(s: string): string;
-export declare function $loadJSON(src: string | null | undefined): any | null;
+export declare function $ext(s: string | null | undefined): string;
+export declare function $withoutext(s: string | null | undefined): string;
+export declare function $newext(s: string | null | undefined, e?: string | null | undefined): string;
+export declare function $dir(s: string | null | undefined): string;
+export declare function $filename(s: string | null | undefined): string;
+export declare function $loadJSON(src: string | null | undefined | Buffer): any | null;
 export declare function $defaultpath(): string;
+export declare function $defaulttmp(): string;
 export declare function $readString(src: string | null | undefined, encoding?: BufferEncoding): string | null;
 export declare function $writeString(src: string | null | undefined, str: string, encoding?: BufferEncoding): boolean;
 export declare function $readBuffer(src: string | null | undefined): Buffer | null;

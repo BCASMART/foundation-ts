@@ -6,57 +6,87 @@
  *  for those basic stiff. It could be changed at any moment
  *  by using fs.promises...
  */
-import { copyFileSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, constants } from 'fs';
+import { copyFileSync, mkdirSync, readFileSync, renameSync, statSync, accessSync, unlinkSync, writeFileSync, constants } from 'fs';
 import { basename, dirname, extname, join } from 'path';
-import { $length, $ok } from './commons';
+import { $length, $ok, $trim } from './commons';
 import { LocalDefaults } from './defaults';
 import { $uuid } from './utils_crypto';
 export function $isfile(src) {
     let ret = false;
-    try {
-        ret = $length(src) && statSync(src).isFile() ? true : false;
+    if ($length(src)) {
+        try {
+            ret = statSync(src).isFile();
+        }
+        catch (_a) {
+            ret = false;
+        }
     }
-    catch (_a) {
-        ret = false;
+    return ret;
+}
+export function $isexecutable(src) {
+    let ret = false;
+    if ($length(src)) {
+        try {
+            if (statSync(src).isFile()) {
+                // we cound use stats.mode but we should take care of who we are, so better to rely on accessSync(-)
+                accessSync(src, constants.R_OK | constants.X_OK);
+                ret = true;
+            }
+        }
+        catch (_a) {
+            ret = false;
+        }
     }
     return ret;
 }
 export function $isdirectory(src) {
     let ret = false;
-    try {
-        ret = $length(src) && statSync(src).isDirectory() ? true : false;
-    }
-    catch (_a) {
-        ret = false;
+    if ($length(src)) {
+        try {
+            ret = statSync(src).isDirectory();
+        }
+        catch (_a) {
+            ret = false;
+        }
     }
     return ret;
 }
 export function $createDirectory(p) {
-    if (!$length(p)) {
-        return false;
-    }
-    if ($isdirectory(p)) {
-        return true;
-    }
-    if ($isfile(p)) {
-        return false;
-    }
-    ;
     let ret = false;
-    try {
-        mkdirSync(p, { recursive: true });
-        ret = true;
-    }
-    catch (_a) {
-        ret = false;
+    if ($length(p)) {
+        try {
+            const stats = statSync(p);
+            ret = stats.isDirectory();
+            if (!ret && !stats.isFile()) {
+                mkdirSync(p, { recursive: true });
+                ret = true;
+            }
+        }
+        catch (_a) {
+            ret = false;
+        }
     }
     return ret;
 }
 export function $filesize(src) {
-    if (!$isfile(src))
-        return 0;
-    let stats = statSync(src);
-    return $ok(stats) ? stats.size : 0;
+    let ret = 0;
+    if ($length(src)) {
+        try {
+            ret = statSync(src).size;
+        }
+        catch (_a) {
+            ret = 0;
+        }
+    }
+    return ret;
+}
+export function $temporarypath(ext = '', src = '') {
+    ext = $trim(ext);
+    let file = $uniquefile(src);
+    if ($length(ext)) {
+        file = $newext(file, ext);
+    }
+    return $path(LocalDefaults.defaults().tmpDirectory, file);
 }
 export function $uniquefile(src) {
     const rand = $uuid();
@@ -68,31 +98,46 @@ export function $uniquefile(src) {
 }
 export function $path(...paths) { return join(...paths); }
 export function $ext(s) {
-    const e = extname(s);
-    return $length(e) ? e.slice(1) : '';
+    if (!$length(s)) {
+        const e = extname(s);
+        if ($length(e)) {
+            return e.slice(1);
+        }
+    }
+    return '';
 }
 export function $withoutext(s) {
-    const e = extname(s);
-    return $length(e) ? s.slice(0, s.length - e.length) : s;
+    if (!$length(s)) {
+        return '';
+    }
+    const e = $ext(s);
+    return e.length ? s.slice(0, s.length - e.length) : s;
 }
-export function $dir(s) { return dirname(s); }
-export function $filename(s) { return basename(s); }
+export function $newext(s, e = undefined) {
+    let b = $withoutext(s);
+    return $length(e) ? `${b}.${e}` : b;
+}
+export function $dir(s) { return $length(s) ? dirname(s) : ''; }
+export function $filename(s) { return $length(s) ? basename(s) : ''; }
 export function $loadJSON(src) {
     let ret = null;
-    let loadedString = $readString(src);
-    if ($length(loadedString)) {
-        try {
-            ret = JSON.parse(loadedString);
-            ret = $ok(ret) ? ret : null;
-        }
-        catch (e) {
-            console.log(`Impossible to parse JSON file ${src}`);
-            ret = null;
+    if ($length(src)) {
+        let loadedString = src instanceof Buffer ? src.toString('utf-8') : $readString(src, 'utf-8');
+        if ($length(loadedString)) {
+            try {
+                ret = JSON.parse(loadedString);
+                ret = $ok(ret) ? ret : null;
+            }
+            catch (e) {
+                console.log(`Impossible to parse JSON file ${src}`);
+                ret = null;
+            }
         }
     }
     return ret;
 }
 export function $defaultpath() { return LocalDefaults.defaults().defaultPath; }
+export function $defaulttmp() { return LocalDefaults.defaults().tmpDirectory; }
 export function $readString(src, encoding = 'utf-8') {
     let ret = null;
     if ($length(src)) {
@@ -162,7 +207,6 @@ export function $removeFile(src) {
     if it's a directory, it must exist and the src filename is used
  */
 export function $realMoveFile(src, dest) {
-    console.log(`$realMoveFile('${src}', '${dest}')`);
     let done = false;
     if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
         if ($isdirectory(dest)) {
@@ -175,8 +219,7 @@ export function $realMoveFile(src, dest) {
             renameSync(src, dest);
             done = true;
         }
-        catch (e) {
-            console.log(`File rename error ${e.message}`);
+        catch (_a) {
             done = false;
         }
         if (!done) {
@@ -187,16 +230,14 @@ export function $realMoveFile(src, dest) {
                 unlinkSync(src);
                 done = true;
             }
-            catch (e) {
-                console.log(`File copy error ${e.message}`);
+            catch (_b) {
                 done = false;
-            }
+            } // WARNING: if we fails here, we may made the copy() but not the unlink()
         }
     }
     return done;
 }
 export function $copyFile(src, dest, overwrite = false) {
-    console.log(`$copyFile('${src}', '${dest}')`);
     let done = false;
     if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
         if ($isdirectory(dest)) {
@@ -209,8 +250,7 @@ export function $copyFile(src, dest, overwrite = false) {
             copyFileSync(src, dest, (overwrite ? 0 : constants.COPYFILE_EXCL));
             done = true;
         }
-        catch (e) {
-            console.log(`File copy error ${e.message}`);
+        catch (_a) {
             done = false;
         }
     }

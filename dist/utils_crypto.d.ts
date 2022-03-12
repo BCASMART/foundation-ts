@@ -8,7 +8,7 @@ export declare enum HashMethod {
 }
 export declare function $encrypt(source: string, key: string): string | null;
 export declare function $decrypt(source: string, key: string): string | null;
-export declare function $hash(buf: Buffer, method?: HashMethod): string;
+export declare function $hash(buf: Buffer, method?: HashMethod): string | null;
 export declare function $hashfile(filePath: string | null | undefined, method?: HashMethod): Promise<string | null>;
 interface PasswordOptions {
     hasLowercase?: boolean;
