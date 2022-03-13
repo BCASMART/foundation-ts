@@ -111,6 +111,9 @@ export class TSDate implements TSObject<TSDate> {
         }
     }
 
+    public static past()    { return new TSDate(TSDate.PAST) ; }
+    public static future()  { return new TSDate(TSDate.FUTURE) ; }
+    
 	// usage TSDate.fromComponents(myComponents)
 	// if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
 	public static fromComponents(comp:TSDateComp|undefined|null) : TSDate | null {

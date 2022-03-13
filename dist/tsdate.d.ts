@@ -31,6 +31,8 @@ export declare class TSDate implements TSObject<TSDate> {
     constructor(stringDate: string);
     constructor(nullDate: null);
     constructor();
+    static past(): TSDate;
+    static future(): TSDate;
     static fromComponents(comp: TSDateComp | undefined | null): TSDate | null;
     static fromString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
     static fromDateString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
