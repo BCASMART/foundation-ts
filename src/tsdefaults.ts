@@ -5,7 +5,7 @@ import os from 'os'
 /**
  * if you want to change the subfolders to be tested
  * you should use the static method setSubfolders() before
- * calling any functions using LocalDefaults 
+ * calling any functions using TSDefaults 
  */
 export interface Translation {
     singular:string;
@@ -26,8 +26,8 @@ export interface Translations {
 }
 export type TranslationsDictionary = { [key in string]:Translations }
 
-export class LocalDefaults {
-	private static __instance: LocalDefaults ;
+export class TSDefaults {
+	private static __instance: TSDefaults ;
 	private static __subfolders:string[] = ['utils', 'tests', 'dist'] ;
     private static __translations:TranslationsDictionary = {
         'de': {
@@ -71,7 +71,7 @@ export class LocalDefaults {
 
     private constructor() {
 		this.defaultPath = __dirname ;
-		for (let sf in LocalDefaults.__subfolders) {
+		for (let sf in TSDefaults.__subfolders) {
 			if ($filename(this.defaultPath) === sf) {
 				this.defaultPath = $dir(this.defaultPath) ;
 			}
@@ -79,10 +79,10 @@ export class LocalDefaults {
 	}
 
     public translations(lang?:language|undefined|null):Translations {
-        if (!$ok(lang) || !$ok(LocalDefaults.__translations[lang!])) { 
+        if (!$ok(lang) || !$ok(TSDefaults.__translations[lang!])) { 
             lang = this.defaultLanguage ;
         }
-        return LocalDefaults.__translations[lang!] ;
+        return TSDefaults.__translations[lang!] ;
     }
 	
 	public static setSubfolders(folders:string[]) {
@@ -90,7 +90,7 @@ export class LocalDefaults {
 	}
 
     public setDefaultLanguage(l:language):language {
-        if ($ok(LocalDefaults.__translations[l])) {
+        if ($ok(TSDefaults.__translations[l])) {
             this.defaultLanguage = l ;
         }
         return this.defaultLanguage ;
@@ -115,14 +115,14 @@ export class LocalDefaults {
     }
     public getValue(key:string):any { return this._values[key] ; }
 
-    public static defaults(): LocalDefaults {
+    public static defaults(): TSDefaults {
 		if (!this.__instance) {
-			this.__instance = new LocalDefaults() ;
+			this.__instance = new TSDefaults() ;
 		}
 		return this.__instance ;
 	}
 }
 
-export function $default(key:string):any { return LocalDefaults.defaults().getValue(key) ; }
-export function $setdefault(key:string, value:any=undefined) { return LocalDefaults.defaults().setValue(key, value) ; }
-export function $removedefault(key:string) { return LocalDefaults.defaults().setValue(key, undefined) ; }
+export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
+export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
+export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }

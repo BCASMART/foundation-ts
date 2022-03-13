@@ -118,13 +118,13 @@ export const NO_HEADERS = {} ;
 export type RequestHeaders = { [key:string]: string | string[] | number}
 export type RequestAuth = { login:string, password:string }
 
-interface WRequestError {
+interface TSRequestError {
     status?:number ;
     statusCode?:number ;
     code?:string ;
 } ;
 
-export class WRequest {
+export class TSRequest {
 	public channel:AxiosInstance ;
 	public token:string = '' ;
 	public basicAuth:string = '' ;
@@ -142,7 +142,7 @@ export class WRequest {
 		auth:RequestAuth|string|null|undefined=null,
 		timeout?:number
 	) : Promise<[Buffer|object|string|ReadableStream|null, number]> {
-		const req = new WRequest() ;
+		const req = new TSRequest() ;
 		if (!$ok(req)) { return [null, Resp.InternalError] ;}
 		if (!$length(url)) { return [null, Resp.NotFound] ; }
 		if ($ok(auth)) { req.setAuth(<RequestAuth>auth) } ;
@@ -216,18 +216,18 @@ export class WRequest {
 			status = response.status ;
 		}
 		catch (e) {
-			if (e === timeoutError || (e as WRequestError).code === 'ECONNABORTED' || (e as WRequestError).code === 'ETIMEDOUT') { 
+			if (e === timeoutError || (e as TSRequestError).code === 'ECONNABORTED' || (e as TSRequestError).code === 'ETIMEDOUT') { 
 				// AxiosError contains a 'code' field
 				ret = null ;
 				status = Resp.TimeOut ;
 			}
-			else if ($isnumber((e as WRequestError).statusCode)) {
+			else if ($isnumber((e as TSRequestError).statusCode)) {
 				ret = null ;
-				status = (e as WRequestError).statusCode as number ;
+				status = (e as TSRequestError).statusCode as number ;
 			}
-			else if ($isnumber((e as WRequestError).status)) {
+			else if ($isnumber((e as TSRequestError).status)) {
 				ret = null ;
-				status = (e as WRequestError).status as number ;
+				status = (e as TSRequestError).status as number ;
 			}
 			else {
 				// all other errors must throw

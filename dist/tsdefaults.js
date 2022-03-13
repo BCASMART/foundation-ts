@@ -91,4 +91,4 @@ TSDefaults.__translations = {
 export function $default(key) { return TSDefaults.defaults().getValue(key); }
 export function $setdefault(key, value = undefined) { return TSDefaults.defaults().setValue(key, value); }
 export function $removedefault(key) { return TSDefaults.defaults().setValue(key, undefined); }
-//# sourceMappingURL=defaults.js.map
+//# sourceMappingURL=tsdefaults.js.map

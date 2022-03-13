@@ -1,6 +1,6 @@
 export * as commons from './commons';
-export * as defaults from './defaults';
-export * as request from './request';
+export * as defaults from './tsdefaults';
+export * as request from './tsrequest';
 export * as tscouple from './tscouple';
 export * as tsdate from './tsdate';
 export * as tsdatecomp from './tsdatecomp';

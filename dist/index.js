@@ -1,8 +1,8 @@
 import * as commons_1 from './commons';
 export { commons_1 as commons };
-import * as defaults_1 from './defaults';
+import * as defaults_1 from './tsdefaults';
 export { defaults_1 as defaults };
-import * as request_1 from './request';
+import * as request_1 from './tsrequest';
 export { request_1 as request };
 import * as tscouple_1 from './tscouple';
 export { tscouple_1 as tscouple };

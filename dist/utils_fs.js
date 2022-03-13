@@ -9,7 +9,7 @@
 import { copyFileSync, mkdirSync, readFileSync, renameSync, statSync, accessSync, unlinkSync, writeFileSync, constants } from 'fs';
 import { basename, dirname, extname, join } from 'path';
 import { $length, $ok, $trim } from './commons';
-import { LocalDefaults } from './defaults';
+import { TSDefaults } from './tsdefaults';
 import { $uuid } from './utils_crypto';
 export function $isfile(src) {
     let ret = false;
@@ -86,7 +86,7 @@ export function $temporarypath(ext = '', src = '') {
     if ($length(ext)) {
         file = $newext(file, ext);
     }
-    return $path(LocalDefaults.defaults().tmpDirectory, file);
+    return $path(TSDefaults.defaults().tmpDirectory, file);
 }
 export function $uniquefile(src) {
     const rand = $uuid();
@@ -136,8 +136,8 @@ export function $loadJSON(src) {
     }
     return ret;
 }
-export function $defaultpath() { return LocalDefaults.defaults().defaultPath; }
-export function $defaulttmp() { return LocalDefaults.defaults().tmpDirectory; }
+export function $defaultpath() { return TSDefaults.defaults().defaultPath; }
+export function $defaulttmp() { return TSDefaults.defaults().tmpDirectory; }
 export function $readString(src, encoding = 'utf-8') {
     let ret = null;
     if ($length(src)) {
