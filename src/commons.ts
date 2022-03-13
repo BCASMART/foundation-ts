@@ -1,4 +1,5 @@
 import { FoundationASCIIConversion } from "./string_tables";
+import { TSDate } from "./tsdate";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending} from "./types";
 import { $filename } from "./utils_fs";
 
@@ -100,6 +101,20 @@ export function $numcompare(a:number, b:number):Comparison {
     if (a === b) {return Same ; }
     if (isNaN(a) || isNaN(b)) { return undefined ; }
     return a < b ? Ascending : Descending ;
+}
+
+
+export function $datecompare(
+    a:number|string|Date|TSDate|null|undefined, 
+    b:number|string|Date|TSDate|null|undefined) : Comparison 
+{
+	if (a === b) return Same ;
+    if (!$ok(a) || !$ok(b)) { return undefined ; }
+
+    /* TODO: WE SHOULD BE PERMITED NOT TO CAST a or b in new TSDate() */
+    if (!(a instanceof TSDate)) { a = new TSDate(a as unknown as string /* this is wrong  */) ;}
+    if (!(b instanceof TSDate)) { b = new TSDate(b as unknown as string /* this is wrong  */) ;}
+    return a.compare(b) ;
 }
 
 export function $compare(a:any, b:any):Comparison {

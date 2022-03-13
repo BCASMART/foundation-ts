@@ -1,4 +1,5 @@
 import { FoundationASCIIConversion } from "./string_tables";
+import { TSDate } from "./tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, emailRegex, urlRegex, uuidRegex, Same, Ascending, Descending } from "./types";
 import { $filename } from "./utils_fs";
 export function $ok(o) { return o !== null && o !== undefined && typeof o !== 'undefined'; }
@@ -74,6 +75,21 @@ export function $numcompare(a, b) {
         return undefined;
     }
     return a < b ? Ascending : Descending;
+}
+export function $datecompare(a, b) {
+    if (a === b)
+        return Same;
+    if (!$ok(a) || !$ok(b)) {
+        return undefined;
+    }
+    /* TODO: WE SHOULD BE PERMITED NOT TO CAST a or b in new TSDate() */
+    if (!(a instanceof TSDate)) {
+        a = new TSDate(a /* this is wrong  */);
+    }
+    if (!(b instanceof TSDate)) {
+        b = new TSDate(b /* this is wrong  */);
+    }
+    return a.compare(b);
 }
 export function $compare(a, b) {
     if (a === b)

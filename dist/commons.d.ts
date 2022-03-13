@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { TSDate } from "./tsdate";
 import { int, uint, email, url, uuid, Comparison } from "./types";
 export declare function $ok(o: any | undefined | null): boolean;
 export declare function $isstring(o: any | null | undefined): boolean;
@@ -21,6 +22,7 @@ export declare function $strings(e: string[] | string | undefined | null): strin
 export declare function $trim(s: string | undefined | null): string;
 export declare function $ascii(source: string | undefined | null): string;
 export declare function $numcompare(a: number, b: number): Comparison;
+export declare function $datecompare(a: number | string | Date | TSDate | null | undefined, b: number | string | Date | TSDate | null | undefined): Comparison;
 export declare function $compare(a: any, b: any): Comparison;
 export declare function $equal(a: any, b: any): any;
 export declare function $count(a: any[] | undefined | null): number;
