@@ -35,6 +35,7 @@ export declare const FREE: money;
 export declare type uuid = Opaque<string>;
 export declare type email = Opaque<string>;
 export declare type url = Opaque<string>;
+export declare type isodate = Opaque<string>;
 export declare const uuidRegex: RegExp;
 export declare const emailRegex: RegExp;
 export declare const urlRegex: RegExp;

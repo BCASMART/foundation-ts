@@ -41,6 +41,3 @@ export declare class TSDefaults {
     getValue(key: string): any;
     static defaults(): TSDefaults;
 }
-export declare function $default(key: string): any;
-export declare function $setdefault(key: string, value?: any): void;
-export declare function $removedefault(key: string): void;

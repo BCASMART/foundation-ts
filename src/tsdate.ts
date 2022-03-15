@@ -3,7 +3,7 @@
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date } from "./tsdatecomp"
 import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
-import { Comparison, Same, uint, UINT32_MAX } from "./types";
+import { Comparison, isodate, Same, uint, UINT32_MAX } from "./types";
 import { Class, TSObject } from "./tsobject";
 import { UnsignedMask } from "./tsrange";
 
@@ -113,7 +113,7 @@ export class TSDate implements TSObject<TSDate> {
 
     public static past()    { return new TSDate(TSDate.PAST) ; }
     public static future()  { return new TSDate(TSDate.FUTURE) ; }
-    
+
 	// usage TSDate.fromComponents(myComponents)
 	// if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
 	public static fromComponents(comp:TSDateComp|undefined|null) : TSDate | null {
@@ -123,6 +123,10 @@ export class TSDate implements TSObject<TSDate> {
 		// we use the timestamp constructor because we know that our date is valid
 		return new TSDate($timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second)) ;
 	}
+
+    public static fromIsoString(s:string|null|undefined) : TSDate | null {
+        return this.fromComponents($parsedatetime(s, TSDateForm.ISO8601)) ;
+    }
 
 	// usage TSDate.fromString(aString[, parsing form])
 	public static fromString(s:string|null|undefined, form:TSDateForm=TSDateForm.Standard) : TSDate | null {
@@ -202,7 +206,7 @@ export class TSDate implements TSObject<TSDate> {
     public toDate() : Date {
         return $components2date($components(this.timestamp)) ;
     }
-	public toIsoString() : string { return $components2string($components(this.timestamp), TSDateForm.ISO8601) ; }
+	public toIsoString() : isodate { return <isodate>$components2string($components(this.timestamp), TSDateForm.ISO8601) ; }
     public toRangeLocation() : number { return (this.timestamp / 60) & UnsignedMask ; }
 
 	// ============ TSObject conformance =============== 

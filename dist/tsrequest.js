@@ -171,7 +171,7 @@ export class TSRequest {
                 url: relativeURL,
                 method: method,
                 responseType: responseType,
-                headers: Object.assign({}, suplHeaders),
+                headers: Object.assign(Object.assign({}, this.commonHeaders), suplHeaders),
                 validateStatus: function (status) { return statuses.includes(status); }
             };
             if ($length(this.token)) {

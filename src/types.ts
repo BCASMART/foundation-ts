@@ -40,9 +40,10 @@ export const MONEY_MAX = <money>+999999999 ;
 export const FREE = <money>0 ;
 
 // ========== string types =====================
-export type uuid   	 = Opaque<string> ;
-export type email 	 = Opaque<string> ;
-export type url 	 = Opaque<string> ; 
+export type uuid   	= Opaque<string> ;
+export type email 	= Opaque<string> ;
+export type url 	= Opaque<string> ; 
+export type isodate = Opaque<string> ; 
 
 export const uuidRegex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i ;
 export const emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;

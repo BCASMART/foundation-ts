@@ -1,5 +1,7 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
+import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
+import { TSDefaults } from "./tsdefaults";
 import { INT_MAX, INT_MIN, UINT_MAX, emailRegex, urlRegex, uuidRegex, Same, Ascending, Descending } from "./types";
 import { $filename } from "./utils_fs";
 export function $ok(o) { return o !== null && o !== undefined && typeof o !== 'undefined'; }
@@ -23,16 +25,24 @@ export function $int(n, defaultValue = 0) {
     n = $intornull(n);
     return $ok(n) ? n : defaultValue;
 }
-function _regexValidatedType(regex, s) {
+function $regexvalidatedstring(regex, s) {
     const v = $trim(s);
     if (!v.length || !regex.test(v)) {
         return null;
     }
     return v;
 }
-export function $email(s) { return _regexValidatedType(emailRegex, s); }
-export function $url(s) { return _regexValidatedType(urlRegex, s); }
-export function $uuid(s) { return _regexValidatedType(uuidRegex, s); }
+export function $email(s) { return $regexvalidatedstring(emailRegex, s); }
+export function $url(s) { return $regexvalidatedstring(urlRegex, s); }
+export function $uuid(s) { return $regexvalidatedstring(uuidRegex, s); }
+export function $isodate(s) {
+    const v = $trim(s);
+    if (!v.length) {
+        return null;
+    }
+    const cps = $parsedatetime(v, TSDateForm.ISO8601);
+    return $ok(cps) ? $components2string(cps, TSDateForm.ISO8601) : null;
+}
 export function $unsignedornull(n) {
     if (!$ok(n)) {
         return null;
@@ -260,4 +270,8 @@ export function $exit(reason = '', status = 0, name) {
     }
     process.exit(status);
 }
+export function $default(key) { return TSDefaults.defaults().getValue(key); }
+export function $setdefault(key, value = undefined) { return TSDefaults.defaults().setValue(key, value); }
+export function $removedefault(key) { return TSDefaults.defaults().setValue(key, undefined); }
+export function $translations(lang) { return TSDefaults.defaults().translations(lang); }
 //# sourceMappingURL=commons.js.map

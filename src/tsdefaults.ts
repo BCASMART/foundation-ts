@@ -26,6 +26,7 @@ export interface Translations {
 }
 export type TranslationsDictionary = { [key in string]:Translations }
 
+
 export class TSDefaults {
 	private static __instance: TSDefaults ;
 	private static __subfolders:string[] = ['utils', 'tests', 'dist'] ;
@@ -123,6 +124,3 @@ export class TSDefaults {
 	}
 }
 
-export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
-export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
-export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }

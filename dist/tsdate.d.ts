@@ -2,7 +2,7 @@
  * This is a timestamp (commencing at 01/01/2001) oriented date class
  */
 import { TSDateComp, TSDateForm } from "./tsdatecomp";
-import { Comparison, uint } from "./types";
+import { Comparison, isodate, uint } from "./types";
 import { Class, TSObject } from "./tsobject";
 export declare const TSMinute = 60;
 export declare const TSHour = 3600;
@@ -34,6 +34,7 @@ export declare class TSDate implements TSObject<TSDate> {
     static past(): TSDate;
     static future(): TSDate;
     static fromComponents(comp: TSDateComp | undefined | null): TSDate | null;
+    static fromIsoString(s: string | null | undefined): TSDate | null;
     static fromString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
     static fromDateString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
     isLeap(): boolean;
@@ -61,7 +62,7 @@ export declare class TSDate implements TSObject<TSDate> {
     toComponents(): TSDateComp;
     toEpochTimestamp(): number;
     toDate(): Date;
-    toIsoString(): string;
+    toIsoString(): isodate;
     toRangeLocation(): number;
     get isa(): Class<TSDate>;
     get className(): string;

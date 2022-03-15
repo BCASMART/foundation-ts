@@ -1,6 +1,8 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending} from "./types";
+import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
+import { TSDefaults, Translations } from "./tsdefaults";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate} from "./types";
 import { $filename } from "./utils_fs";
 
 export function $ok(o:any | undefined | null) : boolean
@@ -40,7 +42,7 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 	return $ok(n) ? <int>n : defaultValue ;
 }
 
-function _regexValidatedType<T>(regex:RegExp, s:string|null|undefined) : T | null 
+function $regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {
 	const v = $trim(s) ;
 	if (!v.length || !regex.test(<string>v)) { return null ; }
@@ -48,14 +50,20 @@ function _regexValidatedType<T>(regex:RegExp, s:string|null|undefined) : T | nul
 }
 
 export function $email(s:string|null|undefined) : email | null
-{ return _regexValidatedType<email>(emailRegex, s) ; }
+{ return $regexvalidatedstring<email>(emailRegex, s) ; }
 
 export function $url(s:string|null|undefined) : url | null
-{ return _regexValidatedType<url>(urlRegex, s) ; }
+{ return $regexvalidatedstring<url>(urlRegex, s) ; }
 
 export function $uuid(s:string|null|undefined) : uuid | null
-{ return _regexValidatedType<uuid>(uuidRegex, s) ; }
+{ return $regexvalidatedstring<uuid>(uuidRegex, s) ; }
 
+export function $isodate(s:string|null|undefined) : isodate | null
+{
+    const v = $trim(s) ; if (!v.length) { return null ; }
+    const cps = $parsedatetime(v, TSDateForm.ISO8601) ;
+    return $ok(cps) ? <isodate>$components2string(cps!, TSDateForm.ISO8601) : null ;
+}
 
 export function $unsignedornull(n:string|number|null|undefined) : uint | null
 {
@@ -266,3 +274,7 @@ export function $exit(reason:string='', status:number=0, name?:string) {
 	process.exit(status) ;
 }
 
+export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
+export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
+export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }
+export function $translations(lang?:language|undefined|null):Translations { return TSDefaults.defaults().translations(lang) ; }

@@ -113,6 +113,9 @@ export class TSDate {
         // we use the timestamp constructor because we know that our date is valid
         return new TSDate($timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second));
     }
+    static fromIsoString(s) {
+        return this.fromComponents($parsedatetime(s, TSDateForm.ISO8601));
+    }
     // usage TSDate.fromString(aString[, parsing form])
     static fromString(s, form = TSDateForm.Standard) {
         return this.fromComponents($parsedatetime(s, form));

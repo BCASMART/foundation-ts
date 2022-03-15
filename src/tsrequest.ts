@@ -192,7 +192,7 @@ export class TSRequest {
 			url:relativeURL,
 			method:method,
 			responseType:responseType,
-			headers: {... suplHeaders},
+			headers: {... this.commonHeaders, ... suplHeaders},
 			validateStatus: function(status) { return statuses.includes(status) ; }
 		} ;
 
