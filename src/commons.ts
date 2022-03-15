@@ -42,7 +42,7 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 	return $ok(n) ? <int>n : defaultValue ;
 }
 
-function $regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
+export function $regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {
 	const v = $trim(s) ;
 	if (!v.length || !regex.test(<string>v)) { return null ; }

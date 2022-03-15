@@ -25,7 +25,7 @@ export function $int(n, defaultValue = 0) {
     n = $intornull(n);
     return $ok(n) ? n : defaultValue;
 }
-function $regexvalidatedstring(regex, s) {
+export function $regexvalidatedstring(regex, s) {
     const v = $trim(s);
     if (!v.length || !regex.test(v)) {
         return null;

@@ -12,6 +12,7 @@ export declare function $isobject(o: any | null | undefined): boolean;
 export declare function $isarray(o: any | null | undefined): boolean;
 export declare function $intornull(n: string | number | null | undefined): int | null;
 export declare function $int(n: string | number | null | undefined, defaultValue?: int): int;
+export declare function $regexvalidatedstring<T>(regex: RegExp, s: string | null | undefined): T | null;
 export declare function $email(s: string | null | undefined): email | null;
 export declare function $url(s: string | null | undefined): url | null;
 export declare function $uuid(s: string | null | undefined): uuid | null;
