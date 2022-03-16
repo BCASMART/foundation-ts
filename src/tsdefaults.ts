@@ -1,5 +1,5 @@
 import { $length, $ok } from "./commons";
-import { AnyDictionary, language } from "./types";
+import { AnyDictionary, language, Languages } from "./types";
 import { $dir, $filename, $isdirectory } from "./utils_fs";
 import os from 'os'
 /**
@@ -24,8 +24,8 @@ export interface Translations {
     month:Translation;
     year:Translation;
 }
-export type TranslationsDictionary = { [key in string]:Translations }
 
+export type TranslationsDictionary = { [key in Languages]?:Translations }
 
 export class TSDefaults {
 	private static __instance: TSDefaults ;
@@ -67,7 +67,7 @@ export class TSDefaults {
     } ;
 	public defaultPath ;
     public tmpDirectory = os.tmpdir() ;
-    public defaultLanguage:language = 'fr' ;
+    public defaultLanguage:language = Languages.fr ;
     private _values:AnyDictionary = {} ;
 
     private constructor() {
@@ -83,7 +83,7 @@ export class TSDefaults {
         if (!$ok(lang) || !$ok(TSDefaults.__translations[lang!])) { 
             lang = this.defaultLanguage ;
         }
-        return TSDefaults.__translations[lang!] ;
+        return TSDefaults.__translations[lang!]! ;
     }
 	
 	public static setSubfolders(folders:string[]) {

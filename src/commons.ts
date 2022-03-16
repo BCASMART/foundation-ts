@@ -2,7 +2,7 @@ import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
 import { TSDefaults, Translations } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate, Languages, country, Countries, Address} from "./types";
 import { $filename } from "./utils_fs";
 
 export function $ok(o:any | undefined | null) : boolean
@@ -63,6 +63,41 @@ export function $isodate(s:string|null|undefined) : isodate | null
     const v = $trim(s) ; if (!v.length) { return null ; }
     const cps = $parsedatetime(v, TSDateForm.ISO8601) ;
     return $ok(cps) ? <isodate>$components2string(cps!, TSDateForm.ISO8601) : null ;
+}
+
+// $country && $language function are permisive. Eg $language("  Fr ") will return Languages.fr 
+
+let countriesMap:Map<string, country> ;
+export function $country(s:string|null|undefined) : country | null
+{
+    if (!$ok(countriesMap)) {
+        countriesMap = new Map<string,country>() ;
+        Object.keys(Countries).forEach(e => countriesMap.set(e, e as country)) ;
+    }
+    const v = $trim(s) ; if (v.length !== 2) { return null ; }
+    const ret = countriesMap.get(v.toUpperCase()) ;
+    return $ok(ret) ? ret! : null ;
+}
+
+let languagesMap:Map<string, language> ;
+export function $language(s:string|null|undefined) : language | null
+{
+    if (!$ok(languagesMap)) {
+        languagesMap = new Map<string,language>() ;
+        Object.keys(Languages).forEach(e => languagesMap.set(e, e as language)) ;
+    }
+    const v = $trim(s) ; if (v.length !== 2) { return null ; }
+    const ret = languagesMap.get(v.toLowerCase()) ;
+    return $ok(ret) ? ret! : null ;
+}
+
+export function $address(a:Address|null|undefined) : Address | null {
+    if (!$ok(a) || !$length(a?.city)) { return null ; }
+    const c = $country(a?.country) ;
+    if (!$ok(c)) { return null ; }
+    let ret:Address = {...a!} ;
+    ret.country = c! ;
+    return ret ;
 }
 
 export function $unsignedornull(n:string|number|null|undefined) : uint | null

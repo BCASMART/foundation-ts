@@ -1,10 +1,11 @@
 import { $length, $ok } from "./commons";
+import { Languages } from "./types";
 import { $dir, $filename, $isdirectory } from "./utils_fs";
 import os from 'os';
 export class TSDefaults {
     constructor() {
         this.tmpDirectory = os.tmpdir();
-        this.defaultLanguage = 'fr';
+        this.defaultLanguage = Languages.fr;
         this._values = {};
         this.defaultPath = __dirname;
         for (let sf in TSDefaults.__subfolders) {

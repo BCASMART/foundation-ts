@@ -58,10 +58,67 @@ export type Comparison = -1 | 0 | 1 | undefined ;
 
 // ========== enumerated types =====================
 // ISO 3166-1 alpha-2
-export type country = 'AC' | 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TA' | 'TC' | 'TD' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'XK' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW';
+export enum Countries {
+    AC = 'AC',  AD = 'AD',  AE = 'AE',  AF = 'AF',  AG = 'AG',  AI = 'AI',  AL = 'AL',  AM = 'AM',  AO = 'AO',  AR = 'AR',  AS = 'AS',  AT = 'AT',  AU = 'AU',  AW = 'AW',  AX = 'AX',  AZ = 'AZ',  
+    BA = 'BA',  BB = 'BB',  BD = 'BD',  BE = 'BE',  BF = 'BF',  BG = 'BG',  BH = 'BH',  BI = 'BI',  BJ = 'BJ',  BL = 'BL',  BM = 'BM',  BN = 'BN',  BO = 'BO',  BQ = 'BQ',  BR = 'BR',  BS = 'BS',  BT = 'BT',  BW = 'BW',  BY = 'BY',  BZ = 'BZ',
+    CA = 'CA',  CC = 'CC',  CD = 'CD',  CF = 'CF',  CG = 'CG',  CH = 'CH',  CI = 'CI',  CK = 'CK',  CL = 'CL',  CM = 'CM',  CN = 'CN',  CO = 'CO',  CR = 'CR',  CU = 'CU',  CV = 'CV',  CW = 'CW',  CX = 'CX',  CY = 'CY',  CZ = 'CZ',
+    DE = 'DE',  DJ = 'DJ',  DK = 'DK',  DM = 'DM',  DO = 'DO',  DZ = 'DZ',  
+    EC = 'EC',  EE = 'EE',  EG = 'EG',  EH = 'EH',  ER = 'ER',  ES = 'ES',  ET = 'ET',  
+    FI = 'FI',  FJ = 'FJ',  FK = 'FK',  FM = 'FM',  FO = 'FO',  FR = 'FR',  
+    GA = 'GA',  GB = 'GB',  GD = 'GD',  GE = 'GE',  GF = 'GF',  GG = 'GG',  GH = 'GH',  GI = 'GI',  GL = 'GL',  GM = 'GM',  GN = 'GN',  GP = 'GP',  GQ = 'GQ',  GR = 'GR',  GT = 'GT',  GU = 'GU',  GW = 'GW',  GY = 'GY',  
+    HK = 'HK',  HN = 'HN',  HR = 'HR',  HT = 'HT',  HU = 'HU',  
+    ID = 'ID',  IE = 'IE',  IL = 'IL',  IM = 'IM',  IN = 'IN',  IO = 'IO',  IQ = 'IQ',  IR = 'IR',  IS = 'IS',  IT = 'IT',  
+    JE = 'JE',  JM = 'JM',  JO = 'JO',  JP = 'JP',  
+    KE = 'KE',  KG = 'KG',  KH = 'KH',  KI = 'KI',  KM = 'KM',  KN = 'KN',  KP = 'KP',  KR = 'KR',  KW = 'KW',  KY = 'KY',  KZ = 'KZ',  
+    LA = 'LA',  LB = 'LB',  LC = 'LC',  LI = 'LI',  LK = 'LK',  LR = 'LR',  LS = 'LS',  LT = 'LT',  LU = 'LU',  LV = 'LV',  LY = 'LY',  
+    MA = 'MA',  MC = 'MC',  MD = 'MD',  ME = 'ME',  MF = 'MF',  MG = 'MG',  MH = 'MH',  MK = 'MK',  ML = 'ML',  MM = 'MM',  MN = 'MN',  MO = 'MO',  MP = 'MP',  MQ = 'MQ',  MR = 'MR',  MS = 'MS',  MT = 'MT',  MU = 'MU',  MV = 'MV',  MW = 'MW',  MX = 'MX',  MY = 'MY',  MZ = 'MZ',  
+    NA = 'NA',  NC = 'NC',  NE = 'NE',  NF = 'NF',  NG = 'NG',  NI = 'NI',  NL = 'NL',  NO = 'NO',  NP = 'NP',  NR = 'NR',  NU = 'NU',  NZ = 'NZ',  
+    OM = 'OM',  
+    PA = 'PA',  PE = 'PE',  PF = 'PF',  PG = 'PG',  PH = 'PH',  PK = 'PK',  PL = 'PL',  PM = 'PM',  PR = 'PR',  PS = 'PS',  PT = 'PT',  PW = 'PW',  PY = 'PY',  
+    QA = 'QA',  
+    RE = 'RE',  RO = 'RO',  RS = 'RS',  RU = 'RU',  RW = 'RW',  
+    SA = 'SA',  SB = 'SB',  SC = 'SC',  SD = 'SD',  SE = 'SE',  SG = 'SG',  SH = 'SH',  SI = 'SI',  SJ = 'SJ',  SK = 'SK',  SL = 'SL',  SM = 'SM',  SN = 'SN',  SO = 'SO',  SR = 'SR',  SS = 'SS',  ST = 'ST',  SV = 'SV',  SX = 'SX',  SY = 'SY',  SZ = 'SZ',  
+    TA = 'TA',  TC = 'TC',  TD = 'TD',  TG = 'TG',  TH = 'TH',  TJ = 'TJ',  TK = 'TK',  TL = 'TL',  TM = 'TM',  TN = 'TN',  TO = 'TO',  TR = 'TR',  TT = 'TT',  TV = 'TV',  TW = 'TW',  TZ = 'TZ',  
+    UA = 'UA',  UG = 'UG',  US = 'US',  UY = 'UY',  UZ = 'UZ',  
+    VA = 'VA',  VC = 'VC',  VE = 'VE',  VG = 'VG',  VI = 'VI',  VN = 'VN',  VU = 'VU',  
+    WF = 'WF',  WS = 'WS',  
+    XK = 'XK',  
+    YE = 'YE',  YT = 'YT',  
+    ZA = 'ZA',  ZM = 'ZM',  ZW = 'ZW'
+} ;
 
 // ISO 639-1 (excepted all constructed languages)
-export type language = 'aa' | 'ab' | 'ae' | 'af' | 'ak' | 'am' | 'an' | 'ar' | 'as' | 'av' | 'ay' | 'az' | 'ba' | 'be' | 'bg' | 'bh' | 'bi' | 'bm' | 'bn' | 'bo' | 'br' | 'bs' | 'ca' | 'ce' | 'ch' | 'co' | 'cr' | 'cs' | 'cu' | 'cv' | 'cy' | 'da' | 'de' | 'dv' | 'dz' | 'ee' | 'el' | 'en' | 'es' | 'et' | 'eu' | 'fa' | 'ff' | 'fi' | 'fj' | 'fo' | 'fr' | 'fy' | 'ga' | 'gd' | 'gl' | 'gn' | 'gu' | 'gv' | 'ha' | 'he' | 'hi' | 'ho' | 'hr' | 'ht' | 'hu' | 'hy' | 'hz' | 'id' | 'ig' | 'ii' | 'ik' | 'is' | 'it' | 'iu' | 'ja' | 'jv' | 'ka' | 'kg' | 'ki' | 'kj' | 'kk' | 'kl' | 'km' | 'kn' | 'ko' | 'kr' | 'ks' | 'ku' | 'kv' | 'kw' | 'ky' | 'la' | 'lb' | 'lg' | 'li' | 'ln' | 'lo' | 'lt' | 'lu' | 'lv' | 'mg' | 'mh' | 'mi' | 'mk' | 'ml' | 'mn' | 'mr' | 'ms' | 'mt' | 'my' | 'na' | 'nb' | 'nd' | 'ne' | 'ng' | 'nl' | 'nn' | 'no' | 'nr' | 'nv' | 'ny' | 'oc' | 'oj' | 'om' | 'or' | 'os' | 'pa' | 'pi' | 'pl' | 'ps' | 'pt' | 'qu' | 'rm' | 'rn' | 'ro' | 'ru' | 'rw' | 'sa' | 'sc' | 'sd' | 'se' | 'sg' | 'si' | 'sk' | 'sl' | 'sm' | 'sn' | 'so' | 'sq' | 'sr' | 'ss' | 'st' | 'su' | 'sv' | 'sw' | 'ta' | 'te' | 'tg' | 'th' | 'ti' | 'tk' | 'tl' | 'tn' | 'to' | 'tr' | 'ts' | 'tt' | 'tw' | 'ty' | 'ug' | 'uk' | 'ur' | 'uz' | 've' | 'vi' | 'wa' | 'wo' | 'xh' | 'yi' | 'yo' | 'za' | 'zh' | 'zu' ;
+export enum Languages {
+    aa = 'aa', ab = 'ab', ae = 'ae', af = 'af', ak = 'ak', am = 'am', an = 'an', ar = 'ar', as = 'as', av = 'av', ay = 'ay', az = 'az',
+    ba = 'ba', be = 'be', bg = 'bg', bh = 'bh', bi = 'bi', bm = 'bm', bn = 'bn', bo = 'bo', br = 'br', bs = 'bs',
+    ca = 'ca', ce = 'ce', ch = 'ch', co = 'co', cr = 'cr', cs = 'cs', cu = 'cu', cv = 'cv', cy = 'cy',
+    da = 'da', de = 'de', dv = 'dv', dz = 'dz',
+    ee = 'ee', el = 'el', en = 'en', es = 'es', et = 'et', eu = 'eu',
+    fa = 'fa', ff = 'ff', fi = 'fi', fj = 'fj', fo = 'fo', fr = 'fr', fy = 'fy',
+    ga = 'ga', gd = 'gd', gl = 'gl', gn = 'gn', gu = 'gu', gv = 'gv',
+    ha = 'ha', he = 'he', hi = 'hi', ho = 'ho', hr = 'hr', ht = 'ht', hu = 'hu', hy = 'hy', hz = 'hz',
+    id = 'id', ig = 'ig', ii = 'ii', ik = 'ik', is = 'is', it = 'it', iu = 'iu',
+    ja = 'ja', jv = 'jv',
+    ka = 'ka', kg = 'kg', ki = 'ki', kj = 'kj', kk = 'kk', kl = 'kl', km = 'km', kn = 'kn', ko = 'ko', kr = 'kr', ks = 'ks', ku = 'ku', kv = 'kv', kw = 'kw', ky = 'ky',
+    la = 'la', lb = 'lb', lg = 'lg', li = 'li', ln = 'ln', lo = 'lo', lt = 'lt', lu = 'lu', lv = 'lv',
+    mg = 'mg', mh = 'mh', mi = 'mi', mk = 'mk', ml = 'ml', mn = 'mn', mr = 'mr', ms = 'ms', mt = 'mt', my = 'my',
+    na = 'na', nb = 'nb', nd = 'nd', ne = 'ne', ng = 'ng', nl = 'nl', nn = 'nn', no = 'no', nr = 'nr', nv = 'nv', ny = 'ny',
+    oc = 'oc', oj = 'oj', om = 'om', or = 'or', os = 'os',
+    pa = 'pa', pi = 'pi', pl = 'pl', ps = 'ps', pt = 'pt',
+    qu = 'qu',
+    rm = 'rm', rn = 'rn', ro = 'ro', ru = 'ru', rw = 'rw',
+    sa = 'sa', sc = 'sc', sd = 'sd', se = 'se', sg = 'sg', si = 'si', sk = 'sk', sl = 'sl', sm = 'sm', sn = 'sn', so = 'so', sq = 'sq', sr = 'sr', ss = 'ss', st = 'st', su = 'su', sv = 'sv', sw = 'sw',
+    ta = 'ta', te = 'te', tg = 'tg', th = 'th', ti = 'ti', tk = 'tk', tl = 'tl', tn = 'tn', to = 'to', tr = 'tr', ts = 'ts', tt = 'tt', tw = 'tw', ty = 'ty',
+    ug = 'ug', uk = 'uk', ur = 'ur', uz = 'uz',
+    ve = 've', vi = 'vi',
+    wa = 'wa', wo = 'wo',
+    xh = 'xh',
+    yi = 'yi', yo = 'yo',
+    za = 'za', zh = 'zh', zu = 'zu'
+} ;
+
+export type country = keyof typeof Countries ;
+export type language = keyof typeof Languages ;
 
 // ========== dictionary types =====================
 export type AnyDictionary = 		{ [key: string]: any } ;

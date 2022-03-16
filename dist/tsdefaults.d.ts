@@ -1,4 +1,4 @@
-import { language } from "./types";
+import { language, Languages } from "./types";
 /**
  * if you want to change the subfolders to be tested
  * you should use the static method setSubfolders() before
@@ -22,7 +22,7 @@ export interface Translations {
     year: Translation;
 }
 export declare type TranslationsDictionary = {
-    [key in string]: Translations;
+    [key in Languages]?: Translations;
 };
 export declare class TSDefaults {
     private static __instance;

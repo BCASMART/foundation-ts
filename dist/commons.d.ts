@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { TSDate } from "./tsdate";
 import { Translations } from "./tsdefaults";
-import { int, uint, language, email, url, uuid, Comparison, isodate } from "./types";
+import { int, uint, language, email, url, uuid, Comparison, isodate, country, Address } from "./types";
 export declare function $ok(o: any | undefined | null): boolean;
 export declare function $isstring(o: any | null | undefined): boolean;
 export declare function $isnumber(o: any | null | undefined): boolean;
@@ -17,6 +17,9 @@ export declare function $email(s: string | null | undefined): email | null;
 export declare function $url(s: string | null | undefined): url | null;
 export declare function $uuid(s: string | null | undefined): uuid | null;
 export declare function $isodate(s: string | null | undefined): isodate | null;
+export declare function $country(s: string | null | undefined): country | null;
+export declare function $language(s: string | null | undefined): language | null;
+export declare function $address(a: Address | null | undefined): Address | null;
 export declare function $unsignedornull(n: string | number | null | undefined): uint | null;
 export declare function $unsigned(n: string | number | null | undefined, defaultValue?: uint): uint;
 export declare function $div(a: number, b: number): number;

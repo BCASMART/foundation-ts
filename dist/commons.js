@@ -2,7 +2,7 @@ import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
 import { TSDefaults } from "./tsdefaults";
-import { INT_MAX, INT_MIN, UINT_MAX, emailRegex, urlRegex, uuidRegex, Same, Ascending, Descending } from "./types";
+import { INT_MAX, INT_MIN, UINT_MAX, emailRegex, urlRegex, uuidRegex, Same, Ascending, Descending, Languages, Countries } from "./types";
 import { $filename } from "./utils_fs";
 export function $ok(o) { return o !== null && o !== undefined && typeof o !== 'undefined'; }
 export function $isstring(o) { return o !== null && o !== undefined && typeof o === 'string'; }
@@ -42,6 +42,45 @@ export function $isodate(s) {
     }
     const cps = $parsedatetime(v, TSDateForm.ISO8601);
     return $ok(cps) ? $components2string(cps, TSDateForm.ISO8601) : null;
+}
+// $country && $language function are permisive. Eg $language("  Fr ") will return Languages.fr 
+let countriesMap;
+export function $country(s) {
+    if (!$ok(countriesMap)) {
+        countriesMap = new Map();
+        Object.keys(Countries).forEach(e => countriesMap.set(e, e));
+    }
+    const v = $trim(s);
+    if (v.length !== 2) {
+        return null;
+    }
+    const ret = countriesMap.get(v.toUpperCase());
+    return $ok(ret) ? ret : null;
+}
+let languagesMap;
+export function $language(s) {
+    if (!$ok(languagesMap)) {
+        languagesMap = new Map();
+        Object.keys(Languages).forEach(e => languagesMap.set(e, e));
+    }
+    const v = $trim(s);
+    if (v.length !== 2) {
+        return null;
+    }
+    const ret = languagesMap.get(v.toLowerCase());
+    return $ok(ret) ? ret : null;
+}
+export function $address(a) {
+    if (!$ok(a) || !$length(a === null || a === void 0 ? void 0 : a.city)) {
+        return null;
+    }
+    const c = $country(a === null || a === void 0 ? void 0 : a.country);
+    if (!$ok(c)) {
+        return null;
+    }
+    let ret = Object.assign({}, a);
+    ret.country = c;
+    return ret;
 }
 export function $unsignedornull(n) {
     if (!$ok(n)) {
