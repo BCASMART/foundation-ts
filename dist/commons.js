@@ -1,6 +1,6 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
-import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
+import { $components, $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
 import { TSDefaults } from "./tsdefaults";
 import { INT_MAX, INT_MIN, UINT_MAX, emailRegex, urlRegex, uuidRegex, Same, Ascending, Descending, Languages, Countries } from "./types";
 import { $filename } from "./utils_fs";
@@ -36,11 +36,18 @@ export function $email(s) { return $regexvalidatedstring(emailRegex, s); }
 export function $url(s) { return $regexvalidatedstring(urlRegex, s); }
 export function $uuid(s) { return $regexvalidatedstring(uuidRegex, s); }
 export function $isodate(s) {
-    const v = $trim(s);
-    if (!v.length) {
-        return null;
+    let cps = null;
+    if ($ok(s)) {
+        if (s instanceof Date) {
+            cps = $components(s);
+        }
+        else if (s instanceof TSDate) {
+            cps = s.toComponents();
+        }
+        else {
+            cps = $parsedatetime($trim(s), TSDateForm.ISO8601);
+        } // we parse the string to verify it
     }
-    const cps = $parsedatetime(v, TSDateForm.ISO8601);
     return $ok(cps) ? $components2string(cps, TSDateForm.ISO8601) : null;
 }
 // $country && $language function are permisive. Eg $language("  Fr ") will return Languages.fr 

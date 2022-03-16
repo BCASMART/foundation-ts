@@ -1,6 +1,6 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
-import { $components2string, $parsedatetime, TSDateForm } from "./tsdatecomp";
+import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { TSDefaults, Translations } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate, Languages, country, Countries, Address} from "./types";
 import { $filename } from "./utils_fs";
@@ -58,10 +58,14 @@ export function $url(s:string|null|undefined) : url | null
 export function $uuid(s:string|null|undefined) : uuid | null
 { return $regexvalidatedstring<uuid>(uuidRegex, s) ; }
 
-export function $isodate(s:string|null|undefined) : isodate | null
+export function $isodate(s:Date|TSDate|string|null|undefined) : isodate | null
 {
-    const v = $trim(s) ; if (!v.length) { return null ; }
-    const cps = $parsedatetime(v, TSDateForm.ISO8601) ;
+    let cps:TSDateComp|null = null ;
+    if ($ok(s)) {
+        if (s instanceof Date) { cps = $components(s as Date) ; }
+        else if (s instanceof TSDate) { cps = (s as TSDate).toComponents() ; }
+        else { cps = $parsedatetime($trim(s as string), TSDateForm.ISO8601) ; } // we parse the string to verify it
+    }
     return $ok(cps) ? <isodate>$components2string(cps!, TSDateForm.ISO8601) : null ;
 }
 

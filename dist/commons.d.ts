@@ -16,7 +16,7 @@ export declare function $regexvalidatedstring<T>(regex: RegExp, s: string | null
 export declare function $email(s: string | null | undefined): email | null;
 export declare function $url(s: string | null | undefined): url | null;
 export declare function $uuid(s: string | null | undefined): uuid | null;
-export declare function $isodate(s: string | null | undefined): isodate | null;
+export declare function $isodate(s: Date | TSDate | string | null | undefined): isodate | null;
 export declare function $country(s: string | null | undefined): country | null;
 export declare function $language(s: string | null | undefined): language | null;
 export declare function $address(a: Address | null | undefined): Address | null;
