@@ -124,6 +124,13 @@ interface TSRequestError {
     code?:string ;
 } ;
 
+interface TSRequestOptions {
+    headers?:RequestHeaders,
+    timeout?:number,
+    managesCredentials?:boolean,
+    auth?:RequestAuth|string
+}
+
 export class TSRequest {
 	public channel:AxiosInstance ;
 	public token:string = '' ;
@@ -132,31 +139,14 @@ export class TSRequest {
     public baseURL:string = '' ;
     public commonHeaders:RequestHeaders={} ;
 
-	public static async instantRequest(
-		url:string, 
-		method:Verb = Verb.Get, 
-		responseType:RespType = RespType.Json,
-		statuses:number[] = [200],
-		body:object|Buffer|ArrayBuffer|null|undefined=null, 
-		suplHeaders:RequestHeaders={},
-		auth:RequestAuth|string|null|undefined=null,
-		timeout?:number
-	) : Promise<[Buffer|object|string|ReadableStream|null, number]> {
-		const req = new TSRequest() ;
-		if (!$ok(req)) { return [null, Resp.InternalError] ;}
-		if (!$length(url)) { return [null, Resp.NotFound] ; }
-		if ($ok(auth)) { req.setAuth(<RequestAuth>auth) } ;
-		return await req.request(url, method, responseType, statuses, body, suplHeaders, timeout) ;
-	}
-
-	public constructor(baseURL:string='', headers:RequestHeaders={}, auth:RequestAuth|string|null|undefined=null, commonTimeout?:number) {
+    public constructor(baseURL:string='', opts:TSRequestOptions = {}) {
         this.baseURL = baseURL ;
-        this.commonHeaders= headers ;
-		if ($isstring(auth)) { this.setToken(<string>auth) ; }
-		else if ($ok(auth)) { this.setAuth(<RequestAuth>auth) ; }
-		commonTimeout = $unsigned(commonTimeout) ;
+        this.commonHeaders= $ok(opts?.headers) ? opts.headers! : {} ;
+		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
+		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
+		const commonTimeout = $unsigned(opts.timeout) ;
 		if (commonTimeout>0) { this.defaultTimeOut = commonTimeout ; }
-		this.channel = axios.create({baseURL:baseURL, headers:headers}) ;
+		this.channel = axios.create({baseURL:baseURL, withCredentials:opts.managesCredentials}) ;
 	} 
 
 	public setAuth(auth?:RequestAuth|null|undefined) {

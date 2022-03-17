@@ -113,41 +113,25 @@ export const NO_BODY = undefined;
 export const NO_HEADERS = {};
 ;
 export class TSRequest {
-    constructor(baseURL = '', headers = {}, auth = null, commonTimeout) {
+    constructor(baseURL = '', opts = {}) {
         this.token = '';
         this.basicAuth = '';
         this.defaultTimeOut = 1000;
         this.baseURL = '';
         this.commonHeaders = {};
         this.baseURL = baseURL;
-        this.commonHeaders = headers;
-        if ($isstring(auth)) {
-            this.setToken(auth);
+        this.commonHeaders = $ok(opts === null || opts === void 0 ? void 0 : opts.headers) ? opts.headers : {};
+        if ($isstring(opts.auth)) {
+            this.setToken(opts.auth);
         }
-        else if ($ok(auth)) {
-            this.setAuth(auth);
+        else if ($ok(opts.auth)) {
+            this.setAuth(opts.auth);
         }
-        commonTimeout = $unsigned(commonTimeout);
+        const commonTimeout = $unsigned(opts.timeout);
         if (commonTimeout > 0) {
             this.defaultTimeOut = commonTimeout;
         }
-        this.channel = axios.create({ baseURL: baseURL, headers: headers });
-    }
-    static instantRequest(url, method = Verb.Get, responseType = RespType.Json, statuses = [200], body = null, suplHeaders = {}, auth = null, timeout) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const req = new TSRequest();
-            if (!$ok(req)) {
-                return [null, Resp.InternalError];
-            }
-            if (!$length(url)) {
-                return [null, Resp.NotFound];
-            }
-            if ($ok(auth)) {
-                req.setAuth(auth);
-            }
-            ;
-            return yield req.request(url, method, responseType, statuses, body, suplHeaders, timeout);
-        });
+        this.channel = axios.create({ baseURL: baseURL, withCredentials: opts.managesCredentials });
     }
     setAuth(auth) {
         if ($ok(auth) && $length(auth === null || auth === void 0 ? void 0 : auth.login)) {

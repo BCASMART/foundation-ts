@@ -93,6 +93,12 @@ export declare type RequestAuth = {
     login: string;
     password: string;
 };
+interface TSRequestOptions {
+    headers?: RequestHeaders;
+    timeout?: number;
+    managesCredentials?: boolean;
+    auth?: RequestAuth | string;
+}
 export declare class TSRequest {
     channel: AxiosInstance;
     token: string;
@@ -100,9 +106,9 @@ export declare class TSRequest {
     defaultTimeOut: number;
     baseURL: string;
     commonHeaders: RequestHeaders;
-    static instantRequest(url: string, method?: Verb, responseType?: RespType, statuses?: number[], body?: object | Buffer | ArrayBuffer | null | undefined, suplHeaders?: RequestHeaders, auth?: RequestAuth | string | null | undefined, timeout?: number): Promise<[Buffer | object | string | ReadableStream | null, number]>;
-    constructor(baseURL?: string, headers?: RequestHeaders, auth?: RequestAuth | string | null | undefined, commonTimeout?: number);
+    constructor(baseURL?: string, opts?: TSRequestOptions);
     setAuth(auth?: RequestAuth | null | undefined): void;
     setToken(token?: string | null | undefined): void;
     request(relativeURL: string, method?: Verb, responseType?: RespType, statuses?: number[], body?: object | Buffer | ArrayBuffer | null | undefined, suplHeaders?: RequestHeaders, timeout?: number): Promise<[Buffer | object | string | ReadableStream | null, number]>;
 }
+export {};
