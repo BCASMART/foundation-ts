@@ -33,6 +33,9 @@ export declare class TSDate implements TSObject<TSDate> {
     constructor();
     static past(): TSDate;
     static future(): TSDate;
+    static from(rep: number | string | Date | null | undefined): TSDate | null;
+    static fromTimeStamp(d: number | null | undefined): TSDate | null;
+    static fromDate(d: Date | null | undefined): TSDate | null;
     static fromComponents(comp: TSDateComp | undefined | null): TSDate | null;
     static fromIsoString(s: string | null | undefined): TSDate | null;
     static fromString(s: string | null | undefined, form?: TSDateForm): TSDate | null;
@@ -63,6 +66,7 @@ export declare class TSDate implements TSObject<TSDate> {
     toEpochTimestamp(): number;
     toDate(): Date;
     toIsoString(): isodate;
+    toISOString(): string;
     toRangeLocation(): number;
     get isa(): Class<TSDate>;
     get className(): string;

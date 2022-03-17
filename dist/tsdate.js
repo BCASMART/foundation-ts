@@ -103,6 +103,24 @@ export class TSDate {
     }
     static past() { return new TSDate(TSDate.PAST); }
     static future() { return new TSDate(TSDate.FUTURE); }
+    static from(rep) {
+        if (!$ok(rep)) {
+            return null;
+        }
+        if ($isnumber(rep)) {
+            return this.fromTimeStamp(rep);
+        }
+        if (rep instanceof Date) {
+            return this.fromDate(rep);
+        }
+        return this.fromIsoString(rep);
+    }
+    static fromTimeStamp(d) {
+        return $ok(d) ? new TSDate(d) : null;
+    }
+    static fromDate(d) {
+        return $ok(d) ? new TSDate(d) : null;
+    }
     // usage TSDate.fromComponents(myComponents)
     // if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
     static fromComponents(comp) {
@@ -114,6 +132,9 @@ export class TSDate {
         return new TSDate($timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second));
     }
     static fromIsoString(s) {
+        if (!$ok(s)) {
+            return null;
+        }
         return this.fromComponents($parsedatetime(s, TSDateForm.ISO8601));
     }
     // usage TSDate.fromString(aString[, parsing form])
@@ -186,6 +207,11 @@ export class TSDate {
         return $components2date($components(this.timestamp));
     }
     toIsoString() { return $components2string($components(this.timestamp), TSDateForm.ISO8601); }
+    // if we use this method it may be because the caller thinks he used a Date object
+    toISOString() {
+        console.log('toISOString() method should not be used on TSDate instances. Use toIsoString() instead');
+        return $components2string($components(this.timestamp), TSDateForm.ISO8601);
+    }
     toRangeLocation() { return (this.timestamp / 60) & UnsignedMask; }
     // ============ TSObject conformance =============== 
     get isa() { return this.constructor; }

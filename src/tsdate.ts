@@ -114,7 +114,22 @@ export class TSDate implements TSObject<TSDate> {
     public static past()    { return new TSDate(TSDate.PAST) ; }
     public static future()  { return new TSDate(TSDate.FUTURE) ; }
 
-	// usage TSDate.fromComponents(myComponents)
+    public static from(rep:number|string|Date|null|undefined) : TSDate | null {
+        if (!$ok(rep)) { return null ; }
+        if ($isnumber(rep)) { return this.fromTimeStamp(rep as number) ; }
+        if (rep instanceof Date) { return this.fromDate(rep as Date) ; }
+        return this.fromIsoString(rep as string) ;
+    }
+
+    public static fromTimeStamp(d:number|null|undefined) : TSDate | null {
+        return $ok(d) ? new TSDate(d!) : null ;
+    }
+
+    public static fromDate(d:Date|null|undefined) : TSDate | null {
+        return $ok(d) ? new TSDate(d!) : null ;
+    }
+
+    // usage TSDate.fromComponents(myComponents)
 	// if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
 	public static fromComponents(comp:TSDateComp|undefined|null) : TSDate | null {
 		if (!$componentsarevalid(comp)) { return null ; }
@@ -125,6 +140,7 @@ export class TSDate implements TSObject<TSDate> {
 	}
 
     public static fromIsoString(s:string|null|undefined) : TSDate | null {
+        if (!$ok(s)) { return null ; }
         return this.fromComponents($parsedatetime(s, TSDateForm.ISO8601)) ;
     }
 
@@ -207,6 +223,12 @@ export class TSDate implements TSObject<TSDate> {
         return $components2date($components(this.timestamp)) ;
     }
 	public toIsoString() : isodate { return <isodate>$components2string($components(this.timestamp), TSDateForm.ISO8601) ; }
+	
+    // if we use this method it may be because the caller thinks he used a Date object
+    public toISOString() : string {
+        console.log('toISOString() method should not be used on TSDate instances. Use toIsoString() instead') ; 
+        return $components2string($components(this.timestamp), TSDateForm.ISO8601) ; 
+    }
     public toRangeLocation() : number { return (this.timestamp / 60) & UnsignedMask ; }
 
 	// ============ TSObject conformance =============== 
