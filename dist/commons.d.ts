@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { TSDate } from "./tsdate";
-import { Translations } from "./tsdefaults";
+import { Locales } from "./tsdefaults";
 import { int, uint, language, email, url, uuid, Comparison, isodate, country, Address } from "./types";
 export declare function $ok(o: any | undefined | null): boolean;
 export declare function $isstring(o: any | null | undefined): boolean;
@@ -26,6 +26,9 @@ export declare function $div(a: number, b: number): number;
 export declare function $string(v: any): string;
 export declare function $strings(e: string[] | string | undefined | null): string[];
 export declare function $trim(s: string | undefined | null): string;
+export declare function $fpad2(v: uint): string;
+export declare function $fpad3(v: uint): string;
+export declare function $fpad4(v: uint): string;
 export declare function $ascii(source: string | undefined | null): string;
 export declare function $numcompare(a: number, b: number): Comparison;
 export declare function $datecompare(a: number | string | Date | TSDate | null | undefined, b: number | string | Date | TSDate | null | undefined): Comparison;
@@ -42,4 +45,4 @@ export declare function $exit(reason?: string, status?: number, name?: string): 
 export declare function $default(key: string): any;
 export declare function $setdefault(key: string, value?: any): void;
 export declare function $removedefault(key: string): void;
-export declare function $translations(lang?: language | undefined | null): Translations;
+export declare function $locales(lang?: language | undefined | null): Locales;

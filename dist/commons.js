@@ -114,6 +114,15 @@ export function $strings(e) {
 export function $trim(s) {
     return $length(s) ? s.replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '';
 }
+export function $fpad2(v) {
+    return v >= 10 ? ('' + v) : ('0' + v);
+}
+export function $fpad3(v) {
+    return v >= 100 ? ('0' + v) : (v >= 10 ? ('00' + v) : ('000' + v));
+}
+export function $fpad4(v) {
+    return v >= 1000 ? ('' + v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00' + v) : ('000' + v)));
+}
 export function $ascii(source) {
     const l = $length(source);
     if (!l)
@@ -319,5 +328,5 @@ export function $exit(reason = '', status = 0, name) {
 export function $default(key) { return TSDefaults.defaults().getValue(key); }
 export function $setdefault(key, value = undefined) { return TSDefaults.defaults().setValue(key, value); }
 export function $removedefault(key) { return TSDefaults.defaults().setValue(key, undefined); }
-export function $translations(lang) { return TSDefaults.defaults().translations(lang); }
+export function $locales(lang) { return TSDefaults.defaults().locales(lang); }
 //# sourceMappingURL=commons.js.map

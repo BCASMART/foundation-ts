@@ -494,6 +494,9 @@ export declare type StringArrayDictionary = {
 export declare type NumberArrayDictionary = {
     [key: string]: number[];
 };
+export declare type StringTranslation = {
+    [key in Languages]?: string;
+};
 export interface Address {
     streetNumber?: string;
     street?: string;

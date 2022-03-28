@@ -1,5 +1,5 @@
 import { TSDate } from "./tsdate";
-import { uint } from "./types";
+import { Languages, uint } from "./types";
 export interface TimeComp {
     hour: uint;
     minute: uint;
@@ -21,7 +21,15 @@ export declare enum TSDateForm {
     Standard = 0,
     English = 1,
     Computer = 2,
-    ISO8601 = 3
+    ISO8601 = 3,
+    ISO8601C = 4
+}
+export declare enum TSDateRep {
+    LocalTime = "lt",
+    LocalDate = "ld",
+    LocalDateTime = "ldt",
+    ShortLocalDate = "sld",
+    ShortLocalDateTime = "sldt"
 }
 /**
  * If you call timecomponents() with no parameters, it
@@ -88,13 +96,59 @@ export declare function $parsedate(s: string | null | undefined, form?: TSDateFo
  * ==WARNING== dayOfWeek is not initialized after parsing.
  */
 export interface Iso8601ParseOptions {
-    acceptsGMT?: boolean;
     noTime?: boolean;
 }
 export declare function $isostring2components(source: string | null | undefined, opts?: Iso8601ParseOptions): TSDateComp | null;
 export declare function $components2timestamp(c: TSDateComp): number;
 export declare function $components2date(c: TSDateComp): Date;
 export declare function $components2string(c: TSDateComp, form?: TSDateForm): string;
+/**
+ *      Format documentation :
+ *
+ *      %Y  year padded to 4 digits
+ *      %y  year paddeed to 2 digits (centuries are ommited)
+ *      %z  non padded year
+ *
+ *      %m  month padded to 2 digits
+ *      %n  not padded month
+ *      %b  short month name
+ *      %B  month name
+ *
+ *      %d  day padded to 2 digits
+ *      %e  not padded day
+ *
+ *      %f  day of week (0 = sunday, 1 = monday, ..., 6 = Saturday)
+ *      %F  day of week calculated with the current local starting day (0 = monday in France)
+ *      %a  short day of week name
+ *      %A  day of week name
+ *
+ *      %q  day of year padded to 3 digits
+ *      %r  not padded day of year
+ *
+ *      %H  24 hour representation padded to 2 digits
+ *      %I  12 hour representation padded to 2 digits
+ *      %J  not padded 24 hour representation of hours
+ *      %K  not padded 12 hour representation of hours
+ *      %M  minutes padded to 2 digits
+ *      %N  not padded minutes
+ *      %P  AM/PM
+ *      %S  seconds padded to 2 digits
+ *      %T  not padded seconds
+ *
+ *      %p  standard partial time format for the given language (time without seconds)
+ *      %t  standard time format for the given language
+ *
+ *      %v  week of year padded to 2 digits
+ *      %w  not padded week of year
+ *
+ *      %x  standard short date format for the given language
+ *      %X  standard date format for the given language
+ *
+ *      %%  % caracter
+ *      %[  enters a format zone which will be disabled if the passed date has no time
+ *      %]  exit previous format zone without time
+ */
+export declare function $components2stringformat(comp: TSDateComp, format?: string | TSDateRep | undefined | null, lang?: Languages): string | null;
 export declare function $durationcomponents(duration: number | null | undefined): TSDurationComp;
 export declare function $duration(comps: TSDurationComp): number;
 export declare function duration2String(comps: TSDurationComp): string;

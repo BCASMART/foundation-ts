@@ -4,6 +4,8 @@ import * as defaults_1 from './tsdefaults';
 export { defaults_1 as defaults };
 import * as request_1 from './tsrequest';
 export { request_1 as request };
+import * as tscolor_1 from './tscolor';
+export { tscolor_1 as tscolor };
 import * as tscouple_1 from './tscouple';
 export { tscouple_1 as tscouple };
 import * as tsdate_1 from './tsdate';
@@ -28,6 +30,4 @@ import * as utils_crypto_1 from './utils_crypto';
 export { utils_crypto_1 as utils_crypto };
 import * as utils_fs_1 from './utils_fs';
 export { utils_fs_1 as utils_fs };
-import * as webcolor_1 from './webcolor';
-export { webcolor_1 as webcolor };
 //# sourceMappingURL=index.js.map

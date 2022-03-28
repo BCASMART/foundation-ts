@@ -14,17 +14,17 @@ export class TSDefaults {
             }
         }
     }
-    translations(lang) {
-        if (!$ok(lang) || !$ok(TSDefaults.__translations[lang])) {
+    locales(lang) {
+        if (!$ok(lang) || !$ok(TSDefaults.__locales[lang])) {
             lang = this.defaultLanguage;
         }
-        return TSDefaults.__translations[lang];
+        return TSDefaults.__locales[lang];
     }
     static setSubfolders(folders) {
         this.__subfolders = folders;
     }
     setDefaultLanguage(l) {
-        if ($ok(TSDefaults.__translations[l])) {
+        if ($ok(TSDefaults.__locales[l])) {
             this.defaultLanguage = l;
         }
         return this.defaultLanguage;
@@ -54,39 +54,89 @@ export class TSDefaults {
     }
 }
 TSDefaults.__subfolders = ['utils', 'tests', 'dist'];
-TSDefaults.__translations = {
-    'de': {
-        months: ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
-        shortMonths: ["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
-        days: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
-        shortDays: ["Son", "Mon", "Die", "Mit", "Don", "Fre", "Sam"],
-        startingWeekDay: 1,
-        day: { singular: 'Tag', plural: 'Tagen', short: 'Tag', shorts: 'Tag.' },
-        week: { singular: 'Woche', plural: 'Wochen', short: 'Wo.', shorts: 'Wo.' },
-        month: { singular: 'Monat', plural: 'Monaten', short: 'Mo.', shorts: 'Mo.' },
-        year: { singular: 'Jahr', plural: 'Jahren', short: 'Jahr', shorts: 'Jahr.' }
-    },
-    'fr': {
-        months: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"],
-        shortMonths: ["Jan.", "Fév.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc."],
-        days: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
-        shortDays: ["Dim", "Lun", "Mar", "Mer", "Jen", "Ven", "Sam"],
-        startingWeekDay: 1,
-        day: { singular: 'jour', plural: 'jours', short: 'j.', shorts: 'j.' },
-        week: { singular: 'semaine', plural: 'semaines', short: 'sem.', shorts: 'sem.' },
-        month: { singular: 'mois', plural: 'mois', short: 'mois', shorts: 'mois' },
-        year: { singular: 'année', plural: 'années', short: 'an', shorts: 'ans' }
-    },
-    'en': {
+/**
+ * LOCALES (mostly date/time locales) are set in 5 common world's languages
+ * - english (en)
+ * - french (fr),
+ * - spanish (es),
+ * - german (de),
+ * - italian (it)
+ */
+TSDefaults.__locales = {
+    en: {
         months: ["January", "February", "March", "April", "May", "June", "July", "August", "Septembre", "Octobre", "Novembre", "Decembre"],
         shortMonths: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
         days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-        shortDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+        shortDays: ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."],
         startingWeekDay: 0,
-        day: { singular: 'day', plural: 'days', short: 'd.', shorts: 'd.' },
-        week: { singular: 'week', plural: 'weeks', short: 'w.', shorts: 'w.' },
-        month: { singular: 'month', plural: 'months', short: 'm.', shorts: 'ms' },
-        year: { singular: 'year', plural: 'years', short: 'y.', shorts: 'y.' }
+        dateTimeFormat: "%m/%d/%Y %H:%M:%S",
+        dateFormat: "%m/%d/%Y",
+        shortDateFormat: "%m/%d/%y",
+        shortDateTimeFormat: "%m/%d/%y %H:%M:%S",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        language: { fr: "anglais", en: "english", de: "englisch", it: "inglese", es: "inglés" },
+        ampm: ['AM', 'PM']
+    },
+    fr: {
+        months: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
+        shortMonths: ["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
+        days: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+        shortDays: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+        startingWeekDay: 1,
+        dateTimeFormat: "%d/%m/%Y %H:%M:%S",
+        dateFormat: "%d/%m/%Y",
+        shortDateFormat: "%d/%m/%y",
+        shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        language: { fr: "français", en: "french", de: "französisch", it: "francese", es: "francés" },
+        ampm: ['AM', 'PM']
+    },
+    es: {
+        shortDays: ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"],
+        days: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+        shortMonths: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+        months: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+        shortDateFormat: "%d/%m/%y",
+        dateFormat: "%d/%m/%Y",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        dateTimeFormat: "%d/%m/%Y %H:%M:%S",
+        shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
+        startingWeekDay: 1,
+        language: { fr: "espagnol", en: "spanish", de: "spanisch", it: "spagnolo", es: "español" },
+        ampm: ['AM', 'PM']
+    },
+    de: {
+        months: ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+        shortMonths: ["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
+        days: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+        shortDays: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+        startingWeekDay: 1,
+        dateTimeFormat: "%%e.%m.%Y %H:%M:%S",
+        dateFormat: "%e.%m.%Y",
+        shortDateFormat: "%e.%m.%y",
+        shortDateTimeFormat: "%%e.%m.%y %H:%M:%S",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        language: { fr: "allemand", en: "german", de: "deutsch", it: "tedesco", es: "alemán" },
+        ampm: ['AM', 'PM']
+    },
+    it: {
+        shortDays: ["dom.", "lun.", "mar.", "mer.", "gio.", "ven.", "sab."],
+        days: ["domenica", "lunedi", "martedì", "mercoledì", "giovedi", "venerdì", "sabato"],
+        shortMonths: ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"],
+        months: ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"],
+        shortDateFormat: "%d/%m/%y",
+        dateFormat: "%d/%m/%Y",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        dateTimeFormat: "%d/%m/%Y %H:%M:%S",
+        shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
+        startingWeekDay: 1,
+        language: { fr: "italien", en: "italian", de: "italienisch", it: "italiano", es: "italiano" },
+        ampm: ['AM', 'PM']
     }
 };
 //# sourceMappingURL=tsdefaults.js.map

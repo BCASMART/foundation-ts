@@ -1,6 +1,6 @@
 import { $isnumber, $isstring, $isunsigned, $numcompare, $ok } from "./commons";
 import { Same, UINT32_MAX, UINT8_MAX } from "./types";
-export const WebColorNames = {
+export const TSWebColorNames = {
     aliceblue: "#f0f8ff",
     antiquewhite: "#faebd7",
     aqua: "#00ffff",
@@ -178,7 +178,7 @@ export function $lightest(c) {
 export function $darkest(c) {
     return $darker($darker(c));
 }
-export class WebColor {
+export class TSColor {
     constructor() {
         let n = arguments.length;
         if (n === 3 || n === 4) {
@@ -192,7 +192,7 @@ export class WebColor {
             if ($isstring(arguments[0])) {
                 let s = arguments[0];
                 s = s.replace(/ /g, ""); // TODO: do we need to accept '-' as a spacer here ?
-                s = WebColorNames[s.toLowerCase()] || s;
+                s = TSWebColorNames[s.toLowerCase()] || s;
                 let parser = WebColorsHexParsers[s.length];
                 let m = parser === null || parser === void 0 ? void 0 : parser.match(parser.rx);
                 if ($ok(m)) {
@@ -228,22 +228,22 @@ export class WebColor {
         return this.luminance() > 0.6;
     }
     lighterColor() {
-        return new WebColor($lighter(this.red), $lighter(this.green), $lighter(this.blue), this.alpha);
+        return new TSColor($lighter(this.red), $lighter(this.green), $lighter(this.blue), this.alpha);
     }
     darkerColor() {
-        return new WebColor($darker(this.red), $darker(this.green), $darker(this.blue), this.alpha);
+        return new TSColor($darker(this.red), $darker(this.green), $darker(this.blue), this.alpha);
     }
     lightestColor() {
-        return new WebColor($lightest(this.red), $lightest(this.green), $lightest(this.blue), this.alpha);
+        return new TSColor($lightest(this.red), $lightest(this.green), $lightest(this.blue), this.alpha);
     }
     darkestColor() {
-        return new WebColor($darkest(this.red), $darkest(this.green), $darkest(this.blue), this.alpha);
+        return new TSColor($darkest(this.red), $darkest(this.green), $darkest(this.blue), this.alpha);
     }
     matchingColor() {
         return this.isPale() ? this.darkestColor() : this.lightestColor();
     }
     writingColor() {
-        return this.isPale() ? WebColor.darkWriteColor : WebColor.lightWriteColor;
+        return this.isPale() ? TSColor.darkWriteColor : TSColor.lightWriteColor;
     }
     toNumber() {
         return (((0xff - this.alpha) << 24) |
@@ -258,7 +258,7 @@ export class WebColor {
     get isa() { return this.constructor; }
     get className() { return this.constructor.name; }
     isEqual(other) {
-        return this === other || (other instanceof WebColor &&
+        return this === other || (other instanceof TSColor &&
             other.red === this.red &&
             other.green === this.green &&
             other.blue === this.blue &&
@@ -267,7 +267,7 @@ export class WebColor {
     compare(other) {
         return this === other ?
             Same :
-            (other instanceof WebColor ? $numcompare(this.luminance(), other.luminance()) : undefined);
+            (other instanceof TSColor ? $numcompare(this.luminance(), other.luminance()) : undefined);
     }
     toString(removeAlpha = false) {
         return this.alpha === 255 || removeAlpha
@@ -281,16 +281,16 @@ export class WebColor {
     }
     toArray() { return [this.red, this.green, this.blue, this.alpha]; }
 }
-WebColor.red = new WebColor(0xff, 0, 0);
-WebColor.green = new WebColor(0, 0xff, 0);
-WebColor.yellow = new WebColor(0xff, 0xff, 0);
-WebColor.blue = new WebColor(0, 0, 0xff);
-WebColor.cyan = new WebColor(0, 0xff, 0xff);
-WebColor.magenta = new WebColor(0xff, 0, 0xff);
-WebColor.white = new WebColor(0xff, 0xff, 0xff);
-WebColor.black = new WebColor(0, 0, 0);
-WebColor.darkWriteColor = WebColor.black;
-WebColor.lightWriteColor = WebColor.white;
+TSColor.red = new TSColor(0xff, 0, 0);
+TSColor.green = new TSColor(0, 0xff, 0);
+TSColor.yellow = new TSColor(0xff, 0xff, 0);
+TSColor.blue = new TSColor(0, 0, 0xff);
+TSColor.cyan = new TSColor(0, 0xff, 0xff);
+TSColor.magenta = new TSColor(0xff, 0, 0xff);
+TSColor.white = new TSColor(0xff, 0xff, 0xff);
+TSColor.black = new TSColor(0, 0, 0);
+TSColor.darkWriteColor = TSColor.black;
+TSColor.lightWriteColor = TSColor.white;
 function _toHex(v) {
     const s = v.toString(16);
     return v >= 16 ? s : "0" + s;
@@ -301,4 +301,4 @@ function _parseColorComponent(v) {
     }
     return v;
 }
-//# sourceMappingURL=webcolor.js.map
+//# sourceMappingURL=tscolor.js.map
