@@ -2,7 +2,7 @@ import { $isnumber, $isstring, $isunsigned, $numcompare, $ok } from "./commons";
 import { Class, TSObject } from "./tsobject";
 import { AnyDictionary, Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX } from "./types";
 
-export const WebColorNames: StringDictionary = {
+export const TSWebColorNames: StringDictionary = {
 	aliceblue: "#f0f8ff",
 	antiquewhite: "#faebd7",
 	aqua: "#00ffff",
@@ -184,22 +184,22 @@ export function $darkest(c: number): uint8 {
 	return $darker($darker(c));
 }
 
-export class WebColor implements TSObject<WebColor> {
+export class TSColor implements TSObject<TSColor> {
 	public red: uint8;
 	public green: uint8;
 	public blue: uint8;
 	public alpha: uint8;
 
-	static readonly red = new WebColor(0xff, 0, 0);
-	static readonly green = new WebColor(0, 0xff, 0);
-	static readonly yellow = new WebColor(0xff, 0xff, 0);
-	static readonly blue = new WebColor(0, 0, 0xff);
-	static readonly cyan = new WebColor(0, 0xff, 0xff);
-	static readonly magenta = new WebColor(0xff, 0, 0xff);
-	static readonly white = new WebColor(0xff, 0xff, 0xff);
-	static readonly black = new WebColor(0, 0, 0);
-	static darkWriteColor = WebColor.black;
-	static lightWriteColor = WebColor.white;
+	static readonly red = new TSColor(0xff, 0, 0);
+	static readonly green = new TSColor(0, 0xff, 0);
+	static readonly yellow = new TSColor(0xff, 0xff, 0);
+	static readonly blue = new TSColor(0, 0, 0xff);
+	static readonly cyan = new TSColor(0, 0xff, 0xff);
+	static readonly magenta = new TSColor(0xff, 0, 0xff);
+	static readonly white = new TSColor(0xff, 0xff, 0xff);
+	static readonly black = new TSColor(0, 0, 0);
+	static darkWriteColor = TSColor.black;
+	static lightWriteColor = TSColor.white;
 
 	constructor(stringColor: string);
 	constructor(colorDefinition: number);
@@ -216,7 +216,7 @@ export class WebColor implements TSObject<WebColor> {
 			if ($isstring(arguments[0])) {
 				let s = arguments[0] as string;
 				s = s.replace(/ /g, ""); // TODO: do we need to accept '-' as a spacer here ?
-				s = WebColorNames[s.toLowerCase()] || s;
+				s = TSWebColorNames[s.toLowerCase()] || s;
 				let parser = WebColorsHexParsers[s.length];
 				let m = parser?.match(parser.rx);
 				if ($ok(m)) {
@@ -252,16 +252,16 @@ export class WebColor implements TSObject<WebColor> {
 		return this.luminance() > 0.6;
 	}
 
-	public lighterColor(): WebColor {
-		return new WebColor(
+	public lighterColor(): TSColor {
+		return new TSColor(
 			$lighter(this.red),
 			$lighter(this.green),
 			$lighter(this.blue),
 			this.alpha
 		);
 	}
-	public darkerColor(): WebColor {
-		return new WebColor(
+	public darkerColor(): TSColor {
+		return new TSColor(
 			$darker(this.red),
 			$darker(this.green),
 			$darker(this.blue),
@@ -269,16 +269,16 @@ export class WebColor implements TSObject<WebColor> {
 		);
 	}
 
-	public lightestColor(): WebColor {
-		return new WebColor(
+	public lightestColor(): TSColor {
+		return new TSColor(
 			$lightest(this.red),
 			$lightest(this.green),
 			$lightest(this.blue),
 			this.alpha
 		);
 	}
-	public darkestColor(): WebColor {
-		return new WebColor(
+	public darkestColor(): TSColor {
+		return new TSColor(
 			$darkest(this.red),
 			$darkest(this.green),
 			$darkest(this.blue),
@@ -286,11 +286,11 @@ export class WebColor implements TSObject<WebColor> {
 		);
 	}
 
-	public matchingColor(): WebColor {
+	public matchingColor(): TSColor {
 		return this.isPale() ? this.darkestColor() : this.lightestColor();
 	}
-	public writingColor(): WebColor {
-		return this.isPale() ? WebColor.darkWriteColor : WebColor.lightWriteColor;
+	public writingColor(): TSColor {
+		return this.isPale() ? TSColor.darkWriteColor : TSColor.lightWriteColor;
 	}
 
 	public toNumber(): number {
@@ -306,11 +306,11 @@ export class WebColor implements TSObject<WebColor> {
 	}
 	
 	// ============ TSObject conformance =============== 
-	public get isa(): Class<WebColor> { return this.constructor as Class<WebColor>; }
+	public get isa(): Class<TSColor> { return this.constructor as Class<TSColor>; }
 	public get className(): string { return this.constructor.name; }
 	public isEqual(other: any): boolean {
 		return this === other || (
-			other instanceof WebColor &&
+			other instanceof TSColor &&
 			other.red === this.red &&
 			other.green === this.green &&
 			other.blue === this.blue &&
@@ -321,7 +321,7 @@ export class WebColor implements TSObject<WebColor> {
     public compare(other:any): Comparison {
         return this === other ? 
             Same : 
-            (other instanceof WebColor ? $numcompare(this.luminance(), other.luminance()) : undefined) ;
+            (other instanceof TSColor ? $numcompare(this.luminance(), other.luminance()) : undefined) ;
     }
 
 	public toString(removeAlpha: boolean = false): string {
