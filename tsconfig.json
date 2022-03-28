@@ -1,5 +1,7 @@
 {
-    "compilerOptions": {
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
       "allowJs": true,
       "allowUnreachableCode": false,
       "alwaysStrict": true,
