@@ -1,7 +1,7 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
-import { TSDefaults, Translations } from "./tsdefaults";
+import { TSDefaults, Locales } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate, Languages, country, Countries, Address} from "./types";
 import { $filename } from "./utils_fs";
 
@@ -133,6 +133,20 @@ export function $strings(e: string[] | string | undefined | null) : string[]
 export function $trim(s: string | undefined | null) : string
 {
 	return $length(s) ? (<string>s).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ;
+}
+export function $fpad2(v: uint) : string
+{ 
+    return v >= 10 ? (''+v) : ('0' + v) ; 
+}
+
+export function $fpad3(v: uint) : string
+{ 
+    return v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)) ; 
+}
+
+export function $fpad4(v: uint) : string
+{ 
+    return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)));
 }
 
 export function $ascii(source: string | undefined | null) : string
@@ -316,4 +330,5 @@ export function $exit(reason:string='', status:number=0, name?:string) {
 export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
 export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
 export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }
-export function $translations(lang?:language|undefined|null):Translations { return TSDefaults.defaults().translations(lang) ; }
+export function $locales(lang?:language|undefined|null):Locales { return TSDefaults.defaults().locales(lang) ; }
+

@@ -128,7 +128,7 @@ export type NumberDictionary = 		{ [key: string]: number } ;
 export type FlagDictionary = 		{ [key: string]: boolean } ;
 export type StringArrayDictionary = { [key: string]: string[] } ;
 export type NumberArrayDictionary = { [key: string]: number[] } ;
-
+export type StringTranslation =     { [key in Languages]?:string } ;
 
 // ========== interfaces =====================
 export interface Address {
