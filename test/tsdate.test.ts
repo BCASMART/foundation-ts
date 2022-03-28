@@ -8,12 +8,45 @@ import {
     $timestamp,
     $dayOfWeekFromTimestamp,
     TSDay,
-    $timestampWithoutTime, 
-//    TSMinute
+    $timestampWithoutTime
 } from "../src/tsdate";
 import { Ascending, Descending, Same } from "../src/types";
 
-//const offset = -(new Date()).getTimezoneOffset()*TSMinute ;
+describe("Testing code $dayOfWeek() function", () => {
+    const T = $timestamp(2022,3,28) ;
+    for (let i = 0 ; i < 7 ; i++) {
+        it(`day of week of ${new TSDate(T+i*TSDay)} should be ${(i+1)%7}`, () => { expect($dayOfWeekFromTimestamp(T+TSDay*i)).toBe((i+1)%7) ; });
+    }     
+    for (let i = 0 ; i < 7 ; i++) {
+        it(`french day of week of ${new TSDate(T+i*TSDay)} should be ${i}`, () => { expect($dayOfWeekFromTimestamp(T+TSDay*i,1)).toBe(i) ; });
+    }     
+}) ;
+
+describe("Testing $timestampWithoutTime() function", () => {
+    const T = $timestamp(2022,3,28, 16, 45, 12) ;
+    const U = T + 0.25 ;
+    const t0 = T - (T % TSDay) ;
+    const V = $timestamp(1945,5,8, 23, 1, 0) ;
+    const v1 = $timestamp(1945,5,8, 0, 0, 0) ;
+    const W = V - 0.25 ;
+
+    it('verifying $timestampWithoutTime() with positive TS', () => {
+        expect($timestampWithoutTime(T)).toBe(t0) ;
+    }) ;
+
+    it('verifying $timestampWithoutTime() with positive non integer TS', () => {
+        expect($timestampWithoutTime(U)).toBe(t0) ;
+    }) ;
+
+    it('verifying $timestampWithoutTime() with negative TS', () => {
+        expect($timestampWithoutTime(V)).toBe(v1) ;
+    }) ;
+
+    it('verifying $timestampWithoutTime() with non integer negative TS', () => {
+        expect($timestampWithoutTime(W)).toBe(v1) ;
+    }) ;
+}) ;
+
 
 describe("Testing TSDate creation", () => {
     const ISO  = "1966-04-13T12:05:22" ;
@@ -100,41 +133,6 @@ describe("Testing TSDate creation", () => {
         expect(Y.toString(mFormat)).toBe(Z.toLocaleString(mFormat));
     });
 });
-
-describe("Testing code $dayOfWeek() function", () => {
-    const T = $timestamp(2022,3,28) ;
-    for (let i = 0 ; i < 7 ; i++) {
-        it(`day of week of ${new TSDate(T+i*TSDay)} should be ${(i+1)%7}`, () => { expect($dayOfWeekFromTimestamp(T+TSDay*i)).toBe((i+1)%7) ; });
-    }     
-    for (let i = 0 ; i < 7 ; i++) {
-        it(`french day of week of ${new TSDate(T+i*TSDay)} should be ${i}`, () => { expect($dayOfWeekFromTimestamp(T+TSDay*i,1)).toBe(i) ; });
-    }     
-}) ;
-
-describe("Testing $timestampWithoutTime() function", () => {
-    const T = $timestamp(2022,3,28, 16, 45, 12) ;
-    const U = T + 0.25 ;
-    const t0 = T - (T % TSDay) ;
-    const V = $timestamp(1945,5,8, 23, 1, 0) ;
-    const v1 = $timestamp(1945,5,8, 0, 0, 0) ;
-    const W = V - 0.25 ;
-
-    it('verifying $timestampWithoutTime() with positive TS', () => {
-        expect($timestampWithoutTime(T)).toBe(t0) ;
-    }) ;
-
-    it('verifying $timestampWithoutTime() with positive non integer TS', () => {
-        expect($timestampWithoutTime(U)).toBe(t0) ;
-    }) ;
-
-    it('verifying $timestampWithoutTime() with negative TS', () => {
-        expect($timestampWithoutTime(V)).toBe(v1) ;
-    }) ;
-
-    it('verifying $timestampWithoutTime() with non integer negative TS', () => {
-        expect($timestampWithoutTime(W)).toBe(v1) ;
-    }) ;
-}) ;
 
 describe("Testing TSDate manipulation", () => {
     const D = new TSDate(1945, 5, 8, 23, 1, 0) ; // armistice signature
