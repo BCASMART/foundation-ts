@@ -82,7 +82,7 @@ describe("Testing TSDate creation", () => {
 
     it(`expect same dates created by Y,M,D,H,M,S parameters to be correct`, () => {
         expect(B.toIsoString()).toBe(ISO);
-        expect(TD.toISOString()).toBe(ISO);
+        expect(TD.toIsoString()).toBe(ISO);
     });
 
     

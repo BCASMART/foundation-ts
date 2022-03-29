@@ -6,8 +6,32 @@ import { StringDictionary } from "./types";
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.    
 */
+/*
 
+*/
 export const FoundationASCIIConversion:StringDictionary = {
+    /* extra ASCII spaces */
+    '\u00A0':    ' ',   // NO-BREAK SPACE
+    '\u1361':    ' ',   // ETHIOPIC WORDSPACE
+    "\u1680":    ' ',   // OGHAM SPACE MARK
+    '\u2000':    ' ',   // EN QUAD
+    '\u2001':    ' ',   // EM QUAD
+    '\u2002':    ' ',   // EN SPACE
+    '\u2003':    ' ',   // EM SPACE
+    '\u2004':    ' ',   // THREE-PER-EM SPACE
+    '\u2005':    ' ',   // FOUR-PER-EM SPACE
+    '\u2006':    ' ',   // SIX-PER-EM SPACE
+    '\u2007':    ' ',   // FIGURE SPACE
+    '\u2008':    ' ',   // PUNCTUATION SPACE
+    '\u2009':    ' ',   // THIN SPACE
+    '\u200A':    ' ',   // HAIR SPACE
+    '\u200B':    ' ',   // ZERO WIDTH SPACE
+    '\u2028':    ' ',   // LINE SEPARATOR
+    '\u2029':    ' ',   // PARAGRAPH SEPARATOR
+    '\u202F':    ' ',   // NARROW NO-BREAK SPACE
+    '\u205F':    ' ',   // MEDIUM MATHEMATICAL SPACE
+    '\u3000':    ' ',   // IDEOGRAPHIC SPACE
+
     /* 00A0 */
     '¡': '!',
     '¢': 'c',
@@ -419,6 +443,8 @@ export const FoundationASCIIConversion:StringDictionary = {
     /* 2030 */
     '′': "'",
     '‵': '`',
+    '‹': '<',
+    '›': '>',
     '‽': '!?',
 
     /* 2040 */
@@ -462,6 +488,9 @@ export const FoundationASCIIConversion:StringDictionary = {
     '⅍': 'A/S',
     'ⅎ': 'F',
 
+    /* 2200 */
+    '∂': 'd',
+
     /* 2210 */
     '−': '-',
     '∕': '/',
@@ -473,7 +502,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     '∼': '~',
 
     /* 2260 */
-    '≠': '!=',
+//    '≠': '!=',
     '≤': '<=',
     '≥': '>=',
 

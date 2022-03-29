@@ -149,28 +149,30 @@ export function $fpad4(v: uint) : string
     return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)));
 }
 
+// for now $ascii() does not mak any transliterations from
+// non-latin languages like Greek
 export function $ascii(source: string | undefined | null) : string
 {
 	const l = $length(source) ;
 	if (!l) return '' ;
-	let s = (source as string).replace(/\s/g, ' ') ; // replace all weird spaces to ascii space
-	s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFKD") ; // does most of the job
+    let s = (source as string).replace(/≠/g, "") ;
+	s = s.normalize("NFD").replace(/[\u0300-\u036f]|\u00a8|\u00b4/g, "").normalize("NFKD") ; // does most of the job
 	// finally we will try to convert (or remove) the remaining non ascii characters
 	return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '') ;
 }
+
 export function $numcompare(a:number, b:number):Comparison {
-    if (a === b) {return Same ; }
     if (isNaN(a) || isNaN(b)) { return undefined ; }
+    if (a === b) { return Same ; }
     return a < b ? Ascending : Descending ;
 }
-
 
 export function $datecompare(
     a:number|string|Date|TSDate|null|undefined, 
     b:number|string|Date|TSDate|null|undefined) : Comparison 
 {
-	if (a === b) return Same ;
     if (!$ok(a) || !$ok(b)) { return undefined ; }
+	if (a === b) { return Same ; }
 
     /* TODO: WE SHOULD BE PERMITED NOT TO CAST a or b in new TSDate() */
     if (!(a instanceof TSDate)) { a = new TSDate(a as unknown as string /* this is wrong  */) ;}
@@ -178,13 +180,16 @@ export function $datecompare(
     return a.compare(b) ;
 }
 
+
 export function $compare(a:any, b:any):Comparison {
-	if (a === b) return Same ;
+
     if (!$ok(a) || !$ok(b)) { return undefined ; }
+	if (a === b) { return Same ; }
 
     if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
     if ($isstring(a) && $isstring(b)) {
-        return Buffer.compare(Buffer.from(a, 'utf-8'), Buffer.from(b, 'utf-8')) as Comparison ;
+        // before, we used Buffer.compare() to make bytes comparison
+        return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
 	if ($isarray(a) && $isarray(b)) {
         const na = a.length, nb = b.length ;
@@ -196,7 +201,7 @@ export function $compare(a:any, b:any):Comparison {
         }
         return na === nb ? Same : (i < na ? Descending : Ascending) ;
     }
-	if (a instanceof Date && b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) ; }
+	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
 		a = new Uint8Array(a as ArrayBufferLike) ;
@@ -204,18 +209,19 @@ export function $compare(a:any, b:any):Comparison {
         const na = a.length, nb = b.length ;
         let i = 0 ;
         while (i < na && i < nb) {
+
             const c = $numcompare(a[i], b[i]) ;
             if (c !== Same) { return c ; }
             i++ ;
         }
         return na === nb ? Same : (i < na ? Descending : Ascending) ;
     }
-    return ('compare' in a) ? a.compare(b) : undefined ; 
+    return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
 }
 
 export function $equal(a:any, b:any) {
 	if (a === b) { return true ; }
-	if (typeof a === 'number' && typeof b === 'number') return a === b ; // in order to cover NaN inequality and infinity equality
+	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
 	if (!$ok(a) || !$ok(b)) return false ;
 	if ($isarray(a) && $isarray(b)) {
 		const n = a.length ;
@@ -223,8 +229,13 @@ export function $equal(a:any, b:any) {
 		for(let i = 0 ; i < n ; i++) { if (!$equal(a[i], b[i])) return false ; }
 		return true ;
 	}
-	if ('isEqual' in a && 'isEqual' in b) return a.isEqual(b) ;	
-	if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime() ;
+	if (a instanceof Date && b instanceof Date) { return a.getTime() === b.getTime() ; }
+    if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { 
+        if (a instanceof Date) { a = new TSDate(a) ; }
+        if (b instanceof Date) { b = new TSDate(b) ; }
+        return a.isEqual(b) ;
+    }
+	if (($isobject(a) && ('isEqual' in a)) && ($isobject(b) && ('isEqual' in b))) { return a.isEqual(b) ; }	
 	if (a instanceof Set && b instanceof Set) {
 		return a.size === b.size && [...a.keys()].every(e => b.has(e)) ;
 	}
@@ -268,6 +279,12 @@ export function $length(s:string | Buffer | undefined | null) : number
 export function $lengthin(s:string | Buffer | undefined | null, min:number=0, max:number=INT_MAX) : boolean
 { const l = $length(s) ; return l >= min && l <= max ; }
 
+export function $arraybuffer(buf:Buffer) : ArrayBuffer {
+    const ret = new ArrayBuffer(buf.length) ;
+    const view = new Uint8Array(ret) ;
+    for (let i = 0; i < buf.length; ++i) { view[i] = buf[i]; }
+    return ret ;
+}
 /*
 	This is a map function where callback returns as null or undefined are
 	flushed from the result

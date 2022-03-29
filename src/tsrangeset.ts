@@ -1,25 +1,49 @@
-import { $ok } from "./commons";
-import { TSList, TSListNode } from "./tslist";
-import { Interval, TSBadRange, TSRange } from "./tsrange";
+import { $count, $isarray, $isnumber, $ok } from "./commons";
+import { TSList } from "./tslist";
+import { $comformsToInterval, Interval, TSBadRange, TSRange } from "./tsrange";
 import { Ascending, Comparison, Descending, Same } from "./types";
 
 
+type trrs = TSRange|number|Interval|Array<number> ;
+type trrsa = Array<trrs> ;
 export class TSRangeSet extends TSList<TSRange> implements Interval {
 
-	public constructor(v?:number|TSRange|TSRangeSet|Interval|null|undefined) {
+	public constructor(v?:TSRangeSet|trrs|trrsa|null|undefined) {
 		super() ;
 		if ($ok(v)) {
 			if (v instanceof TSRangeSet) {
 				v.forEach(r => super.add(r)) ;
 				return ;	
 			}
-			else if (typeof v === 'number') { v = new TSRange(v, 1) ; }
-			else if (!(v instanceof TSRange)) {
-				if (!(v as Interval).hasSignificantRange) throw 'new TSRangeSet() : invalid Interval parameter' ;
-				v = (v as Interval).range ;
-			}
-			if (!v.hasSignificantRange) throw 'new TSRangeSet() : invalid TSRange parameter' ;
-			this._addRange(v as TSRange) ;
+            if (!$isarray(v)) {
+                if ($isnumber(v)) {
+                    v = [new TSRange(v as number, 1)] ;
+                }
+                else if ((v instanceof TSRange) || $comformsToInterval(v)) {
+                    v = [v as trrs] ;
+                }
+                else { throw 'new TSRangeSet(): invalid parameter' ; }
+            }
+            let u = v as trrsa;
+
+            let tmp:TSRange[] = [] ;
+            if ($count(u) === 2 && $isnumber(u[0]) && $isnumber(u[1])) {
+                const r = TSRange.fromArray(u as Array<number>) ;
+                if ($ok(r)) { u = [r!] ; }
+                else { throw 'new TSRangeSet(): invalid range as array parameter' ; }
+            }
+
+            for (let e of u) {
+                let r:TSRange|undefined|null = undefined ;
+                if (e instanceof TSRange) { r = e as TSRange ; }
+                else if ($isarray(e)) { r = TSRange.fromArray(e as Array<number>) ; }
+                else if ($comformsToInterval(e) && (e as Interval).hasSignificantRange) { r = (e as Interval).range ; }
+                if (!$ok(r)) { throw 'new TSRangeSet(): invalid array parameter' ; }
+                else if (!r!.hasSignificantRange) { throw 'new TSRangeSet() : invalid TSRange parameter' ;}
+                else { tmp.push(r!) ; }
+            }
+
+            for (let r of tmp) { this._addRange(r) ; }
 		}
 	}
 
@@ -30,6 +54,11 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	}
 
 	// -------- forbid these super class methods ---------------
+   
+    /*
+        // THIS 3 METHOD CANNOT BE OVERWRITTEN. JUST DON'T USE THEM.
+
+
 	public insert(data:TSRange, before?:TSListNode<TSRange>):TSListNode<TSRange> { 
         throw `this<TSRangeSet>.insert(data:${data.toString()}${$ok(before)?', beforeANode':''}) is not available` ;
     }
@@ -40,6 +69,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	{ 
         throw `this<TSRangeSet>.removeNode(${$ok(node)?'aNode':''}) is not available` ; 
     }
+    */
 
 	// --------- interval protocol conformance -------------
 	public get hasSignificantRange():boolean { return $ok(super.first) ; }
@@ -51,8 +81,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		return TSBadRange() ;
 	}
 
-	public get location():number { return this.range.location ; }
-	public get maxRange():number { return this.range.maxRange ; }
+	public get location():number { return $ok(super.first) ? super.first!.data.location : NaN ; }
+	public get maxRange():number { return $ok(super.first) ? super.last!.data.maxRange : NaN ; }
 
 	public clone():TSRangeSet { return new TSRangeSet(this) ; }
 
@@ -60,9 +90,9 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	private _addRange(r:TSRange):void {
 		let l = this.first ;
 		while(l !== null) {
-			if (l.data.continuousWithRange(r)) {
+			if (l.data.continuousWith(r)) {
 				l.data = l.data.unionRange(r) ;
-				while(l !== null && l.next !== null && l.data.continuousWithRange(l.next.data)) {
+				while(l !== null && l.next !== null && l.data.continuousWith(l.next.data)) {
 					l.data = l.data.unionRange(l.next.data) ;
 					super.removeNode(l.next) ;
 				}
@@ -128,109 +158,192 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		}
 	}
 	
-	public contains(v:Number|TSRange|Interval|TSRangeSet):boolean {
+	public contains(v:Number|TSRange|Interval|TSRangeSet|number[]):boolean {
 		if (!this.hasSignificantRange) return false ;
 		if (typeof v === 'number') { return this.contains(new TSRange(v, 1)) ; }
-		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.contains() : invalid TSRange parameter' ;
+        else if ($isarray(v)) {
+            const rs = TSRange.fromArray(v as number[]) ;
+            if (!$ok(rs) || !rs?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.contains() : invalid range array parameter' ;
+            }
+			return $ok(this.search(r => r.contains(rs!))) ;
+        }
+        else if (v instanceof TSRange) {
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.contains() : invalid TSRange parameter' ;
+            }
 			return $ok(this.search(r => r.contains(v))) ;
 		}
 		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.contains() : invalid TSRangeSet parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.contains() : invalid TSRangeSet parameter' ;
+            }
 			return this.range.contains(v.range) && !$ok(v.search(r => !this.contains(r))) ;
 		}
-		if (!(v as Interval).hasSignificantRange) throw 'this<TSRangeSet>.contains() : invalid Interval parameter' ;
+		if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
+            throw 'this<TSRangeSet>.contains() : invalid Interval parameter' ;
+        }
 		return this.contains((v as Interval).range) ;
 	}
 
-	public intersects(v:Number|TSRange|Interval|TSRangeSet):boolean {
+	public intersects(v:Number|TSRange|Interval|TSRangeSet|number[]):boolean {
 		if (!this.hasSignificantRange) return false ;
 		if (typeof v === 'number') { return this.intersects(new TSRange(v, 1)) ; }
-		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.intersects() : invalid TSRange parameter' ;
-			return $ok(this.search(r => r.intersects(v))) ;
+        else if ($isarray(v)) {
+            const rs = TSRange.fromArray(v as number[]) ;
+            if (!$ok(rs) || !rs?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersects() : invalid range array parameter' ;
+            }
+			return $ok(this.search(r => r.intersects(rs!))) ;
+        }
+        else if (v instanceof TSRange) {
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersects() : invalid TSRange parameter' ;
+            }
+			return $ok(this.search(r => r.intersects(v as TSRange))) ;
 		}
 		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.intersects() : invalid TSRangeSet parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersects() : invalid TSRangeSet parameter' ;
+            }
 			return this.range.intersects(v.range) && !$ok(v.search(r => !this.intersects(r))) ;
 		}
-		if (!(v as Interval).hasSignificantRange) throw 'this<TSRangeSet>.intersects() : invalid Interval parameter' ;
+		if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
+            throw 'this<TSRangeSet>.intersects() : invalid Interval parameter' ;
+        }
 		return this.intersects((v as Interval).range) ;
 	}
 
 
-	public unionWidth(v:number|TSRange|TSRangeSet|Interval) {
+	public unionWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._addRange(new TSRange(v, 1)) ; }
-		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.unionWidth() : invalid TSRange parameter' ;
+        else if ($isarray(v)) {
+            const r = TSRange.fromArray(v as number[]) ;
+            if (!$ok(r) || !r?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.unionWidth() : invalid range array parameter' ;
+            }
+			this._addRange(r!) ;
+        }
+    	else if (v instanceof TSRange) {
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.unionWidth() : invalid TSRange parameter' ;
+            }
 			this._addRange(v) ;
 		}
 		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) throw 'this<TSRangeSet>.unionWidth() : invalid TSRangeSet parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.unionWidth() : invalid TSRangeSet parameter' ;
+            }
 			(v as TSRangeSet).forEach(r => this._addRange(r)) ;
 		}
-		if (!(v as Interval).hasSignificantRange) throw 'TSRangeSet.unionWidth() : invalid Interval parameter' ;
-		this._addRange((v as Interval).range) ;
+        else {
+            if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
+                throw 'this<TSRangeSet>.unionWidth() : invalid Interval parameter' ;
+            }
+            this._addRange((v as Interval).range) ;
+        }
 	}
 
-	public substractFrom(v:number|TSRange|TSRangeSet|Interval) {
+	public substractFrom(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._removeRange(new TSRange(v, 1)) ; }
+        else if ($isarray(v)) {
+            const r = TSRange.fromArray(v as number[]) ;
+            if (!$ok(r) || !r?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.substractFrom() : invalid range array parameter' ;
+            }
+			this._removeRange(r!) ;
+        }
 		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'TSRangeSet.substractFrom() : invalid TSRange parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.substractFrom() : invalid TSRange parameter' ;
+            }
 			this._removeRange(v) ;
 		}
 		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) throw 'TSRangeSet.substractFrom() : invalid TSRangeSet parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.substractFrom() : invalid TSRangeSet parameter' ;
+            }
 			(v as TSRangeSet).forEach(r => this._removeRange(r)) ;
 		}
-		if (!(v as Interval).hasSignificantRange) throw 'TSRangeSet.substractFrom() : invalid Interval parameter' ;
-		this._removeRange((v as Interval).range) ;
+		else {
+            if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
+                throw 'this<TSRangeSet>.substractFrom() : invalid Interval parameter' ;
+            }
+		    this._removeRange((v as Interval).range) ;
+        }
 	}
 
-	public intersectWidth(v:number|TSRange|TSRangeSet|Interval) {
+	public intersectWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._intersectRange(new TSRange(v, 1)) ; }
+        else if ($isarray(v)) {
+            const r = TSRange.fromArray(v as number[]) ;
+            if (!$ok(r) || !r?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersectWidth() : invalid range array parameter' ;
+            }
+			this._intersectRange(r!) ;
+        }
 		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'TSRangeSet.intersectWidth() : invalid TSRange parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersectWidth() : invalid TSRange parameter' ;
+            }
 			this._intersectRange(v) ;
 		}
 		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) throw 'TSRangeSet.intersectWidth() : invalid TSRangeSet parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersectWidth() : invalid TSRangeSet parameter' ;
+            }
 			(v as TSRangeSet).forEach(r => this._intersectRange(r)) ;
 		}
-		if (!(v as Interval).hasSignificantRange) throw 'TSRangeSet.intersectWidth() : invalid Interval parameter' ;
-		this._intersectRange((v as Interval).range) ;
-
+        else {
+            if (!$comformsToInterval(v) ||!(v as Interval).hasSignificantRange) {
+                throw 'this<TSRangeSet>.intersectWidth() : invalid Interval parameter' ;
+            }
+            this._intersectRange((v as Interval).range) ;
+        }
 	}
 	
-	public union(v:number|TSRange|Interval|TSRangeSet):TSRangeSet {
+	public union(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.unionWidth(v) ;
 		return ret ;
 	}
 
-	public intersection(v:number|TSRange|Interval|TSRangeSet):TSRangeSet {
+	public intersection(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.intersectWidth(v) ;
 		return ret ;
 	}
 
-	public substraction(v:number|TSRange|Interval|TSRangeSet):TSRangeSet {
+	public substraction(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.substractFrom(v) ;
 		return ret ;
 	}
 
-	public complement(v?:TSRange|Interval):TSRangeSet {
+	public complement(v?:TSRange|Interval|number[]):TSRangeSet {
 		if (!this.hasSignificantRange) {
-			if (!$ok(v)) throw 'TSRangeSet.complement() : call with no parameter to an empty TSRangeSet' ;
+			if (!$ok(v)) {
+                throw 'this<TSRangeSet>.complement() : call with no parameter to an empty TSRangeSet' ;
+            }
 			return new TSRangeSet(v!) ;
 		}
 		if (!$ok(v)) { v = this.range ; }
+        else if ($isarray(v)) {
+            const r = TSRange.fromArray(v as number[]) ;
+            if (!$ok(r) || !r?.hasSignificantRange) {
+                throw 'this<TSRangeSet>.complement() : invalid range array parameter' ;
+            }
+			v = r! ;
+        }
 		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) throw 'TSRangeSet.complement() : invalid TSRange parameter' ;
+			if (!v.hasSignificantRange) {
+                throw 'this<TSRangeSet>.complement() : invalid TSRange parameter' ;
+            }
 		}
 		else {
-			if (!(v as Interval).hasSignificantRange) throw 'TSRangeSet.complement() : invalid Interval parameter' ;
+			if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
+                throw 'this<TSRangeSet>.complement() : invalid Interval parameter' ;
+            }
 			v = (v as Interval).range ;
 		}
 		let ret = new TSRangeSet(v) ;
@@ -242,6 +355,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
     public isEqual(other:any) : boolean { 
 		return this === other || (other instanceof TSRangeSet && super.isEqual(other)) ;
 	}
+    
     public compare(other:any) : Comparison {
         if (this.isEqual(other)) { return Same ; }
         if ((other instanceof TSRange || other instanceof TSRangeSet) && this.hasSignificantRange && other.hasSignificantRange) {
@@ -250,5 +364,4 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
         }
         return undefined ;
     }
-
 }

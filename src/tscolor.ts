@@ -244,6 +244,8 @@ export class TSColor implements TSObject<TSColor> {
 		}
 		throw "Bad color constructor parameters";
 	}
+    
+	public clone():TSColor { return new TSColor(this.red, this.green, this.blue, this.alpha) ; }
 
 	public luminance(): number {
 		return (0.3 * this.red + 0.59 * this.green + 0.11 * this.blue) / 255.0;
