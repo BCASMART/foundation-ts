@@ -10,7 +10,6 @@
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat } from "./tsdatecomp";
 import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
 import { Same, UINT32_MAX } from "./types";
-import { UnsignedMask } from "./tsrange";
 export class TSDate {
     constructor() {
         let n = arguments.length;
@@ -37,7 +36,7 @@ export class TSDate {
         else { // n === 1 || n === 0
             let t = arguments[0]; // undefined if n === 0
             if ($isnumber(t)) {
-                t = _makeInt(t); // we trash all info after the second
+                t = t | 0; // we trash all info after the second
                 this._timestamp = Math.min(Math.max(-TSSecsFrom00010101To20010101, t), UINT32_MAX);
             }
             else if (t instanceof TSDate) {
@@ -70,7 +69,7 @@ export class TSDate {
     }
     static past() { return new TSDate(TSDate.PAST); }
     static future() { return new TSDate(TSDate.FUTURE); }
-    static zulu() { return new TSDate(_makeInt(Date.now() / 1000) - TSSecsFrom19700101To20010101); }
+    static zulu() { return new TSDate($div(Date.now(), 1000) - TSSecsFrom19700101To20010101); }
     // this specific method takes a Date representation 
     // in Zulu timezone.
     static fromZulu(s) {
@@ -137,9 +136,11 @@ export class TSDate {
         return this.fromComponents($parsedate(s, form));
     }
     // ================= instance methods ========================
+    clone() { return new TSDate(this._timestamp); }
     get timestamp() { return this._timestamp; }
     isLeap() { return $isleap($components(this._timestamp).year); }
     dateWithoutTime() { return new TSDate($timestampWithoutTime(this._timestamp)); }
+    timeSinceDate(d) { return this._timestamp - d.timestamp; }
     get year() { return $components(this._timestamp).year; }
     get month() { return $components(this._timestamp).month; }
     get day() { return $components(this._timestamp).day; }
@@ -210,7 +211,6 @@ export class TSDate {
         console.log('toISOString() method should not be used on TSDate instances. Use toIsoString() instead');
         return this.toIsoString();
     }
-    toRangeLocation() { return (this._timestamp / 60) & UnsignedMask; }
     // ============ TSObject conformance =============== 
     get isa() { return this.constructor; }
     get className() { return this.constructor.name; }
@@ -287,11 +287,11 @@ export function $timestamp(year, month, day, hours = 0, minutes = 0, seconds = 0
     let leaps = Math.floor(year / 4) - Math.floor(year / 100) + Math.floor(year / 400);
     return Math.floor((day + TSDaysInPreviousMonth[month] + 365 * year + leaps - TSDaysFrom00000229To20010101) * TSDay) + hours * TSHour + minutes * TSMinute + seconds;
 }
-export function $secondFromTimestamp(t) { return (Math.floor(t + TSSecsFrom00010101To20010101) % TSMinute); }
-export function $minuteFromTimestamp(t) { return $div(Math.floor(t + TSSecsFrom00010101To20010101) % TSHour, TSMinute); }
-export function $hourFromTimestamp(t) { return $div(Math.floor(t + TSSecsFrom00010101To20010101) % TSDay, TSHour); }
+export function $secondFromTimestamp(ts) { return (((ts | 0) + TSSecsFrom00010101To20010101) % TSMinute); }
+export function $minuteFromTimestamp(ts) { return $div(((ts | 0) + TSSecsFrom00010101To20010101) % TSHour, TSMinute); }
+export function $hourFromTimestamp(ts) { return $div(((ts | 0) + TSSecsFrom00010101To20010101) % TSDay, TSHour); }
 export function $timestampWithoutTime(ts) {
-    ts = _makeInt(ts);
+    ts = ts | 0;
     const overhead = (ts + TSSecsFrom00010101To20010101) % TSDay;
     return ts - overhead;
 }
@@ -299,8 +299,8 @@ export function $dayOfYear(ts) {
     let c = $components(ts);
     return Math.floor((ts - $timestamp(c.year, 1, 1)) / TSDay) + 1;
 }
-export function $dayOfWeekFromTimestamp(t, offset = 0) {
-    return (Math.floor(t / TSDay) + TSDaysFrom00010101To20010101 + 8 - offset) % 7;
+export function $dayOfWeekFromTimestamp(ts, offset = 0) {
+    return (Math.floor(ts / TSDay) + TSDaysFrom00010101To20010101 + 8 - offset) % 7;
 }
 export function $weekOfYear(ts, offset = 0) {
     let c = $components(ts);
@@ -324,7 +324,6 @@ export function $weekOfYear(ts, offset = 0) {
  ***************************************************************************************************************/
 const TSDaysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const TSDaysInPreviousMonth = [0, 0, 0, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337];
-function _makeInt(n) { const i = Math.floor(Math.abs(n)); return n < 0 ? -i : i; }
 function _lastDayOfMonth(year, month) {
     return (month === 2 && $isleap(year)) ? 29 : TSDaysInMonth[month];
 }

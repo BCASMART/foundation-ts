@@ -23,6 +23,7 @@ export declare class TSColor implements TSObject<TSColor> {
     constructor(stringColor: string);
     constructor(colorDefinition: number);
     constructor(r: number, g: number, b: number, a?: number);
+    clone(): TSColor;
     luminance(): number;
     isPale(): boolean;
     lighterColor(): TSColor;

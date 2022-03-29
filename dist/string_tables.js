@@ -4,7 +4,31 @@
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.
 */
+/*
+
+*/
 export const FoundationASCIIConversion = {
+    /* extra ASCII spaces */
+    '\u00A0': ' ',
+    '\u1361': ' ',
+    "\u1680": ' ',
+    '\u2000': ' ',
+    '\u2001': ' ',
+    '\u2002': ' ',
+    '\u2003': ' ',
+    '\u2004': ' ',
+    '\u2005': ' ',
+    '\u2006': ' ',
+    '\u2007': ' ',
+    '\u2008': ' ',
+    '\u2009': ' ',
+    '\u200A': ' ',
+    '\u200B': ' ',
+    '\u2028': ' ',
+    '\u2029': ' ',
+    '\u202F': ' ',
+    '\u205F': ' ',
+    '\u3000': ' ',
     /* 00A0 */
     '¡': '!',
     '¢': 'c',
@@ -375,6 +399,8 @@ export const FoundationASCIIConversion = {
     /* 2030 */
     '′': "'",
     '‵': '`',
+    '‹': '<',
+    '›': '>',
     '‽': '!?',
     /* 2040 */
     '⁂': '***',
@@ -410,6 +436,8 @@ export const FoundationASCIIConversion = {
     '⅋': '&',
     '⅍': 'A/S',
     'ⅎ': 'F',
+    /* 2200 */
+    '∂': 'd',
     /* 2210 */
     '−': '-',
     '∕': '/',
@@ -419,7 +447,7 @@ export const FoundationASCIIConversion = {
     /* 2230 */
     '∼': '~',
     /* 2260 */
-    '≠': '!=',
+    //    '≠': '!=',
     '≤': '<=',
     '≥': '>=',
     /* 2290 */

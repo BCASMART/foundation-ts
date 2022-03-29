@@ -221,6 +221,7 @@ export class TSColor {
         }
         throw "Bad color constructor parameters";
     }
+    clone() { return new TSColor(this.red, this.green, this.blue, this.alpha); }
     luminance() {
         return (0.3 * this.red + 0.59 * this.green + 0.11 * this.blue) / 255.0;
     }

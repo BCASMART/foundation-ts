@@ -1,9 +1,7 @@
-import { $isnumber, $json } from "./commons";
+import { $count, $int, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $unsigned } from "./commons";
 import { TSDate } from "./tsdate";
 import { Ascending, Descending, Same, UINT32_MAX } from "./types";
 import { TSRangeSet } from "./tsrangeset";
-export const TSNotFound = 0xffffffff;
-export const UnsignedMask = 0xffffffff;
 export class TSRange {
     constructor() {
         this._location = 0;
@@ -16,64 +14,97 @@ export class TSRange {
                 if ($isnumber(arguments[0])) {
                     throw 'Bad TSRange() constructor: only location is provided';
                 }
-                let v;
+                let v = undefined;
                 if (arguments[0] instanceof TSRange) {
                     v = arguments[0];
                 }
-                else {
+                else if ($isarray(arguments[0])) {
+                    const a = arguments[0];
+                    if (!$israngearray(a)) {
+                        throw 'Bad TSRange() constructor: non conforme range array';
+                    }
+                    this._location = a[0];
+                    this._length = a[1];
+                    break;
+                }
+                else if ($comformsToInterval(arguments[0])) {
                     const a = arguments[0];
                     if (!a.hasSignificantRange) {
-                        this._location = TSNotFound;
+                        this._location = NaN;
                         this._length = 0;
                         break;
                     }
                     v = a.range;
                 }
+                if (!$ok(v) || !$isint(v.location) || !$isunsigned(v.length) || !$isint(v.location + v.length)) {
+                    throw 'Bad TSRange() constructor: range or interval provided too large';
+                }
                 this._location = v.location;
                 this._length = v.length;
                 break;
             case 2:
-                if (arguments[0] instanceof TSDate && arguments[1] instanceof TSDate) {
+                if ((arguments[0] instanceof TSDate) && (arguments[1] instanceof TSDate)) {
                     // our TSDate range is always in minutes
-                    let s = arguments[0].toRangeLocation();
-                    let e = arguments[1].toRangeLocation();
-                    if (e >= s) {
-                        this.location = s;
-                        this.length = e - s;
+                    let s = arguments[0].timestamp;
+                    let e = arguments[1].timestamp;
+                    if ($isint(s) && $isint(e) && e >= s) {
+                        this._location = s;
+                        this._length = e - s;
                     }
                     else {
                         throw 'Bad TSRange() constructor: second date is anterior to the first one';
                     }
                 }
-                else if ($isnumber(arguments[0]) && $isnumber(arguments[1])) {
-                    this.location = arguments[0] & UnsignedMask;
-                    this.length = arguments[1] & UnsignedMask;
+                else if (isNaN(arguments[0]) || isNaN(arguments[1])) {
+                    this._location = NaN;
+                    this._length = 0;
+                }
+                else if ($isint(arguments[0]) && $isunsigned(arguments[1]) && $isint(arguments[0] + arguments[1])) {
+                    this._location = $int(arguments[0]);
+                    this._length = $unsigned(arguments[1]);
                 }
                 else {
-                    throw 'Bad TSRange() constructor: should have 2 TSDate or 2 numbers';
+                    throw 'Bad TSRange() constructor: should have 2 valid and in range TSDate or numbers';
                 }
                 break;
             default:
                 throw 'Bad TSRange() constructor: more than 2 arguments provided';
         }
     }
+    static make(loc, len) { return new TSRange(loc, len); }
+    static fromArray(a) {
+        return $israngearray(a) ? new TSRange(a[0], a[1]) : null;
+    }
+    clone() { return new TSRange(this); }
     get location() { return this._location; }
     set location(loc) {
-        if (loc < 0 || loc + this._length > UINT32_MAX) {
-            throw `TSRange set location(${loc}) bad parameter`;
+        if (isNaN(loc)) {
+            this._location = NaN;
+            this._length = 0;
         }
-        this._location = loc & UnsignedMask;
+        else {
+            if (!$isint(loc) || !$isint(loc + this._length)) {
+                throw `TSRange set location(${loc}) bad parameter`;
+            }
+            this._location = $int(loc);
+        }
     }
     get length() { return this._length; }
     set length(len) {
-        if (len < 0 || len + this._location > UINT32_MAX) {
-            throw `TSRange set length(${len}) bad parameter`;
+        if (isNaN(len)) {
+            this._location = NaN;
+            this._length = 0;
         }
-        this._length = len & UnsignedMask;
+        else {
+            if (!$isunsigned(len) || !$isint(len + this._location)) {
+                throw `TSRange set length(${len}) bad parameter`;
+            }
+            this._length = $unsigned(len);
+        }
     }
-    get isValid() { return this._location !== TSNotFound; }
+    get isValid() { return !isNaN(this._location); }
     get isEmpty() { return this._length === 0; }
-    get maxRange() { return this._location + this._length; }
+    get maxRange() { return isNaN(this._location) ? NaN : this._location + this._length; }
     // Interval meta conformance
     get range() { return this; }
     get hasSignificantRange() { return this.isValid && !this.isEmpty; }
@@ -108,13 +139,12 @@ export class TSRange {
         return new TSRange(loc, Math.min(this.maxRange, other.maxRange) - loc);
     }
     containsLocation(loc) {
-        if (!this.isValid || this.isEmpty) {
+        if (!$isnumber(loc) || !this.isValid || this.isEmpty) {
             return false;
         }
-        loc &= UnsignedMask;
         return loc >= this._location && loc < this.maxRange;
     }
-    continuousWithRange(other) {
+    continuousWith(other) {
         return this.isValid && other.isValid &&
             (this.intersects(other) || this.maxRange === other.location || other.maxRange === this.location);
     }
@@ -122,7 +152,7 @@ export class TSRange {
     get isa() { return this.constructor; }
     get className() { return this.constructor.name; }
     isEqual(other) {
-        return this === other || (other instanceof TSRange && other.location === this._location && other.length === this._length);
+        return this === other || (other instanceof TSRange && ((!this.isValid && !other.isValid) || other.location === this._location) && other.length === this._length);
     }
     compare(other) {
         if (this.isEqual(other)) {
@@ -142,7 +172,16 @@ export class TSRange {
     toString() { return $json(this); }
     toArray() { return [this]; }
 }
-export function TSBadRange() { return new TSRange(TSNotFound, 0); }
+export function $israngeparams(loc, len) {
+    return $isint(loc) && $isunsigned(len) && $isint(loc + len);
+}
+export function $israngearray(v) {
+    return $count(v) === 2 && $israngeparams(v[0], v[1]);
+}
+export function $comformsToInterval(v) {
+    return $ok(v) && $isobject(v) && ('range' in v) && ('hasSignificantRange' in v);
+}
+export function TSBadRange() { return new TSRange(NaN, 0); }
 export function TSEmptyRange() { return new TSRange(0, 0); }
 export function TSWidestRange() { return new TSRange(0, UINT32_MAX); }
 //# sourceMappingURL=tsrange.js.map

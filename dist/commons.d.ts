@@ -37,6 +37,7 @@ export declare function $equal(a: any, b: any): any;
 export declare function $count(a: any[] | undefined | null): number;
 export declare function $length(s: string | Buffer | undefined | null): number;
 export declare function $lengthin(s: string | Buffer | undefined | null, min?: number, max?: number): boolean;
+export declare function $arraybuffer(buf: Buffer): ArrayBuffer;
 export declare function $map<T, R>(a: Array<T> | undefined | null, callBack: (e: T) => R | null | undefined): Array<R>;
 export declare function $jsonobj(v: any): any;
 export declare function $json(v: any, replacer?: (number | string)[] | null, space?: string | number): string;
