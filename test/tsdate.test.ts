@@ -57,6 +57,8 @@ describe("Testing TSDate creation", () => {
         "19660413T120522", "19660413T120522Z",
         "19660413T120522+00", "19660413T120522+0000", "19660413T120522+00:00"
     ] ;
+    const SHORTS = ["20110413", "2011-04-13", "11-04-13"]
+    const SHORT = "2011-04-13T00:00:00"
     const A = new TSDate(ISO) ;
     const B = new TSDate(1966, 4, 13, 12, 5, 22) ;
     const D = new Date(1966, 3, 13, 12, 5, 22) ;
@@ -79,6 +81,15 @@ describe("Testing TSDate creation", () => {
             expect(TSDate.fromIsoString(d)?.toIsoString()).toBe(ISO);
         }
     });
+
+    it(`expect other short ISO formated date for the same day to be correctly created`, () => {
+        for (let d of SHORTS) {
+            const td = new TSDate(d) ;
+            expect(td.toIsoString()).toBe(SHORT);
+            expect(TSDate.fromIsoString(d)?.toIsoString()).toBe(SHORT);
+        }
+    });
+
 
     it(`expect same dates created by Y,M,D,H,M,S parameters to be correct`, () => {
         expect(B.toIsoString()).toBe(ISO);

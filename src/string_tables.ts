@@ -6,9 +6,7 @@ import { StringDictionary } from "./types";
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.    
 */
-/*
 
-*/
 export const FoundationASCIIConversion:StringDictionary = {
     /* extra ASCII spaces */
     '\u00A0':    ' ',   // NO-BREAK SPACE

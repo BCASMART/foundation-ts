@@ -4,9 +4,6 @@
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.
 */
-/*
-
-*/
 export const FoundationASCIIConversion = {
     /* extra ASCII spaces */
     '\u00A0': ' ',
