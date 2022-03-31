@@ -1,4 +1,4 @@
-import { language, Languages, StringTranslation } from "./types";
+import { language, Languages, StringDictionary, StringTranslation } from "./types";
 /**
  * if you want to change the subfolders to be tested
  * you should use the static method setSubfolders() before
@@ -22,23 +22,30 @@ export interface Locales {
 export declare type LocalesDictionary = {
     [key in Languages]?: Locales;
 };
+export declare type StringTranslations = {
+    [key in Languages]?: StringDictionary;
+};
 export declare class TSDefaults {
     private static __instance;
     private static __subfolders;
     /**
-     * LOCALES (mostly date/time locales) are set in 5 common world's languages
+     * LOCALES (mostly date/time locales) are set in 6 common world's languages
      * - english (en)
      * - french (fr),
      * - spanish (es),
      * - german (de),
      * - italian (it)
+     * - portuguese (pt)
      */
     private static __locales;
     defaultPath: string;
     tmpDirectory: string;
     defaultLanguage: language;
     private _values;
+    private _localizations;
     private constructor();
+    addLocalizations(lang: language, loc: StringDictionary): void;
+    localizations(lang?: language | undefined | null): StringDictionary;
     locales(lang?: language | undefined | null): Locales;
     static setSubfolders(folders: string[]): void;
     setDefaultLanguage(l: language): language;

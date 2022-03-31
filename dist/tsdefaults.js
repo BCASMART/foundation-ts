@@ -1,4 +1,4 @@
-import { $length, $ok } from "./commons";
+import { $isobject, $length, $ok } from "./commons";
 import { Languages } from "./types";
 import { $dir, $filename, $isdirectory } from "./utils_fs";
 import os from 'os';
@@ -7,12 +7,28 @@ export class TSDefaults {
         this.tmpDirectory = os.tmpdir();
         this.defaultLanguage = Languages.fr;
         this._values = {};
+        this._localizations = {};
         this.defaultPath = __dirname;
         for (let sf in TSDefaults.__subfolders) {
             if ($filename(this.defaultPath) === sf) {
                 this.defaultPath = $dir(this.defaultPath);
             }
         }
+    }
+    addLocalizations(lang, loc) {
+        if ($isobject(loc)) {
+            let actualLocalization = this._localizations[lang];
+            if (!$ok(actualLocalization)) {
+                this._localizations[lang] = actualLocalization;
+            }
+            else {
+                this._localizations[lang] = Object.assign(Object.assign({}, actualLocalization), loc);
+            }
+        }
+    }
+    localizations(lang) {
+        let ret = this._localizations[lang || this.defaultLanguage];
+        return ret || {};
     }
     locales(lang) {
         if (!$ok(lang) || !$ok(TSDefaults.__locales[lang])) {
@@ -55,12 +71,13 @@ export class TSDefaults {
 }
 TSDefaults.__subfolders = ['utils', 'tests', 'dist'];
 /**
- * LOCALES (mostly date/time locales) are set in 5 common world's languages
+ * LOCALES (mostly date/time locales) are set in 6 common world's languages
  * - english (en)
  * - french (fr),
  * - spanish (es),
  * - german (de),
  * - italian (it)
+ * - portuguese (pt)
  */
 TSDefaults.__locales = {
     en: {
@@ -75,7 +92,7 @@ TSDefaults.__locales = {
         shortDateTimeFormat: "%m/%d/%y %H:%M:%S",
         timeFormat: "%H:%M:%S",
         partialTimeFormat: "%H:%M",
-        language: { fr: "anglais", en: "english", de: "englisch", it: "inglese", es: "inglés" },
+        language: { fr: "anglais", en: "english", de: "englisch", it: "inglese", es: "inglés", pt: "inglês" },
         ampm: ['AM', 'PM']
     },
     fr: {
@@ -90,7 +107,7 @@ TSDefaults.__locales = {
         shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
         timeFormat: "%H:%M:%S",
         partialTimeFormat: "%H:%M",
-        language: { fr: "français", en: "french", de: "französisch", it: "francese", es: "francés" },
+        language: { fr: "français", en: "french", de: "französisch", it: "francese", es: "francés", pt: "francês" },
         ampm: ['AM', 'PM']
     },
     es: {
@@ -105,7 +122,7 @@ TSDefaults.__locales = {
         dateTimeFormat: "%d/%m/%Y %H:%M:%S",
         shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
         startingWeekDay: 1,
-        language: { fr: "espagnol", en: "spanish", de: "spanisch", it: "spagnolo", es: "español" },
+        language: { fr: "espagnol", en: "spanish", de: "spanisch", it: "spagnolo", es: "español", pt: "espanhol" },
         ampm: ['AM', 'PM']
     },
     de: {
@@ -120,7 +137,7 @@ TSDefaults.__locales = {
         shortDateTimeFormat: "%%e.%m.%y %H:%M:%S",
         timeFormat: "%H:%M:%S",
         partialTimeFormat: "%H:%M",
-        language: { fr: "allemand", en: "german", de: "deutsch", it: "tedesco", es: "alemán" },
+        language: { fr: "allemand", en: "german", de: "deutsch", it: "tedesco", es: "alemán", pt: "alemão" },
         ampm: ['AM', 'PM']
     },
     it: {
@@ -135,8 +152,23 @@ TSDefaults.__locales = {
         dateTimeFormat: "%d/%m/%Y %H:%M:%S",
         shortDateTimeFormat: "%d/%m/%y %H:%M:%S",
         startingWeekDay: 1,
-        language: { fr: "italien", en: "italian", de: "italienisch", it: "italiano", es: "italiano" },
+        language: { fr: "italien", en: "italian", de: "italienisch", it: "italiano", es: "italiano", pt: "italiano" },
         ampm: ['AM', 'PM']
-    }
+    },
+    pt: {
+        shortDays: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"],
+        days: ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"],
+        shortMonths: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Agos", "Set", "Out", "Nov", "Dez"],
+        months: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+        shortDateFormat: "%d-%m-%y",
+        dateFormat: "%d-%m-%Y",
+        timeFormat: "%H:%M:%S",
+        partialTimeFormat: "%H:%M",
+        dateTimeFormat: "%d-%m-%Y %H:%M:%S",
+        shortDateTimeFormat: "%d-%m-%y %H:%M:%S",
+        startingWeekDay: 0,
+        language: { fr: "portuguais", en: "portuguese", de: "portugiesisch", it: "portoghese", es: "portugués", pt: "portugueses" },
+        ampm: ['AM', 'PM']
+    },
 };
 //# sourceMappingURL=tsdefaults.js.map
