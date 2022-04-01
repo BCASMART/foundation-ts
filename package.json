@@ -1,15 +1,21 @@
 {
   "name": "foundation-ts",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
+    "clean": "rm -rf dist",
+    "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
+    "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
     "test": "jest"
   },
+  "main": "index.js",
+  "types": "index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git@gitlab.bcasmart.com:doxecure/foundation-ts.git"
+    "url": "https://github.com/BCASMART/foundation-ts.git"
   },
+  "homepage": "https://github.com/BCASMART/foundation-ts.git#readme",
   "author": "Business Card Associates",
   "email": "dev@bcasmart.com",
   "license": "MIT",

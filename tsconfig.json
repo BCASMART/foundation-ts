@@ -1,5 +1,5 @@
 {
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "index.ts", "index.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
       "allowJs": true,
