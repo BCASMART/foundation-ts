@@ -1,4 +1,5 @@
-import { $compare, $equal, $json, $jsonobj } from "./commons";
+import { $json, $jsonobj } from "./commons";
+import { $equal, $compare } from "./compare";
 import { Class, TSObject } from "./tsobject";
 import { Comparison, Same } from "./types";
 

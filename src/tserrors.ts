@@ -1,18 +1,25 @@
 import { $ok } from "./commons";
 
-// TODO: several singletons for each kind of errors...
 export class TSUniqueError extends Error {
-	private static __instance:TSUniqueError ;
+	private static __esInstance:TSUniqueError ;
+	private static __genericInstance:TSUniqueError ;
 
 	private constructor(message: string) {
 		super(message);
 	}
 
-	public static singleton() : TSUniqueError {
-		if (!$ok(this.__instance)) {
-			this.__instance = new TSUniqueError('ESINGLETONERROR') ;
+	public static genericError() : TSUniqueError {
+		if (!$ok(this.__genericInstance)) {
+			this.__genericInstance = new TSUniqueError('GENERICSINGLETONERROR') ;
 		}
-		return this.__instance ;
+		return this.__genericInstance ;
+    }
+
+    public static esError() : TSUniqueError {
+		if (!$ok(this.__esInstance)) {
+			this.__esInstance = new TSUniqueError('ESSINGLETONERROR') ;
+		}
+		return this.__esInstance ;
 	}
 
 }

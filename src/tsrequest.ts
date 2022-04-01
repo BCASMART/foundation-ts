@@ -199,7 +199,7 @@ export class TSRequest {
 		let ret = null ;
 		let status = 0 ;
 
-		const timeoutError = TSUniqueError.singleton() ; // we use a singleton to avoid to use Symbol() in browsers
+		const timeoutError = TSUniqueError.esError() ; // we use a singleton to avoid to use Symbol() in browsers
 		try {
 			const response = await $timeout(this.channel(config), timeout, timeoutError)
 			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;

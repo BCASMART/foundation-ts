@@ -26,8 +26,8 @@ import {
 	join 
 } from 'path' ;
 import { $length, $ok, $trim } from './commons';
-import { TSDefaults } from './tsdefaults';
-import { $uuid } from './utils_crypto';
+import { $tmp } from './tsdefaults';
+import { $uuid } from './crypto';
 
 export function $isfile(src:string | null | undefined) {
 	let ret:boolean = false ;
@@ -95,7 +95,7 @@ export function $temporarypath(ext:string|null|undefined='', src:string|null|und
     ext = $trim(ext) ;
     let file = $uniquefile(src) ;
     if ($length(ext)) { file = $newext(file, ext) ; }
-    return $path(TSDefaults.defaults().tmpDirectory, file) ;
+    return $path($tmp(), file) ;
 }
 
 export function $uniquefile(src?:string|null|undefined) : string
@@ -149,9 +149,6 @@ export function $loadJSON(src:string|null|undefined|Buffer) : any | null
     }
 	return ret ;
 }
-
-export function $defaultpath() : string { return TSDefaults.defaults().defaultPath ; }
-export function $defaulttmp() : string { return TSDefaults.defaults().tmpDirectory ; }
 
 export function $readString(src:string|null|undefined, encoding:BufferEncoding='utf-8') : string|null
 {

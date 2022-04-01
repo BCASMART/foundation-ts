@@ -1,4 +1,5 @@
-import { $arraybuffer, $ascii, $compare, $datecompare, $equal, $intornull, $map, $numcompare, $ok, $unsignedornull } from "../src/commons";
+import { $arraybuffer, $ascii, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
+import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
 

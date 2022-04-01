@@ -1,9 +1,8 @@
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
-import { TSDefaults, Locales } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, language, email, emailRegex, url, uuid, urlRegex, uuidRegex, Comparison, Same, Ascending, Descending, isodate, Languages, country, Countries, Address} from "./types";
-import { $filename } from "./utils_fs";
+import { $country } from "./tsdefaults";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, isodate, Address} from "./types";
 
 export function $ok(o:any | undefined | null) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
@@ -42,21 +41,15 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 	return $ok(n) ? <int>n : defaultValue ;
 }
 
-export function $regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
-{
-	const v = $trim(s) ;
-	if (!v.length || !regex.test(<string>v)) { return null ; }
-	return <T><unknown>v ;
-}
 
 export function $email(s:string|null|undefined) : email | null
-{ return $regexvalidatedstring<email>(emailRegex, s) ; }
+{ return _regexvalidatedstring<email>(emailRegex, s) ; }
 
 export function $url(s:string|null|undefined) : url | null
-{ return $regexvalidatedstring<url>(urlRegex, s) ; }
+{ return _regexvalidatedstring<url>(urlRegex, s) ; }
 
 export function $uuid(s:string|null|undefined) : uuid | null
-{ return $regexvalidatedstring<uuid>(uuidRegex, s) ; }
+{ return _regexvalidatedstring<uuid>(uuidRegex, s) ; }
 
 export function $isodate(s:Date|TSDate|string|null|undefined) : isodate | null
 {
@@ -67,32 +60,6 @@ export function $isodate(s:Date|TSDate|string|null|undefined) : isodate | null
         else { cps = $parsedatetime($trim(s as string), TSDateForm.ISO8601) ; } // we parse the string to verify it
     }
     return $ok(cps) ? <isodate>$components2string(cps!, TSDateForm.ISO8601) : null ;
-}
-
-// $country && $language function are permisive. Eg $language("  Fr ") will return Languages.fr 
-
-let countriesMap:Map<string, country> ;
-export function $country(s:string|null|undefined) : country | null
-{
-    if (!$ok(countriesMap)) {
-        countriesMap = new Map<string,country>() ;
-        Object.keys(Countries).forEach(e => countriesMap.set(e, e as country)) ;
-    }
-    const v = $trim(s) ; if (v.length !== 2) { return null ; }
-    const ret = countriesMap.get(v.toUpperCase()) ;
-    return $ok(ret) ? ret! : null ;
-}
-
-let languagesMap:Map<string, language> ;
-export function $language(s:string|null|undefined) : language | null
-{
-    if (!$ok(languagesMap)) {
-        languagesMap = new Map<string,language>() ;
-        Object.keys(Languages).forEach(e => languagesMap.set(e, e as language)) ;
-    }
-    const v = $trim(s) ; if (v.length !== 2) { return null ; }
-    const ret = languagesMap.get(v.toLowerCase()) ;
-    return $ok(ret) ? ret! : null ;
 }
 
 export function $address(a:Address|null|undefined) : Address | null {
@@ -161,114 +128,6 @@ export function $ascii(source: string | undefined | null) : string
 	return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '') ;
 }
 
-export function $numcompare(a:number, b:number):Comparison {
-    if (isNaN(a) || isNaN(b)) { return undefined ; }
-    if (a === b) { return Same ; }
-    return a < b ? Ascending : Descending ;
-}
-
-export function $datecompare(
-    a:number|string|Date|TSDate|null|undefined, 
-    b:number|string|Date|TSDate|null|undefined) : Comparison 
-{
-    if (!$ok(a) || !$ok(b)) { return undefined ; }
-	if (a === b) { return Same ; }
-
-    /* TODO: WE SHOULD BE PERMITED NOT TO CAST a or b in new TSDate() */
-    if (!(a instanceof TSDate)) { a = new TSDate(a as unknown as string /* this is wrong  */) ;}
-    if (!(b instanceof TSDate)) { b = new TSDate(b as unknown as string /* this is wrong  */) ;}
-    return a.compare(b) ;
-}
-
-
-export function $compare(a:any, b:any):Comparison {
-
-    if (!$ok(a) || !$ok(b)) { return undefined ; }
-	if (a === b) { return Same ; }
-
-    if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
-    if ($isstring(a) && $isstring(b)) {
-        // before, we used Buffer.compare() to make bytes comparison
-        return a > b ? Descending : (a < b ? Ascending : Same) ;
-    }
-	if ($isarray(a) && $isarray(b)) {
-        const na = a.length, nb = b.length ;
-        let i = 0 ;
-        while (i < na && i < nb) {
-            const c = $compare(a[i], b[i]) ;
-            if (c !== Same) { return c ; }
-            i++ ;
-        }
-        return na === nb ? Same : (i < na ? Descending : Ascending) ;
-    }
-	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
-	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
-	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-		a = new Uint8Array(a as ArrayBufferLike) ;
-		b = new Uint8Array(b as ArrayBufferLike) ;
-        const na = a.length, nb = b.length ;
-        let i = 0 ;
-        while (i < na && i < nb) {
-
-            const c = $numcompare(a[i], b[i]) ;
-            if (c !== Same) { return c ; }
-            i++ ;
-        }
-        return na === nb ? Same : (i < na ? Descending : Ascending) ;
-    }
-    return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
-}
-
-export function $equal(a:any, b:any) {
-	if (a === b) { return true ; }
-	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
-	if (!$ok(a) || !$ok(b)) return false ;
-	if ($isarray(a) && $isarray(b)) {
-		const n = a.length ;
-		if (n !== b.length) return false ;
-		for(let i = 0 ; i < n ; i++) { if (!$equal(a[i], b[i])) return false ; }
-		return true ;
-	}
-	if (a instanceof Date && b instanceof Date) { return a.getTime() === b.getTime() ; }
-    if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { 
-        if (a instanceof Date) { a = new TSDate(a) ; }
-        if (b instanceof Date) { b = new TSDate(b) ; }
-        return a.isEqual(b) ;
-    }
-	if (($isobject(a) && ('isEqual' in a)) && ($isobject(b) && ('isEqual' in b))) { return a.isEqual(b) ; }	
-	if (a instanceof Set && b instanceof Set) {
-		return a.size === b.size && [...a.keys()].every(e => b.has(e)) ;
-	}
-	if (a instanceof Map && b instanceof Map) {
-		const ak = a.keys() ;
-		const bk = b.keys() ;
-		const keys = a.size >= b.size ? ak : bk ;
-		// we may have different expressed keys with undefined as value...
-		// eg: MapA{a:1, b:undefined} equals MapB{a:1} since MapB.get('b') returns undefined 
-		for (let k of keys) { if (!$equal(a.get(k), b.get(k))) return false ; }
-		return true ;
-	}
-	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
-	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-		a = new Uint8Array(a as ArrayBufferLike) ;
-		b = new Uint8Array(b as ArrayBufferLike) ;
-		const n = a.length ;
-		if (n !== b.length) return false ;
-		for(let i = 0 ; i < n ; i++) { if (a[i] !== b[i]) return false ; }
-		return true ;
-	}
-
-	if (Object.getPrototypeOf(a) === Object.prototype && Object.getPrototypeOf(b) === Object.prototype) {
-		const ak = Object.getOwnPropertyNames(a) ;
-		const bk = Object.getOwnPropertyNames(a) ;
-		const keys = ak.length >= bk.length ? ak : bk ;
-		// we may have different expressed keys with undefined as value...
-		// eg: {a:1, b:undefined} equals {a:1}
-		for (let k of keys) { if (!$equal(a[k], b[k])) return false ; }
-		return true ;
-	}
-	return false ; 
-}
 
 export function $count(a:any[] | undefined | null) : number
 { return $ok(a) && Array.isArray(a) ? (<any[]>a).length : 0 ; }
@@ -328,24 +187,10 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 	]).finally(() => clearTimeout(timer)) ;
 }
 
-export function $exit(reason:string='', status:number=0, name?:string) {
-	if (status !== 0) {
-		const processName = $length(name) ? name : `node process ${$filename(process.argv[1])}` ;
-		console.log('----------------------------------------------------') ;
-		if ($length(reason)) {
-			console.log(`Exiting ${processName} with status ${status} for reason:\n\t${reason}`) ;
-		}
-		else {
-			console.log(`Exiting ${processName} with status ${status}`) ;
-		}
-		console.log('----------------------------------------------------') ;
-	}
-	else if ($length(reason)) { console.log(reason) ; }
-	process.exit(status) ;
+// ===== private functions ===================================
+function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
+{
+	const v = $trim(s) ;
+	if (!v.length || !regex.test(<string>v)) { return null ; }
+	return <T><unknown>v ;
 }
-
-export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
-export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
-export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }
-export function $locales(lang?:language|undefined|null):Locales { return TSDefaults.defaults().locales(lang) ; }
-

@@ -1,4 +1,5 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $locales, $fpad3 } from "./commons";
+import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3 } from "./commons";
+import { $locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
     $timeisvalid, 

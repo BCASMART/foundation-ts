@@ -1,4 +1,5 @@
-import { $isnumber, $isstring, $isunsigned, $numcompare, $ok } from "./commons";
+import { $isnumber, $isstring, $isunsigned, $ok } from "./commons";
+import { $numcompare } from "./compare";
 import { Class, TSObject } from "./tsobject";
 import { AnyDictionary, Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX } from "./types";
 

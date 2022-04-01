@@ -1,13 +1,8 @@
-import { $isobject, $length, $ok } from "./commons";
-import { AnyDictionary, language, Languages, StringDictionary, StringTranslation } from "./types";
-import { $dir, $filename, $isdirectory } from "./utils_fs";
+import { $isobject, $length, $ok, $trim } from "./commons";
+import { AnyDictionary, Countries, country, language, Languages, StringDictionary, StringTranslation } from "./types";
+import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
-/**
- * if you want to change the subfolders to be tested
- * you should use the static method setSubfolders() before
- * calling any functions using TSDefaults 
- */
- 
+
 export interface Locales {
     language:StringTranslation;
     months:string[];
@@ -26,7 +21,6 @@ export interface Locales {
 
 export type LocalesDictionary  = { [key in Languages]?:Locales }
 export type StringTranslations = { [key in Languages]?:StringDictionary } ;
-
 export class TSDefaults {
 	private static __instance: TSDefaults ;
 	private static __subfolders:string[] = ['utils', 'tests', 'dist'] ;
@@ -137,6 +131,9 @@ export class TSDefaults {
     public defaultLanguage:language = Languages.fr ;
     private _values:AnyDictionary = {} ;
     private _localizations:StringTranslations = {} ;
+    private _countriesMap:Map<string, country> ;
+    private _languagesMap:Map<string, language> ;
+
     private constructor() {
 		this.defaultPath = __dirname ;
 		for (let sf in TSDefaults.__subfolders) {
@@ -144,8 +141,25 @@ export class TSDefaults {
 				this.defaultPath = $dir(this.defaultPath) ;
 			}
 		}
+        this._countriesMap = new Map<string,country>() ;
+        Object.keys(Countries).forEach(e => this._countriesMap.set(e, e as country)) ;
+        this._languagesMap = new Map<string,language>() ;
+        Object.keys(Languages).forEach(e => this._languagesMap.set(e, e as language)) ;
 	}
-        
+
+    public country(s:string|null|undefined) : country | null {
+        const v = $trim(s) ; if (v.length !== 2) { return null ; }
+        const ret = this._countriesMap.get(v.toUpperCase()) ;
+        return $ok(ret) ? ret! : null ;
+    }
+
+    public language(s?:string|null|undefined) : language | null {
+        if (!$ok(s)) { return this.defaultLanguage ;}
+        const v = $trim(s) ; if (v.length !== 2) { return null ; }
+        const ret = this._languagesMap.get(v.toLowerCase()) ;
+        return $ok(ret) ? ret! : null ;
+    }
+
     public addLocalizations(lang:language, loc:StringDictionary) {
         if ($isobject(loc)) {
             let actualLocalization = this._localizations[lang] ;
@@ -205,4 +219,15 @@ export class TSDefaults {
 		return this.__instance ;
 	}
 }
+export function $localpath() { return TSDefaults.defaults().defaultPath; }
+export function $tmp() { return TSDefaults.defaults().tmpDirectory ; }
+export function $locales(lang?:language|undefined|null):Locales { return TSDefaults.defaults().locales(lang) ; }
+export function $country(s:string|null|undefined) : country | null { return TSDefaults.defaults().country(s) ; }
+export function $language(s?:string|null|undefined) : language | null { return TSDefaults.defaults().language(s) ; }
+// to get default language, tou call $language() with no parameters or TSDefaults.defaults().defaultLanguage 
 
+// function to manage your own global defaults.
+// warning: all of this defaults are stored in memory
+export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
+export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
+export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }

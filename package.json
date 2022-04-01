@@ -1,8 +1,7 @@
 {
   "name": "foundation-ts",
   "version": "1.0.0",
-  "description": "BCA Typescript foundation classes",
-  "main": "dist/index.js",
+  "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
     "test": "jest"
@@ -11,8 +10,9 @@
     "type": "git",
     "url": "git@gitlab.bcasmart.com:doxecure/foundation-ts.git"
   },
-  "author": "Hervé MALAINGRE",
-  "license": "ISC",
+  "author": "Business Card Associates",
+  "email": "dev@bcasmart.com",
+  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^27.4.1",
     "@types/node": "^15.12.4",

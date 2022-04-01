@@ -8,7 +8,8 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat } from "./tsdatecomp"
-import { $isint, $isnumber, $div, $ok, $isstring, $numcompare } from "./commons";
+import { $isint, $isnumber, $div, $ok, $isstring } from "./commons";
+import { $numcompare } from "./compare";
 import { Comparison, isodate, Languages, Same, uint, UINT32_MAX } from "./types";
 import { Class, TSObject } from "./tsobject";
 
