@@ -10,8 +10,10 @@
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat } from "./tsdatecomp"
 import { $isint, $isnumber, $div, $ok, $isstring } from "./commons";
 import { $numcompare } from "./compare";
-import { Comparison, isodate, Languages, Same, uint, UINT32_MAX } from "./types";
+import { Comparison, country, isodate, language, Same, uint } from "./types";
 import { Class, TSObject } from "./tsobject";
+import { TSCountry } from "./tscountry";
+import { Locales } from "./tsdefaults";
 
 export class TSDate implements TSObject<TSDate> {
 	private _timestamp: number ;
@@ -24,6 +26,17 @@ export class TSDate implements TSObject<TSDate> {
      *            as a final :
      *              - z or Z
      *              - +00 or +0000 or +00:00
+     * 
+     *           Caution in using GMT time zone as a local time. You cannot
+     *           do that in instancing a TSDate with a Date. In that case, 
+     *           the local time is used. By exception, if you want to instanciate
+     *           a TSDate from a Date and get its GMT representation, you can use
+     *           
+     *              myNewDate = TSDate.fromZulu(myJavascriptDate) ;
+     * 
+     *          For the same rease, new TSDate() create a date à the current local
+     *          date and time. If you want to do the same at the GMT time zone, you can
+     *          use TSDate.zulu()
      */
     constructor(year: number, month: number, day: number);
     constructor(year: number, month: number, day: number, hours: number, minutes: number, seconds: number);
@@ -51,7 +64,7 @@ export class TSDate implements TSObject<TSDate> {
             let t = arguments[0] ; // undefined if n === 0
             if ($isnumber(t)) { 
                 t = t | 0 ; // we trash all info after the second
-                this._timestamp = Math.min(Math.max(-TSSecsFrom00010101To20010101, t), UINT32_MAX) ;
+                this._timestamp = Math.min(Math.max(-TSSecsFrom00010101To20010101, t), TSMaxTimeStamp) ;
 			}
             else if (t instanceof TSDate) {
                 this._timestamp = t.timestamp;
@@ -61,7 +74,7 @@ export class TSDate implements TSObject<TSDate> {
 
 				if ($isstring(t)) {
                     if (t === TSDate.FUTURE) {
-                        this._timestamp = UINT32_MAX ;
+                        this._timestamp = TSMaxTimeStamp ;
                         return ;
                     } 
                     else if (t === TSDate.PAST) {
@@ -239,23 +252,22 @@ export class TSDate implements TSObject<TSDate> {
     }
     public isEqual(other:any) : boolean { return this === other || (other instanceof TSDate && other.timestamp === this._timestamp) ; }
 	
-  
-    public toString(format?:TSDateForm|string|undefined|null,lang?:Languages) : string {
-        return this._toString(false, format, lang) ;
+    public toString(format?:TSDateForm|string|undefined|null,locale?:language|country|TSCountry|Locales|null|undefined) : string {
+        return this._toString(false, format, locale) ;
     }
 
-    public toLocaleString(format?:TSDateForm|string|undefined|null,lang?:Languages) : string {
-        return this._toString(true, format, lang) ;
+    public toLocaleString(format?:TSDateForm|string|undefined|null,locale?:language|country|TSCountry|Locales|null|undefined) : string {
+        return this._toString(true, format, locale) ;
     }
 
     public toJSON() : string { return this.toIsoString() ; }
 	public toArray():TSDate[] { return [this] ; }
 
 	// ============ Private methods =============== 
-    private _toString(locale:boolean, format?:TSDateForm|string|undefined|null, lang?:Languages) : string {
-        const offset = locale ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
+    private _toString(localTime:boolean, format?:TSDateForm|string|undefined|null, locale?:language|country|TSCountry|Locales|null|undefined) : string {
+        const offset = localTime ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
         if ($isstring(format)) {
-            const ret = $components2stringformat($components(this._timestamp+offset), format as string, lang) ;
+            const ret = $components2stringformat($components(this._timestamp+offset), format as string, locale) ;
             return $ok(ret) ? ret! : '' ;
         }
         if (!$ok(format)) { format = TSDateForm.Standard ; }
@@ -268,17 +280,18 @@ export class TSDate implements TSObject<TSDate> {
  * PUBLIC FUNCTIONS AND CONSTANTS
  ***************************************************************************************************************/
 
- export const TSMinute	= 60 ;
- export const TSHour 	= 3600 ;
- export const TSDay 	    = 86400 ;
- export const TSWeek 	= 604800 ;
- 
- export const TSDaysFrom00000229To20010101 = 730792 ;
- export const TSDaysFrom00010101To20010101 = 730485 ;
- 
- export const TSSecsFrom00010101To20010101 = 63113904000 ;
- export const TSSecsFrom19700101To20010101 = 978307200 ;     // this one is exported for conversion from EPOCH to TSDate
- 
+export const TSMinute	= 60 ;
+export const TSHour 	= 3600 ;
+export const TSDay 	    = 86400 ;
+export const TSWeek 	= 604800 ;
+
+export const TSDaysFrom00000229To20010101 = 730792 ;
+export const TSDaysFrom00010101To20010101 = 730485 ;
+
+export const TSSecsFrom00010101To20010101 = 63113904000 ;
+export const TSSecsFrom19700101To20010101 = 978307200 ;     // this one is exported for conversion from EPOCH to TSDate
+export const TSMaxTimeStamp               = 8639021692800 ; // corresponds to JS 100 000 000 days from EPOCH in the future
+
 export function $isleap(y: number) : boolean 
 { 
 	return !$isint(y) || y % 4 ? false : ( y % 100 ? (y > 7 ? true : false) : (y % 400 || y < 1600 ? false : true)) ; 

@@ -1,5 +1,5 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3 } from "./commons";
-import { $locales } from "./tsdefaults";
+import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring } from "./commons";
+import { $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
     $timeisvalid, 
@@ -16,7 +16,8 @@ import {
     TSDaysFrom00000229To20010101, 
     $dayOfWeekFromTimestamp
 } from "./tsdate";
-import { Languages, uint, UINT_MIN } from "./types";
+import { country, language, uint, UINT_MIN } from "./types";
+import { TSCountry } from "./tscountry";
 
 export interface TimeComp {
 	hour:uint;
@@ -179,25 +180,25 @@ export function $parsedate(s:string|null|undefined, form:TSDateForm=TSDateForm.S
  * enter the year with 2 or 4 digits and the system will try to interpret
  * all 2 digits years as years from the previous or the current century. The limit
  * for that is : all date that seems to be more than 20 years in the future will
- * be considered as a previous century year. We also admin to have only day
- * dates which is normally impossible with ISO3339. On the contrary, we force the
- * use of the T or t separator between day & time which is not the case is 3339.
+ * be considered as a previous century year. We also admit to have only day dates
+ * (e.g no time specified) which is normally impossible with ISO3339. On the contrary, 
+ * we force the use of the T or t separator between day & time which is not the case is 3339.
  * Finany and it is VERY IMPORTANT: since TSDate and TSDateComp deal with
  * local dates (dates with no time zone at all), the time zone information 
- * MUST NOT BE PRESENT AT THE END OF THE PARSED STRING. In order to create a TSDate
- * from a string you don't need this function. You simply use :
+ * MUST NOT BE PRESENT AT THE END OF THE PARSED STRING. 
+ * 
+ * In order to create a TSDate from a string you don't need this function. You simply use :
  * 
  *  date = new TSDate(anISODateString) ; // this throw an error if the parsed string is wrong
  * 
- * But, as we know,  a lot of programmers use GMT dates has local dates (which
- * is wrong by the way), if you set the parameter acceptsGMT to true, you may have 
- * 'z' or 'Z' or '+00' or '+0000' or '+00:00' at the end of your string (indicating
- * that it is a GMT string). You may notice that the current usage in this 
- * kit never use it as such. If you want to create TSDates with GMT string dates
- * you need to use :
+ * But, as we know,  a lot of programmers use GMT dates as local dates and you also may get
+ * string dates comming from an API and expressed in GMT. For that reason, we acccept that the
+ * indication of the GMT time zone (but no other one) can be present at the end of the string to
+ * parse. This indication may come with the Z letter of something like +00 or +0000 or +00:00.
  * 
- * 	date = TSDate.fromComponents(isostring2components(myGMTDateString, true)) ;
- * 
+ * This facility to consider GMT dates as "no time zone date" is offered at the entire responsability
+ * of the user programmer.
+ *  
  * ==WARNING== dayOfWeek is not initialized after parsing.
  */
 export interface Iso8601ParseOptions {
@@ -205,11 +206,10 @@ export interface Iso8601ParseOptions {
 }
 const NO_TIME_ISO_REGEX = /^([0-9]{2,4})\-([0-9]{1,2})\-([0-9]{1,2})$/ ;
 const TIME_ISO_REGEX     = /^([0-9]{2,4})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
-//const TIME_ISO_REGEX    = /^([0-9]{2,4})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2}))?)?)?$/ ;
 
 const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
 const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
-//const COMPACT_TIME_ISO_REGEX    = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2}))?)?)?$/ ;
+
 export function $isostring2components(source:string|null|undefined, opts:Iso8601ParseOptions={}) : TSDateComp|null {
     const s = $trim(source) ;
 	if (!s.length) { return null ; }
@@ -312,10 +312,10 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
  *      %[  enters a format zone which will be disabled if the passed date has no time
  *      %]  exit previous format zone without time
  */
-export function $components2stringformat(comp:TSDateComp, format:string|TSDateRep|undefined|null='', lang?:Languages) : string | null {
+export function $components2stringformat(comp:TSDateComp, format:string|TSDateRep|undefined|null='', locale?:language|country|TSCountry|Locales|null|undefined) : string | null {
     if (!$componentsarevalid(comp)) { return null ; }
     const ts = $components2timestamp(comp) ;
-    const trs = $locales(lang) ;
+    const trs = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
     let fmtlen = $length(format) ;
     let ret = "" ;
     let escape = false ;
@@ -323,28 +323,29 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
 
     if (!fmtlen) { 
         format = trs.dateTimeFormat ;
-        fmtlen = format.length ;
     }
-    else if (format == TSDateRep.LocalDate) {
-        format = trs.dateFormat ;
-        fmtlen = format.length ;
+    else {
+        switch (format) {
+            case TSDateRep.LocalDate:
+                format = trs.dateFormat ;
+                break ;
+            case TSDateRep.ShortLocalDate:
+                format = trs.shortDateFormat ;
+                break ;
+            case TSDateRep.LocalDateTime:
+                format = trs.dateTimeFormat ;
+                break ;
+            case TSDateRep.ShortLocalDateTime:
+                format = trs.shortDateTimeFormat ;
+                break ;
+            case TSDateRep.LocalTime:
+                format = trs.timeFormat ;
+                break ;
+            default:
+                break ; 
+        }
     }
-    else if (format == TSDateRep.ShortLocalDate) {
-        format = trs.shortDateFormat ;
-        fmtlen = format.length ;
-    }
-    else if (format == TSDateRep.LocalDateTime) {
-        format = trs.dateTimeFormat ;
-        fmtlen = format.length ;
-    }
-    else if (format == TSDateRep.ShortLocalDateTime) {
-        format = trs.shortDateTimeFormat ;
-        fmtlen = format.length ;
-    }
-    else if (format == TSDateRep.LocalTime) {
-        format = trs.timeFormat ;
-        fmtlen = format.length ;
-    }
+    fmtlen = format!.length ;
     
     for (let i = 0 ; i < fmtlen ; i++) {
         const c = format!.charAt(i) ;
@@ -383,7 +384,7 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
                     case 'N': ret += comp.minute ; break ;
                     case 'n': ret += comp.month ; break ;
                     case 'p': {
-                        const s = $components2stringformat(comp, trs.partialTimeFormat, lang) ;
+                        const s = $components2stringformat(comp, trs.partialTimeFormat, locale) ;
                         if (!$ok(s)) { return null ; }
                         ret += s! ;
                         break ;
@@ -398,7 +399,7 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
                     case 'S': ret += $fpad2(comp.second) ; break ;
                     case 'T': ret += comp.second ; break ;
                     case 't': {
-                        const s = $components2stringformat(comp, trs.timeFormat, lang) ;
+                        const s = $components2stringformat(comp, trs.timeFormat, locale) ;
                         if (!$ok(s)) { return null ; }
                         ret += s! ;
                         break ;
@@ -410,13 +411,13 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
                         ret += $weekOfYear(ts, trs.startingWeekDay) ;
                         break ;
                     case 'x': {
-                        const s = $components2stringformat(comp, trs.shortDateFormat, lang) ;
+                        const s = $components2stringformat(comp, trs.shortDateFormat, locale) ;
                         if (!$ok(s)) { return null ; }
                         ret += s! ;
                         break ;
                     }
                     case 'X': {
-                        const s = $components2stringformat(comp, trs.dateFormat, lang) ;
+                        const s = $components2stringformat(comp, trs.dateFormat, locale) ;
                         if (!$ok(s)) { return null ; }
                         ret += s! ;
                         break ;

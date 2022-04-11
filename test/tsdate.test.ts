@@ -8,7 +8,8 @@ import {
     $timestamp,
     $dayOfWeekFromTimestamp,
     TSDay,
-    $timestampWithoutTime
+    $timestampWithoutTime,
+    TSMaxTimeStamp
 } from "../src/tsdate";
 import { Ascending, Descending, Same } from "../src/types";
 
@@ -134,6 +135,10 @@ describe("Testing TSDate creation", () => {
         expect(BC.timestamp).toBe(-TSSecsFrom00010101To20010101);
         expect(BC.isEqual(BC2)).toBeTruthy();
         expect(BC2.isEqual(BC)).toBeTruthy();
+    });
+
+    it(`expecting finding max time stamp for future date`, () => {
+        expect(TSDate.future().timestamp).toBe(TSMaxTimeStamp);
     });
 
     it(`expect current date created Date.now() not to be null`, () => {

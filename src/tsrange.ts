@@ -1,6 +1,6 @@
 import { $count, $int, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $unsigned } from "./commons";
 import { TSDate } from "./tsdate";
-import { Ascending, Comparison, Descending, Same, UINT32_MAX } from "./types";
+import { Ascending, Comparison, Descending, Same } from "./types";
 import { Class, TSObject } from "./tsobject";
 import { TSRangeSet } from "./tsrangeset";
 
@@ -201,4 +201,3 @@ export function $comformsToInterval(v:any):boolean {
 }
 export function TSBadRange():TSRange { return new TSRange(NaN, 0) ; }
 export function TSEmptyRange():TSRange { return new TSRange(0, 0) ; }
-export function TSWidestRange():TSRange { return new TSRange(0, UINT32_MAX) ; }
