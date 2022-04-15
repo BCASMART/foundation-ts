@@ -187,6 +187,62 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 	]).finally(() => clearTimeout(timer)) ;
 }
 
+export function $term(s:string, escapeChar:string = '&'):string {
+    let fmtlen = $length(s) ;
+    let escape = false ;
+    let ret = "" ;
+    if (fmtlen) {
+        if ($length(escapeChar) !== 1) { escapeChar = '&' ; }
+        for (let i = 0 ; i < fmtlen ; i++) {
+            const c = s.charAt(i) ;
+            if (escape) {
+                escape = false ;
+                switch (c) {
+                    case escapeChar: ret += escapeChar ; break ;
+                    case 'r': ret += "\x1b[31m" ; break ;
+                    case 'R': ret += "\x1b[41m" ; break ;
+                    case 'g': ret += "\x1b[32m" ; break ;
+                    case 'G': ret += "\x1b[42m" ; break ;
+                    case 'b': ret += "\x1b[34m" ; break ;
+                    case 'B': ret += "\x1b[44m" ; break ;
+                    case 'y': ret += "\x1b[33m" ; break ;
+                    case 'Y': ret += "\x1b[43m" ; break ;
+                    case 'm': ret += "\x1b[35m" ; break ;
+                    case 'M': ret += "\x1b[45m" ; break ;
+                    case 'c': ret += "\x1b[36m" ; break ;
+                    case 'C': ret += "\x1b[46m" ; break ;
+                    case 'k': ret += "\x1b[30m" ; break ;
+                    case 'K': ret += "\x1b[40m" ; break ;
+                    case 'w': ret += "\x1b[37m" ; break ;
+                    case 'W': ret += "\x1b[47m" ; break ;
+                    case '0': ret += "\x1b[0m"  ; break ;   // reset
+                    case '1': ret += "\x1b[1m"  ; break ;   // bright
+                    case 'u': ret += "\x1b[4m"  ; break ;   // underscore
+                    case 'd': ret += "\x1b[2m"  ; break ;   // dimmed
+                    case 'i': ret += "\x1b[7m"  ; break ;   // inversed
+                    case '_': ret += "\x1b[5m"  ; break ;   // blinked
+                    default:
+                        ret += escapeChar ;
+                        ret += c ;
+                        break ;
+                }
+            }
+            else if (c === escapeChar) { escape = true ; }
+            else { ret += c ; }
+        }    
+        if (escape) { ret += escapeChar ; }
+    }
+    return ret ;
+}
+
+export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
+    if ($length(format)) {
+        format = $term(format, escapeChar) ;
+        if ($count(args)) { format += args.join() ; }
+        console.log(format)
+    }
+}
+
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {
