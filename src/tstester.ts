@@ -79,7 +79,7 @@ export class TSTestGroup extends TSTest {
             const unaryok = await u.run() ;
             if (!unaryok) { failed++ ; }
         }
-        this.log(`  ... group test ${this.desc} did ${failed==0?'&G&w  PASS  ':'&R&w  FAILED  '}&0`) ;
+        this.log(`  ... group test ${this.desc} ${failed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0`) ;
         return failed === 0 ;
     }
 }
@@ -124,17 +124,17 @@ export class TSExpectAgent {
         this._step = step ;
         this._value = value ;
     }
-    public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._step?.fail() ;}}
-    public notToBe(aValue:any)  { if ($equal(aValue, this._value)) { this._step?.fail() ;}}
-    public toBeTruthy()         { if (!this._value) { this._step?.fail() ; }}
-    public toBeFalsy()          { if (this._value) { this._step?.fail() ; }}
-    public toBeUndefined()      { if (this._value !== undefined) { this._step?.fail() ; }}
-    public toBeDefined()        { if (this._value === undefined) { this._step?.fail() ; }}
-    public toBeNull()           { if (this._value !== null) { this._step?.fail() ; }}
-    public toBeNotNull()        { if (this._value === null) { this._step?.fail() ; }}
-    public toBeOK()             { if (!$ok(this._value)) { this._step?.fail() ; }}
-    public toBeNotOK()          { if ($ok(this._value)) { this._step?.fail() ; }}
-    public toBeNaN()            { if (!isNaN(this._value)) { this._step?.fail() ; }}
-    public toBeNumber()         { if (!$isnumber(this._value)) { this._step?.fail() ; }}
+    public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._step?.fail() ;} else { this._step?.pass() ; }}
+    public notToBe(aValue:any)  { if ($equal(aValue, this._value)) { this._step?.fail() ;} else { this._step?.pass() ; }}
+    public toBeTruthy()         { if (!this._value) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeFalsy()          { if (this._value) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeUndefined()      { if (this._value !== undefined) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeDefined()        { if (this._value === undefined) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeNull()           { if (this._value !== null) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeNotNull()        { if (this._value === null) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeOK()             { if (!$ok(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeNotOK()          { if ($ok(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeNaN()            { if (!isNaN(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    public toBeNumber()         { if (!$isnumber(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
 }
 
