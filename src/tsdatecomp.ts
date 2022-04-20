@@ -1,5 +1,5 @@
 import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring } from "./commons";
-import { $locales, Locales } from "./tsdefaults";
+import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
     $timeisvalid, 
@@ -267,7 +267,7 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 }
 
 /**
- *      Format documentation :
+ *      date format documentation :
  * 
  *      %Y  year padded to 4 digits 
  *      %y  year paddeed to 2 digits (centuries are ommited)
@@ -310,6 +310,7 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
  *            
  *      %%  % caracter
  *      %[  enters a format zone which will be disabled if the passed date has no time
+ *          (meaning enabled if hour > 0 || minute > 0 || second > 0)
  *      %]  exit previous format zone without time
  */
 export function $components2stringformat(comp:TSDateComp, format:string|TSDateRep|undefined|null='', locale?:language|country|TSCountry|Locales|null|undefined) : string | null {
@@ -426,7 +427,7 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
                     case 'Y': ret += $fpad4(comp.year) ; break ;
                     case 'z': ret += comp.year ; break ;
                     case '[': 
-                        skipIncludedIfNoTime = comp.hour == 0 && comp.minute == 0 && comp.second == 0 ? true : false ; 
+                        skipIncludedIfNoTime = comp.hour == 0 && comp.minute == 0 && comp.second == 0 ; 
                         break ;
                     case ']':
                         skipIncludedIfNoTime = false ;
@@ -467,32 +468,317 @@ export function $durationcomponents(duration: number|null|undefined) : TSDuratio
     }
 }
 
+
 export function $duration(comps:TSDurationComp):number {
     return comps.days*TSDay+comps.hours*TSHour+comps.minutes*TSMinute+comps.seconds ;
 }
 
-export function duration2String(comps:TSDurationComp):string {
+export function $duration2String(comps:TSDurationComp, format?:string|null|undefined):string {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
-    return durationNumber2String($duration(comps)) ;
+    return $durationNumber2StringFormat($duration(comps), format) ;
 }
 
-export function durationNumber2String(duration: number|null|undefined) : string {
-    const c = $durationcomponents(duration) ;
-    if (c.days || c.hours || c.minutes || c.seconds) {
-        if (c.days) {
-            return c.seconds ? 
-                `${$fpad2(c.days)}-${$fpad2(c.hours)}:${$fpad2(c.minutes)}:${$fpad2(c.seconds)}` : 
-                `${$fpad2(c.days)}-${$fpad2(c.hours)}:${$fpad2(c.minutes)}` ; 
-        }
-        return c.seconds ? 
-            `${$fpad2(c.hours)}:${$fpad2(c.minutes)}:${$fpad2(c.seconds)}` : 
-            `${$fpad2(c.hours)}:${$fpad2(c.minutes)}` ; 
+
+/**
+ *      duration Format documentation :
+ *
+ *      %%  % character
+ * 
+ *      %d  non formated days duration
+ *      %D  2-digits formated days duration
+ *      %E  3-digits formated days duration
+ *      %(  introducing conditional part of format valid only if days > 0
+ *          only %%, %), %p, %[ %{, %<, %≤, %d, %D and %E can be used in this 
+ *          conditional format part. All other escape schemas are copied as it 
+ *          in the final string
+ *      %)  terminating conditional part of format valid only if days > 0
+ *      %p  else of the conditional part of parenthesis conditional part. In that else
+ *          part only text and %%, %p, %) sequences are allowed
+ * 
+ *      %h  non formated hours (< 24h) duration
+ *      %H  2-digits formated hours (< 24h) duration
+ *      %i  non formated hours (including days) duration
+ *      %I  2 digit formated hours (including days) duration
+ *      %J  3 digit formated hours (including days) duration
+ * 
+ *      %m  non formated minutes duration
+ *      %M  2-digits formated minutes duration
+ * 
+ *      %s  non formated seconds duration
+ *      %S  2-digits formated seconds duration
+ *      %{  introducing conditional part of format valid only if seconds > 0
+ *          only %%, %}, %b, %(, %[, %<, %≤, %s, %S can be used in this conditional 
+ *          format part. All other escape schemas are copied as it in the final string
+ *      %}  terminating conditional part of format valid only if seconds > 0
+ *      %b  else of the conditional part of curly bracket conditional part. In that else
+ *          part only text and %%, %b, %} sequences are allowed
+ *
+ *      %[  introducing conditional part of format valid only if we have a duration 
+ *          where we have seconds, minutes or hours defined. In this conditional part
+ *          only %], %%, %!, %(, %{, %<, %≤, %h, %H, %i, %I, %J, %m, %M, %s, %S can 
+ *          be used. All other escape sequences are copied as it in the final string
+ *      %]  ending precedent conditional part
+ *      %!  else of the conditional part of bracket conditional part. In that else
+ *          part only text and %%, %!, %] sequences are allowed
+ *
+ *      %≤  introducing conditional part of format valid only if hours > 0. Only %≥, %%, %q, %<,
+ *          %(, %[, %{, %h, %H, %i, %I, %J escape sequence can be used here. All other escape
+ *          sequences are copied as it in the final string
+ *      %≥  ending precedent conditional part
+ *      %q  else of the precedent conditional part. In that else part, only text and %%, %q,
+ *          and %≥ sequences are allowed
+ * 
+ *      %<  introducing conditional part of format valid only if minutes > 0 or seconds > 0
+ *          only %%, %c, %>, %(, %[, %{, %≤, %m, %M, %s, %S can be used in this conditional 
+ *          format part. All other escape schemas are copied as it in the final string
+ *      %>  terminating conditional part of format valid only if minutes > 0 or seconds > 0
+ *      %c  else of the conditional part of comparison bracket conditional part. In that else
+ *          part only text and %%, %c, %> sequences are allowed
+ * 
+ *      You can use $setdefault('debugDurationStateAutomat', true) ; before calling the present
+ *      function in order to debug the format automat if you think you don't obtain what you should
+ */
+export function $durationNumber2StringFormat(duration: number|null|undefined, format?:string|null|undefined) : string {
+    
+    enum State {
+        Standard = 0,
+        StandardEscape,
+        DaysPart,
+        DaysPartEscape,
+        HoursPart,
+        HoursPartEscape,
+        SecondsPart,
+        SecondsPartEscape,
+        SubdaysPart,
+        SubdaysPartEscape,
+        SubhoursPart,
+        SubhoursPartEscape,
+    } ;
+    interface Stack {
+        state:State,
+        elsePart:boolean
     }
-    return '00:00' ;
+
+    const comp = $durationcomponents(duration) ;
+
+    if (!$length(format)) { format = "%(%d-%)%H:%M%{:%S%}" ; }
+    let fmtlen = format!.length ;
+    let state = State.Standard ;
+    let ret = "" ;
+    let elsePart = false ;
+    const subhour = comp.minutes > 0 || comp.seconds > 0 ;
+    const subday = comp.hours > 0 || subhour ;
+    let stack:Stack[] = [] ;
+    const debug = $default("debugDurationStateAutomat") ;
+
+    if (debug) {
+        console.log(`Format:      "${format}"`) ;
+        console.log(`comp.days:    ${comp.days}`) ;
+        console.log(`comp.hours:   ${comp.hours}`) ;
+        console.log(`comp.minutes: ${comp.minutes}`) ;
+        console.log(`comp.seconds: ${comp.seconds}`) ;
+        console.log(`subhour:      ${subhour}`) ;
+        console.log(`subday:       ${subday}`) ;
+    }
+
+    function _pop():[State, boolean] { const p = stack.pop() ; return [p!.state, p!.elsePart] ; }
+    function _push(newState:State):[State, boolean] { stack.push({state:state, elsePart:elsePart}); return [newState, false] ; }
+    function _default(c:string) { ret += '%' ; if (c !== '%') { ret += c ; }}
+
+    function _d() { ret += comp.days ; }
+    function _D() { ret += $fpad2(comp.days) ; }
+    function _E() { ret += $fpad3(comp.days) ; }
+    function _h() { ret += comp.hours ; }
+    function _H() { ret += $fpad2(comp.hours) ; }
+    function _i() { ret += (comp.days*24 + comp.hours) ; }
+    function _I() { ret += $fpad2((comp.days*24 + comp.hours) as uint) ; }
+    function _J() { ret += $fpad3((comp.days*24 + comp.hours) as uint) ; }
+    function _m() { ret += comp.minutes ; }
+    function _M() { ret += $fpad2(comp.minutes) ; }
+    function _s() { ret += comp.seconds ;}
+    function _S() { ret += $fpad2(comp.seconds) ; }
+
+    
+    for (let i = 0 ; i < fmtlen ; i++) {
+        const c = format!.charAt(i) ;
+        if (debug) console.log(`stack.count = ${stack.length}, state = ${state}, elsePart = ${elsePart}, char[${i}] = '${c}'`) ;
+        switch (state) {
+            case State.Standard:
+                elsePart = false ;
+                if (c === '%') { state = State.StandardEscape ; }
+                else { ret += c ; }
+                break ;
+            case State.StandardEscape:
+                state = State.Standard ;
+                switch (c) {
+                    case '%': ret += '%' ; break ;
+                    case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
+                    case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
+                    case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
+                    case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                    case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                    case 'D': _D() ; break ; case 'd': _d() ; break ; case 'E': _E() ; break ;
+                    case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
+                    case 'M': _M() ; break ; case 'm': _m() ; break ;
+                    case 'S': _S() ; break ; case 's': _s() ; break ;
+                    default: ret += '%', ret += c ; break ;
+                }
+                break ;
+            case State.DaysPart:
+                if (c === '%') { state = State.DaysPartEscape ; }
+                else if ((comp.days > 0 && !elsePart) || (!comp.days && elsePart)) { ret += c ; }
+                break ;
+            case State.DaysPartEscape:
+                if (c === ')') { [state, elsePart] = _pop() ; }
+                else {
+                    state = state = State.DaysPart ;
+                    if (c === 'p') { elsePart = !elsePart ; }                    
+                    else if (comp.days > 0 && !elsePart) {
+                        switch (c) {
+                            case '%': ret += '%' ; break ;
+                            case 'D': _D() ; break ; case 'd': _d() ; break ; case 'E': _E() ; break ;
+                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
+                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
+                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            default: ret += '%', ret += c ; break ;
+                        }
+                    }
+                    else if (elsePart && !comp.days) { _default(c) ; }
+                }
+                break ;
+            case State.HoursPart:
+                if (c === '%') { state = State.HoursPartEscape ; }
+                else if ((comp.hours > 0 && !elsePart) || (!comp.hours && elsePart)) { ret += c ; }
+                break ;
+            case State.HoursPartEscape:
+                if (c === '≥') { [state, elsePart] = _pop() ; }
+                else {
+                    state = State.HoursPart ;
+                    if (c === 'q') { elsePart = !elsePart ; }                    
+                    else if (comp.hours > 0 && !elsePart) {
+                        switch (c) {
+                            case '%': ret += '%' ; break ;
+                            case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
+                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
+                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
+                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                            default: ret += '%', ret += c ; break ;
+                        }
+                    }
+                    else if (elsePart && !comp.hours) { _default(c) ; }
+                }
+                break ;
+            case State.SecondsPart:
+                if (c === '%') { state = State.SecondsPartEscape ; }
+                else if ((comp.seconds > 0 && !elsePart) || (!comp.seconds && elsePart)) { ret += c ; }
+                break ;
+            case State.SecondsPartEscape:
+                if (c === '}') { [state, elsePart] = _pop() ; }
+                else {
+                    state = State.SecondsPart ;
+                    if (c === 'b') { elsePart = !elsePart ; }                    
+                    else if (comp.seconds > 0 && !elsePart) {
+                        switch (c) {
+                            case '%': ret += '%' ; break ;
+                            case 'S': _S() ; break ; case 's': _s() ; break ;
+                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
+                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
+                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            default: ret += '%', ret += c ; break ;    
+                        }
+                    }
+                    else if (elsePart && !comp.seconds) { _default(c) ; }
+                }
+                break ;
+            case State.SubdaysPart:
+                if (c === '%') { state = State.SubdaysPartEscape ; }
+                else if ((subday && !elsePart) || (!subday && elsePart)) { ret += c ; }
+                break ;
+            case State.SubdaysPartEscape:
+                if (c === ']') { [state, elsePart] = _pop() ; }
+                else {
+                    state = State.SubdaysPart ;
+                    if (c === '!') { elsePart = !elsePart ; }
+                    else if (subday && !elsePart) {
+                        switch (c) {
+                            case '%': ret += '%' ; break ;
+                            case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
+                            case 'M': _M() ; break ; case 'm': _m() ; break ;
+                            case 'S': _S() ; break ; case 's': _s() ; break ;
+                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
+                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            default: ret += '%', ret += c ; break ;    
+                        }
+                    }   
+                    else if (!subday && elsePart) { _default(c) ; }
+                }
+                break ;
+            case State.SubhoursPart:
+                if (c === '%') { state = State.SubhoursPartEscape ; }
+                else if ((subhour && !elsePart) || (!subhour && elsePart)) { ret += c ; }
+                break ;
+            case State.SubhoursPartEscape:
+                if (c === '>') { [state, elsePart] = _pop() ; }
+                else {
+                    state = State.SubhoursPart ;
+                    if (c === 'c') { elsePart = !elsePart ; }
+                    else if (subhour && !elsePart) {
+                        switch (c) {
+                            case '%': ret += '%' ; break ;
+                            case 'M': _M() ; break ; case 'm': _m() ; break ;
+                            case 'S': _S() ; break ; case 's': _s() ; break ;
+                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
+                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
+                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            default: ret += '%', ret += c ; break ;    
+                        }
+                    }   
+                    else if (!subhour && elsePart) { _default(c) ; }
+                }
+                break ;                
+        }
+        if (debug) { console.log(`state after:${state}, composed string = "${ret}"`) ; }
+    }
+
+    switch (state) {
+        case State.Standard: 
+        case State.DaysPart:
+        case State.SecondsPart:
+        case State.SubdaysPart:
+        case State.SubhoursPart:
+        case State.HoursPart:
+            break ;
+        case State.StandardEscape: 
+            ret += '%' ; 
+            break ;
+        case State.DaysPartEscape:
+            if ((comp.days > 0 && !elsePart) || (!comp.days && elsePart)) { ret += '%' ; } 
+            break ;
+        case State.HoursPartEscape:
+            if ((comp.hours > 0 && !elsePart) || (!comp.hours && elsePart)) { ret += '%' ; } 
+            break ;
+        case State.SecondsPartEscape:
+            if ((comp.seconds > 0 && !elsePart) || (!comp.days && elsePart)) { ret += '%' ; } 
+            break ;
+        case State.SubdaysPartEscape:
+            if ((subday && !elsePart) || (!subday && elsePart)) { ret += '%' ; } 
+            break ;
+        case State.SubhoursPartEscape:
+            if ((subhour && !elsePart) || (!subhour && elsePart)) { ret += '%' ; }
+            break ; 
+    }
+
+    if (debug) { console.log(`$durationNumber2StringFormat() returned string = "${ret}"`) ; }
+
+    return ret ;
 }
-
-
 
 //////////////////// private functions
 
