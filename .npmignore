@@ -1,3 +1,4 @@
 *.js.map
 *.spec.*
 SetupPackage.*
+.DS_Store

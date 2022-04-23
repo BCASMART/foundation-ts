@@ -63,11 +63,15 @@ export function $isodate(s:Date|TSDate|string|null|undefined) : isodate | null
 }
 
 export function $address(a:Address|null|undefined) : Address | null {
-    if (!$ok(a) || !$length(a?.city)) { return null ; }
-    const c = $country(a?.country) ;
-    if (!$ok(c)) { return null ; }
+    if (!$ok(a)) { return null ; }
+    const city = $trim(a?.city) ;
+    const country = $country(a?.country) ;
+    if (!city.length || !$ok(country)) { return null ; }
+
     let ret:Address = {...a!} ;
-    ret.country = c! ;
+    ret.city = city! ;
+    ret.country = country! ;
+
     return ret ;
 }
 
