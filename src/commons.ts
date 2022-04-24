@@ -43,7 +43,10 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 
 
 export function $email(s:string|null|undefined) : email | null
-{ return _regexvalidatedstring<email>(emailRegex, s) ; }
+{ 
+    const m = _regexvalidatedstring<email>(emailRegex, s) ;
+    return $ok(m) ? m!.toLowerCase() as email : null ;
+}
 
 export function $url(s:string|null|undefined) : url | null
 { return _regexvalidatedstring<url>(urlRegex, s) ; }
