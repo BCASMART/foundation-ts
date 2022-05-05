@@ -1,8 +1,9 @@
+import { $equal } from "./compare";
 import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, isodate, Address} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
 
 export function $ok(o:any | undefined | null) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
@@ -183,6 +184,29 @@ export function $jsonobj(v:any): any
 	} 
 }
 
+// TODO: review all AnyDictionary functions to make a specific file 
+// and a more thorough specificaiton
+export function $dict(source:object|null|undefined, keys:string[]):AnyDictionary {
+    const ret:AnyDictionary = {} ;
+    if ($ok(source) && $count(keys)) {
+        const v = source as AnyDictionary ;
+        for (let k of keys) { ret[k] = v[k] ; }
+    }
+    return ret ;
+}
+
+export function $includesdict(source:object|null|undefined, dict:AnyDictionary, keys?:string[]):boolean {
+    if ($ok(source)) {
+        if (!$ok(keys)) { keys = Object.getOwnPropertyNames(dict) ; }
+        if ($count(keys)) {
+            const v = source as AnyDictionary ;
+            for (let k of keys!) { if (!$equal(v[k], dict[k])) { return false ; }}
+            return true ;
+        }
+    }
+    return false ;
+}
+
 export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
 { return JSON.stringify(v, replacer, space) ; }
 
@@ -206,28 +230,28 @@ export function $term(s:string, escapeChar:string = '&'):string {
                 escape = false ;
                 switch (c) {
                     case escapeChar: ret += escapeChar ; break ;
-                    case 'r': ret += "\x1b[31m" ; break ;
-                    case 'R': ret += "\x1b[41m" ; break ;
-                    case 'g': ret += "\x1b[32m" ; break ;
-                    case 'G': ret += "\x1b[42m" ; break ;
-                    case 'b': ret += "\x1b[34m" ; break ;
-                    case 'B': ret += "\x1b[44m" ; break ;
-                    case 'y': ret += "\x1b[33m" ; break ;
-                    case 'Y': ret += "\x1b[43m" ; break ;
-                    case 'm': ret += "\x1b[35m" ; break ;
-                    case 'M': ret += "\x1b[45m" ; break ;
-                    case 'c': ret += "\x1b[36m" ; break ;
-                    case 'C': ret += "\x1b[46m" ; break ;
-                    case 'k': ret += "\x1b[30m" ; break ;
-                    case 'K': ret += "\x1b[40m" ; break ;
-                    case 'w': ret += "\x1b[37m" ; break ;
-                    case 'W': ret += "\x1b[47m" ; break ;
-                    case '0': ret += "\x1b[0m"  ; break ;   // reset
-                    case '1': ret += "\x1b[1m"  ; break ;   // bright
-                    case 'u': ret += "\x1b[4m"  ; break ;   // underscore
-                    case 'd': ret += "\x1b[2m"  ; break ;   // dimmed
-                    case 'i': ret += "\x1b[7m"  ; break ;   // inversed
-                    case '_': ret += "\x1b[5m"  ; break ;   // blinked
+                    case 'r': ret += "\x1b[31m" ; break ; // red font
+                    case 'R': ret += "\x1b[41m" ; break ; // red background
+                    case 'g': ret += "\x1b[32m" ; break ; // green font  
+                    case 'G': ret += "\x1b[42m" ; break ; // green background
+                    case 'b': ret += "\x1b[34m" ; break ; // blue font
+                    case 'B': ret += "\x1b[44m" ; break ; // blue background
+                    case 'y': ret += "\x1b[33m" ; break ; // yellow font
+                    case 'Y': ret += "\x1b[43m" ; break ; // yellow background
+                    case 'm': ret += "\x1b[35m" ; break ; // magenta font
+                    case 'M': ret += "\x1b[45m" ; break ; // magenta background
+                    case 'c': ret += "\x1b[36m" ; break ; // cyan font
+                    case 'C': ret += "\x1b[46m" ; break ; // cyan background
+                    case 'k': ret += "\x1b[30m" ; break ; // black font
+                    case 'K': ret += "\x1b[40m" ; break ; // black background
+                    case 'w': ret += "\x1b[37m" ; break ; // white font 
+                    case 'W': ret += "\x1b[47m" ; break ; // white background
+                    case '0': ret += "\x1b[0m"  ; break ; // reset
+                    case '1': ret += "\x1b[1m"  ; break ; // bright mode
+                    case 'u': ret += "\x1b[4m"  ; break ; // underscore
+                    case 'd': ret += "\x1b[2m"  ; break ; // dimmed
+                    case 'i': ret += "\x1b[7m"  ; break ; // inversed
+                    case '_': ret += "\x1b[5m"  ; break ; // blinked
                     default:
                         ret += escapeChar ;
                         ret += c ;

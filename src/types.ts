@@ -12,7 +12,7 @@ export type uint32 	 = Opaque<number> ;
 export type uint 	 = Opaque<number> ;
 
 export type money 	 = Opaque<number> ;
-export type percentage = Opaque<number> ;
+export type percentage = Opaque<number> ; // the percentage type is an unsigned int in 1/1000 of percetage, i.e 20000 = 20% = 0.2
 
 export type id 	 	 = Opaque<number> ;
 export type id32 	 = Opaque<number> ;

@@ -1,4 +1,4 @@
-import { $arraybuffer, $ascii, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
+import { $arraybuffer, $ascii, $dict, $includesdict, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
 import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -14,6 +14,8 @@ describe("Interpretation functions", () => {
     const S2 = "Texte accentue avec ca et c'est shon";
     const B1 = Buffer.from(S1, 'utf-8');
     const B2 = Buffer.from(S2, 'utf-8');
+    const DICT = {a:'a', b:'b', c:'c'};
+    const SUB = {a:'a', c:'c'};
 
     it('verifying $intornull()', () => {
         expect($intornull(null)).toBeNull();
@@ -117,6 +119,17 @@ describe("Interpretation functions", () => {
         expect($map([1, 5, null, 6, 'A', undefined], e => e)).toStrictEqual([1, 5, 6, 'A']);
         expect($map([1, 5, null, 6, 'A', undefined], e => $ok(e) ? e!.toString() : undefined)).toStrictEqual(['1', '5', '6', 'A']);
     });
+
+    it('verifying $dict(object, keys)', () => {
+        expect($equal($dict(DICT, ['a', 'c']), SUB)).toBeTruthy() ;
+        expect($equal($dict(DICT, ['a', 'c', 'd']), SUB)).toBeTruthy() ;
+    }) ;
+
+    it('verifying $includesdict(object, dict, keys)', () => {
+        expect($includesdict(DICT, SUB)).toBeTruthy() ;
+        expect($includesdict(DICT, SUB, ['c'])).toBeTruthy() ;
+        expect($includesdict(DICT, SUB, ['a', 'd'])).toBeTruthy() ; // because 'd' key is absent on both dicts
+    }) ;
 
     it('verifying $ascii(s)', () => {
         expect($ascii(S1)).toBe(S2) ;
