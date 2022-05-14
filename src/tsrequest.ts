@@ -1,6 +1,5 @@
 import { AnyDictionary } from './types';
-import * as qs from 'querystring'
-import { $isnumber, $isstring, $length, $ok, $unsigned, $timeout } from './commons';
+import { $isnumber, $isstring, $length, $ok, $unsigned, $timeout, $trim, $isarray } from './commons';
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 import { TSUniqueError } from './tserrors';
 
@@ -14,10 +13,31 @@ export function $barerauth(base64token:string) : string
 	return `Bearer ${base64token}` ;
 }
 
-export function $query(baseURL:string, query:AnyDictionary) : string
-{
-	const q = qs.stringify(query) ;
-	return $length(q) ? `${baseURL}?${q}` : baseURL ;
+// this method removes null or undefined values from a query
+export function $query(baseURL:string, query:AnyDictionary) : string {
+    let params = new URLSearchParams() ;
+        
+    for (let [key, value] of Object.entries(query)) {
+        key = $trim(key) ;
+        if (key.length) {
+            if ($isarray(value)) {
+                let uniques = new Set<string|undefined|null>() ; // we don't want to add the same value twice
+                for (let v of (value as Array<any>)) {
+                    if ($ok(v)) { 
+                        v = v.toString() ; 
+                        if (!uniques.has(v)) {
+                            uniques.add(v) ;
+                            params.append(key, v) ; 
+                        }
+                    }
+                }
+            }
+            else if ($ok(value)) { params.append(key, value.toString()) ; } 
+        }
+    }
+
+    const s = params.toString() ;
+    return $length(s) ? baseURL + '?' + s : baseURL ;
 }
 
 export enum Resp {

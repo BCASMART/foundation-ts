@@ -253,6 +253,7 @@ export class TSDate implements TSObject<TSDate> {
     public isEqual(other:any) : boolean { return this === other || (other instanceof TSDate && other.timestamp === this._timestamp) ; }
 	
     public toString(format?:TSDateForm|string|undefined|null,locale?:language|country|TSCountry|Locales|null|undefined) : string {
+        if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
         return this._toString(false, format, locale) ;
     }
 
