@@ -8,7 +8,7 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat } from "./tsdatecomp"
-import { $isint, $isnumber, $div, $ok, $isstring } from "./commons";
+import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Same, uint } from "./types";
 import { Class, TSObject } from "./tsobject";
@@ -232,8 +232,8 @@ export class TSDate implements TSObject<TSDate> {
     public toDate() : Date {
         return $components2date($components(this._timestamp)) ;
     }
-	public toIsoString(compact:boolean=false) : isodate { 
-        return <isodate>$components2string($components(this._timestamp), compact ? TSDateForm.ISO8601C : TSDateForm.ISO8601) ; 
+	public toIsoString(format:IsoDateFormat=TSDateForm.ISO8601) : isodate { 
+        return <isodate>$components2string($components(this._timestamp), format) ; 
     }
 	
     // if we use this method it may be because the caller thinks he used a Date object
@@ -285,6 +285,7 @@ export const TSMinute	= 60 ;
 export const TSHour 	= 3600 ;
 export const TSDay 	    = 86400 ;
 export const TSWeek 	= 604800 ;
+
 
 export const TSDaysFrom00000229To20010101 = 730792 ;
 export const TSDaysFrom00010101To20010101 = 730485 ;

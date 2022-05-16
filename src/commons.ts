@@ -55,15 +55,17 @@ export function $url(s:string|null|undefined) : url | null
 export function $uuid(s:string|null|undefined) : uuid | null
 { return _regexvalidatedstring<uuid>(uuidRegex, s) ; }
 
-export function $isodate(s:Date|TSDate|string|null|undefined) : isodate | null
+export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
+
+export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateFormat=TSDateForm.ISO8601) : isodate | null
 {
     let cps:TSDateComp|null = null ;
     if ($ok(s)) {
         if (s instanceof Date) { cps = $components(s as Date) ; }
         else if (s instanceof TSDate) { cps = (s as TSDate).toComponents() ; }
-        else { cps = $parsedatetime($trim(s as string), TSDateForm.ISO8601) ; } // we parse the string to verify it
+        else { cps = $parsedatetime($trim(s as string), format) ; } // we parse the string to verify it
     }
-    return $ok(cps) ? <isodate>$components2string(cps!, TSDateForm.ISO8601) : null ;
+    return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
 
 export function $address(a:Address|null|undefined) : Address | null {
@@ -122,6 +124,11 @@ export function $fpad3(v: uint) : string
 export function $fpad4(v: uint) : string
 { 
     return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)));
+}
+
+export function $fpad(v: uint, pad:number) : string
+{ 
+    return v.toString().padStart(pad, '0') ;
 }
 
 // for now $ascii() does not mak any transliterations from

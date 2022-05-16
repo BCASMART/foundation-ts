@@ -11,6 +11,7 @@ import {
     $timestampWithoutTime,
     TSMaxTimeStamp
 } from "../src/tsdate";
+import { TSDateForm } from "../src/tsdatecomp";
 import { Ascending, Descending, Same } from "../src/types";
 
 describe("Testing code $dayOfWeek() function", () => {
@@ -208,7 +209,8 @@ describe("Testing TSDate manipulation", () => {
     it('d.toEpoch()', () => { expect(D.toEpoch()).toBe(-777862740) ; }) ;
     it('d.toDate()', () => { expect(D.toDate()).toStrictEqual(ED) ; }) ;
     it('d.toIsoString()', () => { expect(D.toIsoString()).toBe("1945-05-08T23:01:00") ; }) ;
-    it('d.toIsoString(true)', () => { expect(D.toIsoString(true)).toBe("19450508T230100") ; }) ;
+    it('d.toIsoString(TSDateForm.ISO8601C)', () => { expect(D.toIsoString(TSDateForm.ISO8601C)).toBe("19450508T230100") ; }) ;
+    it('d.toIsoString(TSDateForm.ISO8601L)', () => { expect(D.toIsoString(TSDateForm.ISO8601L)).toBe("001945-05-08T23:01:00") ; }) ;
 
     it('d.className', () => { expect(D.className).toBe("TSDate") ; }) ;
 

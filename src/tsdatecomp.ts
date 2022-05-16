@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring } from "./commons";
+import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -44,7 +44,8 @@ export enum TSDateForm {
 	English,
 	Computer,
 	ISO8601,
-    ISO8601C
+    ISO8601C,
+    ISO8601L
 }
 
 export enum TSDateRep {
@@ -177,7 +178,7 @@ export function $parsedate(s:string|null|undefined, form:TSDateForm=TSDateForm.S
 
 /**
  * This function parse an ISO8601 OR ISO3339 date string. In both case, you may
- * enter the year with 2 or 4 digits and the system will try to interpret
+ * enter the year with 2 to 6 digits and the system will try to interpret
  * all 2 digits years as years from the previous or the current century. The limit
  * for that is : all date that seems to be more than 20 years in the future will
  * be considered as a previous century year. We also admit to have only day dates
@@ -204,8 +205,8 @@ export function $parsedate(s:string|null|undefined, form:TSDateForm=TSDateForm.S
 export interface Iso8601ParseOptions {
 	noTime?:boolean ;
 }
-const NO_TIME_ISO_REGEX = /^([0-9]{2,4})\-([0-9]{1,2})\-([0-9]{1,2})$/ ;
-const TIME_ISO_REGEX     = /^([0-9]{2,4})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
+const NO_TIME_ISO_REGEX = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})$/ ;
+const TIME_ISO_REGEX     = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
 
 const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
 const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
@@ -221,7 +222,7 @@ export function $isostring2components(source:string|null|undefined, opts:Iso8601
         if (!$ok(m)) { m = s.match(COMPACT_NO_TIME_ISO_REGEX) ; }
     }
     else {
-        if (!$ok(m)) { m = s.match(TIME_ISO_REGEX) ; }
+        m = s.match(TIME_ISO_REGEX) ;
         if (!$ok(m)) { m = s.match(COMPACT_TIME_ISO_REGEX) ; }
     }
     if (!$ok(m)) { return null ; }
@@ -254,6 +255,8 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 			return `${$fpad4(c.year)}-${$fpad2(c.month)}-${$fpad2(c.day)}T${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}` ;
         case TSDateForm.ISO8601C:
 			return `${$fpad4(c.year)}${$fpad2(c.month)}${$fpad2(c.day)}T${$fpad2(c.hour)}${$fpad2(c.minute)}${$fpad2(c.second)}` ;
+        case TSDateForm.ISO8601L:
+			return `${$fpad(c.year,6)}-${$fpad2(c.month)}-${$fpad2(c.day)}T${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}` ;
 		case TSDateForm.Standard:
 			return timed ? `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
 						 : `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}` ;
@@ -815,7 +818,7 @@ function _completeWithToday(c:TSDateComp) {
 }
 
 function _parsedt(s:string|null|undefined, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
-	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C) { return $isostring2components(s, opts) ; }
+	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C || form === TSDateForm.ISO8601L) { return $isostring2components(s, opts) ; }
 	if (!$length(s)) { return null ; }
 	const m = (<string>s).match(regexp) ;
 	if (!$ok(m)) { return null ; }
