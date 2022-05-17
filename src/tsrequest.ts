@@ -144,7 +144,12 @@ interface TSRequestError {
     code?:string ;
 } ;
 
-interface TSRequestOptions {
+export interface TSResponse {
+    status:Resp,
+    response:Buffer|object|string|ReadableStream|null,
+    headers:RequestHeaders
+}
+export interface TSRequestOptions {
     headers?:RequestHeaders,
     timeout?:number,
     managesCredentials?:boolean,
@@ -187,8 +192,21 @@ export class TSRequest {
 		}
 	}
 
-    
 	public async request(
+		relativeURL:string, 
+		method?:Verb, 
+		responseType?:RespType, 
+		statuses?:number[], 
+		body?:object|Buffer|ArrayBuffer|null|undefined, 
+		suplHeaders?:RequestHeaders,
+		timeout?:number
+	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
+    {
+        const resp = await this.req(relativeURL, method, responseType, statuses, body, suplHeaders, timeout) ;
+        return [resp.response, resp.status] ;
+    }
+
+	public async req(
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
@@ -196,7 +214,7 @@ export class TSRequest {
 		body:object|Buffer|ArrayBuffer|null|undefined=null, 
 		suplHeaders:RequestHeaders={},
 		timeout?:number
-	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
+	) : Promise<TSResponse> 
 	{
 		const config:AxiosRequestConfig = {
 			url:relativeURL,
@@ -218,12 +236,14 @@ export class TSRequest {
 		if (!timeout) { timeout = this.defaultTimeOut ; }
 		let ret = null ;
 		let status = 0 ;
+        let headers:RequestHeaders = {} ;
 
 		const timeoutError = TSUniqueError.esError() ; // we use a singleton to avoid to use Symbol() in browsers
 		try {
 			const response = await $timeout(this.channel(config), timeout, timeoutError)
 			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;
 			status = response.status ;
+            headers = response.headers ;
 		}
 		catch (e) {
 			if (e === timeoutError || (e as TSRequestError).code === 'ECONNABORTED' || (e as TSRequestError).code === 'ETIMEDOUT') { 
@@ -244,6 +264,6 @@ export class TSRequest {
 				throw e ;
 			}
 		}
-		return [ret, status]  ;
+		return { status:status, response:ret, headers:headers}  ;
 	}
 }

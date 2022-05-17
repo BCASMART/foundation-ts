@@ -109,7 +109,7 @@ export function $uniquefile(src?:string|null|undefined) : string
 export function $path(...paths:string[]): string { return join(...paths) ; }
 export function $ext(s:string|null|undefined):string 
 { 
-    if (!$length(s)) { 
+    if ($length(s)) { 
 	    const e = extname(s!) ;
         if ($length(e)) { return e.slice(1) ; }
     } 
@@ -120,7 +120,8 @@ export function $withoutext(s:string|null|undefined):string
 {
     if (!$length(s)) { return '' ;}
 	const e = $ext(s) ;
-	return e.length ? s!.slice(0, s!.length - e.length) : s! ;
+	s = e.length ? s!.slice(0, s!.length - e.length) : s! ;
+    return s.length && s.charAt(s.length-1) === '.' ? s.slice(0, s!.length - 1) : s ;
 }
 
 export function $newext(s:string|null|undefined, e:string|null|undefined=undefined):string {
