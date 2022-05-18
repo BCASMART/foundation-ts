@@ -1,4 +1,4 @@
-import { $ascii, $isobject, $length, $ok, $trim } from "./commons";
+import { $ascii, $inbrowser, $isobject, $length, $ok, $trim } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
@@ -44,7 +44,7 @@ export class TSDefaults {
     private static __locales = localesList as Locales[] ;
 
 	public defaultPath ;
-    public tmpDirectory = os.tmpdir() ;
+    public tmpDirectory = $inbrowser() ? '' : os.tmpdir() ;
     public defaultLanguage:language = Languages.fr ;
     public defaultCurrency:currency = Currencies.EUR ;
     private _values:AnyDictionary = {} ;
@@ -56,12 +56,17 @@ export class TSDefaults {
     private _managedLanguages:language[] ;
 
     private constructor() {
-		this.defaultPath = __dirname ;
-		for (let sf in TSDefaults.__subfolders) {
-			if ($filename(this.defaultPath) === sf) {
-				this.defaultPath = $dir(this.defaultPath) ;
-			}
-		}
+
+        this.defaultPath = __dirname ;
+
+        if (!$inbrowser()) {
+            for (let sf in TSDefaults.__subfolders) {
+                if ($filename(this.defaultPath) === sf) {
+                    this.defaultPath = $dir(this.defaultPath) ;
+                }
+            }    
+        }
+        
         this._countriesMap = new Map<string,country>() ;
         Object.keys(Countries).forEach(e => this._countriesMap.set(e, e as country)) ;
         this._languagesMap = new Map<string,language>() ;
@@ -180,8 +185,10 @@ export class TSDefaults {
     }
     
     public setTmpDirectory(path:string) {
-        if ($isdirectory(path)) {
-            this.tmpDirectory = path ;
+        if (!$inbrowser()) {
+            if ($isdirectory(path)) {
+                this.tmpDirectory = path ;
+            }    
         }
     }
 

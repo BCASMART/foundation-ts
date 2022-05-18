@@ -281,6 +281,19 @@ export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
     }
 }
 
+export function $inbrowser():boolean {
+    // Check if the environment is Node.js
+    if (typeof process === "object" &&
+        typeof require === "function") {
+        return false;
+    }
+    // Check if the environment is a Browser
+    if (typeof window === "object") {
+        return true;
+    }
+    return false ;
+}
+
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {

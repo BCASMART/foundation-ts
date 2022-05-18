@@ -25,11 +25,12 @@ import {
 	extname,
 	join 
 } from 'path' ;
-import { $length, $ok, $trim } from './commons';
+import { $inbrowser, $length, $ok, $trim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 
 export function $isfile(src:string | null | undefined) {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try { ret = statSync(<string>src).isFile() ; }
@@ -39,6 +40,7 @@ export function $isfile(src:string | null | undefined) {
 }
 
 export function $isexecutable(src:string | null | undefined) {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try {
@@ -55,6 +57,7 @@ export function $isexecutable(src:string | null | undefined) {
 
 
 export function $isdirectory(src:string | null | undefined) {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try { ret = statSync(<string>src).isDirectory() ; }
@@ -65,6 +68,7 @@ export function $isdirectory(src:string | null | undefined) {
 
 export function $createDirectory(p:string|null|undefined) : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
     let ret:boolean = false ;
     if ($length(p)) {
         try { 
@@ -82,6 +86,7 @@ export function $createDirectory(p:string|null|undefined) : boolean
 
 export function $filesize(src:string|null|undefined) : number
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:number = 0 ;
     if ($length(src)) {
         try { ret = statSync(<string>src).size ; }
@@ -92,6 +97,7 @@ export function $filesize(src:string|null|undefined) : number
 
 export function $temporarypath(ext:string|null|undefined='', src:string|null|undefined='') : string 
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
     ext = $trim(ext) ;
     let file = $uniquefile(src) ;
     if ($length(ext)) { file = $newext(file, ext) ; }
@@ -100,24 +106,36 @@ export function $temporarypath(ext:string|null|undefined='', src:string|null|und
 
 export function $uniquefile(src?:string|null|undefined) : string
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	const rand = $uuid() ;
 	if (!$length(src)) { return rand ; }
 	const ext = $ext(src) ;
 	return $length(ext) ? `${$withoutext(<string>src)}-${rand}.${ext}` : `${src}-${rand}` ;
 }
 
-export function $path(...paths:string[]): string { return join(...paths) ; }
+export function $path(...paths:string[]): string { 
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    return join(...paths) ; 
+}
 export function $ext(s:string|null|undefined):string 
 { 
     if ($length(s)) { 
-	    const e = extname(s!) ;
-        if ($length(e)) { return e.slice(1) ; }
+        if ($inbrowser()) {
+            const p = s!.lastIndexOf('.') ;
+            return p >= 0 ? s!.slice(p+1) : '' ;
+        }
+        else {
+            const e = extname(s!) ;
+            if ($length(e)) { return e.slice(1) ; }
+    
+        }
     } 
 	return '' ;
 }
 
 export function $withoutext(s:string|null|undefined):string
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
     if (!$length(s)) { return '' ;}
 	const e = $ext(s) ;
 	s = e.length ? s!.slice(0, s!.length - e.length) : s! ;
@@ -125,15 +143,23 @@ export function $withoutext(s:string|null|undefined):string
 }
 
 export function $newext(s:string|null|undefined, e:string|null|undefined=undefined):string {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
     let b = $withoutext(s) ;
     return $length(e) ? `${b}.${e}` : b ;
 }
 
-export function $dir(s:string|null|undefined):string      { return $length(s) ? dirname(s!) : '' ; }
-export function $filename(s:string|null|undefined):string { return $length(s) ? basename(s!) : '' ; }
+export function $dir(s:string|null|undefined):string { 
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    return $length(s) ? dirname(s!) : '' ; 
+}
+export function $filename(s:string|null|undefined):string { 
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    return $length(s) ? basename(s!) : '' ; 
+}
 
 export function $loadJSON(src:string|null|undefined|Buffer) : any | null
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret = null ;
     if ($length(src)) {
         let loadedString = src instanceof Buffer ? src.toString('utf-8') : $readString(src, 'utf-8') ;
@@ -153,6 +179,7 @@ export function $loadJSON(src:string|null|undefined|Buffer) : any | null
 
 export function $readString(src:string|null|undefined, encoding:BufferEncoding='utf-8') : string|null
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:string|null = null ;
 	if ($length(src)) {
 		try { ret = readFileSync(<string>src, $length(encoding) ? encoding:'utf-8') ; }
@@ -163,6 +190,7 @@ export function $readString(src:string|null|undefined, encoding:BufferEncoding='
 
 export function $writeString(src:string|null|undefined, str:string, encoding:BufferEncoding='utf-8') : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let done = false ;
 	if ($length(src)) {
 		try {
@@ -178,6 +206,7 @@ export function $writeString(src:string|null|undefined, str:string, encoding:Buf
 
 export function $readBuffer(src:string|null|undefined) : Buffer|null
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret:Buffer|null = null ;
 	if ($length(src)) {
 		try { ret = <Buffer>readFileSync(<string>src) ; } // readFile without any encoding option returns a buffer
@@ -188,6 +217,7 @@ export function $readBuffer(src:string|null|undefined) : Buffer|null
 
 export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let done = false ;
 	if ($length(src)) {
 		try {
@@ -203,6 +233,7 @@ export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
 
 export function $removeFile(src:string|null|undefined) : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let done = false
 	if ($isfile(src)) {
 		try {
@@ -222,6 +253,7 @@ export function $removeFile(src:string|null|undefined) : boolean
  */
 export function $realMoveFile(src:string|null|undefined, dest:string|null|undefined) : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {
@@ -249,6 +281,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 
 export function $copyFile(src:string|null|undefined, dest:string|null|undefined, overwrite:boolean=false) : boolean
 {
+    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {
