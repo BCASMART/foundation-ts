@@ -16,7 +16,7 @@ import {
     TSDaysFrom00000229To20010101, 
     $dayOfWeekFromTimestamp
 } from "./tsdate";
-import { country, language, uint, UINT_MIN } from "./types";
+import { country, int, language, uint, UINT_MIN } from "./types";
 import { TSCountry } from "./tscountry";
 
 export interface TimeComp {
@@ -47,6 +47,7 @@ export enum TSDateForm {
     ISO8601C,
     ISO8601L
 }
+export type TSIsoDateForm = TSDateForm.ISO8601 | TSDateForm.ISO8601C | TSDateForm.ISO8601L ;
 
 export enum TSDateRep {
     LocalTime = 'lt',
@@ -249,7 +250,6 @@ export function $components2date(c:TSDateComp) : Date {
 }
 
 export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Standard) : string {
-	const timed = $componentshavetime(c) ;
 	switch(form) {
 		case TSDateForm.ISO8601: 
 			return `${$fpad4(c.year)}-${$fpad2(c.month)}-${$fpad2(c.day)}T${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}` ;
@@ -258,15 +258,29 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
         case TSDateForm.ISO8601L:
 			return `${$fpad(c.year,6)}-${$fpad2(c.month)}-${$fpad2(c.day)}T${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}` ;
 		case TSDateForm.Standard:
-			return timed ? `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
-						 : `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}` ;
+			return $componentshavetime(c) ? `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
+						                  : `${$fpad2(c.day)}/${$fpad2(c.month)}/${$fpad4(c.year)}` ;
 		case TSDateForm.English:
-			return timed ? `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
-						 : `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}` ;
+			return $componentshavetime(c) ? `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
+						                  : `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}` ;
 		case TSDateForm.Computer:
-			return timed ? `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
-						 : `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}` ;
+			return $componentshavetime(c) ? `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
+						                  : `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}` ;
 	}
+}
+
+export function $components2StringWithOffset(c:TSDateComp, form:TSIsoDateForm = TSDateForm.ISO8601, mins:int = 0 as int) {
+    const a = Math.abs(mins) ;
+    if (a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos'}
+    const s = $components2string(c, form) ;
+    if (form === TSDateForm.ISO8601C) {
+        // in short form, we use Z, +HH and +HHMM offsets
+        if (!a) { return s+'Z' ;}
+        return a % 60 === 0 ? `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}` :
+                              `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}${$fpad2((a % 60) as int)}`
+    }
+    // other forms commes with +HH:MM offsets, even for hour's round offsets
+    return `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
 }
 
 /**
