@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad } from "./commons";
+import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -269,10 +269,19 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 	}
 }
 
-export function $components2StringWithOffset(c:TSDateComp, form:TSIsoDateForm = TSDateForm.ISO8601, mins:int = 0 as int) {
+export function $components2StringWithOffset(c:TSDateComp, form:TSIsoDateForm = TSDateForm.ISO8601, mins:int = 0 as int, ms?:uint) {
+
     const a = Math.abs(mins) ;
-    if (a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos'}
-    const s = $components2string(c, form) ;
+    
+    if ($ok(ms) && !$isunsigned(ms)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
+    if (!$isint(mins) || a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos' ; }
+    
+    let s = $components2string(c, form) ;
+    
+    if ($ok(ms)) {
+        s += '.'+$fpad3(ms!) ;
+    }
+
     if (form === TSDateForm.ISO8601C) {
         // in short form, we use Z, +HH and +HHMM offsets
         if (!a) { return s+'Z' ;}
