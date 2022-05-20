@@ -255,10 +255,12 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case 'W': ret += "\x1b[47m" ; break ; // white background
                     case '0': ret += "\x1b[0m"  ; break ; // reset
                     case '1': ret += "\x1b[1m"  ; break ; // bright mode
-                    case 'u': ret += "\x1b[4m"  ; break ; // underscore
                     case 'd': ret += "\x1b[2m"  ; break ; // dimmed
-                    case 'i': ret += "\x1b[7m"  ; break ; // inversed
+                    case 'i': ret += "\x1b[3m"  ; break ; // italic
+                    case 'u': ret += "\x1b[4m"  ; break ; // underscore
                     case '_': ret += "\x1b[5m"  ; break ; // blinked
+                    case '<': ret += "\x1b[7m"  ; break ; // inversed
+                    case '-': ret += "\x1b[9m"  ; break ; // strikethrough
                     default:
                         ret += escapeChar ;
                         ret += c ;
