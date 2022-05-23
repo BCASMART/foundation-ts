@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint } from "./commons";
+import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $int } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -269,25 +269,38 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 	}
 }
 
-export function $components2StringWithOffset(c:TSDateComp, form:TSIsoDateForm = TSDateForm.ISO8601, mins:int = 0 as int, ms?:uint) {
+export interface $c2StrWOffsetOpts {
+    form?:TSIsoDateForm ;
+    minutesOffset?:int ;
+    milliseconds?:uint ;
+    forceZ?:boolean ;
+} ;
 
-    const a = Math.abs(mins) ;
+export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpts = {}) {
+
+    if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
+    if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
+
+    const m = $int(opts.minutesOffset) ;
+    const a = Math.abs(m) ;
     
-    if ($ok(ms) && !$isunsigned(ms)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
-    if (!$isint(mins) || a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos' ; }
+    if ($ok(opts.milliseconds) && (!$isunsigned(opts.milliseconds) || opts.milliseconds! > 999)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
+    if (!$isint(opts.minutesOffset) || a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos' ; }
     
-    let s = $components2string(c, form) ;
+    let s = $components2string(c, opts.form!) ;
     
-    if ($ok(ms)) {
-        s += '.'+$fpad3(ms!) ;
+    if ($ok(opts.milliseconds)) {
+        s += '.'+$fpad3(opts.milliseconds!) ;
     }
 
-    if (form === TSDateForm.ISO8601C) {
+    if (opts.form === TSDateForm.ISO8601C) {
         // in short form, we use Z, +HH and +HHMM offsets
         if (!a) { return s+'Z' ;}
         return a % 60 === 0 ? `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}` :
                               `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}${$fpad2((a % 60) as int)}`
     }
+    if (!a && opts.forceZ) { return s+'Z' ; }
+
     // other forms commes with +HH:MM offsets, even for hour's round offsets
     return `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
 }
