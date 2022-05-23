@@ -2,15 +2,15 @@ import * as crypto from 'crypto' ;
 import { createReadStream } from 'fs' ;
 import { $length } from './commons';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid'
-import { uuid } from './types';
+import { UUID } from './types';
 
-export function $uuid(namespace?:string, data?:string) : uuid 
+export function $uuid(namespace?:string, data?:string) : UUID 
 { 
 	if ($length(namespace)) {
 		if (!$length(data)) data = '' ;
-		return <uuid>uuidv5(<string>namespace, <string>data) ;
+		return <UUID>uuidv5(<string>namespace, <string>data) ;
 	} 
-	return <uuid>uuidv4() ; 
+	return <UUID>uuidv4() ; 
 }
 
 export enum HashMethod {

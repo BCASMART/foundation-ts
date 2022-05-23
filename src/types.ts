@@ -40,7 +40,7 @@ export const MONEY_MAX = <money>+999999999 ;
 export const FREE = <money>0 ;
 
 // ========== string types =====================
-export type uuid   	= Opaque<string> ;
+export type UUID   	= Opaque<string> ;
 export type email 	= Opaque<string> ;
 export type url 	= Opaque<string> ; 
 export type isodate = Opaque<string> ; 

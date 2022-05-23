@@ -1,7 +1,8 @@
 import { AnyDictionary } from './types';
-import { $isnumber, $isstring, $length, $ok, $unsigned, $timeout, $trim, $isarray } from './commons';
+import { $isnumber, $isstring, $length, $ok, $unsigned, $trim, $isarray } from './commons';
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 import { TSUniqueError } from './tserrors';
+import { $timeout } from './utils';
 
 
 export function $basicauth(login:string, pwd:string) : string

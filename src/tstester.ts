@@ -1,5 +1,6 @@
-import { $isnumber, $logterm, $ok } from "./commons";
+import { $isnumber, $ok } from "./commons";
 import { $equal } from "./compare";
+import { $logterm } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;

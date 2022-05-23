@@ -25,9 +25,10 @@ import {
 	extname,
 	join 
 } from 'path' ;
-import { $inbrowser, $length, $ok, $trim } from './commons';
+import { $length, $ok, $trim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
+import { $inbrowser } from './utils';
 
 export function $isfile(src:string | null | undefined) {
     if ($inbrowser()) { throw 'unavailable function in browser' ; }

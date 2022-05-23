@@ -1,13 +1,8 @@
-import { $arraybuffer, $ascii, $dict, $inbrowser, $includesdict, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
+import { $arraybuffer, $ascii, $dict, $includesdict, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
 import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
 
-describe("Common functions", () => {
-    it('verifying $inbrowser()', () => {
-        expect($inbrowser()).toBeFalsy() ;
-    }) ;
-}) ;
 
 describe("Interpretation functions", () => {
     //$intornull(n:string|number|null|undefined)

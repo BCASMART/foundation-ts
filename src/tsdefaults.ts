@@ -1,9 +1,10 @@
-import { $ascii, $inbrowser, $isobject, $length, $ok, $trim } from "./commons";
+import { $ascii, $isobject, $length, $ok, $trim } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
+import { $inbrowser } from "./utils";
 
 export interface Locales {
     names:StringTranslation;

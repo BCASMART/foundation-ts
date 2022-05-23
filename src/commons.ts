@@ -3,7 +3,7 @@ import { FoundationASCIIConversion } from "./string_tables";
 import { TSDate } from "./tsdate";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, uuid, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
 
 export function $ok(o:any | undefined | null) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
@@ -52,8 +52,8 @@ export function $email(s:string|null|undefined) : email | null
 export function $url(s:string|null|undefined) : url | null
 { return _regexvalidatedstring<url>(urlRegex, s) ; }
 
-export function $uuid(s:string|null|undefined) : uuid | null
-{ return _regexvalidatedstring<uuid>(uuidRegex, s) ; }
+export function $UUID(s:string|null|undefined) : UUID | null
+{ return _regexvalidatedstring<UUID>(uuidRegex, s) ; }
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -94,42 +94,31 @@ export function $unsigned(n:string|number|null|undefined, defaultValue:uint=<uin
 	return $ok(n) ? <uint>n : defaultValue ;
 }
 
-export function $div(a: number, b: number) : number
-{ return a/b | 0 ; }
+export function $div(a: number, b: number) : number { return a/b | 0 ; }
 
 export function $string(v:any) : string {
 	if (!$ok(v)) return '' ;
 	return typeof v === 'object' && 'toString' in v ? v.toString() : `${v}`;
 }
 
-export function $strings(e: string[] | string | undefined | null) : string[]
-{
-	return $ok(e) ? (typeof e === 'string' ? [<string>e] : <string[]>e) : [] ;
-}
+export function $strings(v: string[] | string | undefined | null) : string[]
+{ return $ok(v) ? ($isarray(v) ? v as string[] : [v as string]) : [] ; }
+
+export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 
 export function $trim(s: string | undefined | null) : string
-{
-	return $length(s) ? (<string>s).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ;
-}
-export function $fpad2(v: uint) : string
-{ 
-    return v >= 10 ? (''+v) : ('0' + v) ; 
-}
+{ return $length(s) ? (s as string).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ; }
+
+export function $fpad2(v: uint) : string { return v >= 10 ? (''+v) : ('0' + v) ; }
 
 export function $fpad3(v: uint) : string
-{ 
-    return v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)) ; 
-}
+{ return v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)) ; }
 
 export function $fpad4(v: uint) : string
-{ 
-    return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)));
-}
+{ return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v))); }
 
 export function $fpad(v: uint, pad:number) : string
-{ 
-    return v.toString().padStart(pad, '0') ;
-}
+{ return v.toString().padStart(pad, '0') ; }
 
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek
@@ -142,7 +131,6 @@ export function $ascii(source: string | undefined | null) : string
 	// finally we will try to convert (or remove) the remaining non ascii characters
 	return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '') ;
 }
-
 
 export function $count(a:any[] | undefined | null) : number
 { return $ok(a) && Array.isArray(a) ? (<any[]>a).length : 0 ; }
@@ -216,85 +204,6 @@ export function $includesdict(source:object|null|undefined, dict:AnyDictionary, 
 
 export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
 { return JSON.stringify(v, replacer, space) ; }
-
-export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
-	let timer:any ;
-	return Promise.race([
-		promise, 
-		new Promise((_,rejection) => timer = setTimeout(rejection, time, exception))
-	]).finally(() => clearTimeout(timer)) ;
-}
-
-export function $term(s:string, escapeChar:string = '&'):string {
-    let fmtlen = $length(s) ;
-    let escape = false ;
-    let ret = "" ;
-    if (fmtlen) {
-        if ($length(escapeChar) !== 1) { escapeChar = '&' ; }
-        for (let i = 0 ; i < fmtlen ; i++) {
-            const c = s.charAt(i) ;
-            if (escape) {
-                escape = false ;
-                switch (c) {
-                    case escapeChar: ret += escapeChar ; break ;
-                    case 'r': ret += "\x1b[31m" ; break ; // red font
-                    case 'R': ret += "\x1b[41m" ; break ; // red background
-                    case 'g': ret += "\x1b[32m" ; break ; // green font  
-                    case 'G': ret += "\x1b[42m" ; break ; // green background
-                    case 'b': ret += "\x1b[34m" ; break ; // blue font
-                    case 'B': ret += "\x1b[44m" ; break ; // blue background
-                    case 'y': ret += "\x1b[33m" ; break ; // yellow font
-                    case 'Y': ret += "\x1b[43m" ; break ; // yellow background
-                    case 'm': ret += "\x1b[35m" ; break ; // magenta font
-                    case 'M': ret += "\x1b[45m" ; break ; // magenta background
-                    case 'c': ret += "\x1b[36m" ; break ; // cyan font
-                    case 'C': ret += "\x1b[46m" ; break ; // cyan background
-                    case 'k': ret += "\x1b[30m" ; break ; // black font
-                    case 'K': ret += "\x1b[40m" ; break ; // black background
-                    case 'w': ret += "\x1b[37m" ; break ; // white font 
-                    case 'W': ret += "\x1b[47m" ; break ; // white background
-                    case '0': ret += "\x1b[0m"  ; break ; // reset
-                    case '1': ret += "\x1b[1m"  ; break ; // bright mode
-                    case 'd': ret += "\x1b[2m"  ; break ; // dimmed
-                    case 'i': ret += "\x1b[3m"  ; break ; // italic
-                    case 'u': ret += "\x1b[4m"  ; break ; // underscore
-                    case '_': ret += "\x1b[5m"  ; break ; // blinked
-                    case '<': ret += "\x1b[7m"  ; break ; // inversed
-                    case '-': ret += "\x1b[9m"  ; break ; // strikethrough
-                    default:
-                        ret += escapeChar ;
-                        ret += c ;
-                        break ;
-                }
-            }
-            else if (c === escapeChar) { escape = true ; }
-            else { ret += c ; }
-        }    
-        if (escape) { ret += escapeChar ; }
-    }
-    return ret ;
-}
-
-export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
-    if ($length(format)) {
-        format = $term(format, escapeChar) ;
-        if ($count(args)) { format += args.join() ; }
-        console.log(format)
-    }
-}
-
-export function $inbrowser():boolean {
-    // Check if the environment is Node.js
-    if (typeof process === "object" &&
-        typeof require === "function") {
-        return false;
-    }
-    // Check if the environment is a Browser
-    if (typeof window === "object") {
-        return true;
-    }
-    return false ;
-}
 
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
