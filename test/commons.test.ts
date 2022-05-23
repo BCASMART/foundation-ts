@@ -1,4 +1,4 @@
-import { $arraybuffer, $ascii, $dict, $includesdict, $intornull, $map, $ok, $unsignedornull } from "../src/commons";
+import { $arraybuffer, $ascii, $dict, $email, $includesdict, $intornull, $map, $ok, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -141,5 +141,32 @@ describe("Interpretation functions", () => {
         expect($ascii('<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\±')).toBe('<wxcvbn,;:=>WXCVBN?./+<=<(C)ss~.../>=>/ci?.\\') ;
         expect($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).toBe('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
     });
+
+    it('verifying $url(s)', () => {
+        expect($url('http://example.com')).toBe('http://example.com') ;
+        expect($url('https://example.com')).toBe('https://example.com') ;
+        expect($url('//example.com', {acceptsProtocolRelativeUrl:true})).toBe('//example.com') ;
+        expect($url('//example.com')).toBe(null) ;
+        expect($url('//example')).toBe(null) ;
+        expect($url('/example.com')).toBeNull() ;
+        expect($url('/example')).toBeNull() ;
+        expect($url('example.com')).toBeNull() ;
+        expect($url('example')).toBeNull() ;
+        expect($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).toBeNull() ;
+        expect($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).toBe('file://example.com') ;
+        expect($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).toBe('ftp://example.com') ;
+        expect($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).toBe('ftps://example.com') ;
+    }) ;
+
+    it('verifying $email(s)', () => {
+        expect($email('a@b.ca')).toBe('a@b.ca') ;
+        expect($email('A@B.CA')).toBe('a@b.ca') ;
+        expect($email('@b')).toBeNull() ;
+        expect($email('myEmail;toto@yahoo.fr')).toBeNull() ;
+        expect($email('\"myEmail;toto\"@yahoo.fr')).toBe('\"myemail;toto\"@yahoo.fr') ;
+        expect($email('myEmailtoto@yah:oo.fr')).toBe('myemailtoto@yah:oo.fr') ;
+        expect($email('myEmailtoto@yahoo.c;om')).toBeNull() ;
+    }) ;
+
 
 });

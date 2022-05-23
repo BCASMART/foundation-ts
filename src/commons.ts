@@ -49,8 +49,26 @@ export function $email(s:string|null|undefined) : email | null
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
 
-export function $url(s:string|null|undefined) : url | null
-{ return _regexvalidatedstring<url>(urlRegex, s) ; }
+export interface $urlOptions { 
+    acceptsProtocolRelativeUrl?:boolean ;
+    acceptedProtocols?:string[] ;
+}
+
+export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | null
+{
+    if (!$length(s)) { return null ;}
+    const m = s!.match(urlRegex) ;
+    if (m?.length !== 2) { return null ; }
+    if ($ok(m![1])) {
+        const protocol = m![1].toLowerCase() ;
+        if (!protocol.length) { return null ; }
+        if ($count(opts.acceptedProtocols)) {
+            return $ok(opts.acceptedProtocols!.find(v => v.toLowerCase() === protocol)) ? s as url : null ;
+        }
+        return protocol === 'http' || protocol === 'https' ? s as url : null  ;
+    }
+    return m![1] !== null && opts.acceptsProtocolRelativeUrl ? s as url : null ; 
+}
 
 export function $UUID(s:string|null|undefined) : UUID | null
 { return _regexvalidatedstring<UUID>(uuidRegex, s) ; }

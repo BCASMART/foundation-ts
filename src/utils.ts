@@ -51,26 +51,24 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case 'W': ret += "\x1b[47m" ; break ; // white background
 
                     // non-standard colors
-                    case 'o': ret += "\x1b[38;5;208" ; break ; // orange font
-                    case 'O': ret += "\x1b[48;5;208" ; break ; // orange background
-                    case 'p': ret += "\x1b[38;5;212" ; break ; // rose font
-                    case 'P': ret += "\x1b[48;5;212" ; break ; // rose background
-                    case 'a': ret += "\x1b[38;5;216" ; break ; // apricot font
-                    case 'A': ret += "\x1b[48;5;216" ; break ; // apricot background
-                    case 'v': ret += "\x1b[38;5;99"  ; break ; // violet font
-                    case 'V': ret += "\x1b[48;5;99"  ; break ; // violet background
-                    case 'd': ret += "\x1b[38;5;240" ; break ; // dark gray font
-                    case 'D': ret += "\x1b[48;5;240" ; break ; // dark gray background
-                    case 'x': ret += "\x1b[38;5;244" ; break ; // gray font
-                    case 'X': ret += "\x1b[48;5;244" ; break ; // gray background
-                    case 'l': ret += "\x1b[38;5;252" ; break ; // light gray font
-                    case 'L': ret += "\x1b[48;5;252" ; break ; // light gray background
-                    case 'u': ret += "\x1b[38;5;252" ; break ; // light gray font
-                    case 'U': ret += "\x1b[48;5;252" ; break ; // light gray background
-                    case 'e': ret += "\x1b[38;5;229" ; break ; // egg white font
-                    case 'E': ret += "\x1b[48;5;229" ; break ; // egg white background
-                    case 'j': ret += "\x1b[38;5;78"  ; break ; // jungle green font
-                    case 'J': ret += "\x1b[48;5;78"  ; break ; // jungle green background
+                    case 'o': ret += "\x1b[38;5;208m" ; break ; // orange font
+                    case 'O': ret += "\x1b[48;5;208m" ; break ; // orange background
+                    case 'p': ret += "\x1b[38;5;212m" ; break ; // pink font
+                    case 'P': ret += "\x1b[48;5;212m" ; break ; // pink background
+                    case 'a': ret += "\x1b[38;5;216m" ; break ; // apricot font
+                    case 'A': ret += "\x1b[48;5;216m" ; break ; // apricot background
+                    case 'v': ret += "\x1b[38;5;99m"  ; break ; // violet font
+                    case 'V': ret += "\x1b[48;5;99m"  ; break ; // violet background
+                    case 'd': ret += "\x1b[38;5;238m" ; break ; // dark gray font
+                    case 'D': ret += "\x1b[48;5;238m" ; break ; // dark gray background
+                    case 'x': ret += "\x1b[38;5;244m" ; break ; // gray font
+                    case 'X': ret += "\x1b[48;5;244m" ; break ; // gray background
+                    case 'l': ret += "\x1b[38;5;252m" ; break ; // light gray font
+                    case 'L': ret += "\x1b[48;5;252m" ; break ; // light gray background
+                    case 'e': ret += "\x1b[38;5;229m" ; break ; // egg white font
+                    case 'E': ret += "\x1b[48;5;229m" ; break ; // egg white background
+                    case 'j': ret += "\x1b[38;5;121m"  ; break ; // jungle green font
+                    case 'J': ret += "\x1b[48;5;121m"  ; break ; // jungle green background
 
                     default:
                         ret += escapeChar ;
