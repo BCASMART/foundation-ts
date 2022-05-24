@@ -127,16 +127,10 @@ export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 export function $trim(s: string | undefined | null) : string
 { return $length(s) ? (s as string).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ; }
 
-export function $fpad2(v: uint) : string { return v >= 10 ? (''+v) : ('0' + v) ; }
-
-export function $fpad3(v: uint) : string
-{ return v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v)) ; }
-
-export function $fpad4(v: uint) : string
-{ return v >= 1000 ? (''+v) : (v >= 100 ? ('0' + v) : (v >= 10 ? ('00'+v) : ('000'+v))); }
-
-export function $fpad(v: uint, pad:number) : string
-{ return v.toString().padStart(pad, '0') ; }
+export function $fpad2(v: uint) : string { return $fpad(v,2) ; }
+export function $fpad3(v: uint) : string { return $fpad(v,3) ; }
+export function $fpad4(v: uint) : string { return $fpad(v,4) ; }
+export function $fpad(v: uint, pad:number) : string { return v.toString().padStart(pad, '0') ; }
 
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek

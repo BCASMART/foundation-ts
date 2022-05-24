@@ -1,4 +1,5 @@
-import { $duration, $duration2String, $durationcomponents, TSDurationComp } from "../src/tsdatecomp";
+import { TSDate } from "../src/tsdate";
+import { $components2StringWithOffset, $duration, $duration2String, $durationcomponents, TSDurationComp } from "../src/tsdatecomp";
 import { uint } from "../src/types";
 
 describe("Testing duration functions", () => {
@@ -56,4 +57,23 @@ describe("Testing duration functions", () => {
         expect($duration2String(H, F1)).toBe("0 minutes et 10 secondes") ;
         expect($duration2String(Z, F1)).toBe("") ; 
     }) ;
+
+}) ;
+
+describe("Testing comple iso string output function", () => {
+    const C = TSDate.zulu().toComponents() ;
+    const s = $components2StringWithOffset(C, {
+        milliseconds:0 as uint,
+        forceZ:true
+    }) ;
+    const s2 = $components2StringWithOffset(C, {
+        milliseconds:0 as uint,
+    }) ;
+
+    it(`Verifying milliseconds output"`, () => {
+        const p = s.lastIndexOf('.') ;
+        expect(s.slice(p)).toBe('.000Z') ;
+        expect(s2.slice(p)).toBe('.000+00:00') ;
+    }) ;
+
 }) ;
