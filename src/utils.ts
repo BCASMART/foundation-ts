@@ -1,4 +1,5 @@
-import { $count, $length } from "./commons";
+import { $count, $length, $ok } from "./commons";
+import { exit } from "process";
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;
@@ -89,6 +90,28 @@ export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
         format = $term(format, escapeChar) ;
         if ($count(args)) { format += args.join() ; }
         console.log(format)
+    }
+}
+
+export function $logheader(s: string, width: number = 0, style: string = '&w', starStyle: string = '&x')
+{
+    if (!width) { width = s.length; }
+    $logterm("\n&0" + starStyle + "".padEnd(width + 4, '*'));
+    $logterm(starStyle + '* ' + style + s.padEnd(width + 1, ' ') + '&0' + starStyle + '*');
+    $logterm(starStyle + "".padEnd(width + 4, '*') + "&0\n");
+}
+
+export function $fatalerror(test: boolean, s: string = 'FATAL ERROR', exitCode: number | null | undefined = -1, style: string = '&R&w')
+{
+    if (test) {
+        if ($ok(exitCode)) {
+            $logterm(style + ' ' + s + ` &0&o —— EXITING with code &O&k ${exitCode} &0\n`);
+            exit(exitCode!);
+        }
+        else {
+            $logterm(style + ' ' + s + ` &0&o —— will throw`);
+            throw s;
+        }
     }
 }
 

@@ -1,7 +1,9 @@
-import { $arraybuffer, $ascii, $dict, $email, $includesdict, $intornull, $map, $ok, $unsignedornull, $url } from "../src/commons";
+//import { inspect } from "util";
+import { $arraybuffer, $ascii, $dict, $email, $fusion, $includesdict, $intornull, $keys, $map, $ok, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
+//import { $logterm } from "../src/utils";
 
 
 describe("Interpretation functions", () => {
@@ -17,6 +19,8 @@ describe("Interpretation functions", () => {
     const B2 = Buffer.from(S2, 'utf-8');
     const DICT = {a:'a', b:'b', c:'c'};
     const SUB = {a:'a', c:'c'};
+    const DICT_B = {a:'A', d:'D', e:null, f:undefined, g:function() {}, h:[0,1]} ;
+    const DICT_C = {...DICT_B, c:null, b:undefined} ;
 
     it('verifying $intornull()', () => {
         expect($intornull(null)).toBeNull();
@@ -121,6 +125,11 @@ describe("Interpretation functions", () => {
         expect($map([1, 5, null, 6, 'A', undefined], e => $ok(e) ? e!.toString() : undefined)).toStrictEqual(['1', '5', '6', 'A']);
     });
 
+    it('verifying $keys(object)', () => {
+        expect($keys(DICT)).toStrictEqual(['a', 'b', 'c']) ;
+        expect($keys(DICT_B)).toStrictEqual(['a', 'd', 'e', 'f', 'g', 'h']) ;
+        expect($keys(DICT_C)).toStrictEqual(['a', 'd', 'e', 'f', 'g', 'h', 'c', 'b']) ;
+    }) ;
     it('verifying $dict(object, keys)', () => {
         expect($equal($dict(DICT, ['a', 'c']), SUB)).toBeTruthy() ;
         expect($equal($dict(DICT, ['a', 'c', 'd']), SUB)).toBeTruthy() ;
@@ -131,6 +140,16 @@ describe("Interpretation functions", () => {
         expect($includesdict(DICT, SUB, ['c'])).toBeTruthy() ;
         expect($includesdict(DICT, SUB, ['a', 'd'])).toBeTruthy() ; // because 'd' key is absent on both dicts
     }) ;
+
+    it('verifying $fusion(objectA, objectB)', () => {
+        const [fusion1,] = $fusion(DICT, DICT_B) ; 
+        //$logterm('&yfusion 1:&o'+inspect(fusion1)+'&0') ;
+        expect($equal(fusion1, {a:'A', b:'b', c:'c', d:'D', h:[0,1]})).toBeTruthy() ;
+        const [fusion2,] = $fusion(DICT, DICT_C) ; 
+        //$logterm('&rfusion 2:&p'+inspect(fusion1)+'&0') ;
+        expect($equal(fusion2, {a:'A', b:'b', c:'c', d:'D', h:[0,1]})).toBeTruthy() ;
+    }) ;
+
 
     it('verifying $ascii(s)', () => {
         expect($ascii(S1)).toBe(S2) ;

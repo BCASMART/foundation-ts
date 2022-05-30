@@ -5,6 +5,9 @@ import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm
 import { $country } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
 
+export function $defined(o:any):boolean 
+{ return o !== undefined && typeof o !== 'undefined' }
+
 export function $ok(o:any | undefined | null) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
 
@@ -28,6 +31,8 @@ export function $isobject(o:any | null | undefined) : boolean
 
 export function $isarray(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && Array.isArray(o) ; }
+
+export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
 
 export function $intornull(n:string|number|null|undefined) : int | null
 {
@@ -191,28 +196,73 @@ export function $jsonobj(v:any): any
 	} 
 }
 
+export function $keys<T>(o:T|undefined|null):Array<keyof T> { return $ok(o) ? Object.getOwnPropertyNames(o!) as (keyof T)[] : [] ; }
+
+export interface $partialOptions<T,U> {
+    properties?:Array<keyof T | keyof U>,
+    filter?: (v:T[keyof T]) => T[keyof T]|U[keyof U]|undefined;
+}
+
+// default filter supress undefined, null values and functions (methods for real class instances)
+// if properties is not set, we use all the object keys to apply the filter
+export function $partial<T,U>(a:T|undefined|null, opts:$partialOptions<T,U>={}):[U, number]
+{
+    let ret:any = {} ;
+    let n = 0 ;
+    if ($ok(a)) {
+        n = _fillObject<T,U>('partial', ret, a, opts) ;
+    }
+    return [ret as U, n] ;
+}
+
 // TODO: review all AnyDictionary functions to make a specific file 
-// and a more thorough specificaiton
-export function $dict(source:object|null|undefined, keys:string[]):AnyDictionary {
+// and a more thorough specificaiton. Here, all null, undefined and function
+// properties are removed
+export function $dict(source:object|null|undefined, keys?:string[]):AnyDictionary {    
     const ret:AnyDictionary = {} ;
-    if ($ok(source) && $count(keys)) {
-        const v = source as AnyDictionary ;
-        for (let k of keys) { ret[k] = v[k] ; }
+    if ($ok(source)) { 
+        _fillObject<object,AnyDictionary>('dict', ret, source, { properties:keys }) ;
     }
     return ret ;
 }
 
 export function $includesdict(source:object|null|undefined, dict:AnyDictionary, keys?:string[]):boolean {
     if ($ok(source)) {
-        if (!$ok(keys)) { keys = Object.getOwnPropertyNames(dict) ; }
-        if ($count(keys)) {
+        keys = $ok(keys) ? keys! : $keys(dict) as string[] ;
+        if (keys.length) {
             const v = source as AnyDictionary ;
-            for (let k of keys!) { if (!$equal(v[k], dict[k])) { return false ; }}
+            for (let k of keys) { if (!$equal(v[k], dict[k])) { return false ; }}
             return true ;
         }
     }
     return false ;
 }
+
+// undefined or null values are not present in the destination object
+// when fusioning, b.values are replacing a.values. if properties options are set, 
+// only the given properties of a and b are fusionned
+// by default there is no fusion of array or sub-object properties.
+// you can turn that on by providing a fusionArray and a fusionObject method
+export interface $fusionOptions<T,U> {
+    A?:$partialOptions<T,U>,
+    B?:$partialOptions<T,U>
+    fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
+    fusionObjects?:(a:object, b:object) => object
+}
+
+export function $fusion<T,U>(a:T|undefined|null, b:U|undefined|null, opts:$fusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
+{
+    if (!$ok(a)) { return $ok(b) ? $partial(b, opts.B as any) : [{}, 0] }
+    else if (!$ok(b)) { return $partial(a, opts.A) ; }
+
+    let [ret, n] = $partial(a, opts.A) ;
+    let fopts:_fillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
+    if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays! ; }
+    if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects! ; }
+    n += _fillObject<T,U>('fusion', ret, b, fopts) ;
+    return [ret, n] ;
+}
+
 
 export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
 { return JSON.stringify(v, replacer, space) ; }
@@ -223,4 +273,37 @@ function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | n
 	const v = $trim(s) ;
 	if (!v.length || !regex.test(<string>v)) { return null ; }
 	return <T><unknown>v ;
+}
+
+interface _fillObjectOptions<T,U> extends $partialOptions<T,U> {
+    fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
+    fusionObjects?:(a:object, b:object) => object
+}
+
+function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObjectOptions<T,U>={}):number 
+{
+    let ret = 0 ;
+    opts = { ... opts } ;
+    opts.properties = $ok(opts.properties) ? opts.properties! : $keys(source) as Array<keyof T | keyof U> ;
+    if (opts.properties.length) {
+        const fusion_arrays = $isfunction(opts.fusionArrays) ;
+        const fusion_objects = $isfunction(opts.fusionObjects) ;
+        opts.filter = $isfunction(opts.filter) ? opts.filter! : (v:T[keyof T]) => $ok(v) && typeof v !== 'function' ? v : undefined ; 
+        
+        for (let p of opts.properties) {
+            if (!$isstring(p)) { throw `${fn}() needs to have valid string properties` ; }
+            const v = opts.filter(source[p]) ; 
+            if ($defined(v)) {
+                if (fusion_arrays && $isarray(v) && $isarray(destination[p])) { 
+                    destination[p] = opts.fusionArrays!(destination[p], v as unknown as Array<any>) ;
+                }
+                else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
+                    destination[p] = opts.fusionObjects!(destination[p], v as unknown as object) ;
+                }
+                else { destination[p] = v ; }
+                ret++ ; 
+            } 
+        }    
+    }
+    return ret ;
 }
