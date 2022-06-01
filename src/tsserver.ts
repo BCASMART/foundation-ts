@@ -10,7 +10,7 @@ import { $logterm } from "./utils";
  * This is a minimal HTTP server class provided for testing
  */
 
-export type TSEndPoint = (url:URL, req:IncomingMessage, resp:ServerResponse) => void ;
+export type TSEndPoint = (url:URL, req:IncomingMessage, resp:ServerResponse) => Promise<void> ;
 export type TSEndPoints = { [key:string]:TSEndPoint }
 
 export enum TSLogType {
@@ -19,7 +19,7 @@ export enum TSLogType {
     Error   = 'Error'
 } ;
 
-export type TSServerLogger = (server:TSServer, req:IncomingMessage|undefined, type:TSLogType, messages:string) => void ;
+export type TSServerLogger = (server:TSServer, req:IncomingMessage|undefined, type:TSLogType, messages:string) => Promise<void> ;
 
 export interface TSServerOptions {
     host?:string,
@@ -49,7 +49,7 @@ export class TSServer {
     private _maxCacheMemorySize:number ;
     private _cacheMemory:number ;
     private _managedTypes:StringDictionary ;
-    private _logger = (server:TSServer, _:IncomingMessage|undefined, type:TSLogType, message:string) => {
+    private _logger = async (server:TSServer, _:IncomingMessage|undefined, type:TSLogType, message:string) => {
         $logterm(`&0&xfoundation-ts[&wminimal server&x:${server.port}]-` + TSServer.__logHeaders[type] + "&0 &w" + message + "&0") ;
     } ;
 
@@ -136,14 +136,14 @@ export class TSServer {
     // =================== instance methods =======================
 
     private async _start() {
-        this._httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+        this._httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
             let status:Resp|undefined = undefined ;
             try {
                 const url = new URL($string(req.url), this.host);              // new URL(request.url, `http://${request.headers.host}`);
                 const path = url.pathname;
                 if (!$length(path)) {
                     status = Resp.Forbidden ;
-                    this._logger(this, req, TSLogType.Warning, 'root path not accessible.') ;
+                    await this._logger(this, req, TSLogType.Warning, 'root path not accessible.') ;
                     throw 'Root path is not Accessible'
                 }
                 
@@ -152,7 +152,7 @@ export class TSServer {
                 if ($defined(staticResource)) {
                     if (staticResource === null) {
                         const m = `impossible to read static resource '${path}'.` ;
-                        this._logger(this, req, TSLogType.Warning, m) ;
+                        await this._logger(this, req, TSLogType.Warning, m) ;
                         throw `Internal Error: ${m}` ;
                     }
                     res.setHeader('Content-Type', contentType)
@@ -164,12 +164,12 @@ export class TSServer {
                 if (!$ok(fn)) {
                     status = Resp.NotFound ;
                     const m = `resource '&r${path}&o' was not found.` ;
-                    this._logger(this, req, TSLogType.Warning, m) ;
+                    await this._logger(this, req, TSLogType.Warning, m) ;
                     throw m ;
                 }
-                fn(url, req, res) ; // handling the response is user responsability
-                                    // every unhandled exception will be treated as Internal Error
-                this._logger(this, req, TSLogType.Log, `did handle resource '${path}'.`)
+                await fn(url, req, res) ; // handling the response is user responsability
+                                          // every unhandled exception will be treated as Internal Error
+                await this._logger(this, req, TSLogType.Log, `did handle resource '${path}'.`)
             }
             catch (e) {
                 let error = (e as Error).message ;
@@ -180,8 +180,8 @@ export class TSServer {
                 res.end(`${status} - ${error}`) ;
             }
         }) ;        
-        this._httpServer.listen(this.port, ()=>{
-            this._logger(this, undefined, TSLogType.Log, `running on port ${this.port} '${this.host}' ...`) ;
+        this._httpServer.listen(this.port, async ()=>{
+            await this._logger(this, undefined, TSLogType.Log, `running on port ${this.port} '${this.host}' ...`) ;
         }) ;
     }
     
@@ -229,11 +229,11 @@ export class TSServer {
     }
 
     private async _stop():Promise<Error|undefined> { 
-        this._logger(this, undefined, TSLogType.Log, `server is exiting...`) ;
+        await this._logger(this, undefined, TSLogType.Log, `server is exiting...`) ;
         if ($ok(this._httpServer)) {
             const ret = await _internalStopServer(this._httpServer!) ;
             if ($ok(ret)) {
-                this._logger(this, undefined, TSLogType.Error, `cannot stop for reason ${ret!.name}:\n${ret!.message}`) ;
+                await this._logger(this, undefined, TSLogType.Error, `cannot stop for reason ${ret!.name}:\n${ret!.message}`) ;
             }
             return ret ;
         } ; 
