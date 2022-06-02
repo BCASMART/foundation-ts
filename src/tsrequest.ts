@@ -147,7 +147,7 @@ interface TSRequestError {
 
 export interface TSResponse {
     status:Resp,
-    response:Buffer|object|string|ReadableStream|null,
+    response:Buffer|object|string|ReadableStream|null, // WARNING: should we accept boolean return ?
     headers:RequestHeaders
 }
 export interface TSRequestOptions {
@@ -197,21 +197,20 @@ export class TSRequest {
 		relativeURL:string, 
 		method?:Verb, 
 		responseType?:RespType, 
-		statuses?:number[], 
+		statuses:number[] = [200], 
 		body?:object|Buffer|ArrayBuffer|null|undefined, 
 		suplHeaders?:RequestHeaders,
 		timeout?:number
 	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
     {
-        const resp = await this.req(relativeURL, method, responseType, statuses, body, suplHeaders, timeout) ;
-        return [resp.response, resp.status] ;
+        const resp = await this.req(relativeURL, method, responseType, body, suplHeaders, timeout) ;
+        return [statuses.includes(resp.status) ? resp.response : null, resp.status] ;
     }
 
 	public async req(
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
-		statuses:number[] = [200], 
 		body:object|Buffer|ArrayBuffer|null|undefined=null, 
 		suplHeaders:RequestHeaders={},
 		timeout?:number
@@ -222,7 +221,7 @@ export class TSRequest {
 			method:method,
 			responseType:responseType,
 			headers: {... this.commonHeaders, ... suplHeaders},
-			validateStatus: function(status) { return statuses.includes(status) ; }
+            validateStatus: () => true
 		} ;
 
 		if ($length(this.token)) {
