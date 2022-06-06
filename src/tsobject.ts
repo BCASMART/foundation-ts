@@ -1,4 +1,4 @@
-import { $json, $jsonobj } from "./commons";
+import { $json, $jsonobj, $keys } from "./commons";
 import { Comparison, Same } from "./types";
 
 export type Class<V> = { new (): V }
@@ -21,7 +21,7 @@ export class TSRootObject<T> implements TSObject<T> {
 	public isEqual(other:any) : boolean { return this === other ; }
 	public toString():string { return $json(this) ; }
 	public toJSON():any {
-		const keys = Object.getOwnPropertyNames(this) ;
+		const keys = $keys(this) ;
         let ret:any = {}
         for (let k of keys) {
             ret[k] = $jsonobj((this as any)[k]) ;

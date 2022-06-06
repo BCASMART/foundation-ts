@@ -1,4 +1,5 @@
 import { $ok } from "./commons";
+import { Resp } from "./tsrequest";
 
 export class TSUniqueError extends Error {
 	private static __esInstance:TSUniqueError ;
@@ -22,5 +23,13 @@ export class TSUniqueError extends Error {
 		return this.__esInstance ;
 	}
 
+}
+
+export class TSHttpError extends Error {
+    public readonly status:Resp ;
+    public constructor(message:string, status:Resp) {
+        super(message) ;
+        this.status = status ;
+    }
 }
 

@@ -29,6 +29,9 @@ export function $isbool(o:any | null | undefined) : boolean
 export function $isobject(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && typeof o === 'object' ; }
 
+export function $objectcount(o:any | null | undefined) : number 
+{ return $isobject(o) ? $keys(o).length : 0 ; }
+
 export function $isarray(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && Array.isArray(o) ; }
 
