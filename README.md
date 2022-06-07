@@ -19,8 +19,9 @@ It basically covers 3 sets of functionalities :
 - color management class TSColor (foundation-ts/color)
 - a singleton unique errors class (foundation/errors) to facilitate errors management
 - TSRequest which is meant to be subclassed in order to write API client classes (foundation/request)
+- TSServer which is a simple web server for API/static resources
 — TSTester which is a simple class to enforce unary and functional tests
 
-Foundation-ts comes whith unary tests written using jest. 
+Foundation-ts comes whith unary tests written using its own TSTester class. 
 
 This is open source stuff, so just enjoy
