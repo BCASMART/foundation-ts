@@ -1,6 +1,7 @@
 import { inspect } from "util";
-import { $address, $defined, $email, $isarray, $isint, $isnumber, $isobject, $isodate, $isstring, $isunsigned, $ok, $url, $UUID } from "./commons";
-import { $equal } from "./compare";
+import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $ok } from "./commons";
+import { $compare, $equal } from "./compare";
+import { Ascending, Descending } from "./types";
 import { $logterm } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
@@ -126,17 +127,6 @@ export class TSExpectAgent {
         this._step = step ;
         this._value = value ;
     }
-    
-    private _elogfail(aValue:any) {
-        $logterm(`&edid expect value:&E&b${inspect(aValue)}&0`) ;
-        $logterm(`&adid get as value:&O&w${inspect(this._value)}&0\n`) ; 
-        this._step?.fail() ;
-    }
-
-    private _nelogfail(aValue:any) {
-        $logterm(`&adid not expect  :&O&w${inspect(aValue)}&0\n`) ; 
-        this._step?.fail() ;
-    }
 
 
     public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._elogfail(aValue) ; } else { this._step?.pass() ; }}
@@ -153,18 +143,41 @@ export class TSExpectAgent {
     public toBeNotOK()          { if ($ok(this._value))             { this._elogfail('<a null or undefined value>') ; } else { this._step?.pass() ; }}
 
     public toBeNaN()            { if (!isNaN(this._value))          { this._elogfail(NaN) ; } else { this._step?.pass() ; }}
-    public toBeNumber()         { if (!$isnumber(this._value))      { this._elogfail('<a valid number>') ; } else { this._step?.pass() ; }}
-    public toBeInt()            { if (!$isint(this._value))         { this._elogfail('<an integer>') ; } else { this._step?.pass() ; }}
-    public toBeUnsigned()       { if (!$isunsigned(this._value))    { this._elogfail('<an unsigned>') ; } else { this._step?.pass() ; }}
-    public toBeString()         { if (!$isstring(this._value))      { this._elogfail('<a string>') ; } else { this._step?.pass() ; }}
+    public toBeANumber()        { if (!$isnumber(this._value))      { this._elogfail('<a valid number>') ; } else { this._step?.pass() ; }}
+    public toBeAnInt()          { if (!$isint(this._value))         { this._elogfail('<an integer>') ; } else { this._step?.pass() ; }}
+    public toBeAnUnsigned()     { if (!$isunsigned(this._value))    { this._elogfail('<an unsigned>') ; } else { this._step?.pass() ; }}
+    public toBeAString()        { if (!$isstring(this._value))      { this._elogfail('<a string>') ; } else { this._step?.pass() ; }}
+    public toBeBool()           { if (!$isbool(this._value))        { this._elogfail('<a boolean>') ; } else { this._step?.pass() ; }}
 
-    public toBeEmail()          { if (!$ok($email(this._value)))    { this._elogfail('<an email>') ; } else { this._step?.pass() ; }}
-    public toBeUrl()            { if (!$ok($url(this._value)))      { this._elogfail('<an url>') ; } else { this._step?.pass() ; }}
-    public toBeUUID()           { if (!$ok($UUID(this._value)))     { this._elogfail('<an UUID>') ; } else { this._step?.pass() ; }}
+    public toBeAnEmail()        { if (!$isemail(this._value))       { this._elogfail('<an email>') ; } else { this._step?.pass() ; }}
+    public toBeAnUrl()          { if (!$isurl(this._value))         { this._elogfail('<an url>') ; } else { this._step?.pass() ; }}
+    public toBeAnUUID()         { if (!$isuuid(this._value))        { this._elogfail('<an UUID>') ; } else { this._step?.pass() ; }}
 
-    public toBeObject()         { if (!$isobject(this._value))      { this._elogfail('<an object>') ; } else { this._step?.pass() ; }}
+    public toBeAnObject()       { if (!$isobject(this._value))      { this._elogfail('<an object>') ; } else { this._step?.pass() ; }}
     public toBeArray()          { if (!$isarray(this._value))       { this._elogfail('<an array>') ; } else { this._step?.pass() ; }}
-    public toBeDate()           { if (!$ok($isodate(this._value)))  { this._elogfail('<a date>') ; } else { this._step?.pass() ; }}
-    public toBeAddress()        { if (!$ok($address(this._value)))  { this._elogfail('<an address>') ; } else { this._step?.pass() ; }}
+    public toBeADate()          { if (!$isdate(this._value))        { this._elogfail('<a date>') ; } else { this._step?.pass() ; }}
+    public toBeAFunction()      { if (!$isfunction(this._value))    { this._elogfail('<a function>') ; } else { this._step?.pass() ; }}
+
+    public gt(aValue:any)       { if ($compare(aValue, this._value) !== Ascending)  { this._compfail(aValue, '>') ; } else { this._step?.pass() ; }}
+    public gte(aValue:any)      { if ($compare(aValue, this._value) === Descending) { this._compfail(aValue, '≥') ; } else { this._step?.pass() ; }}
+    public lt(aValue:any)       { if ($compare(aValue, this._value) !== Descending) { this._compfail(aValue, '<') ; } else { this._step?.pass() ; }}
+    public lte(aValue:any)      { if ($compare(aValue, this._value) === Ascending)  { this._compfail(aValue, '≤') ; } else { this._step?.pass() ; }}
+
+    private _compfail(aValue:any, op:string) {
+        $logterm(`&adid expect value:&O&w${inspect(this._value)}&0`) ;
+        $logterm(`&eto be ${op} to value:&E&b${inspect(aValue)}&0\n`) ; 
+        this._step?.fail() ;
+    }
+
+    private _elogfail(aValue:any) {
+        $logterm(`&edid expect value:&E&b${inspect(aValue)}&0`) ;
+        $logterm(`&adid get as value:&O&w${inspect(this._value)}&0\n`) ; 
+        this._step?.fail() ;
+    }
+
+    private _nelogfail(aValue:any) {
+        $logterm(`&adid not expect  :&O&w${inspect(aValue)}&0\n`) ; 
+        this._step?.fail() ;
+    }
 }
 

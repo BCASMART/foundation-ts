@@ -35,6 +35,19 @@ export function $objectcount(o:any | null | undefined) : number
 export function $isarray(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && Array.isArray(o) ; }
 
+export function $isdate(o:any | null | undefined) : boolean
+{ return o instanceof Date || o instanceof TSDate || ($isstring(o) && $ok($isodate(o))) ; }
+
+export function $isemail(o:any | null | undefined) : boolean
+{ return $isstring(o) && $ok($email(o)) ; }
+
+export function $isurl(o:any | null | undefined, opts?:$urlOptions) : boolean
+{ return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
+
+export function $isuuid(o:any | null | undefined) : boolean
+{ return $isstring(o) && $ok($UUID(o)) ; }
+
+
 export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
 
 export function $intornull(n:string|number|null|undefined) : int | null
@@ -53,7 +66,6 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 
 export function $email(s:string|null|undefined) : email | null
 {
-    if (!$isstring(s)) { return null ; } 
     const m = _regexvalidatedstring<email>(emailRegex, s) ;
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
@@ -65,7 +77,7 @@ export interface $urlOptions {
 
 export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | null
 {
-    if (!$isstring(s) || !$length(s)) { return null ;}
+    if (!$length(s)) { return null ;}
     const m = s!.match(urlRegex) ;
     if (m?.length !== 2) { return null ; }
     if ($ok(m![1])) {
@@ -98,13 +110,13 @@ export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateForm
     return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
 
-export function $address(a:Address|null|undefined) : Address | null {
+export function $address(a:Address|null|undefined) : Address | null 
+{
     if (!$isobject(a)) { return null ; }
     const city = $trim(a?.city) ;
     const country = $country(a?.country) ;
     if (!$isstring(city) || !$length(city) || !$ok(country)) { return null ; }
 
-    // QUESTION: check if we have other than address ?
     let ret:Address = {...a!} ;
     ret.city = city! ;
     ret.country = country! ;
