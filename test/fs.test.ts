@@ -1,6 +1,7 @@
 import { $dir, $ext, $filename, $newext, $path, $withoutext } from "../src/fs";
+import { TSTest } from '../src/tstester';
 
-describe("Testing fs functions", () => {
+export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     const A = '/Users/durand/Developer/foundation-ts/files' ;
     const B = $path(A, 'toto', 'tutu.pdf') ;
     const B1 = $path(true, A, 'toto', 'tutu.pdf') ;
@@ -18,92 +19,91 @@ describe("Testing fs functions", () => {
     const H = $path(AA, '../../../../../../../tutu/../tata/./toto') ;
     const H1 = $path(true, AA, '../../../../../../../tutu/../tata/./toto') ;
 
-    it('$path() function', () => {
-        expect(B).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
-        expect(C).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
-        expect(D).toBe('/tata') ;
-        expect(E).toBe('/tata') ;
-        expect(F).toBe('/tata/toto') ;
-        expect(G).toBe('../tata/toto') ;
-        expect(H).toBe('../../tata/toto') ;
+    group.unary('$path() function', async (t) => {
+        t.expect(B).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
+        t.expect(C).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
+        t.expect(D).toBe('/tata') ;
+        t.expect(E).toBe('/tata') ;
+        t.expect(F).toBe('/tata/toto') ;
+        t.expect(G).toBe('../tata/toto') ;
+        t.expect(H).toBe('../../tata/toto') ;
     }) ;
-    it('$path(internalImplementation) function', () => {
-        expect(B1).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
-        expect(C1).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
-        expect(D1).toBe('/tata') ;
-        expect(E1).toBe('/tata') ;
-        expect(F1).toBe('/tata/toto') ;
-        expect(G1).toBe('../tata/toto') ;
-        expect(H1).toBe('../../tata/toto') ;
-    }) ;
-
-    it('$filename() function', () => {
-        expect($filename(A)).toBe('files') ;
-        expect($filename('file')).toBe('file') ;
-        expect($filename('/file')).toBe('file') ;
-        expect($filename("")).toBe('') ;
-        expect($filename(null)).toBe('') ;
+    group.unary('$path(internalImplementation) function', async (t) => {
+        t.expect(B1).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
+        t.expect(C1).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
+        t.expect(D1).toBe('/tata') ;
+        t.expect(E1).toBe('/tata') ;
+        t.expect(F1).toBe('/tata/toto') ;
+        t.expect(G1).toBe('../tata/toto') ;
+        t.expect(H1).toBe('../../tata/toto') ;
     }) ;
 
-    it('$filename(internalImplementation) function', () => {
-        expect($filename(A, true)).toBe('files') ;
-        expect($filename('file', true)).toBe('file') ;
-        expect($filename('/file', true)).toBe('file') ;
-        expect($filename("", true)).toBe('') ;
-        expect($filename(null, true)).toBe('') ;
+    group.unary('$filename() function', async (t) => {
+        t.expect($filename(A)).toBe('files') ;
+        t.expect($filename('file')).toBe('file') ;
+        t.expect($filename('/file')).toBe('file') ;
+        t.expect($filename("")).toBe('') ;
+        t.expect($filename(null)).toBe('') ;
     }) ;
 
-
-    it('$ext() function', () => {
-        expect($ext(A)).toBe('') ;
-        expect($ext(B)).toBe('pdf') ;
-        expect($ext('')).toBe('') ;
-        expect($ext('.')).toBe('') ;
-        expect($ext(undefined)).toBe('') ;
-        expect($ext(null)).toBe('') ;
-    }) ;
-    it('$ext(internalImplementation) function', () => {
-        expect($ext(A, true)).toBe('') ;
-        expect($ext(B, true)).toBe('pdf') ;
-        expect($ext('', true)).toBe('') ;
-        expect($ext('.', true)).toBe('') ;
-        expect($ext(undefined, true)).toBe('') ;
-        expect($ext(null, true)).toBe('') ;
+    group.unary('$filename(internalImplementation) function', async (t) => {
+        t.expect($filename(A, true)).toBe('files') ;
+        t.expect($filename('file', true)).toBe('file') ;
+        t.expect($filename('/file', true)).toBe('file') ;
+        t.expect($filename("", true)).toBe('') ;
+        t.expect($filename(null, true)).toBe('') ;
     }) ;
 
 
-    it('$withoutext() function', () => {
-        expect($withoutext('toto.2')).toBe('toto') ;
-        expect($withoutext('toto.')).toBe('toto') ;
-        expect($withoutext('.')).toBe('') ;
-        expect($withoutext(B)).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu') ;
-        expect($withoutext(null)).toBe('') ;
+    group.unary('$ext() function', async (t) => {
+        t.expect($ext(A)).toBe('') ;
+        t.expect($ext(B)).toBe('pdf') ;
+        t.expect($ext('')).toBe('') ;
+        t.expect($ext('.')).toBe('') ;
+        t.expect($ext(undefined)).toBe('') ;
+        t.expect($ext(null)).toBe('') ;
+    }) ;
+    group.unary('$ext(internalImplementation) function', async (t) => {
+        t.expect($ext(A, true)).toBe('') ;
+        t.expect($ext(B, true)).toBe('pdf') ;
+        t.expect($ext('', true)).toBe('') ;
+        t.expect($ext('.', true)).toBe('') ;
+        t.expect($ext(undefined, true)).toBe('') ;
+        t.expect($ext(null, true)).toBe('') ;
     }) ;
 
-    it('$newext() function', () => {
-        expect($newext(B, 'docx')).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.docx')
-        expect($newext('file', 'toto')).toBe('file.toto') ;
-        expect($newext('file.', 'toto')).toBe('file.toto') ;
-        expect($newext('', 'toto')).toBe('.toto') ;
-        expect($newext('.', 'toto')).toBe('.toto') ;
+
+    group.unary('$withoutext() function', async (t) => {
+        t.expect($withoutext('toto.2')).toBe('toto') ;
+        t.expect($withoutext('toto.')).toBe('toto') ;
+        t.expect($withoutext('.')).toBe('') ;
+        t.expect($withoutext(B)).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu') ;
+        t.expect($withoutext(null)).toBe('') ;
     }) ;
 
-    it('$dir() function', () => {
-        expect($dir(A)).toBe('/Users/durand/Developer/foundation-ts') ;
-        expect($dir(B)).toBe('/Users/durand/Developer/foundation-ts/files/toto') ;
-        expect($dir('file')).toBe('.') ;
-        expect($dir('file/A')).toBe('file') ;
-        expect($dir('/file')).toBe('/') ;
-        expect($dir('./file')).toBe('.') ;
-    }) ;
-    it('$dir(internalImplementation) function', () => {
-        expect($dir(A, true)).toBe('/Users/durand/Developer/foundation-ts') ;
-        expect($dir(B, true)).toBe('/Users/durand/Developer/foundation-ts/files/toto') ;
-        expect($dir('file, true')).toBe('.') ;
-        expect($dir('file/A, true')).toBe('file') ;
-        expect($dir('/file, true')).toBe('/') ;
-        expect($dir('./file, true')).toBe('.') ;
+    group.unary('$newext() function', async (t) => {
+        t.expect($newext(B, 'docx')).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.docx')
+        t.expect($newext('file', 'toto')).toBe('file.toto') ;
+        t.expect($newext('file.', 'toto')).toBe('file.toto') ;
+        t.expect($newext('', 'toto')).toBe('.toto') ;
+        t.expect($newext('.', 'toto')).toBe('.toto') ;
     }) ;
 
+    group.unary('$dir() function', async (t) => {
+        t.expect($dir(A)).toBe('/Users/durand/Developer/foundation-ts') ;
+        t.expect($dir(B)).toBe('/Users/durand/Developer/foundation-ts/files/toto') ;
+        t.expect($dir('file')).toBe('.') ;
+        t.expect($dir('file/A')).toBe('file') ;
+        t.expect($dir('/file')).toBe('/') ;
+        t.expect($dir('./file')).toBe('.') ;
+    }) ;
+    group.unary('$dir(internalImplementation) function', async (t) => {
+        t.expect($dir(A, true)).toBe('/Users/durand/Developer/foundation-ts') ;
+        t.expect($dir(B, true)).toBe('/Users/durand/Developer/foundation-ts/files/toto') ;
+        t.expect($dir('file, true')).toBe('.') ;
+        t.expect($dir('file/A, true')).toBe('file') ;
+        t.expect($dir('/file, true')).toBe('/') ;
+        t.expect($dir('./file, true')).toBe('.') ;
+    }) ;
 
 }) ;

@@ -2,7 +2,9 @@ import { TSDate } from "../src/tsdate";
 import { AnyDictionary } from "../src/types";
 import { $query } from "../src/tsrequest";
 
-describe("Testing static request functions", () => {
+import { TSTest } from '../src/tstester';
+
+export const requestGroups = TSTest.group("Testing static request functions", async (group) => {
     const uri = "https://example.com" ;
     const dict:AnyDictionary = {
         foo1:'1',
@@ -15,8 +17,7 @@ describe("Testing static request functions", () => {
 
     const s = $query(uri, dict) ;
 
-    it(`testing $query() function`, () => {
-        expect(s).toBe('https://example.com?foo1=1&foo2=2&foo3=1966-04-13T12%3A05%3A22&foo6=1&foo6=2&foo6=3&foo6=A&foo6=B') ;
+    group.unary(`testing $query() function`, async (t) => {
+        t.expect(s).toBe('https://example.com?foo1=1&foo2=2&foo3=1966-04-13T12%3A05%3A22&foo6=1&foo6=2&foo6=3&foo6=A&foo6=B') ;
     }) ;
-
 }) ;

@@ -26,7 +26,7 @@ export class TSTester {
 
     public async run() {
         // first phase, we construct all the unary test in an asynchronus function call
-        this.log(`Running tests &Y&k${this.desc}&0:`)
+        this.log(`&eTSTester will now run &Y&k${this.desc}&0:`)
         for (let g of this.groups) { await g.prepare() ; }
         let passed = 0, failed = 0 ;
         // second phase, we run the tests
@@ -34,8 +34,8 @@ export class TSTester {
             const groupok = await g.run() ;
             if (groupok) { passed++ } else { failed++ ; }
         }
-        if (passed > 0) { this.log(`&g${passed}&0 group${passed === 1 ? '' : 's'} of tests did &G&w  PASS  &0`) ; }
-        if (failed > 0) { this.log(`&r${failed}&0 group${failed === 1 ? '' : 's'} of tests did &R&w  FAIL  &0`) ; }
+        if (passed > 0) { this.log(`&g${passed}&0&j group${passed === 1 ? '' : 's'} of tests did &G&w  PASS  &0`) ; }
+        if (failed > 0) { this.log(`&r${failed}&0&o group${failed === 1 ? '' : 's'} of tests did &R&w  FAIL  &0`) ; }
         if (passed > 0 && !failed) {
             this.log('&G&w  ALL TESTS PASSED  &0') ;
         }
@@ -75,12 +75,12 @@ export class TSTestGroup extends TSTest {
     public async run():Promise<boolean> {
         let failed = 0 ;
 
-        this.log(`- Running group tests &C&k ${this.desc} &0`) ;
+        this.log(`&u- Running group tests &U&k ${this.desc} &0`) ;
         for (let u of this._unaries) {
             const unaryok = await u.run() ;
             if (!unaryok) { failed++ ; }
         }
-        this.log(`  ... group test ${this.desc} ${failed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0`) ;
+        this.log(`  ${failed==0?'&j':'&o'}... group test ${this.desc} ${failed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0`) ;
         return failed === 0 ;
     }
 }
@@ -101,7 +101,7 @@ export class TSUnaryTest extends TSTest {
     public async run():Promise<boolean> {
         this._passed = 0 ;
         this._failed = 0 ;
-        this.log(`... running tests &B&w ${this.desc} &0`) ;
+        this.log(`&x... &lrunning tests &B&w ${this.desc} &0`) ;
         await this.fn(this) ;
         if (this._passed > 0) { this.log(`    &g${this._passed}&0 passed`) ; }
         if (this._failed > 0) { this.log(`    &r${this._failed}&0 failed`) ; }

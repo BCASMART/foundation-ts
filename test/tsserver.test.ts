@@ -5,9 +5,9 @@ import { TSEndPointsDictionary } from "../src/tsserver";
 import { TSParametricEndPoints } from "../src/tsservercomp";
 import { $keys, $string } from "../src/commons";
 
-const sameCallFunction = async (url:URL, parameters:StringDictionary, msg: IncomingMessage, res: ServerResponse) => {} ;
+import { TSTest } from '../src/tstester';
 
-describe("Testing TSServer API definitions", () => {
+export const serverGroups = TSTest.group("Testing TSServer API definitions", async (group) => {
     const apis:TSEndPointsDictionary = {
         '/sessions/callBack':{
             'PUT': sameCallFunction,
@@ -38,28 +38,39 @@ describe("Testing TSServer API definitions", () => {
         }
         objects.push(ep) ;
     }
-    it(`Testing api '/sessions/callBack'`, () => {
-        expect(objects[0]).toBeDefined() ;
+    group.unary(`Testing api '/sessions/callBack'`, async (t) => {
+        t.expect(objects[0]).toBeDefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session/{sid}/signature/{ssid}/updatestatus'`, () => {
-        expect(objects[1]).toBeDefined() ;
+    group.unary(`Testing api '/v{vers}/session/{sid}/signature/{ssid}/updatestatus'`, async (t) => {
+        t.expect(objects[1]).toBeDefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session/{sid/signature/{ssid}/updatestatus'`, () => {
-        expect(objects[2]).toBeUndefined() ;
+    group.unary(`Testing api '/v{vers}/session/{sid/signature/{ssid}/updatestatus'`, async (t) => {
+        t.expect(objects[2]).toBeUndefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session/{sid}}/signature/{ssid}/updatestatus'`, () => {
-        expect(objects[3]).toBeUndefined() ;
+    group.unary(`Testing api '/v{vers}/session/{sid}}/signature/{ssid}/updatestatus'`, async (t) => {
+        t.expect(objects[3]).toBeUndefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus'`, () => {
-        expect(objects[4]).toBeDefined() ;
+    group.unary(`Testing api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus'`, async (t) => {
+        t.expect(objects[4]).toBeDefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, () => {
-        expect(objects[5]).toBeUndefined() ;
+    group.unary(`Testing api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, async (t) => {
+        t.expect(objects[5]).toBeUndefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session1/{sid}'`, () => {
-        expect(objects[6]).toBeUndefined() ;
+    group.unary(`Testing api '/v{vers}/session1/{sid}'`, async (t) => {
+        t.expect(objects[6]).toBeUndefined() ;
     }) ;
-    it(`Testing api '/v{vers}/session2/{sid}'`, () => {
-        expect(objects[7]).toBeDefined() ;
+    group.unary(`Testing api '/v{vers}/session2/{sid}'`, async (t) => {
+        t.expect(objects[7]).toBeDefined() ;
     }) ;
 }) ;
+
+const sameCallFunction = async (url:URL, parameters:StringDictionary, msg: IncomingMessage, res: ServerResponse) => {} ;
+
+/*
+
+
+
+describe("Testing TSServer API definitions", async (t) => {
+
+}) ;
+*/

@@ -1,13 +1,13 @@
 {
   "name": "foundation-ts",
-  "version": "1.0.27",
+  "version": "1.1.0",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist tdist",
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
-    "test": "jest"
+    "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node --async-stack-traces --experimental-modules tdist/test/index.test.js"
   },
   "main": "index.js",
   "types": "index.d.ts",
@@ -20,16 +20,11 @@
   "email": "dev@bcasmart.com",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^27.4.1",
     "@types/node": "^15.12.4",
-    "@types/uuid": "^8.3.0",
-    "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.3"
   },
   "dependencies": {
-    "axios": "^0.21.1",
-    "uuid": "^8.3.2"
+    "axios": "^0.21.1"
   }
 }
