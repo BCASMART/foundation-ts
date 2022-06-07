@@ -4,7 +4,7 @@ import { $defined, $isunsigned, $keys, $length, $ok, $string, $trim, $unsigned }
 import { TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { StringDictionary, uint16, UINT16_MAX } from "./types";
-import { $logterm } from "./utils";
+import { $inbrowser, $logterm } from "./utils";
 
 import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "./tsservercomp";
 
@@ -65,10 +65,12 @@ export class TSServer {
         this._logger = $ok(opts.logger) ? opts.logger! : _internalLogger ;
         this._logInfos = !!opts.logInfos ;
 
-        // ========= first construct the static websites architecture ==========
+        // ========= first construct the static websites architecture (only if we're not inside a browser )==========
         this._sites = [] ;
         if ($ok(opts.webSites)) {
-            $keys(opts.webSites!).forEach(u => {
+            const keys = $keys(opts.webSites!) ;
+            if ($inbrowser() && keys.length) { throw 'TSServer cannot handle static websides inside a browser' ; }
+            keys.forEach(u => {
                 this._sites.push(new TSStaticWebsite(u as string, opts.webSites![u], {
                     logger:this._logger,
                     managedTypes:opts.managedTypes,

@@ -11,10 +11,10 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 
 export function $term(s:string, escapeChar:string = '&'):string {
     let fmtlen = $length(s) ;
-    let escape = false ;
     let ret = "" ;
     if (fmtlen) {
-        if ($length(escapeChar) !== 1) { escapeChar = '&' ; }
+        let escape = false ;
+        if ($length(escapeChar) !== 1 || escapeChar.includes('\x1b')) { escapeChar = '&' ; }
         for (let i = 0 ; i < fmtlen ; i++) {
             const c = s.charAt(i) ;
             if (escape) {
@@ -84,6 +84,36 @@ export function $term(s:string, escapeChar:string = '&'):string {
     }
     return ret ;
 }
+
+export function $termclean(s:string, escapeChar:string = '&') {
+    let len = $length(s) ;
+    let ret = "" ;
+    if (len) {
+        enum State { Standard, EscapeChar, EscapeEscape} ;
+        let state = State.Standard ;
+        if ($length(escapeChar) !== 1 || escapeChar.includes('\x1b')) { escapeChar = '&' ; }
+        for (let i = 0 ; i < len ; i++) {
+            const c = s.charAt(i) ;
+            switch (state) {
+                case State.Standard:
+                    if (c === escapeChar) { state = State.EscapeChar ; }
+                    else if (c === '\x1b') { state = State.EscapeEscape ; }
+                    else { ret += c ; }
+                    break ;
+                case State.EscapeEscape:
+                    if (c === 'm') { state = State.Standard ;}
+                    if (!"[0123456789;".includes(c)) { state = State.Standard ; ret += c ; }
+                    break ;
+                case State.EscapeChar:
+                    if (c === escapeChar) { ret += escapeChar ; }
+                    else if (!"01>iu_<-rRgGbByYmMcCkKwWoOpPaAvVdDxXlLeEjJ".includes(c)) { ret += escapeChar + c ; }
+                    state = State.Standard ;
+            }
+        }
+    }
+    return ret ;
+}
+
 
 export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
     if ($length(format)) {

@@ -25,7 +25,7 @@ import {
 	extname,
 	join 
 } from 'path' ;
-import { $length, $ok, $trim } from './commons';
+import { $isstring, $length, $ok, $trim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
@@ -114,48 +114,83 @@ export function $uniquefile(src?:string|null|undefined) : string
 	return $length(ext) ? `${$withoutext(<string>src)}-${rand}.${ext}` : `${src}-${rand}` ;
 }
 
-export function $path(...paths:string[]): string { 
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
-    return join(...paths) ; 
+export function $path(first:string|boolean, ...paths:string[]): string {
+    function _internalPath(...paths:string[]):string {
+        if (paths.length > 0) {
+            const isAbsolute = paths[0].startsWith('/') ;
+            let comps:string[] = [] ;
+            for (let p of paths) {
+                if (p.length > 0) {
+                    for (let s of p.split('/')) {
+                        if (s === '..') {
+                            if (comps.length > 0) {
+                                if (comps[comps.length - 1] != '..') { comps.pop() ; }
+                                else { comps.push('..') ; }
+                            }
+                            else if (!isAbsolute) { comps.push('..') ; }
+                        } 
+                        else if (s.length > 0 && s !== '.') { comps.push(s) ; }
+                    }
+                }
+            }
+            if (comps.length) {
+                const s = comps.join('/') ;
+                return isAbsolute ? '/' + s : s ;
+            }
+            else if (isAbsolute) { return '/' ; }
+        }
+        return '' ;
+    }
+
+    if (!$isstring(first)) {
+        return (first as boolean) || $inbrowser() ? _internalPath(...paths) : join(...paths) ;
+    }
+    return $inbrowser() ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
 }
-export function $ext(s:string|null|undefined):string 
+
+export function $ext(s:string|null|undefined, internalImplementation:boolean=false):string 
 { 
     if ($length(s)) { 
-        if ($inbrowser()) {
+        if (internalImplementation || $inbrowser()) {
             const p = s!.lastIndexOf('.') ;
             return p >= 0 ? s!.slice(p+1) : '' ;
         }
         else {
             const e = extname(s!) ;
             if ($length(e)) { return e.slice(1) ; }
-    
         }
     } 
 	return '' ;
 }
 
-export function $withoutext(s:string|null|undefined):string
+export function $withoutext(s:string|null|undefined, internalImplementation?:boolean):string
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
     if (!$length(s)) { return '' ;}
-	const e = $ext(s) ;
+	const e = $ext(s, internalImplementation) ;
 	s = e.length ? s!.slice(0, s!.length - e.length) : s! ;
     return s.length && s.charAt(s.length-1) === '.' ? s.slice(0, s!.length - 1) : s ;
 }
 
-export function $newext(s:string|null|undefined, e:string|null|undefined=undefined):string {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
-    let b = $withoutext(s) ;
+export function $newext(s:string|null|undefined, e:string|null|undefined=undefined, internalImplementation?:boolean):string {
+    let b = $withoutext(s, internalImplementation) ;
     return $length(e) ? `${b}.${e}` : b ;
 }
 
-export function $dir(s:string|null|undefined):string { 
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
-    return $length(s) ? dirname(s!) : '' ; 
+export function $dir(s:string|null|undefined, internalImplementation:boolean=false):string { 
+    if (!$length(s)) { return '' ; } 
+    if (internalImplementation || $inbrowser()) {
+        const p = s!.lastIndexOf('/') ;
+        return p >= 0 ? s!.slice(0,p) : s! ;
+    }
+    return dirname(s!) ; 
 }
-export function $filename(s:string|null|undefined):string { 
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
-    return $length(s) ? basename(s!) : '' ; 
+export function $filename(s:string|null|undefined, internalImplementation:boolean=false):string { 
+    if (!$length(s)) { return '' ; } 
+    if (internalImplementation || $inbrowser()) {
+        const p = s!.lastIndexOf('/') ;
+        return p >= 0 ? s!.slice(p+1) : s! ;
+    }
+    return basename(s!) ; 
 }
 
 export function $loadJSON(src:string|null|undefined|Buffer) : any | null
