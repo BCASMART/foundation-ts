@@ -52,7 +52,8 @@ export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : 
 
 
 export function $email(s:string|null|undefined) : email | null
-{ 
+{
+    if (!$isstring(s)) { return null ; } 
     const m = _regexvalidatedstring<email>(emailRegex, s) ;
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
@@ -64,7 +65,7 @@ export interface $urlOptions {
 
 export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | null
 {
-    if (!$length(s)) { return null ;}
+    if (!$isstring(s) || !$length(s)) { return null ;}
     const m = s!.match(urlRegex) ;
     if (m?.length !== 2) { return null ; }
     if ($ok(m![1])) {
@@ -79,7 +80,10 @@ export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | nul
 }
 
 export function $UUID(s:string|null|undefined) : UUID | null
-{ return _regexvalidatedstring<UUID>(uuidRegex, s) ; }
+{ 
+    if (!$isstring(s)) { return null ; } 
+    return _regexvalidatedstring<UUID>(uuidRegex, s) ; 
+}
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -89,17 +93,18 @@ export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateForm
     if ($ok(s)) {
         if (s instanceof Date) { cps = $components(s as Date) ; }
         else if (s instanceof TSDate) { cps = (s as TSDate).toComponents() ; }
-        else { cps = $parsedatetime($trim(s as string), format) ; } // we parse the string to verify it
+        else if ($isstring(s)) { cps = $parsedatetime($trim(s as string), format) ; } // we parse the string to verify it
     }
     return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
 
 export function $address(a:Address|null|undefined) : Address | null {
-    if (!$ok(a)) { return null ; }
+    if (!$isobject(a)) { return null ; }
     const city = $trim(a?.city) ;
     const country = $country(a?.country) ;
-    if (!city.length || !$ok(country)) { return null ; }
+    if (!$isstring(city) || !$length(city) || !$ok(country)) { return null ; }
 
+    // QUESTION: check if we have other than address ?
     let ret:Address = {...a!} ;
     ret.city = city! ;
     ret.country = country! ;

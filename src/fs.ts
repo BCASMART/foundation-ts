@@ -180,7 +180,7 @@ export function $dir(s:string|null|undefined, internalImplementation:boolean=fal
     if (!$length(s)) { return '' ; } 
     if (internalImplementation || $inbrowser()) {
         const p = s!.lastIndexOf('/') ;
-        return p >= 0 ? s!.slice(0,p) : s! ;
+        return p === 0 ? '/' : (p > 0 ? s!.slice(0,p) : '.') ;
     }
     return dirname(s!) ; 
 }

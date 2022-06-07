@@ -100,10 +100,9 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     group.unary('$dir(internalImplementation) function', async (t) => {
         t.expect($dir(A, true)).toBe('/Users/durand/Developer/foundation-ts') ;
         t.expect($dir(B, true)).toBe('/Users/durand/Developer/foundation-ts/files/toto') ;
-        t.expect($dir('file, true')).toBe('.') ;
-        t.expect($dir('file/A, true')).toBe('file') ;
-        t.expect($dir('/file, true')).toBe('/') ;
-        t.expect($dir('./file, true')).toBe('.') ;
+        t.expect($dir('file', true)).toBe('.') ;
+        t.expect($dir('file/A', true)).toBe('file') ;
+        t.expect($dir('/file', true)).toBe('/') ;
+        t.expect($dir('./file', true)).toBe('.') ;
     }) ;
-
 }) ;

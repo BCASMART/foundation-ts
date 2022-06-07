@@ -1,4 +1,4 @@
-import { $ascii, $isobject, $length, $ok, $trim } from "./commons";
+import { $ascii, $isobject, $isstring, $length, $ok, $trim } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
@@ -96,6 +96,7 @@ export class TSDefaults {
     }
 
     public country(s:string|null|undefined) : country | null {
+        if ($ok(s) && !$isstring(s)) { return null ; }
         const v = $ascii($trim(s).toUpperCase()) ;
         const managedCountry = TSCountry.country(v) ;
         if ($ok(managedCountry)) { return managedCountry!.alpha2Code ; }

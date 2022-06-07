@@ -1,4 +1,5 @@
-import { $isnumber, $ok } from "./commons";
+import { inspect } from "util";
+import { $address, $defined, $email, $isarray, $isint, $isnumber, $isobject, $isodate, $isstring, $isunsigned, $ok, $url, $UUID } from "./commons";
 import { $equal } from "./compare";
 import { $logterm } from "./utils";
 
@@ -125,17 +126,45 @@ export class TSExpectAgent {
         this._step = step ;
         this._value = value ;
     }
-    public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._step?.fail() ;} else { this._step?.pass() ; }}
-    public notToBe(aValue:any)  { if ($equal(aValue, this._value)) { this._step?.fail() ;} else { this._step?.pass() ; }}
-    public toBeTruthy()         { if (!this._value) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeFalsy()          { if (this._value) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeUndefined()      { if (this._value !== undefined) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeDefined()        { if (this._value === undefined) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeNull()           { if (this._value !== null) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeNotNull()        { if (this._value === null) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeOK()             { if (!$ok(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeNotOK()          { if ($ok(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeNaN()            { if (!isNaN(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
-    public toBeNumber()         { if (!$isnumber(this._value)) { this._step?.fail() ; } else { this._step?.pass() ; }}
+    
+    private _elogfail(aValue:any) {
+        $logterm(`&edid expect value:&E&b${inspect(aValue)}&0`) ;
+        $logterm(`&adid get as value:&O&w${inspect(this._value)}&0\n`) ; 
+        this._step?.fail() ;
+    }
+
+    private _nelogfail(aValue:any) {
+        $logterm(`&adid not expect  :&O&w${inspect(aValue)}&0\n`) ; 
+        this._step?.fail() ;
+    }
+
+
+    public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._elogfail(aValue) ; } else { this._step?.pass() ; }}
+    public notToBe(aValue:any)  { if ($equal(aValue, this._value))  { this._nelogfail(aValue) ; } else { this._step?.pass() ; }}
+
+    public toBeTruthy()         { if (!this._value)                 { this._elogfail(true) ;} else { this._step?.pass() ; }}
+    public toBeFalsy()          { if (this._value)                  { this._elogfail(false) ;} else { this._step?.pass() ; }}
+    public toBeUndefined()      { if ($defined(this._value))        { this._nelogfail(undefined) ; } else { this._step?.pass() ; }}
+    public toBeDefined()        { if (!$defined(this._value))       { this._elogfail(undefined) ; ; } else { this._step?.pass() ; }}
+    public toBeNull()           { if (this._value !== null)         { this._elogfail(null) ; } else { this._step?.pass() ; }}
+    public toBeNotNull()        { if (this._value === null)         { this._nelogfail(null) ; } else { this._step?.pass() ; }}
+
+    public toBeOK()             { if (!$ok(this._value))            { this._elogfail('<a non null defined value>') ; } else { this._step?.pass() ; }}
+    public toBeNotOK()          { if ($ok(this._value))             { this._elogfail('<a null or undefined value>') ; } else { this._step?.pass() ; }}
+
+    public toBeNaN()            { if (!isNaN(this._value))          { this._elogfail(NaN) ; } else { this._step?.pass() ; }}
+    public toBeNumber()         { if (!$isnumber(this._value))      { this._elogfail('<a valid number>') ; } else { this._step?.pass() ; }}
+    public toBeInt()            { if (!$isint(this._value))         { this._elogfail('<an integer>') ; } else { this._step?.pass() ; }}
+    public toBeUnsigned()       { if (!$isunsigned(this._value))    { this._elogfail('<an unsigned>') ; } else { this._step?.pass() ; }}
+    public toBeString()         { if (!$isstring(this._value))      { this._elogfail('<a string>') ; } else { this._step?.pass() ; }}
+
+    public toBeEmail()          { if (!$ok($email(this._value)))    { this._elogfail('<an email>') ; } else { this._step?.pass() ; }}
+    public toBeUrl()            { if (!$ok($url(this._value)))      { this._elogfail('<an url>') ; } else { this._step?.pass() ; }}
+    public toBeUUID()           { if (!$ok($UUID(this._value)))     { this._elogfail('<an UUID>') ; } else { this._step?.pass() ; }}
+
+    public toBeObject()         { if (!$isobject(this._value))      { this._elogfail('<an object>') ; } else { this._step?.pass() ; }}
+    public toBeArray()          { if (!$isarray(this._value))       { this._elogfail('<an array>') ; } else { this._step?.pass() ; }}
+    public toBeDate()           { if (!$ok($isodate(this._value)))  { this._elogfail('<a date>') ; } else { this._step?.pass() ; }}
+    public toBeAddress()        { if (!$ok($address(this._value)))  { this._elogfail('<an address>') ; } else { this._step?.pass() ; }}
 }
 
