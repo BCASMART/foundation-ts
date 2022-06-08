@@ -16,7 +16,6 @@ const tester = new TSTester("Foundation-ts unary tests") ;
 
 tester.addGroups(commonsGroups) ;
 tester.addGroups(fsGroups) ;
-tester.addGroups(utilsGroups) ;
 tester.addGroups(countriesGroups) ;
 tester.addGroups(dateGroups) ;
 tester.addGroups(dateCompGroups) ;
@@ -26,5 +25,6 @@ tester.addGroups(rangeGroups) ;
 tester.addGroups(rangeSetGroups) ;
 tester.addGroups(requestGroups) ;
 tester.addGroups(serverGroups) ;
+tester.addGroups(utilsGroups) ;
 
 tester.run() ;

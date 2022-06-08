@@ -122,12 +122,16 @@ export function $termclean(s:string, escapeChar:string = '&') {
 }
 
 
-export function $logterm(format:string, escapeChar:string = '', ...args:any[]) {
-    if ($length(format)) {
-        format = $term(format, escapeChar) ;
-        if ($count(args)) { format += args.join() ; }
-        console.log(format)
-    }
+export function $logterm(format:string, ...args:any[]) {
+    format = $term($length(format) ? format : '') ;
+    if ($count(args)) { format += args.join() ; }
+    console.log(format)
+}
+
+export function $writeterm(format:string, ...args:any[]) {
+    format = $term($length(format) ? format : '') ;
+    if ($count(args)) { format += args.join() ; }
+    if (format.length) { process.stdout.write(format) ; }
 }
 
 export function $logheader(s: string, width: number = 0, style: string = '&w', starStyle: string = '&x')
