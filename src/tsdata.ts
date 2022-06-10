@@ -55,15 +55,16 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
 
     public clone():TSData { return new TSData(this, { allocMethod:this._allocFn }) ; }
 
-    public appendData(source:TSData|Buffer|null|undefined) {
-        if ($ok(source)) {
-            const len = source!.length ;
-            if (len > 0) {
-                const b = source instanceof TSData ? (source as TSData)._buf : source as Buffer ;
-                this._willGrow(len) ;
-                b.copy(this._buf, this._len, 0, len) ;
-                this._len += len ;
-            }
+    public appendData(source:TSData|Buffer|null|undefined, start:number=0, end?:number) {
+        let len = $length(source)! ;
+        if (start < 0) { start = 0 ; }
+        end = $ok(end) && end! < len ? end! : len ;
+
+        if (start < end) {
+            this._willGrow(end - start) ;
+            const b = source instanceof TSData ? (source as TSData)._buf : source as Buffer ;
+            b.copy(this._buf, this._len, start, end) ;
+            this._len += end - start ;
         }
     }
 
@@ -87,6 +88,7 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
 
     public appendBytes(source:uint8[]|Uint8Array|null|undefined, start:number=0, end?:number) {
         let len = $count(source)! ;
+        if (start < 0) { start = 0 ; }
         end = $ok(end) && end! < len ? end! : len ;
 
         if (start < end) {
