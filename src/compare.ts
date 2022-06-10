@@ -75,7 +75,10 @@ export function $equal(a:any, b:any) {
         if (b instanceof Date) { b = new TSDate(b) ; }
         return a.isEqual(b) ;
     }
-	if (($isobject(a) && ('isEqual' in a)) && ($isobject(b) && ('isEqual' in b))) { return a.isEqual(b) ; }	
+    
+    if ($isobject(a) && ('isEqual' in a)) { return a.isEqual(b) ; }	
+	if ($isobject(b) && ('isEqual' in b)) { return b.isEqual(a) ; }
+
 	if (a instanceof Set && b instanceof Set) {
 		return a.size === b.size && [...a.keys()].every(e => b.has(e)) ;
 	}

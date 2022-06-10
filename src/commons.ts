@@ -1,9 +1,10 @@
 import { $equal } from "./compare";
 import { FoundationASCIIConversion } from "./string_tables";
-import { TSDate } from "./tsdate";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
+import { TSData } from "./tsdata";
+import { TSDate } from "./tsdate";
 
 export function $defined(o:any):boolean 
 { return o !== undefined && typeof o !== 'undefined' }
@@ -168,14 +169,16 @@ export function $ascii(source: string | undefined | null) : string
 	// finally we will try to convert (or remove) the remaining non ascii characters
 	return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '') ;
 }
+export function $capacityForCount(count:uint):uint
+{ return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; }
 
-export function $count(a:any[] | undefined | null) : number
-{ return $ok(a) && Array.isArray(a) ? (<any[]>a).length : 0 ; }
+export function $count(a:any[] | Uint8Array | undefined | null) : number
+{ return $ok(a) && (a instanceof Uint8Array || Array.isArray(a)) ? (<any[]|Uint8Array>a).length : 0 ; }
 
-export function $length(s:string | Buffer | undefined | null) : number
-{ return $ok(s) ? (<string|Buffer>s).length : 0 ; }
+export function $length(s:string | Uint8Array | TSData | undefined | null) : number
+{ return $ok(s) ? (<string|Uint8Array|TSData>s).length : 0 ; }
 
-export function $lengthin(s:string | Buffer | undefined | null, min:number=0, max:number=INT_MAX) : boolean
+export function $lengthin(s:string | Uint8Array | TSData | undefined | null, min:number=0, max:number=INT_MAX) : boolean
 { const l = $length(s) ; return l >= min && l <= max ; }
 
 export function $arraybuffer(buf:Buffer) : ArrayBuffer {
@@ -327,3 +330,22 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
     }
     return ret ;
 }
+
+const __capacitiesForCounts = [
+    /* 000 */   2,   2,   4,   4,   8,   8,   8,   8,
+    /* 008 */  16,  16,  16,  16,  16,  16,  16,  16,
+    /* 016 */  32,  32,  32,  32,  32,  32,  32,  32,
+    /* 024 */  32,  32,  32,  32,  32,  32,  32,  32,
+    /* 032 */  64,  64,  64,  64,  64,  64,  64,  64,
+    /* 040 */  64,  64,  64,  64,  64,  64,  64,  64,
+    /* 048 */  64,  64,  64,  64,  64,  64,  64,  64,
+    /* 056 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 064 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 072 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 080 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 088 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 096 */ 128, 128, 128, 128, 128, 128, 128, 128,
+    /* 104 */ 256, 256, 256, 256, 256, 256, 256, 256,
+    /* 112 */ 256, 256, 256, 256, 256, 256, 256, 256,
+    /* 120 */ 256, 256, 256, 256, 256, 256, 256, 256] ;
+  
