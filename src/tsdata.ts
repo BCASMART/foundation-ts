@@ -66,7 +66,7 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
             }
         }
     }
-    
+
     public setData(source:TSData|Buffer|null|undefined, targetStart:number = 0, sourceStart:number=0, sourceEnd?:number) {
         let len = $length(source) ;
         sourceEnd = $ok(sourceEnd) ? Math.min(sourceEnd!, len) : len ;
@@ -85,28 +85,35 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
         this._buf[this._len++] = source ;
     }
 
-    public appendBytes(source:uint8[]|Uint8Array, start:number=0, end?:number) {
+    public appendBytes(source:uint8[]|Uint8Array|null|undefined, start:number=0, end?:number) {
         let len = $count(source)! ;
         end = $ok(end) && end! < len ? end! : len ;
 
         if (start < end) {
             this._willGrow(end - start) ;
             for (let i = start ; i < end ; i++) {
-                this._buf[this._len++] = source[i] ;
+                this._buf[this._len++] = source![i] ;
             }
         }
     }
 
-    public replaceBytes(source:uint8[]|Uint8Array, targetStart:number=0, sourceStart:number=0, sourceEnd?:number) {
+    public appendAsciiString(source:string|null|undefined) {
+        this.appendBytes(_bytesFromAsciiString(source)) ;
+    }
+
+    public replaceBytes(source:uint8[]|Uint8Array|null|undefined, targetStart:number=0, sourceStart:number=0, sourceEnd?:number) {
         let len = $count(source)! ;
         sourceEnd = $ok(sourceEnd) ? Math.min(sourceEnd!, len) : len ;
         len = sourceEnd - sourceStart ;
         if (len > 0) {
             if (targetStart + len > this._len) { this._willGrow(targetStart + len - this._len) ; }
             for (let i = this._len ; i < targetStart ; i++) { this._buf[i] = 0 ; }  // fill intermediate part with zeros
-            for (let i = 0 ; i < len ; i++) { this._buf[targetStart+i] = source[sourceStart+i] ; }
+            for (let i = 0 ; i < len ; i++) { this._buf[targetStart+i] = source![sourceStart+i] ; }
             if (targetStart + len > this._len) { this._len = targetStart + len ; }
         }
+    }
+    public replaceAsciiString(source:string|null|undefined, targetStart?:number) {
+        this.replaceBytes(_bytesFromAsciiString(source), targetStart) ;
     }
 
     public get capacity():number { return this._buf.length ; }
@@ -276,7 +283,7 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
             this._buf = newBuffer ;
         }
     }
-    
+
     protected _copyTo(target:Buffer) {
         if (this._len > 0) { this._buf.copy(target, 0, 0, this._len) ; }
     }
@@ -295,5 +302,14 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
 
 }
 
+function _bytesFromAsciiString(source:string|null|undefined):uint8[] {
+    const len = $length(source) ;
+    let bytes:uint8[] = [] ;        
+    for (let i = 0 ; i < len ; i++) {
+        const c = source!.charCodeAt(i) ;
+        if (c < 128) { bytes[i] = c as uint8}
+    }
+    return bytes ;
+}
 
 

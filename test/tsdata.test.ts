@@ -12,7 +12,12 @@ export const dataGroups = [
         const B1 = Buffer.from(b+sup) ;
         const D = new TSData(B) ;
         const D1 = new TSData(D) ;
+        const F = new TSData(2) ;
         
+        F.appendAsciiString(b) ;
+        F.appendAsciiString(sup) ;
+        F.replaceAsciiString('@', F.length+1) ;
+
         D1.appendData(SUP) ;
         const E = D1.clone() ;
         const C = D1.clone() ;
@@ -30,6 +35,7 @@ export const dataGroups = [
             t.expect(D).toBe(B) ;
             t.expect(D1).toBe(B1) ;
             t.expect(E).toBe(C) ;
+            t.expect(F).toBe(C) ;
             t.expect(N).toBe(D) ;
             t.expect(Z).toBe(Buffer.from('')) ;
         }) ;
