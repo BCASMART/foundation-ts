@@ -1,4 +1,4 @@
-import { $dir, $ext, $filename, $newext, $path, $withoutext } from "../src/fs";
+import { $dir, $ext, $filename, $isabsolutepath, $newext, $normalizepath, $path, $withoutext } from "../src/fs";
 import { TSTest } from '../src/tstester';
 
 export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
@@ -19,6 +19,13 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     const H = $path(AA, '../../../../../../../tutu/../tata/./toto') ;
     const H1 = $path(true, AA, '../../../../../../../tutu/../tata/./toto') ;
 
+    group.unary('$isabsolutepath(node and internalImplementation) function', async(t) => {
+        t.expect($isabsolutepath(A)).toBeTruthy() ;
+        t.expect($isabsolutepath(AA)).toBeFalsy() ;
+        t.expect($isabsolutepath(A, true)).toBeTruthy() ;
+        t.expect($isabsolutepath(AA, true)).toBeFalsy() ;
+    }) ;
+
     group.unary('$path() function', async (t) => {
         t.expect(B).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
         t.expect(C).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
@@ -28,6 +35,7 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
         t.expect(G).toBe('../tata/toto') ;
         t.expect(H).toBe('../../tata/toto') ;
     }) ;
+
     group.unary('$path(internalImplementation) function', async (t) => {
         t.expect(B1).toBe('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf') ;
         t.expect(C1).toBe('/Users/durand/Developer/foundation-ts/tutu/titi/tata') ;
@@ -36,6 +44,18 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
         t.expect(F1).toBe('/tata/toto') ;
         t.expect(G1).toBe('../tata/toto') ;
         t.expect(H1).toBe('../../tata/toto') ;
+    }) ;
+
+    group.unary('$normalizepath() function', async (t) => {
+        t.expect($normalizepath('/Users/durand////Developer//foundation-ts/files/../../../../../../tutu/../tata/./toto')).toBe('/tata/toto') ;
+        t.expect($normalizepath('///Users/durand//Developer///foundation-ts/files/../../../../../../tutu/../tata/./toto')).toBe('/tata/toto') ;
+        t.expect($normalizepath('Users/durand//Developer///foundation-ts/files/../../../../../../../tutu/../tata/./toto')).toBe('../../tata/toto') ;
+    }) ;
+
+    group.unary('$normalizepath(internalImplementation) function', async (t) => {
+        t.expect($normalizepath('/Users/durand////Developer//foundation-ts/files/../../../../../../tutu/../tata/./toto', true)).toBe('/tata/toto') ;
+        t.expect($normalizepath('///Users/durand//Developer///foundation-ts/files/../../../../../../tutu/../tata/./toto', true)).toBe('/tata/toto') ;
+        t.expect($normalizepath('Users/durand//Developer///foundation-ts/files/../../../../../../../tutu/../tata/./toto', true)).toBe('../../tata/toto') ;
     }) ;
 
     group.unary('$filename() function', async (t) => {

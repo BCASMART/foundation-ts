@@ -23,15 +23,18 @@ import {
 	basename, 
 	dirname,
 	extname,
-	join 
+	join,
+    isAbsolute,
+    normalize 
 } from 'path' ;
 import { $isstring, $length, $ok, $trim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
+import { TSData } from './tsdata';
 
 export function $isfile(src:string | null | undefined) {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $isfile() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try { ret = statSync(<string>src).isFile() ; }
@@ -41,7 +44,7 @@ export function $isfile(src:string | null | undefined) {
 }
 
 export function $isexecutable(src:string | null | undefined) {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $isexecutable() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try {
@@ -58,7 +61,7 @@ export function $isexecutable(src:string | null | undefined) {
 
 
 export function $isdirectory(src:string | null | undefined) {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $isdirectory() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
         try { ret = statSync(<string>src).isDirectory() ; }
@@ -69,7 +72,7 @@ export function $isdirectory(src:string | null | undefined) {
 
 export function $createDirectory(p:string|null|undefined) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $createDirectory() function in browser' ; }
     let ret:boolean = false ;
     if ($length(p)) {
         try { 
@@ -87,7 +90,7 @@ export function $createDirectory(p:string|null|undefined) : boolean
 
 export function $filesize(src:string|null|undefined) : number
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $filesize() function in browser' ; }
 	let ret:number = 0 ;
     if ($length(src)) {
         try { ret = statSync(<string>src).size ; }
@@ -98,26 +101,35 @@ export function $filesize(src:string|null|undefined) : number
 
 export function $temporarypath(ext:string|null|undefined='', src:string|null|undefined='') : string 
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $temporarypath() function in browser' ; }
     ext = $trim(ext) ;
     let file = $uniquefile(src) ;
     if ($length(ext)) { file = $newext(file, ext) ; }
     return $path($tmp(), file) ;
 }
 
-export function $uniquefile(src?:string|null|undefined) : string
+export function $uniquefile(src?:string|null|undefined, e:string|null|undefined=undefined, internalImplementation:boolean=false) : string
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	const rand = $uuid() ;
-	if (!$length(src)) { return rand ; }
-	const ext = $ext(src) ;
-	return $length(ext) ? `${$withoutext(<string>src)}-${rand}.${ext}` : `${src}-${rand}` ;
+    e = $trim(e) ;
+	if (!$length(src)) { return $newext(rand, e, internalImplementation) ; }
+	const finalExt = e.length ? e : $ext(src) ;
+    return $newext(`${$withoutext(src, internalImplementation)}-${rand}`, finalExt, internalImplementation) ;
+}
+
+export function $isabsolutepath(src?:string|null|undefined, internalImplementation:boolean=false) : boolean {
+    return $length(src) ? (internalImplementation || $inbrowser() ? src!.startsWith('/') : isAbsolute(src!)): false ;
+}
+
+export function $normalizepath(src?:string|null|undefined, internalImplementation:boolean=false) : string {
+    if (!$length(src)) { return '' ; }
+    return internalImplementation || $inbrowser() ? $path(true, src!) : normalize(src!) ;
 }
 
 export function $path(first:string|boolean, ...paths:string[]): string {
     function _internalPath(...paths:string[]):string {
         if (paths.length > 0) {
-            const isAbsolute = paths[0].startsWith('/') ;
+            const isAbsolute = $isabsolutepath(paths[0], true) ;
             let comps:string[] = [] ;
             for (let p of paths) {
                 if (p.length > 0) {
@@ -242,7 +254,7 @@ export function $writeString(src:string|null|undefined, str:string, encoding:Buf
 
 export function $readBuffer(src:string|null|undefined) : Buffer|null
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $readBuffer() function in browser' ; }
 	let ret:Buffer|null = null ;
 	if ($length(src)) {
 		try { ret = <Buffer>readFileSync(<string>src) ; } // readFile without any encoding option returns a buffer
@@ -251,9 +263,16 @@ export function $readBuffer(src:string|null|undefined) : Buffer|null
 	return ret ;
 }
 
+export function $readdata(src:string|null|undefined) : TSData|null
+{
+    if ($inbrowser()) { throw 'unavailable $readdata() function in browser' ; }
+    const buf = $readBuffer(src) ;
+    return $ok(buf) ? new TSData(buf) : null ;
+}
+
 export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $writeBuffer(() function in browser' ; }
 	let done = false ;
 	if ($length(src)) {
 		try {
@@ -269,7 +288,7 @@ export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
 
 export function $removeFile(src:string|null|undefined) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $removeFile() function in browser' ; }
 	let done = false
 	if ($isfile(src)) {
 		try {
@@ -289,7 +308,7 @@ export function $removeFile(src:string|null|undefined) : boolean
  */
 export function $realMoveFile(src:string|null|undefined, dest:string|null|undefined) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $realMoveFile() function in browser' ; }
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {
@@ -317,7 +336,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 
 export function $copyFile(src:string|null|undefined, dest:string|null|undefined, overwrite:boolean=false) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $copyFile() function in browser' ; }
 	let done = false ;
 	if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
 		if ($isdirectory(dest)) {

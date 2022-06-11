@@ -1,4 +1,4 @@
-import { $capacityForCount, $count, $isnumber, $isunsigned, $length, $ok } from "./commons";
+import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok } from "./commons";
 import { $writeBuffer } from "./fs";
 import { Class, TSObject } from "./tsobject";
 import { Comparison, Same, uint, uint8 } from "./types" ;
@@ -136,6 +136,8 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
         this._copyTo(ret) ;
         return ret ;
     }
+    
+    public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
 
     public entries(): IterableIterator<[number, number]> { return this.mutableBuffer.entries() ; }
     public keys():    IterableIterator<number>           { return this.mutableBuffer.keys() ; }
@@ -204,10 +206,14 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
 	public get isa():Class<TSData> { return this.constructor as Class<TSData> ; }
 	public get className():string { return this.constructor.name ; }
 
-    public toString(encoding:BufferEncoding = 'binary', start:number = 0, end:number = this._len): string {
+    public toString(encoding:((b:Buffer, start:number, end:number) => string)|BufferEncoding = 'binary', start:number = 0, end:number = this._len): string {
         start = Math.max(0, start) ;
         end   = Math.min(end, this._len) ;
-        return start < end ? this._buf.toString(encoding, start, end) : "" ;
+        
+        if (start >= end) { return '' ; }
+        return $isfunction(encoding) ? 
+            (encoding as ((b:Buffer, start:number, end:number) => string))(this._buf, start, end) : 
+            this._buf.toString(encoding as BufferEncoding, start, end) ;
     }
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
