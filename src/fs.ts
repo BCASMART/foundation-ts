@@ -267,13 +267,14 @@ export function $readdata(src:string|null|undefined) : TSData|null
 {
     if ($inbrowser()) { throw 'unavailable $readdata() function in browser' ; }
     const buf = $readBuffer(src) ;
-    return $ok(buf) ? new TSData(buf) : null ;
+    return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer:true }) : null ;
 }
 
-export function $writeBuffer(src:string|null|undefined, buf:Buffer) : boolean
+export function $writeBuffer(src:string|null|undefined, buf:TSData|Buffer|Uint8Array) : boolean
 {
-    if ($inbrowser()) { throw 'unavailable $writeBuffer(() function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $writeBuffer() function in browser' ; }
 	let done = false ;
+    if (buf instanceof TSData) { buf = (buf as TSData).mutableBuffer ; }
 	if ($length(src)) {
 		try {
 			writeFileSync(src!, buf) ;

@@ -12,6 +12,9 @@ export function $defined(o:any):boolean
 export function $ok(o:any | undefined | null) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
 
+export function $value<T>(o:T|null|undefined, v:T):T
+{ return $ok(o) ? o! : v ; }
+
 export function $isstring(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
 
