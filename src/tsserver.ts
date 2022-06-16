@@ -16,7 +16,7 @@ import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "
  */
 
 export type TSEndPoint = (url:URL, parameters:StringDictionary, req:IncomingMessage, resp:ServerResponse) => Promise<void> ; // the function says if it did catch the request
-export type TSEndPoints = { [key in string]: TSEndPoint; };
+export type TSEndPoints = { [key in Verb]?: TSEndPoint; };
 export type TSEndPointsDictionary = { [key:string]:TSEndPoints }
 
 export interface TSServerOptions extends TSStaticWebSiteOptions {

@@ -23,7 +23,6 @@ export const serverGroups = TSTest.group("Testing TSServer API definitions", asy
         '/v{vers}/session/{sid}}/signature/{ssid}/updatestatus':{ "GET": sameCallFunction },
         '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus':{ "GET": sameCallFunction },
         '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus':{ "GET": sameCallFunction },
-        '/v{vers}/session1/{sid}':{ "DONE": sameCallFunction},
         '/v{vers}/session2/{sid}':{ "PATCH": sameCallFunction}
     }
     const objects:Array<any> = [] ;
@@ -56,11 +55,8 @@ export const serverGroups = TSTest.group("Testing TSServer API definitions", asy
     group.unary(`Testing api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, async (t) => {
         t.expect(objects[5]).toBeUndefined() ;
     }) ;
-    group.unary(`Testing api '/v{vers}/session1/{sid}'`, async (t) => {
-        t.expect(objects[6]).toBeUndefined() ;
-    }) ;
     group.unary(`Testing api '/v{vers}/session2/{sid}'`, async (t) => {
-        t.expect(objects[7]).toBeDefined() ;
+        t.expect(objects[6]).toBeDefined() ;
     }) ;
 }) ;
 

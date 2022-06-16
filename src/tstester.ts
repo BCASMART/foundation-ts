@@ -141,8 +141,8 @@ export class TSExpectAgent {
 
     public toBeTruthy()         { if (!this._value)                 { this._elogfail(true) ;} else { this._step?.pass() ; }}
     public toBeFalsy()          { if (this._value)                  { this._elogfail(false) ;} else { this._step?.pass() ; }}
-    public toBeUndefined()      { if ($defined(this._value))        { this._nelogfail(undefined) ; } else { this._step?.pass() ; }}
-    public toBeDefined()        { if (!$defined(this._value))       { this._elogfail(undefined) ; ; } else { this._step?.pass() ; }}
+    public toBeUndefined()      { if ($defined(this._value))        { this._elogfail(undefined) ; } else { this._step?.pass() ; }}
+    public toBeDefined()        { if (!$defined(this._value))       { this._nelogfail(undefined) ; ; } else { this._step?.pass() ; }}
     public toBeNull()           { if (this._value !== null)         { this._elogfail(null) ; } else { this._step?.pass() ; }}
     public toBeNotNull()        { if (this._value === null)         { this._nelogfail(null) ; } else { this._step?.pass() ; }}
 

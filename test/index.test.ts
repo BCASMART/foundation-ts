@@ -1,6 +1,7 @@
 import { TSTester } from '../src/tstester'
 import { commonsGroups } from "./commons.test";
 import { fsGroups } from './fs.test';
+import { colorGroups } from './tscolor.test';
 import { countriesGroups } from './tscountry.test';
 import { dataGroups } from './tsdata.test';
 import { dateGroups } from './tsdate.test';
@@ -28,5 +29,6 @@ tester.addGroups(requestGroups) ;
 tester.addGroups(serverGroups) ;
 tester.addGroups(utilsGroups) ;
 tester.addGroups(dataGroups) ;
+tester.addGroups(colorGroups) ;
 
 tester.run() ;

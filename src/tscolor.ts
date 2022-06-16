@@ -1,7 +1,7 @@
-import { $isnumber, $isstring, $isunsigned, $ok } from "./commons";
+import { $defined, $isnumber, $isstring, $isunsigned, $ok, $trim, $string, $keys, $isbool } from "./commons";
 import { $numcompare } from "./compare";
 import { Class, TSObject } from "./tsobject";
-import { AnyDictionary, Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX } from "./types";
+import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX } from "./types";
 
 export const TSWebColorNames: StringDictionary = {
 	aliceblue: "#f0f8ff",
@@ -58,7 +58,7 @@ export const TSWebColorNames: StringDictionary = {
 	goldenrod: "#daa520",
 	gold: "#ffd700",
 	gray: "#808080",
-	green: "#008000",
+	green: "#00ff00",
 	greenyellow: "#adff2f",
 	grey: "#808080",
 	honeydew: "#f0fff0",
@@ -154,20 +154,39 @@ export const TSWebColorNames: StringDictionary = {
 	yellowgreen: "#9acd32",
 };
 
-const WebColorsHexParsers: AnyDictionary = {
-	4: {
+interface _StringColorRegex {
+    rx: RegExp ;
+    short:boolean ;
+}
+
+const WebColorsHexParsers:Array<_StringColorRegex|null> = [
+    null, null, null,
+	{
+		rx: /^([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
+		short: true
+	},
+	{
 		rx: /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
 		short: true
 	},
-	7: {
+    null,
+    {
+		rx: /^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
+		short: false
+    },
+	{
 		rx: /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
 		short: false
 	},
-	9: {
+	{
+		rx: /^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
+		short: false
+	},
+	{
 		rx: /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
 		short: false
 	}
-}
+] ;
 
 export function $lighter(c: number): uint8 {
 	c = Math.max(0, Math.min(c, 255)) / 255.0;
@@ -184,25 +203,60 @@ export function $lightest(c: number): uint8 {
 export function $darkest(c: number): uint8 {
 	return $darker($darker(c));
 }
-
+/**
+ * TSColor are immutable objects which are cached (if you use TSColor.color())
+ * better 
+ */
 export class TSColor implements TSObject<TSColor> {
-	public red: uint8;
-	public green: uint8;
-	public blue: uint8;
-	public alpha: uint8;
+	public readonly red: uint8;
+	public readonly green: uint8;
+	public readonly blue: uint8;
+	public readonly alpha: uint8;
+    private _name?: string ;
 
-	static readonly red = new TSColor(0xff, 0, 0);
-	static readonly green = new TSColor(0, 0xff, 0);
-	static readonly yellow = new TSColor(0xff, 0xff, 0);
-	static readonly blue = new TSColor(0, 0, 0xff);
-	static readonly cyan = new TSColor(0, 0xff, 0xff);
-	static readonly magenta = new TSColor(0xff, 0, 0xff);
-	static readonly white = new TSColor(0xff, 0xff, 0xff);
-	static readonly black = new TSColor(0, 0, 0);
-	static darkWriteColor = TSColor.black;
-	static lightWriteColor = TSColor.white;
+    private static __colorsCache:Map<string,TSColor>|undefined  ;
+    private static readonly __colorCacheMaxSize = 16384 ;
+
+    public static readonly red      = TSColor.color('red') ;
+	public static readonly green    = TSColor.color('green') ;
+	public static readonly yellow   = TSColor.color('yellow') ;
+	public static readonly blue     = TSColor.color('blue') ;
+	public static readonly cyan     = TSColor.color('cyan') ;
+	public static readonly magenta  = TSColor.color('magenta') ;
+	public static readonly white    = TSColor.color('white') ;
+	public static readonly black    = TSColor.color('black') ;
+	
+    public static darkWriteColor    = TSColor.black ;
+	public static lightWriteColor   = TSColor.white ;
+
+
+	static color():TSColor;
+	static color(stringColor: string):TSColor;
+	static color(colorDefinition: number):TSColor;
+	static color(r: number, g: number, b: number, a?: number):TSColor;
+    static color():TSColor {
+        if (arguments.length === 1 && $isstring(arguments[0])) {
+            const s = $trim(arguments[0]).toLowerCase() ;
+            
+            let color = TSColor._cachedColor(s) ;
+            if ($defined(color)) { return color! ;}
+            
+            color = new TSColor(arguments[0], true) ; // this may throw
+
+            if (TSColor.__colorsCache!.size < TSColor.__colorCacheMaxSize) {
+                TSColor.__colorsCache!.set(s, color) ;
+            }
+            
+            return color ; 
+        }
+        else if (arguments.length === 1 || arguments.length === 3 || arguments.length === 4) {
+            return new (Function.prototype.bind.apply(TSColor, [null, ...arguments])); // this may throw
+        }
+        return TSColor.black ;
+    }
 
 	constructor(stringColor: string);
+	constructor(stringColor: string, dontCheckCache?:boolean);
 	constructor(colorDefinition: number);
 	constructor(r: number, g: number, b: number, a?: number);
 	constructor() {
@@ -213,26 +267,45 @@ export class TSColor implements TSObject<TSColor> {
 			this.blue = _parseColorComponent(arguments[2]);
 			this.alpha = n === 4 ? _parseColorComponent(arguments[3]) : UINT8_MAX;
 			return;
-		} else if (n === 1) {
-			if ($isstring(arguments[0])) {
-				let s = arguments[0] as string;
-				s = s.replace(/ /g, ""); // TODO: do we need to accept '-' as a spacer here ?
-				s = TSWebColorNames[s.toLowerCase()] || s;
-				let parser = WebColorsHexParsers[s.length];
-				let m = parser?.match(parser.rx);
-				if ($ok(m)) {
-					this.red = <uint8>parseInt(m[1], 16);
-					this.green = <uint8>parseInt(m[2], 16);
-					this.blue = <uint8>parseInt(m[3], 16);
-					if (parser?.short) {
-						this.red = <uint8>((this.red << 4) | this.red);
-						this.green = <uint8>((this.green << 4) | this.green);
-						this.blue = <uint8>((this.blue << 4) | this.blue);
-					}
-					this.alpha = m.length === 5 ? <uint8>parseInt(m[4], 16) : UINT8_MAX;
-					return;
-				}
-			} else if ($isnumber(arguments[0])) {
+		}
+        else if (n === 1 || (n === 2 && $isstring(arguments[0]) && $isbool(arguments[1]))) {
+            if ($isstring(arguments[0])) {
+                let s = arguments[0] as string ;
+                
+                if (!arguments[1]) {
+                    s = $trim(arguments[0]).toLowerCase() ;
+                    let color = TSColor._cachedColor(s) ;
+                    if ($defined(color)) { 
+                        this.red = this.green = this.blue = this.alpha = 0 as uint8 ; // JUST TO AVOID ERRORS FROM TS!
+                        return color! ; 
+                    }
+                }
+
+                if (s.length < 10) {
+                    let parser = WebColorsHexParsers[s.length];
+                    if ($ok(parser)) {
+                        const m = s.match(parser!.rx) ;
+                        if ($ok(m)) {
+                            this.red = <uint8>parseInt(m![1], 16);
+                            this.green = <uint8>parseInt(m![2], 16);
+                            this.blue = <uint8>parseInt(m![3], 16);
+        					if (parser!.short) {
+                                this.red = <uint8>((this.red << 4) | this.red);
+                                this.green = <uint8>((this.green << 4) | this.green);
+                                this.blue = <uint8>((this.blue << 4) | this.blue);
+                            }
+                            this.alpha = m!.length === 5 ? <uint8>parseInt(m![4], 16) : UINT8_MAX ;
+                            if (!arguments[1]) {
+                                TSColor._cacheColor(this) ;
+                            }
+
+                            return ;
+                        }
+                    }
+
+                }
+			} 
+            else if ($isnumber(arguments[0])) {
 				let v = arguments[0] as number;
 				if ($isunsigned(v) && v <= UINT32_MAX) {
 					this.alpha = <uint8>(UINT8_MAX - ((v >> 24) & UINT8_MAX));
@@ -246,8 +319,9 @@ export class TSColor implements TSObject<TSColor> {
 		throw "Bad color constructor parameters";
 	}
     
-	public clone():TSColor { return new TSColor(this.red, this.green, this.blue, this.alpha) ; }
-
+    public get name():string { return $string(this._name) ; }
+	public clone():TSColor { return this ; } // no clone on immutable objects
+    
 	public luminance(): number {
 		return (0.3 * this.red + 0.59 * this.green + 0.11 * this.blue) / 255.0;
 	}
@@ -255,7 +329,9 @@ export class TSColor implements TSObject<TSColor> {
 		return this.luminance() > 0.6;
 	}
 
-	public lighterColor(): TSColor {
+    public alphaColor(alpha:uint8):TSColor { return new TSColor(this.red, this.green, this.blue, alpha) ; }
+
+    public lighterColor(): TSColor {
 		return new TSColor(
 			$lighter(this.red),
 			$lighter(this.green),
@@ -327,6 +403,15 @@ export class TSColor implements TSObject<TSColor> {
             (other instanceof TSColor ? $numcompare(this.luminance(), other.luminance()) : undefined) ;
     }
 
+    public shortestCSSString() {
+        if ((this.red >> 4 & 0x0f) === (this.red & 0x0f) && 
+            (this.green >> 4 & 0x0f) === (this.green & 0x0f) &&
+            (this.blue >> 4 & 0x0f) === (this.blue & 0x0f)) {
+                return `#${(this.red & 0x0f).toString(16)}${(this.green & 0x0f).toString(16)}${(this.blue & 0x0f).toString(16)}` ;
+        }
+        return this.toString(true) ;
+    }
+
 	public toString(removeAlpha: boolean = false): string {
 		return this.alpha === 255 || removeAlpha
 			? `#${_toHex(this.red)}${_toHex(this.green)}${_toHex(this.blue)}`
@@ -342,6 +427,36 @@ export class TSColor implements TSObject<TSColor> {
 	}
 
 	public toArray(): uint8[] { return [this.red, this.green, this.blue, this.alpha]; }
+
+    // =============== private methods =========================
+    private static _cacheColor(c:TSColor) {
+        if (c.name.length) { TSColor.__colorsCache?.set(c.name, c) ; }
+        const s = c.toString().toLowerCase() ;
+        TSColor.__colorsCache?.set(s, c) ;
+        TSColor.__colorsCache?.set(s.slice(1), c) ;
+        if (c.alpha === 0xff) {
+            TSColor.__colorsCache?.set(s+'ff', c) ;
+            TSColor.__colorsCache?.set(s.slice(1)+'ff', c) ;
+            const short = c.shortestCSSString() ;
+            if (short !== s) { 
+                TSColor.__colorsCache?.set(short, c) ; 
+                TSColor.__colorsCache?.set(short.slice(1), c) ;
+            }    
+        }
+    }
+
+    private static _cachedColor(c:string):TSColor|undefined {
+        if (!$defined(TSColor.__colorsCache)) { 
+            TSColor.__colorsCache = new Map<string,TSColor>() ;
+            for (let name of $keys(TSWebColorNames)) {
+                const v = TSWebColorNames[name] ;
+                const c = new TSColor(v) ;
+                c._name = name as string ;
+                TSColor._cacheColor(c) ;
+            } ;
+        }
+        return TSColor.__colorsCache!.get(c) ;
+    }
 
 }
 
