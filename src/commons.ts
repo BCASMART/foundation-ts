@@ -24,8 +24,8 @@ export function $isnumber(o:any | null | undefined) : boolean
 export function $isint(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
 
-export function $isunsigned(o:any | null | undefined) : boolean
-{ return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= UINT_MAX ; }
+export function $isunsigned(o:any | null | undefined, maximum:number=UINT_MAX) : boolean
+{ return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
 
 export function $isbool(o:any | null | undefined) : boolean
 { return o !== null && o !== undefined && typeof o === 'boolean' ; }

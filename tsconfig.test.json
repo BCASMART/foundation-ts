@@ -22,6 +22,7 @@
         "noUnusedLocals": true,
         "noUnusedParameters": false,
         "outDir": "./tdist",
+        "removeComments": false,
         "resolveJsonModule": true,
         "rootDir": ".",
         "skipLibCheck": true,

@@ -168,3 +168,23 @@ export function $inbrowser():boolean {
     }
     return false ;
 }
+
+export interface TSCall {
+    getFunction(): (...args: any[]) => any | undefined;
+	getFunctionName(): string | null;
+	getMethodName(): string | undefined;
+	getFileName(): string | null;
+	getLineNumber(): number | null;
+	getColumnNumber(): number | null;
+	getEvalOrigin(): string | undefined;
+	getTypeName(): string | null;
+	getThis(): unknown | undefined;
+}
+
+export function $stack():TSCall[] {
+    const previousPrepareStackTrace = Error.prepareStackTrace;
+	Error.prepareStackTrace = (_, stack) => stack;
+	const stack = new Error().stack ;
+	Error.prepareStackTrace = previousPrepareStackTrace;
+	return stack as unknown as TSCall[];
+}

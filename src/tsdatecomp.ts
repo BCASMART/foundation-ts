@@ -284,7 +284,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     const m = $int(opts.minutesOffset) ;
     const a = Math.abs(m) ;
     
-    if ($ok(opts.milliseconds) && (!$isunsigned(opts.milliseconds) || opts.milliseconds! > 999)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
+    if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
     if (!$isint(opts.minutesOffset) || a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos' ; }
     
     let s = $components2string(c, opts.form!) ;
