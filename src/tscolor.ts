@@ -78,7 +78,8 @@ export class TSColor implements TSObject<TSColor> {
             }
             else if ($isunsigned(arguments[0], UINT32_MAX)) {
                 const v = arguments[0] as number;
-                return new TSColor(TSColorSpace.RGB, [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff], 0xff - ((v >> 24) & 0xff)) ;
+                // by calling the static methods, the color will be cached.
+                return TSColor.rgb((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 0xff - ((v >> 24) & 0xff)) ;
             }               
         }
         else if (arguments.length === 3 || arguments.length === 4) {

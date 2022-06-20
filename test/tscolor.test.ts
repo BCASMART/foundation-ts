@@ -27,6 +27,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect(TSColor.rgb(255,255,0,255)).toBe(yellowRGB) ;
         t.expect(TSColor.rgbcomponents(1,1,0)).toBe(yellowRGB) ;
         t.expect(TSColor.rgbcomponents(1,1,0,1)).toBe(yellowRGB) ;
+        t.expect(TSColor.rgb(0xffff00)).toBe(yellowRGB) ;
         t.expect(TSColor.cmyk(0, 0, 1, 0)).toBe(yellowCMYK) ;
         t.expect(yellowRGB.colorSpace).toBe(TSColorSpace.RGB) ;
         t.expect(yellowCMYK.colorSpace).toBe(TSColorSpace.CMYK) ;
@@ -59,6 +60,8 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect(TSColor.rgb('FFFFFF').name).toBe('white') ;
         t.expect(TSColor.rgb('#FFFFFFFF').name).toBe('white') ;
         t.expect(TSColor.rgb('FFFFFFFF').name).toBe('white') ;
+        t.expect(TSColor.rgb(0xffffff).name).toBe('white') ;
+        t.expect(TSColor.rgb(0xffffffff).name).notToBe('white') ;
         t.expect(TSColor.rgbcomponents(1,1,1).name).toBe('white') ;
         t.expect(TSColor.cyan.name).toBe('') ;
         t.expect(TSColor.rgb('aquamarine').name).toBe('aquamarine') ;
