@@ -11,7 +11,7 @@ import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX,
  * CMYK and Grayscale colors are not. It's a one class implementation
  * of three colorspace. It's agains all OOD rules but it's efficient
  * in that case because of the proximity between CMYK and Grayscale
- * and the usage of primitives methods like rgb() or
+ * and the usage of primitives methods like rgb() or grayComponent() or
  * cmykComponents()
  */
 export interface TSColorToStringOptions {
@@ -21,10 +21,22 @@ export interface TSColorToStringOptions {
     colorSpace?:TSColorSpace ;
 }
 
+/**
+ *  Those are the 3 colorspace we can use.
+ *  If you need HSL or HSB values for a color,
+ *  use the hsb() or hsl() instance methods to
+ *  get the values you need. 
+ */
 export enum TSColorSpace {
-    RGB,
-    CMYK,
-    Grayscale
+    RGB         = 'RGB',
+    CMYK        = 'CMYK',
+    Grayscale   = 'GRAYSCALE'
+}
+
+export enum TSToGrayScaleMode {
+    Brightess,
+    Luminosity,
+    Luminance
 }
 
 export class TSColor implements TSObject<TSColor> {
@@ -36,24 +48,18 @@ export class TSColor implements TSObject<TSColor> {
     private static __colorsCache:Map<string,TSColor>|undefined  ;
     private static readonly __colorCacheMaxSize = 16384 ;
 
-    // THOSE ARE PRIMARY CMYK COLORS
-    // FOR EXAMPLE, GET RGB GREEN COLOR FROM TSColor.rgb('green')
-
-    public static readonly white    = TSColor.cmyk(0,0,0,0) ;
+    // THOSE ARE PRIMARY Grayscale or CMYK COLORS
+    // TO GET RGB Colors use TSColor.rgb(). 
+    // EG: To get a named color called green, use: TSColor.rgb('green')
+    public static readonly black    = TSColor.grayscale(0) ;
+    public static readonly white    = TSColor.grayscale(1) ;
 	public static readonly cyan     = TSColor.cmyk(1,0,0,0) ;
 	public static readonly magenta  = TSColor.cmyk(0,1,0,0) ;
 	public static readonly yellow   = TSColor.cmyk(0,0,1,0) ;
-    public static readonly black    = TSColor.cmyk(0,0,0,1) ;
     public static readonly red      = TSColor.cmyk(0,1,1,0) ;
 	public static readonly green    = TSColor.cmyk(1,0,1,0) ;
 	public static readonly blue     = TSColor.cmyk(1,1,0,0) ;
 	
-    /*
-        You can either use the TSColor constructor with syntax new TSColor(...)
-        but we advice to use the TSColor.rgb(...) and TSColor.cmyk(...) static 
-        functions. First, it makes more readable code and second we may mark
-        the TSColor constructor as private some day... 
-    */
 	public static rgb(stringColor: string):TSColor;
 	public static rgb(colorDefinition: number):TSColor;
 	public static rgb(R: number, G: number, B: number, A?: number):TSColor;
@@ -126,6 +132,11 @@ export class TSColor implements TSObject<TSColor> {
         throw 'TSColor.grayscale() : Bad parameters' ;
     }
 
+    /*
+        TSColor constructor is now private.
+        Use rgb() grayscale() and cmyk() static methods
+        to create new colors.
+    */
     private constructor(colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string) {
         this.colorSpace = colorSpace ;
         this._channels = channels ;
@@ -170,27 +181,7 @@ export class TSColor implements TSObject<TSColor> {
         return K >= 1 ? [0, 0 ,0 ,1] : [(C - K) / (1 - K), (M - K) / (1 - K), (Y - K) / (1 - K), K]
     }
 
-
-    // ================== accessors ===============================
-    public get name():string { return $string(this._name) ; }
-	public clone():TSColor { return this ; } // no clone on immutable objects
-
-    // RGB color space
-    public get red():uint8   { const [R,,] = this.rgb() ; return R as uint8 ;}
-    public get green():uint8 { const [,G,] = this.rgb() ; return G as uint8 ;}
-    public get blue():uint8  { const [,,B] = this.rgb() ; return B as uint8 ;}
-    public get alpha():uint8 { return (this.colorSpace == TSColorSpace.RGB ? this._alpha : $unsigned(this._alpha * 255)) as uint8 ;}
-    public get transparency():uint8 { return 255 - this.alpha as uint8 ; }
-
-    // CYMK color space
-    public get cyan():number    { const [C,,,] = this.cmykComponents() ; return C ; }
-    public get magenta():number { const [,M,,] = this.cmykComponents() ; return M ; }
-    public get yellow():number  { const [,,Y,] = this.cmykComponents() ; return Y ; }
-    public get black():number   { const [,,,K] = this.cmykComponents() ; return K ; }
-    public get opacity():number { return this.colorSpace == TSColorSpace.CMYK ? this._alpha : this._alpha / 255 ; }
-
-    // GRAY color space
-    public get gray():number    { 
+    public grayComponent(): number {
         if (this.colorSpace === TSColorSpace.RGB) {
             const [,,L] = this.hsb() ;
             return L / 100 ;
@@ -204,6 +195,27 @@ export class TSColor implements TSObject<TSColor> {
         return 1-K ; 
     }
 
+    // ================== accessors ===============================
+    public get name():string { return $string(this._name) ; }
+	public clone():TSColor { return this ; } // no clone on immutable objects
+
+    // RGB color space
+    public get red():uint8   { const [R,,] = this.rgb() ; return R as uint8 ;}
+    public get green():uint8 { const [,G,] = this.rgb() ; return G as uint8 ;}
+    public get blue():uint8  { const [,,B] = this.rgb() ; return B as uint8 ;}
+    public get alpha():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._alpha : $unsigned(this._alpha * 255)) as uint8 ;}
+    public get transparency():uint8 { return 255 - this.alpha as uint8 ; }
+
+    // CYMK color space
+    public get cyan():number    { const [C,,,] = this.cmykComponents() ; return C ; }
+    public get magenta():number { const [,M,,] = this.cmykComponents() ; return M ; }
+    public get yellow():number  { const [,,Y,] = this.cmykComponents() ; return Y ; }
+    public get black():number   { const [,,,K] = this.cmykComponents() ; return K ; }
+    public get opacity():number { return this.colorSpace !== TSColorSpace.RGB ? this._alpha : this._alpha / 255 ; }
+
+    // GRAY color space
+    public get gray():number    { return this.grayComponent() ; }
+    
     // ================== other methods ===========================
 
     public hsl():[number, number, number] {
@@ -274,9 +286,11 @@ export class TSColor implements TSObject<TSColor> {
     }
 
     // usesLuminosity = true if you want another more precise RGB or CMYK to grayscale conversion 
-    public toGrayscale(usesLuminosity:boolean=false):TSColor {
+    public toGrayscale(mode:TSToGrayScaleMode=TSToGrayScaleMode.Brightess):TSColor {
         if (this.colorSpace === TSColorSpace.Grayscale) { return this ; }
-        return usesLuminosity ? TSColor.grayscale(this.luminosity()) : TSColor.grayscale(this.gray) ;
+        return TSColor.grayscale(mode === TSToGrayScaleMode.Brightess ? 
+                                 this.grayComponent() : 
+                                 (mode === TSToGrayScaleMode.Luminosity ? this.luminosity() : this.luminance())) ;
     }
 
     public lighterColor(): TSColor { return this._modifiedColorsColor(1, _cmykLighter, _rgbLighter) ; }
@@ -354,10 +368,10 @@ export class TSColor implements TSObject<TSColor> {
         switch (this.colorSpace) {
             case TSColorSpace.CMYK:
                 const [C,M,Y,K] = this.cmykComponents() ;
-                return { cyan: C, magenta: M, yellow: Y, black:K, opacity:this._alpha}
+                return {cyan: C, magenta: M, yellow: Y, black:K, opacity:this._alpha}
             case TSColorSpace.Grayscale:
                 const [,,,KS] = this.cmykComponents() ;
-                return { grayscale: 1-KS, opacity:this._alpha}
+                return {grayscale: 1-KS, opacity:this._alpha}
             case TSColorSpace.RGB:
                 const [R,G,B] = this.rgb() ;
                 return this.alpha === 255 ? _colorToStandardCSS(R,G,B) : { red:R, green:G, blue:B, alpha:this._alpha } ;
