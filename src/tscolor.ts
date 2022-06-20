@@ -651,6 +651,9 @@ function _isShortRGB(R:uint8, G:uint8, B:uint8) {
 function _colorToShortCSS(R:uint8, G:uint8, B:uint8):string {
     return `#${(R & 0x0f).toString(16)}${(G & 0x0f).toString(16)}${(B & 0x0f).toString(16)}` ;
 }
+export interface TSColorConstructor {
+    new (colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string): TSColor;
+}
 
 function _colorToStandardCSS(R:uint8, G:uint8, B:uint8, A?:uint8):string {
     function _toHex(v: number): string {

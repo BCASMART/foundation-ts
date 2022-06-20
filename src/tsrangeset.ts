@@ -1,5 +1,5 @@
 import { $count, $isarray, $isnumber, $ok } from "./commons";
-import { TSList } from "./tslist";
+import { TSList, TSListConstructor } from "./tslist";
 import { $comformsToInterval, Interval, TSBadRange, TSRange } from "./tsrange";
 import { Ascending, Comparison, Descending, Same } from "./types";
 
@@ -364,4 +364,9 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
         }
         return undefined ;
     }
+}
+
+export interface TSRangeSetConstructor extends TSListConstructor<TSRange>
+{
+    new (v?:TSRangeSet|trrs|trrsa|null|undefined): TSRangeSet ;
 }

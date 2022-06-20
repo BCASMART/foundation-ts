@@ -14,6 +14,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     const [H4,S4,L4] = yellowCMYK.hsl() ;
     const [H5,S5,B5] = realGray.hsb() ;
     const [H6,S6,B6] = rgbGray.hsb() ;
+    
     group.unary("verifying colors creation", async(t) => {
         t.expect(TSColor.rgb('ff0')).toBe(yellowRGB) ;
         t.expect(TSColor.rgb('#ff0')).toBe(yellowRGB) ;
@@ -74,9 +75,9 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect([H3, S3, B3]).toBe([60,100,100]) ;
         t.expect([H4, S4, L4]).toBe([60,100,50]) ;
         t.expect([H5, S5, B5]).toBe([0,0,50]) ;
-        t.expect([H6, S6, B6]).toBe([0,0,50]) ; // conversion is not exactly the same
+        t.expect([H6, S6, B6]).toBe([0,0,50]) ;
         t.expect(realGray.gray).toBe(0.5) ;
-        t.expect(rgbGray.gray).toBe(0.5) ; // conversion is not exactly the same
+        t.expect(rgbGray.gray).toBe(0.5) ;
     }) ;
 
 }) ;

@@ -65,3 +65,7 @@ export class TSDataCursor extends TSData
         this._cursor = offset + size ;
     }
 }
+
+export interface TSDataCursorConstructor {
+    new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataCursorOptions): TSDataCursor;
+}

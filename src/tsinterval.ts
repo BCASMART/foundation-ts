@@ -2,7 +2,7 @@ import { $isint, $jsonobj, $ok } from "./commons";
 import { Interval, TSBadRange, TSRange } from "./tsrange" ;
 import { TSDate } from "./tsdate";
 import { Ascending, Comparison, Descending, Same } from "./types";
-import { TSCouple } from "./tscouple";
+import { TSCouple, TSCoupleConstructor } from "./tscouple";
 
 /************************************************
  *  WARNING: range conformance methods and containing 
@@ -134,3 +134,9 @@ export class TSInterval extends TSCouple<TSDate | null | undefined, TSDate | nul
 	public toJSON():{start:TSDate|null|undefined, end:TSDate|null|undefined} { return {start:$jsonobj(this.first), end:$jsonobj(this.second)} ; }
 	public toArray():TSInterval[] { return [this] ; } // should we not return one or two dates here ?
 }
+
+export interface TSIntervalConstructor extends TSCoupleConstructor<TSDate | null | undefined, TSDate | null | undefined>
+{
+    new (first:TSDate | null | undefined, second:TSDate | null | undefined): TSInterval ;
+}
+

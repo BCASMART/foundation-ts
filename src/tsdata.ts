@@ -309,6 +309,9 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
     }
 
 }
+export interface TSDataConstructor {
+    new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataOptions): TSData;
+}
 
 function _bytesFromAsciiString(source:string|null|undefined):uint8[] {
     const len = $length(source) ;

@@ -200,3 +200,7 @@ export class TSList<T> extends TSRootObject<TSList<T>> {
 		return array ;
 	}
 }
+
+export interface TSListConstructor<T> {
+    new (data: T): TSList<T>;
+}

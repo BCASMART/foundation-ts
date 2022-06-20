@@ -32,3 +32,6 @@ export class TSCouple<T,U> implements TSObject<TSCouple<T,U>> {
 	public toArray():any[] { return [this.first, this.second] ; }
 }
 
+export interface TSCoupleConstructor<T,U> {
+    new (first:T, second:U): TSCouple<T,U>;
+}
