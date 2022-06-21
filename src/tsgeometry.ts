@@ -1,4 +1,4 @@
-import { $isnumber, $isobject, $isstring, $ok } from "./commons";
+import { $isarray, $isnumber, $isobject, $isstring, $ok } from "./commons";
 import { Class, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Same } from "./types";
 
@@ -12,19 +12,26 @@ export interface TSSize {
     h:number ;
 }
 
+export enum TSRectEdge {
+  TSMinXEdge = 0,
+  TSMinYEdge = 1,
+  TSMaxXEdge = 2,
+  TSMaxYEdge = 3
+} ;
+
 export type TSDocumentFormat    = 'letter' | 'legal' | 'tabloid' | 'a0' | 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6' ;
 
 export const  TSDocumentFormats:{[key in TSDocumentFormat]:TSSize} = {
-    letter: { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(11) },
-    legal:  { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(14) },
-    tabloid:{ w:TSInches2Pixels(11),   h:TSInches2Pixels(17) },
-    a0:     { w:TSmm2Pixels(841),      h:TSmm2Pixels(1189) },
-    a1:     { w:TSmm2Pixels(594),      h:TSmm2Pixels(841)  },
-    a2:     { w:TSmm2Pixels(420),      h:TSmm2Pixels(594)  },
-    a3:     { w:TSmm2Pixels(297),      h:TSmm2Pixels(420)  },
-    a4:     { w:TSmm2Pixels(210),      h:TSmm2Pixels(294)  },
-    a5:     { w:TSmm2Pixels(148),      h:TSmm2Pixels(210)  },
-    a6:     { w:TSmm2Pixels(105),      h:TSmm2Pixels(148)  }
+    letter:     { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(11) },
+    legal:      { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(14) },
+    tabloid:    { w:TSInches2Pixels(11),   h:TSInches2Pixels(17) },
+    a0:         { w:TSmm2Pixels(841),      h:TSmm2Pixels(1189) },
+    a1:         { w:TSmm2Pixels(594),      h:TSmm2Pixels(841)  },
+    a2:         { w:TSmm2Pixels(420),      h:TSmm2Pixels(594)  },
+    a3:         { w:TSmm2Pixels(297),      h:TSmm2Pixels(420)  },
+    a4:         { w:TSmm2Pixels(210),      h:TSmm2Pixels(297)  },
+    a5:         { w:TSmm2Pixels(148),      h:TSmm2Pixels(210)  },
+    a6:         { w:TSmm2Pixels(105),      h:TSmm2Pixels(148)  }
 } ;
 
 export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
@@ -36,6 +43,7 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
 	public constructor() ;
 	public constructor(rect:TSRect) ;
     public constructor(format:TSDocumentFormat) ;
+    public constructor(arrayRect:number[]) ;
     public constructor(x:number, y:number, w:number, h:number) ;
 	public constructor(origin:TSPoint, w:number, h:number) ;
     public constructor(x:number, y:number, size:TSSize|TSDocumentFormat) ;
@@ -51,20 +59,29 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
                     const size = TSDocumentFormats[arguments[0] as TSDocumentFormat] ;
                     if ($ok(size)) {
                         this.x = this.y = 0 ;
-                        this.w = size!.w ;
-                        this.h = size!.h ;
+                        this.w = size!.w ; this.h = size!.h ;
                     }
                     else {
                         throw 'Bad TSRect() constructor: bad document format' ;
                     }
                 }
+                else if ($isarray(arguments[0])) {
+                    const a = arguments[0] as Array<number> ;
+                    if (a.length === 4 && $isnumber(a[0]) && $isnumber(a[1]) && $isnumber(a[2]) && $isnumber(a[3]) && a[2] >= 0 && a[3] >= 0) {
+                        this.x = a[0] ; this.y = a[1] ;
+                        this.w = a[2] ; this.h = a[3] ;
+                    }
+                    else {
+                        throw 'Bad TSRect() constructor: bad rect definition array' ;
+                    }
+                }
                 else if ((arguments[0] instanceof TSRect)) {
                     const r = arguments[0] as TSRect ;
-                    if (r.w >= 0 && r.h >= 0) {
-                        this.x = r.x ;
-                        this.y = r.y ;
-                        this.w = r.w ;
-                        this.h = r.h ;    
+                    const w = r.width ; 
+                    const h = r.height ;
+                    if (w >= 0 && h >= 0) {
+                        this.x = r.minX ; this.y = r.minY ;
+                        this.w = w ; this.h = h ;    
                     }
                     else {
                         throw 'Bad TSRect() constructor: bad TSRect parameter' ;
@@ -78,7 +95,7 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
             case 2:
                 if ($isobject(arguments[0]) && ('x' in arguments[0]) && ('y' in arguments[0])) {
                     const size = $isstring(arguments[1]) ? TSDocumentFormats[arguments[1] as TSDocumentFormat] : arguments[1] as TSSize ;
-                    if ($ok(size) && ('w' in size) && ('h' in size) && size.w >= 0 && size.h >= 0) {
+                    if ($isobject(size) && ('w' in size) && ('h' in size) && size.w >= 0 && size.h >= 0) {
                         this.x = (arguments[0] as TSPoint).x ;
                         this.y = (arguments[0] as TSPoint).y ;
                         this.w = (size as TSSize).w ;
@@ -134,64 +151,141 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
         }
     }
 
-    public get origin():TSPoint { return { x:this.x, y:this.y } ; }
-    public get size():TSSize    { return { w:this.w, h:this.h } ; }
+    public get origin():TSPoint { return { x:this.minX, y:this.minY } ; }
+    public get size():TSSize    { return { w:this.width, h:this.height } ; }
+
+    public get width():number   { return this.maxX - this.minX ; }
+    public get height():number  { return this.maxY - this.minY ; }
 
     public get minX():number    { return this.x ; }
     public get minY():number    { return this.y ; }
     public get maxX():number    { return this.x + this.w ; }
     public get maxY():number    { return this.y + this.h ; }
+
     public get midX():number    { return this.x + this.w/2 ; }
     public get midY():number    { return this.y + this.h/2 ; }
 
     public get isEmpty():boolean  { return this.w > 0 && this.h > 0 ? false : true ; }
 
-    public contains(p:TSPoint|TSRect|null|undefined):boolean {
+    public contains(p:TSPoint|TSRect|number[]|null|undefined):boolean {
         if (p instanceof TSRect) {
             const r = p as TSRect ;
             return !r.isEmpty && this.minX <= r.minX && this.minY <= r.minY && this.maxX >= r.maxX && this.maxY >= r.maxY ;
         }
-        return $ok(p) ? p!.x >= this.minX && p!.x <= this.maxX && p!.y >= this.minY && p!.y <= this.maxY : false ;
+        if ($isarray(p)) {
+            const a = p as number[] ;
+            if ((a.length === 2 || a.length === 4) && $isnumber(a[0]) && $isnumber(a[1]) && (a.length === 2 || ($isnumber(a[2]) && $isnumber(a[3]) && a[2] >= 0 && a[3]>=0))) {
+                return a.length === 2 ? this.contains({x:a[0], y:a[1]}) : this.contains(new TSRect(a[0], a[1], a[2], a[3]))
+            }
+            return false ;
+        }
+        return $isobject(p) && ('x' in p!) && ('y' in p!) ? p!.x >= this.minX && p!.x <= this.maxX && p!.y >= this.minY && p!.y <= this.maxY : false ;
     }
     
-    public containedIn(r:TSRect|null|undefined):boolean {
-        return $ok(r) ? r!.contains(this) : false ;
+    public containedIn(r:TSRect|number[]|null|undefined):boolean {
+        try { r = $isarray(r) ? new TSRect(r as number[]) : r ; }
+        catch { return false ; }
+
+        return $ok(r) ? (r as TSRect).contains(this) : false ;
     }
 
-    public intersects(r:TSRect):boolean {
+    public intersects(r:TSRect|number[]|null|undefined):boolean {
+        if (!$ok(r)) { return false ; }
+
+        try { r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ; }
+        catch { return false ; }
+
         return this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty ? false : true ;
     }
 
-    public intersection(r:TSRect):TSRect {
+    public intersection(r:TSRect|number[]|null|undefined):TSRect {
         let rect = new TSRect() ;
+        if (!$ok(r)) { return rect ; }
+        try { r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ; }
+        catch { return rect ; }
 
         if (this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY) {
             return rect ;
         }
 
-        rect.x = this.minX <= r.minX ? r.x : this.x ;
-        rect.y = this.minY <= r.minY ? r.y : this.y ;
-        rect.w = (this.maxX >= r.maxX ? r.maxX : this.maxX) - rect.x ;
-        rect.h = (this.maxY >= r.maxY ? r.maxY : this.maxY) - rect.y ;
+        rect.x = Math.max(this.minX, r.minX) ;
+        rect.y = Math.max(this.minY, r.minY) ;
+        rect.w = Math.min(this.maxX, r.maxX) - rect.x ;
+        rect.h = Math.min(this.maxY, r.maxY) - rect.y ;
 
         return rect ;
     }
 
-    public union(r:TSRect):TSRect {
-        if (this.isEmpty) { return r.isEmpty ? new TSRect() : r.clone() ; }
-        if (r.isEmpty) { return this.clone() ; }
+    public union(r:TSRect|number[]|undefined|null):TSRect {
+        if (!$ok(r))      { return this.clone() ; }
+        r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ;
 
-        const originX = Math.min(this.minX, r.minX) ;
-        const originY = Math.min(this.minY, r.minY) ;
+        if (this.isEmpty) { return r.clone() ; } // r may be empty here. We clone it anyway.
+        if (r.isEmpty)    { return this.clone() ; }
 
-        return new TSRect(originX, originY, Math.max(this.maxX, r.maxX) - originX, Math.max(this.maxY, r.maxY) - originY) ;
+        let rect = new TSRect() ;
+
+        rect.x = Math.min(this.minX, r.minX) ;
+        rect.y = Math.min(this.minY, r.minY) ;
+        rect.w = Math.max(this.maxX, r.maxX) - rect.x ;
+        rect.h = Math.max(this.maxY, r.maxY) - rect.y ;
+
+        return rect ;
     }
 
-    public insetRect(deltaW:number, deltaH:number):TSRect {
-        return new TSRect(this.minX-deltaW, this.minY-deltaW, this.w + deltaW*2, this.h + deltaH*2) ;
+    public offsetRect(dx:number, dy:number):TSRect {
+        return new TSRect(this.minX+dx, this.minY+dy, this.width, this.height) ;
     }
 
-    public clone():TSRect { return new TSRect(this.x, this.y, this.w, this.h) ; }
+    public insetRect(dw:number, dh:number):TSRect {
+        return new TSRect(this.minX-dw, this.minY-dh, this.width + dw*2, this.height + dh*2) ;
+    }
+
+    public integralRect():TSRect {
+        let rect = new TSRect() ;
+        rect.x = Math.floor(this.minX) ;
+        rect.y = Math.floor(this.minY) ;
+
+        if (this.isEmpty) { return rect ; }
+        rect.w = Math.ceil(this.maxX) - rect.x ;
+        rect.h = Math.ceil(this.maxY) - rect.y ;
+        
+        return rect ;
+    }
+
+    // first part of the returned tupple is the slice and second part the remaining part
+    public divideRect(amount:number, edge:TSRectEdge):[TSRect,TSRect] {
+
+        if (amount < 0) { amount = 0 ; }
+
+        const x = this.minX ;
+        const y = this.minY ;
+        const w = this.width ;
+        const h = this.height ;
+
+        switch (edge) {
+            case TSRectEdge.TSMinXEdge:
+                return amount > w ? 
+                       [new TSRect(x,y,w,h), new TSRect(this.maxX, y, 0, h)] :
+                       [new TSRect(x, y, amount, h), new TSRect(x+amount, y, w-amount, h)] ; 
+            case TSRectEdge.TSMinYEdge:
+                return amount > h ?
+                       [new TSRect(x,y,w,h), new TSRect(x, this.maxY, w, 0)] :
+                       [new TSRect(x, y, w, amount), new TSRect(x, y+amount, w, h-amount)] ;
+            case TSRectEdge.TSMaxXEdge:
+                return amount > w ?
+                       [new TSRect(x,y,w,h), new TSRect(x, y, 0, h)] :
+                       [new TSRect(this.maxX-amount, y, amount, h), new TSRect(x, y, w-amount, h)] ;
+            case TSRectEdge.TSMaxYEdge:
+                return amount > h ?
+                       [new TSRect(x,y,w,h), new TSRect(x, y, w, 0)] :
+                       [new TSRect(x, this.maxY-amount, w, amount), new TSRect(x, y, w, h - amount)] ;
+        }
+    }
+
+    public clone():TSRect {
+        return new TSRect(this.minX, this.minY, this.width, this.height) ; 
+    }
 
     // ============ TSObject conformance =============== 
 	public get isa(): Class<TSRect> { return this.constructor as Class<TSRect>; }
@@ -204,21 +298,27 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
         if (other === this) { return Same ; }
         if (!(other instanceof TSRect)) { return undefined ; }
 
-        const area = this.w * this.h ;
-        const otherArea = other.w * other.h ;
+        const area = this.width * this.height ;
+        const otherArea = other.width * other.height ;
 
         if (area === otherArea) {
-            if (this.x === other.x) { return this.y < other.y ? Ascending : (this.y > other.y ? Descending : Same) ; }
-            if (this.y === other.y) { return this.x < other.x ? Ascending : Descending ; }
-            if (this.x < other.y && this.y < other.y) { return Ascending ; }
-            if (this.x > other.y && this.y > other.y) { return Descending ; }
-            return undefined ; // same area but positions are all over the place
+            const aX = this.minX ; const aY = this.minY ;
+            const bX = other.minX ; const bY = other.minY ;
+            if (aX === bX) { return aY < bY ? Ascending : (aY > bY ? Descending : Same) ; }
+            if (aY === other.y) { return aX < bX ? Ascending : Descending ; }
+            if (aX < bX && aY < bY) { return Ascending ; }
+            if (aX > bX && aY > bY) { return Descending ; }
+            return undefined ; // same area but origins are not comparable
         }
         return area < otherArea ? Ascending : Descending ;
     }
 
-    public toJSON():object { return {x:this.x, y:this.y, w:this.w, h:this.h} ; }
-    public toString(): string { return `((${this.x}, ${this.y})-(${this.w}, ${this.h}))` ; }
+    public toJSON():object { 
+        return {x:this.minX, y:this.minY, w:this.width, h:this.height} ; 
+    }
+    public toString(): string { 
+        return `{x = ${this.minX}, y = ${this.minY}), w:${this.width}, h:${this.height}}` ; 
+    }
     public toArray(): number[] { return [this.minX, this.minY, this.maxX, this.maxY] ; }
 }
 
@@ -230,3 +330,6 @@ export function TSPixels2mm(pixels:number) { return pixels * 16 / 45 ; }
 
 export function TSInches2Pixels(inches:number) { return inches * 72 ; }
 export function TSPixels2Inches(pixels:number) { return pixels / 72 ; }
+
+export function TSEqualSizes(A:TSSize, B:TSSize) { return A.w === B.w && A.h === B.h ; }
+export function TSEqualPoints(A:TSPoint, B:TSPoint) { return A.x === B.x && A.y === B.y ; }

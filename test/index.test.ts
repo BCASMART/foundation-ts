@@ -7,6 +7,7 @@ import { dataGroups } from './tsdata.test';
 import { dateGroups } from './tsdate.test';
 import { dateCompGroups } from './tsdatecomp.test';
 import { defaultsGroups } from './tsdefaults.test';
+import { geometryGroups } from './tsgeometry.test';
 import { intervalGroups } from './tsinterval.test';
 import { rangeGroups } from './tsrange.test';
 import { rangeSetGroups } from './tsrangeset.test';
@@ -30,5 +31,6 @@ tester.addGroups(serverGroups) ;
 tester.addGroups(utilsGroups) ;
 tester.addGroups(dataGroups) ;
 tester.addGroups(colorGroups) ;
+tester.addGroups(geometryGroups) ;
 
 tester.run() ;
