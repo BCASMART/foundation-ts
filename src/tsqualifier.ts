@@ -28,8 +28,13 @@ export type KeyPath<T> = RecursiveKeyPath<Required<T>, keyof Required<T>> | keyo
 
 
 export class TSQualifier<T> {
+    public readonly operator:QualifierOperator ;
+    private _operands:QualifierOperand[] ;
 
-    protected constructor(public operator:QualifierOperator, public operands:QualifierOperand[]) {}
+    protected constructor(operator:QualifierOperator, operands:QualifierOperand[]) {
+        this.operator = operator ;
+        this._operands = operands ;
+    }
 
     // Tree management qualifiers
 	public static OR<T>(conds:QualifierCondition<T>[] = []):TSQualifier<T> 	     { return new this<T>('OR', [...conds]) ; }
@@ -80,8 +85,8 @@ export class TSQualifier<T> {
     public static INRANGE<T>(key:KeyPath<T>, value:TSRange):TSQualifier<T> { 
 		let qual = this.AND<T>() ;
 		qual.addRange(key, value) ;
-		if (!qual.operands.length) throw 'TSQualifier.INRANGE(): Bad TSRange value' ;
-		return qual.operands.length === 1 ? qual.operands[0] : qual ;
+		if (!qual._operands.length) throw 'TSQualifier.INRANGE(): Bad TSRange value' ;
+		return qual._operands.length === 1 ? qual._operands[0] : qual ;
 	}
 
 	public static intersectionQualifiers<T>(A:QualifierOperand, B:QualifierOperand, C:KeyPath<T>, D:KeyPath<T>, strict:boolean, canUnspecify:boolean):Array<TSQualifier<T>> {
@@ -100,16 +105,24 @@ export class TSQualifier<T> {
 		}
 		return target ;
 	}
+    
+    public get isComposite() { return this.operator === 'AND' || this.operator === 'OR' || this.operator === 'NOT' ; }
+    public get isKeyValue()  { return !this.isComposite && this.operator !== 'OK' && this.operator !== 'KO' ; }
+
+    public key(): string | undefined { return this.isComposite ? undefined : this._operands[0].join('.') ; }
+    public keyArray(): string[] { return this.isComposite ? [] : this._operands[0] as string[] ; }
+    public value(): any { return this.isKeyValue ? this._operands[1] : undefined ; }
+    public qualifiers() : TSQualifier<T>[] { return this.isComposite ? this._operands : [] ; } 
 
 	public add(cond: QualifierCondition<T>) {
         if (this.operator !== 'OR' && this.operator !== 'AND') {
             throw 'TSQualifier.prototype.add(): trying to add condition on wrong qualifier' ;
         }
         if (cond instanceof TSQualifier && (cond as TSQualifier<T>).operator === this.operator) {
-			this.operands = [...this.operands, ...(cond as TSQualifier<T>).operands] ;
+			this._operands = [...this._operands, ...(cond as TSQualifier<T>)._operands] ;
         }
         else {
-            this.operands.push(cond) ;
+            this._operands.push(cond) ;
         }
     }
 
@@ -152,82 +165,82 @@ export class TSQualifier<T> {
 
     public inverse():TSQualifier<T> { return (this.constructor as any).NOT(this) as TSQualifier<T> ; }
 
-    public request():any { 
-        throw 'TSQualifier.request() must be implemented in concrete subclasses' ;
-    }
-
-    public validateValueForCondition(v:T, condition:AnyDictionary):boolean {
-        throw 'TSQualifier.validateValueForCondition() must be implemented in concrete subclasses' ;
-    }
-
-    public validateValue(v:T):boolean {
+    public validateValue(v:T, validateValueForCondition?:(v:T, cond:AnyDictionary) => boolean):boolean {
         let vals ;
         let op ;
 
         switch (this.operator) {
             case 'AND':
-                for (let cond of this.operands) {
+                for (let cond of this._operands) {
                     if (cond instanceof TSQualifier) { if (!cond.validateValue(v)) return false ; }
-                    else if (!this.validateValueForCondition(v, cond)) { return false ; }
+                    else if ($ok(validateValueForCondition)) { if (!validateValueForCondition!(v, cond)) return false ; }
+                    else {
+                        throw 'need a validateValueForCondition() callback to interpret a specific AND condition'
+                    }
                 }
                 return true ;
             case 'OR': 
-                for (let cond of this.operands) {
+                for (let cond of this._operands) {
                     if (cond instanceof TSQualifier) { if (cond.validateValue(v)) return true ; }
-                    else if (this.validateValueForCondition(v, cond)) { return true ; }
+                    else if ($ok(validateValueForCondition)) { if (validateValueForCondition!(v, cond)) return true ; }
+                    else {
+                        throw 'need a validateValueForCondition() callback to interpret a specific OR condition'
+                    }
                 }
                 return false ;
             case 'NOT':
-                const cond = this.operands[0] ;
-                return !(cond instanceof TSQualifier ? cond.validateValue(v) : this.validateValueForCondition(v, cond)) ;
+                const cond = this._operands[0] ;
+                if (cond instanceof TSQualifier) { return !cond.validateValue(v) ; }
+                else if ($ok(validateValueForCondition)) { return !validateValueForCondition!(v, cond) ; }
+                throw 'need a validateValueForCondition() callback to interpret a specific NOT condition'
             case 'OK':
-                return _valuesForKeyPath(v, this.operands[0]).length > 0 ;
+                return _valuesForKeyPath(v, this._operands[0]).length > 0 ;
             case 'KO':
-                return _valuesForKeyPath(v, this.operands[0]).length === 0 ;
+                return _valuesForKeyPath(v, this._operands[0]).length === 0 ;
             case 'EQ':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { if ($equal(v, op)) return true ; } ; return false ;
             case 'NEQ':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { if (!$equal(v, op)) return true ; } ; return false ;
             case 'LT': 
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { if ($compare(v, op) === Ascending) return true ; } ; return false ;
             case 'LTE':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) {
                     const comp = $compare(v, op) ;
                     if (comp === Same || comp === Ascending) return true ;
                 }
                 return false ;
             case 'GT':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { if ($compare(v, op) === Descending) return true ; } ; return false ;
             case 'GTE':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) {
                     const comp = $compare(v, op) ;
                     if (comp === Same || comp === Descending) return true ;
                 }
                 return false ;
             case 'LIKE':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { if ($sqllike(v, op)) return true ; } ; return false ;
             case 'IN':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { for (let e of op) { if ($equal(e,v)) return true ; } } ;
                 return false ;
             case 'NIN':
-                vals = _valuesForKeyPath(v, this.operands[0]) ;
-                op = this.operands[1] ;
+                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                op = this._operands[1] ;
                 for (let v of vals) { for (let e of op) { if ($equal(e,v)) return false ; } } ;                
                 return true ;
         }       

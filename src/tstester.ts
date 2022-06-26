@@ -29,13 +29,16 @@ export class TSTester {
     public async run() {
         // first phase, we construct all the unary test in an asynchronus function call
         this.log(`&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
-        for (let g of this.groups) { await g.prepare() ; }
+        let unaries = 0 ;
+        for (let g of this.groups) { unaries += await g.prepare() ; }
         let passed = 0, failed = 0 ;
         // second phase, we run the tests
         for (let g of this.groups) {
             const groupok = await g.run() ;
             if (groupok) { passed++ } else { failed++ ; }
+
         }
+        this.log(`&y${unaries.toString().padStart(4)}&0&e unary test${unaries === 1 ? 'was' : 's were'} executed.&0`) ;
         if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
         if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
         if (passed > 0 && !failed) {
@@ -66,8 +69,9 @@ export class TSTestGroup extends TSTest {
         this._unaries.push(new TSUnaryTest(this, s, f)) ;
     }
 
-    public async prepare() {
+    public async prepare():Promise<number> {
         await this.fn(this) ;
+        return this._unaries.length ;
     }
 
     public log(format:string, ...args:any[]) {
