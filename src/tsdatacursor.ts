@@ -69,3 +69,4 @@ export class TSDataCursor extends TSData
 export interface TSDataCursorConstructor {
     new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataCursorOptions): TSDataCursor;
 }
+

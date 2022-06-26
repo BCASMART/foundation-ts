@@ -211,9 +211,7 @@ export const dateGroups = [
         group.unary('d.toIsoString()', async (t) => { t.expect(D.toIsoString()).toBe("1945-05-08T23:01:00") ; }) ;
         group.unary('d.toIsoString(TSDateForm.ISO8601C)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601C)).toBe("19450508T230100") ; }) ;
         group.unary('d.toIsoString(TSDateForm.ISO8601L)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601L)).toBe("001945-05-08T23:01:00") ; }) ;
-    
-        group.unary('d.className', async (t) => { t.expect(D.className).toBe("TSDate") ; }) ;
-    
+        
         const C = new TSDate(1966, 4, 13, 12, 5, 22) ;
         group.unary('d.compare(>date)', async (t) => { t.expect(D.compare(C)).toBe(Ascending) ; }) ;
         group.unary('d.compare(=same var)', async (t) => { t.expect(D.compare(D)).toBe(Same) ; }) ;

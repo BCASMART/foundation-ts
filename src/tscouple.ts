@@ -1,6 +1,6 @@
 import { $json, $jsonobj } from "./commons";
 import { $equal, $compare } from "./compare";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Same } from "./types";
 
 /**
@@ -10,12 +10,11 @@ import { Comparison, Same } from "./types";
  * and instanceof works.
  */
 
-export class TSCouple<T,U> implements TSObject<TSCouple<T,U>> {
+export class TSCouple<T,U> implements TSObject, TSClone<TSCouple<T,U>> {
 	constructor(public first:T, public second:U) {}
+    public clone():TSCouple<T,U> { return new TSCouple(this.first, this.second) ; }
 
 	// ============ TSObject conformance =============== 
-	public get isa():Class<TSCouple<T,U>> { return this.constructor as Class<TSCouple<T,U>> ; }
-	public get className():string { return this.constructor.name ; }
 	public isEqual(other:any) : boolean { 
 		return this === other || (other instanceof TSCouple && $equal(other.first, this.first) && $equal(other.second, this.second)) ;
 	}

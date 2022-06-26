@@ -1,6 +1,6 @@
 import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok } from "./commons";
 import { $writeBuffer } from "./fs";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Same, uint, uint8 } from "./types" ;
 
 /**
@@ -13,7 +13,7 @@ export interface TSDataOptions {
     allocMethod?:(n:number) => Buffer;
 } ;
 
-export class TSData implements Iterable<number>, TSObject<TSData> {
+export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     protected _len:number ;
     protected _buf:Buffer ;
     private _allocFn:(n:number) => Buffer ;
@@ -50,7 +50,9 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
 
     public [Symbol.iterator]() {
         let pos = 0 ;
-        return { next: () => { return { done:pos >= this._len, value:this._buf[pos++] } ; }} ;
+        return { next: () => { 
+            return pos < this._len ? { done:false, value:this._buf[pos++] } : { done:true, value:NaN}; 
+        }} ;
     }
 
     public clone():TSData { return new TSData(this, { allocMethod:this._allocFn }) ; }
@@ -203,8 +205,6 @@ export class TSData implements Iterable<number>, TSObject<TSData> {
     public equals(otherBuffer: Uint8Array): boolean { return this.isEqual(otherBuffer) ; }
 
     // ============ TSObject conformance =============== 
-	public get isa():Class<TSData> { return this.constructor as Class<TSData> ; }
-	public get className():string { return this.constructor.name ; }
 
     public toString(encoding:((b:Buffer, start:number, end:number) => string)|BufferEncoding = 'binary', start:number = 0, end:number = this._len): string {
         start = Math.max(0, start) ;

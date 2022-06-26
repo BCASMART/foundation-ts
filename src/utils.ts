@@ -22,60 +22,60 @@ export function $term(s:string, escapeChar:string = '&'):string {
                 switch (c) {
                     case escapeChar: ret += escapeChar ; break ;
 
-                    case '0': ret += "\x1b[0m"  ; break ; // reset
+                    case '0': ret += "\x1b[0m"  ; break ;           // reset
 
                     // styles
-                    case '1': ret += "\x1b[1m"  ; break ; // bright mode
-                    case '>': ret += "\x1b[2m"  ; break ; // dimmed
-                    case '/': ret += "\x1b[3m"  ; break ; // italic
-                    case '_': ret += "\x1b[4m"  ; break ; // underscore
-                    case '%': ret += "\x1b[5m"  ; break ; // blinked
-                    case '<': ret += "\x1b[7m"  ; break ; // inversed
-                    case '-': ret += "\x1b[9m"  ; break ; // strikethrough
+                    case '1': ret += "\x1b[1m"  ; break ;           // bright mode
+                    case '>': ret += "\x1b[2m"  ; break ;           // dimmed
+                    case '/': ret += "\x1b[3m"  ; break ;           // italic
+                    case '_': ret += "\x1b[4m"  ; break ;           // underscore
+                    case '%': ret += "\x1b[5m"  ; break ;           // blinked
+                    case '<': ret += "\x1b[7m"  ; break ;           // inversed
+                    case '-': ret += "\x1b[9m"  ; break ;           // strikethrough
 
                     // colors
-                    case 'a': ret += "\x1b[38;5;216m" ; break ;  // apricot font
-                    case 'A': ret += "\x1b[48;5;216m" ; break ;  // apricot background
-                    case 'b': ret += "\x1b[34m" ; break ; // blue font
-                    case 'B': ret += "\x1b[44m" ; break ; // blue background
-                    case 'c': ret += "\x1b[36m" ; break ; // cyan font
-                    case 'C': ret += "\x1b[46m" ; break ; // cyan background
-                    case 'd': ret += "\x1b[38;5;238m" ; break ;  // dark gray font
-                    case 'D': ret += "\x1b[48;5;238m" ; break ;  // dark gray background
-                    case 'e': ret += "\x1b[38;5;229m" ; break ;  // egg white font
-                    case 'E': ret += "\x1b[48;5;229m" ; break ;  // egg white background
+                    case 'a': ret += "\x1b[38;5;216m" ; break ;     // apricot font
+                    case 'A': ret += "\x1b[48;5;216m" ; break ;     // apricot background
+                    case 'b': ret += "\x1b[34m" ; break ;           // blue font
+                    case 'B': ret += "\x1b[44m" ; break ;           // blue background
+                    case 'c': ret += "\x1b[36m" ; break ;           // cyan font
+                    case 'C': ret += "\x1b[46m" ; break ;           // cyan background
+                    case 'd': ret += "\x1b[38;5;238m" ; break ;     // dark gray font
+                    case 'D': ret += "\x1b[48;5;238m" ; break ;     // dark gray background
+                    case 'e': ret += "\x1b[38;5;229m" ; break ;     // egg white font
+                    case 'E': ret += "\x1b[48;5;229m" ; break ;     // egg white background
                     // fF
-                    case 'g': ret += "\x1b[32m" ; break ; // green font  
-                    case 'G': ret += "\x1b[42m" ; break ; // green background
+                    case 'g': ret += "\x1b[32m" ; break ;           // green font  
+                    case 'G': ret += "\x1b[42m" ; break ;           // green background
                     // hH
                     // iI
-                    case 'j': ret += "\x1b[38;5;121m" ; break ;  // jungle green font
-                    case 'J': ret += "\x1b[48;5;121m" ; break ;  // jungle green background
-                    case 'k': ret += "\x1b[30m" ; break ; // black font
-                    case 'K': ret += "\x1b[40m" ; break ; // black background
-                    case 'l': ret += "\x1b[38;5;252m" ; break ;  // light gray font
-                    case 'L': ret += "\x1b[48;5;252m" ; break ;  // light gray background
-                    case 'm': ret += "\x1b[35m" ; break ; // magenta font
-                    case 'M': ret += "\x1b[45m" ; break ; // magenta background
-                    case 'o': ret += "\x1b[38;5;208m" ; break ;  // orange font
-                    case 'O': ret += "\x1b[48;5;208m" ; break ;  // orange background
-                    case 'p': ret += "\x1b[38;5;212m" ; break ;  // pink font
-                    case 'P': ret += "\x1b[48;5;212m" ; break ;  // pink background
+                    case 'j': ret += "\x1b[38;5;121m" ; break ;     // jungle green font
+                    case 'J': ret += "\x1b[48;5;121m" ; break ;     // jungle green background
+                    case 'k': ret += "\x1b[30m" ; break ;           // black font
+                    case 'K': ret += "\x1b[40m" ; break ;           // black background
+                    case 'l': ret += "\x1b[38;5;252m" ; break ;     // light gray font
+                    case 'L': ret += "\x1b[48;5;252m" ; break ;     // light gray background
+                    case 'm': ret += "\x1b[35m" ; break ;           // magenta font
+                    case 'M': ret += "\x1b[45m" ; break ;           // magenta background
+                    case 'o': ret += "\x1b[38;5;208m" ; break ;     // orange font
+                    case 'O': ret += "\x1b[48;5;208m" ; break ;     // orange background
+                    case 'p': ret += "\x1b[38;5;212m" ; break ;     // pink font
+                    case 'P': ret += "\x1b[48;5;212m" ; break ;     // pink background
                     // qQ
-                    case 'r': ret += "\x1b[31m" ; break ; // red font
-                    case 'R': ret += "\x1b[41m" ; break ; // red background
+                    case 'r': ret += "\x1b[31m" ; break ;           // red font
+                    case 'R': ret += "\x1b[41m" ; break ;           // red background
                     // sS
                     // tT
-                    case 'u': ret += "\x1b[38;5;117m"  ; break ;  // uranian blue font
-                    case 'U': ret += "\x1b[48;5;117m"  ; break ;  // uranian blue background
-                    case 'v': ret += "\x1b[38;5;99m"  ; break ;  // violet font
-                    case 'V': ret += "\x1b[48;5;99m"  ; break ;  // violet background
-                    case 'w': ret += "\x1b[37m" ; break ; // white font 
-                    case 'W': ret += "\x1b[47m" ; break ; // white background
-                    case 'x': ret += "\x1b[38;5;244m" ; break ;  // gray font
-                    case 'X': ret += "\x1b[48;5;244m" ; break ;  // gray background
-                    case 'y': ret += "\x1b[33m" ; break ; // yellow font
-                    case 'Y': ret += "\x1b[43m" ; break ; // yellow background
+                    case 'u': ret += "\x1b[38;5;117m"  ; break ;    // uranian blue font
+                    case 'U': ret += "\x1b[48;5;117m"  ; break ;    // uranian blue background
+                    case 'v': ret += "\x1b[38;5;99m"  ; break ;     // violet font
+                    case 'V': ret += "\x1b[48;5;99m"  ; break ;     // violet background
+                    case 'w': ret += "\x1b[37m" ; break ;           // white font 
+                    case 'W': ret += "\x1b[47m" ; break ;           // white background
+                    case 'x': ret += "\x1b[38;5;244m" ; break ;     // gray font
+                    case 'X': ret += "\x1b[48;5;244m" ; break ;     // gray background
+                    case 'y': ret += "\x1b[33m" ; break ;           // yellow font
+                    case 'Y': ret += "\x1b[43m" ; break ;           // yellow background
                     // zZ
 
                     default:

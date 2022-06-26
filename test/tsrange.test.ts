@@ -1,5 +1,5 @@
 import { TSDate } from '../src/tsdate';
-import { TSBadRange, TSRange } from '../src/tsrange' 
+import { TSRange } from '../src/tsrange' 
 import { TSInterval } from '../src/tsinterval' 
 import { Ascending, Descending, Same } from '../src/types';
 import { TSTest } from '../src/tstester';
@@ -69,7 +69,6 @@ export const rangeGroups = [
         }) ;    
     }),
     TSTest.group("Testing TSRange operations", async (group) => {
-        group.unary('range.className', async (t) => { t.expect(TSBadRange().className).toBe("TSRange") ; }) ;
         group.unary(`range.isValid`, async (t) => {
             t.expect(TSRange.make(NaN,0).isValid).toBeFalsy() ;
             t.expect(TSRange.make(0,NaN).isValid).toBeFalsy() ;

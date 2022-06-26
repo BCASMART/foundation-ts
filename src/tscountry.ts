@@ -1,8 +1,9 @@
 import { $ascii, $length, $ok, $trim } from './commons';
 import { $language, Locales, TSDefaults } from './tsdefaults';
-import { TSRootObject } from './tsobject';
-import { country, currency, language, Languages, StringTranslation } from './types';
+import { TSObject } from './tsobject';
+import { Comparison, country, currency, language, Languages, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
+import { $compare } from './compare';
 /**
  *  WARNING ABOUT countries.json
  *  - Ireland has no localeLanguage : our EULocale is used 
@@ -12,7 +13,7 @@ import countriesList from './countries.json'
  */
 
 
-export class TSCountry extends TSRootObject<TSCountry> {
+export class TSCountry implements TSObject {
     private static __countriesMap:Map<string, TSCountry> ;
     private static __countries:TSCountry[] ;
     private static __EULocale:Locales = {
@@ -43,7 +44,6 @@ export class TSCountry extends TSRootObject<TSCountry> {
     public locales:Locales;
     
     private constructor(infos:CountryInfos, locales:Locales) {
-        super();
         this.alpha2Code = infos.alpha2Code ;
         this.alpha3Code = infos.alpha3Code ;
         this.names = infos.names ;
@@ -102,7 +102,13 @@ export class TSCountry extends TSRootObject<TSCountry> {
 
     public toString():string { return this.alpha2Code ; }
     public toJSON():any { return this.alpha2Code ; }
-    // we only needs to identify the country as its alpha2code in JSON files
+	public toArray(): string[] { return [this.alpha2Code, this.alpha3Code] ;}
+	public isEqual(other:any): boolean { return this === other ; }
+    public compare(other:any): Comparison {
+        if (this === other) { return Same ;}
+        if (other instanceof TSCountry) { return $compare(this.alpha2Code, other.alpha2Code) ; }
+        return undefined ;
+    }
 
 }
 

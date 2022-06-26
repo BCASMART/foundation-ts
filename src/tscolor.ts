@@ -1,6 +1,6 @@
 import { $defined, $isnumber, $isstring, $isunsigned, $ok, $trim, $string, $keys, $unsigned, $length } from "./commons";
 import { $equal, $numcompare } from "./compare";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
 
 
@@ -39,7 +39,7 @@ export enum TSToGrayScaleMode {
     Luminance
 }
 
-export class TSColor implements TSObject<TSColor> {
+export class TSColor implements TSObject, TSClone<TSColor> {
     public readonly colorSpace:TSColorSpace ;
     private _channels:number[] ;
 	private _alpha: number;
@@ -322,8 +322,6 @@ export class TSColor implements TSObject<TSColor> {
     }
 
 	// ============ TSObject conformance =============== 
-	public get isa(): Class<TSColor> { return this.constructor as Class<TSColor>; }
-	public get className(): string { return this.constructor.name; }
 	public isEqual(other: any): boolean {
         return this === other || (
             other instanceof TSColor && 
@@ -676,4 +674,3 @@ function _cmykDarker(X:number):number  { X = Math.max(0, Math.min(X,1)) ; return
 
 function _rgbLighter(X:number):uint8   { return ((_cmykDarker(X/255.0) * 255) | 0) as uint8}
 function _rgbDarker(X:number):uint8   { return ((_cmykLighter(X/255.0) * 255) | 0) as uint8}
-

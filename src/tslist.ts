@@ -1,18 +1,16 @@
 import { $jsonobj, $length, $ok, $string } from "./commons";
 import { $compare, $equal} from "./compare"
-import { Class, TSObject, TSRootObject } from "./tsobject";
+import { TSClone, TSCollection, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Same } from "./types";
 
 
-export class TSListNode<T> implements TSObject<TSListNode<T>> {
+export class TSListNode<T> implements TSObject {
 	public next: TSListNode<T> | null = null;
 	public prev: TSListNode<T> | null = null;
 
 	constructor(public data: T) {}
 
 	// ============ TSObject conformance =============== 
-	public get isa():Class<TSListNode<T>> { return this.constructor as Class<TSListNode<T>> ; }
-	public get className():string { return this.constructor.name ; }
 	public isEqual(other:any) : boolean { 
 		return this === other || (other instanceof TSListNode && $equal(other.data, this.data)) ;
 	}
@@ -32,7 +30,7 @@ export interface TSListToStringOptions<T> {
 	printer?:(data:T) => string|null|undefined
 }
 
-export class TSList<T> extends TSRootObject<TSList<T>> {
+export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>, Iterable<T> {
 	private _f: TSListNode<T> | null = null ;
 	private _l: TSListNode<T> | null = null ;
 	private _n: number = 0 ;
@@ -123,6 +121,18 @@ export class TSList<T> extends TSRootObject<TSList<T>> {
 		}	
 	}
 
+    public [Symbol.iterator]() {
+        let currentNode = this._f ;
+        return { next: () => { 
+            if (currentNode) { 
+                const ret = { done:false, value:currentNode!.data } ;
+                currentNode = currentNode!.next ;
+                return ret ;
+            }
+            return { done:true, value:undefined as any } ;
+        }} ;
+    }
+
 	public search(callback: (data: T) => boolean): TSListNode<T> | null {
 		if (this._f) {
 			const findMe = (node: TSListNode<T>): TSListNode<T> | null => {
@@ -134,7 +144,15 @@ export class TSList<T> extends TSRootObject<TSList<T>> {
 		return null ;
 	}
 
-	// ============ TSObject conformance =============== 
+	// ============ TSClone conformance =============== 
+    public clone():TSList<T> { 
+        let copy = new TSList<T>() ;
+        let node = this._f ;
+        while (node) { copy.add(node.data) ;  node = node.next ;}
+        return copy ;
+    }
+
+    // ============ TSObject conformance =============== 
     public isEqual(other:any) : boolean { 
 		if (this === other) { return true ; }
 		if (!(other instanceof TSList) || this._n !== other.count) { return false ; }
@@ -199,6 +217,10 @@ export class TSList<T> extends TSRootObject<TSList<T>> {
 		}
 		return array ;
 	}
+
+    // ============ TSCollection conformance =============== 
+    public getItems():T[] { return this.toArray() ; }
+
 }
 
 export interface TSListConstructor<T> {

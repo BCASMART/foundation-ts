@@ -1,12 +1,10 @@
-import { $json, $jsonobj, $keys } from "./commons";
-import { Comparison, Same } from "./types";
-
-export type Class<V> = { new (): V }
+import { $isfunction, $isobject } from "./commons";
+import { Comparison } from "./types";
 
 
-export interface TSObject<T> {
-	isa : Class<T> ;
-	className: string ;
+export type TSConstructor<T = unknown> = new (...args: any[]) => T;
+
+export interface TSObject {
 	toString(): string ;
 	toJSON(): any
 	toArray(): any[] ;
@@ -14,21 +12,14 @@ export interface TSObject<T> {
     compare(other:any): Comparison ;
 }
 
-export class TSRootObject<T> implements TSObject<T> {
-	public get isa():Class<T> { return this.constructor as Class<T> ; }
-	public get className():string { return this.constructor.name ; }
-    public compare(other:any) : Comparison { return this.isEqual(other) ? Same : undefined ; }
-	public isEqual(other:any) : boolean { return this === other ; }
-	public toString():string { return $json(this) ; }
-	public toJSON():any {
-		const keys = $keys(this) ;
-        let ret:any = {}
-        for (let k of keys) {
-            ret[k] = $jsonobj((this as any)[k]) ;
-        }
-		return ret ;
-	}
-	public toArray():any[] { return [this] ; }
+export interface TSCollection<T> {
+    getItems: () => T[]
 }
 
+export function $iscollection(o:any) {
+    return $isobject(o) && $isfunction(o.getItems) ; 
+}
 
+export interface TSClone<T> {
+    clone(): T ;
+}

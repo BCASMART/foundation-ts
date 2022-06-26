@@ -122,8 +122,5 @@ export const intervalGroups = [
             t.expect(Y.continuousWith(A)).toBeFalsy() ;
         }) ;
     
-        group.unary('interval.className', async (t) => { 
-            t.expect(TSInterval.make(null,null).className).toBe("TSInterval") ; 
-        }) ;    
     })
 ] ;

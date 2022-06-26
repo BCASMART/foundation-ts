@@ -1,7 +1,7 @@
 import { $count, $int, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $unsigned } from "./commons";
 import { TSDate } from "./tsdate";
 import { Ascending, Comparison, Descending, Same } from "./types";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { TSRangeSet } from "./tsrangeset";
 
 export interface Interval {
@@ -9,7 +9,10 @@ export interface Interval {
 	hasSignificantRange:boolean ;
 }
 
-export class TSRange implements TSObject<TSRange>, Interval {
+export function TSBadRange():TSRange { return new TSRange(NaN, 0) ; }
+export function TSEmptyRange():TSRange { return new TSRange(0, 0) ; }
+
+export class TSRange implements TSObject, TSClone<TSRange>, Interval {
 	private _location:number = 0 ;
 	private _length:number = 0 ;
 
@@ -144,15 +147,15 @@ export class TSRange implements TSObject<TSRange>, Interval {
 	public containedIn(other:TSRange) { return other.contains(this) ; }
 
 	public unionRange(other:TSRange):TSRange {
-		if (!this.isValid || !other.isValid) return TSBadRange() ;
-		if (this.isEmpty && other.isEmpty) return TSEmptyRange() ;
+		if (!this.isValid || !other.isValid) { return TSBadRange() ; }
+		if (this.isEmpty && other.isEmpty) { return TSEmptyRange() ; }
 		const loc = Math.min(this.location, other.location) ;
 		return new TSRange(loc, Math.max(this.maxRange, other.maxRange) - loc) ;
 	}
 
 	public intersectionRange(other:TSRange):TSRange {
-		if (!this.isValid || !other.isValid) return TSBadRange() ;
-		if (this.maxRange < other.location || other.maxRange < this.location) return TSEmptyRange() ;
+		if (!this.isValid || !other.isValid) { return TSBadRange() ; }
+		if (this.maxRange < other.location || other.maxRange < this.location) { return TSEmptyRange() ; }
 		const loc = Math.max(this.location, other.location) ;
 		return new TSRange(loc, Math.min(this.maxRange, other.maxRange) - loc) ;
 	}
@@ -168,8 +171,6 @@ export class TSRange implements TSObject<TSRange>, Interval {
 	}
 
 	// ============ TSObject conformance =============== 
-	public get isa():Class<TSRange> { return this.constructor as Class<TSRange> ; }
-	public get className():string { return this.constructor.name ; }
 
 	public isEqual(other:any) : boolean { 
 		return this === other || (other instanceof TSRange && ((!this.isValid && !other.isValid) || other.location === this._location) && other.length === this._length) ;
@@ -195,9 +196,8 @@ export function $israngearray(v:number[]|null|undefined):boolean {
     return $count(v) === 2 && $israngeparams(v![0], v![1]) ;
 }
 
-
 export function $comformsToInterval(v:any):boolean {
     return $ok(v) && $isobject(v) && ('range' in (v as object)) && ('hasSignificantRange' in (v as object)) ;
 }
-export function TSBadRange():TSRange { return new TSRange(NaN, 0) ; }
-export function TSEmptyRange():TSRange { return new TSRange(0, 0) ; }
+
+  

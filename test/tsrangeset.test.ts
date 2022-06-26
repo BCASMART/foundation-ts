@@ -19,9 +19,6 @@ export const rangeSetGroups = TSTest.group("Testing TSRangeSet operations", asyn
         t.expect(RS1).toBe(RS2) ;
     }) ;
 
-    group.unary('TSRangeSet.className', async (t) => { 
-        t.expect(RS.className).toBe("TSRangeSet") ; 
-    }) ;
 
     group.unary(`testing TSRangeSet.intersects() & TSRangeSet.complement()`, async (t) => {
         t.expect(RS.intersects(new TSRangeSet([12,10]))).toBeTruthy() ;

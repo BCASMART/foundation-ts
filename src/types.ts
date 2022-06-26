@@ -152,14 +152,17 @@ export type country = keyof typeof Countries ;
 export type language = keyof typeof Languages ;
 export type currency = keyof typeof Currencies ;
 
+
 // ========== dictionary types =====================
-export type AnyDictionary = 		{ [key: string]: any } ;
-export type ObjectDictionary = 		{ [key: string]: object } 
-export type StringDictionary = 		{ [key: string]: string } ;
-export type NumberDictionary = 		{ [key: string]: number } ;
-export type FlagDictionary = 		{ [key: string]: boolean } ;
-export type StringArrayDictionary = { [key: string]: string[] } ;
-export type NumberArrayDictionary = { [key: string]: number[] } ;
+export type TSDictionary<T = any> = { [k: string]: T };
+
+export type AnyDictionary = 		TSDictionary ;
+export type ObjectDictionary = 		TSDictionary<object> 
+export type StringDictionary = 		TSDictionary<string> ;
+export type NumberDictionary = 		TSDictionary<number> ;
+export type FlagDictionary = 		TSDictionary<boolean> ;
+export type StringArrayDictionary = TSDictionary<string[]> ;
+export type NumberArrayDictionary = TSDictionary<number[]> ;
 export type StringTranslation =     { [key in Languages]?:string } ;
 
 // ========== interfaces =====================

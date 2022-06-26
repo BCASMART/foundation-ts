@@ -9,46 +9,49 @@ import { TSDate } from "./tsdate";
 export function $defined(o:any):boolean 
 { return o !== undefined && typeof o !== 'undefined' }
 
-export function $ok(o:any | undefined | null) : boolean
+export function $ok(o:any) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
 
 export function $value<T>(o:T|null|undefined, v:T):T
 { return $ok(o) ? o! : v ; }
 
-export function $isstring(o:any | null | undefined) : boolean
+export function $isstring(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
 
-export function $isnumber(o:any | null | undefined) : boolean
+export function $isnumber(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
 
-export function $isint(o:any | null | undefined) : boolean
+export function $isint(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
 
-export function $isunsigned(o:any | null | undefined, maximum:number=UINT_MAX) : boolean
+export function $isunsigned(o:any, maximum:number=UINT_MAX) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
 
-export function $isbool(o:any | null | undefined) : boolean
+export function $isbool(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'boolean' ; }
 
-export function $isobject(o:any | null | undefined) : boolean
+export function $isobject(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'object' ; }
 
-export function $objectcount(o:any | null | undefined) : number 
+export function $objectcount(o:any) : number 
 { return $isobject(o) ? $keys(o).length : 0 ; }
 
-export function $isarray(o:any | null | undefined) : boolean
-{ return o !== null && o !== undefined && Array.isArray(o) ; }
+export function $isarray(o:any) : boolean
+{ return Array.isArray(o) ; }
 
-export function $isdate(o:any | null | undefined) : boolean
+export function $isiterable(o:any) : boolean 
+{ return $isarray(o) || ($ok(o) && $isfunction(o[Symbol.iterator]))}
+
+export function $isdate(o:any) : boolean
 { return o instanceof Date || o instanceof TSDate || ($isstring(o) && $ok($isodate(o))) ; }
 
-export function $isemail(o:any | null | undefined) : boolean
+export function $isemail(o:any) : boolean
 { return $isstring(o) && $ok($email(o)) ; }
 
-export function $isurl(o:any | null | undefined, opts?:$urlOptions) : boolean
+export function $isurl(o:any, opts?:$urlOptions) : boolean
 { return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
 
-export function $isuuid(o:any | null | undefined) : boolean
+export function $isuuid(o:any) : boolean
 { return $isstring(o) && $ok($UUID(o)) ; }
 
 
@@ -176,7 +179,7 @@ export function $capacityForCount(count:uint):uint
 { return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; }
 
 export function $count(a:any[] | Uint8Array | undefined | null) : number
-{ return $ok(a) && (a instanceof Uint8Array || Array.isArray(a)) ? (<any[]|Uint8Array>a).length : 0 ; }
+{ return a instanceof Uint8Array || $isarray(a) ? (<any[]|Uint8Array>a).length : 0 ; }
 
 export function $length(s:string | Uint8Array | TSData | undefined | null) : number
 { return $ok(s) ? (<string|Uint8Array|TSData>s).length : 0 ; }
@@ -194,13 +197,15 @@ export function $arraybuffer(buf:Buffer) : ArrayBuffer {
 	This is a map function where callback returns as null or undefined are
 	flushed from the result
  */
-export function $map<T, R>(a:Array<T> | undefined | null, callBack:(e:T) => R|null|undefined) : Array<R>
+export function $map<T, R=T>(values:Iterable<T> | undefined | null, callBack:(e:T) => R|null|undefined) : Array<R>
 {
 	const ret = new Array<R>() ;
-	a?.forEach(e => {
-		const v = callBack(e) ;
-		if ($ok(v)) ret.push(<R>v) ;
-	}) ;
+    if ($ok(values)) {
+        for (let v of values!) {
+		    const mv = callBack(v) ;
+		    if ($ok(mv)) ret.push(mv!) ;
+	    }
+    }
 	return ret ;
 }
 
@@ -293,6 +298,7 @@ export function $fusion<T,U>(a:T|undefined|null, b:U|undefined|null, opts:$fusio
 export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
 { return JSON.stringify(v, replacer, space) ; }
 
+
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {
@@ -351,4 +357,13 @@ const __capacitiesForCounts = [
     /* 104 */ 256, 256, 256, 256, 256, 256, 256, 256,
     /* 112 */ 256, 256, 256, 256, 256, 256, 256, 256,
     /* 120 */ 256, 256, 256, 256, 256, 256, 256, 256] ;
-  
+
+declare global {
+    export interface Array<T> {
+        filteredMap: <R = T>(callBack:(e:T) => R|null|undefined) => Array<R> ;
+    }
+}
+
+if (!('filteredMap' in Array.prototype)) {
+    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callBack:(e:T) => R|null|undefined):Array<R> { return $map(this, callBack) ; }
+}

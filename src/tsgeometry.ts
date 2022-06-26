@@ -1,5 +1,5 @@
 import { $isarray, $isnumber, $isobject, $isstring, $ok } from "./commons";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Same } from "./types";
 
 export interface TSPoint {
@@ -34,7 +34,7 @@ export const  TSDocumentFormats:{[key in TSDocumentFormat]:TSSize} = {
     a6:         { w:TSmm2Pixels(105),      h:TSmm2Pixels(148)  }
 } ;
 
-export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
+export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
     public x:number ;
     public y:number ;
     public w:number ;
@@ -322,8 +322,6 @@ export class TSRect implements TSPoint, TSSize, TSObject<TSRect> {
     }
 
     // ============ TSObject conformance =============== 
-	public get isa(): Class<TSRect> { return this.constructor as Class<TSRect>; }
-	public get className(): string { return this.constructor.name; }
 
     public isEqual(other:any) : boolean 
     { return this === other || (other instanceof TSRect && other.minX === this.minX && other.maxX === this.maxX && other.minY === this.minY && other.maxY === this.maxY) ; }
@@ -370,3 +368,4 @@ export function TSPixels2Inches(pixels:number) { return pixels / 72 ; }
 
 export function TSEqualSizes(A:TSSize, B:TSSize) { return A.w === B.w && A.h === B.h ; }
 export function TSEqualPoints(A:TSPoint, B:TSPoint) { return A.x === B.x && A.y === B.y ; }
+

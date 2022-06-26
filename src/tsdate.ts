@@ -11,11 +11,11 @@ import { $components, $isostring2components, $parsedate, $parsedatetime, $compon
 import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Same, uint } from "./types";
-import { Class, TSObject } from "./tsobject";
+import { TSClone, TSObject } from "./tsobject";
 import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
 
-export class TSDate implements TSObject<TSDate> {
+export class TSDate implements TSObject, TSClone<TSDate> {
 	private _timestamp: number ;
     public static readonly FUTURE = 'future' ;
     public static readonly PAST = 'past' ;
@@ -243,8 +243,6 @@ export class TSDate implements TSObject<TSDate> {
     }
     
 	// ============ TSObject conformance =============== 
-	public get isa():Class<TSDate> { return this.constructor as Class<TSDate> ; }
-	public get className():string { return this.constructor.name ; }
     public compare(other:any) : Comparison {
         if (this === other) { return Same ; }
         if (other instanceof TSDate) { return $numcompare(this._timestamp, other.timestamp) ; }
