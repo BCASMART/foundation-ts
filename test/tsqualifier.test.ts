@@ -116,7 +116,7 @@ export const qualifierGroups = [
             t.expect(qualifier.keyArray()).toBe([]) ;
             t.expect(qualifier.key()).toBeUndefined() ;
             t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.qualifiers().length).toBe(3) ;
+            t.expect(qualifier.conditions().length).toBe(3) ;
 
             t.expect(peoples.filterWithQualifier(qualifier)).toBe([
                 {
@@ -160,7 +160,7 @@ export const qualifierGroups = [
             t.expect(qualifier.keyArray()).toBe([]) ;
             t.expect(qualifier.key()).toBeUndefined() ;
             t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.qualifiers().length).toBe(2) ;
+            t.expect(qualifier.conditions().length).toBe(2) ;
 
             t.expect(peoples.filterWithQualifier(qualifier)).toBe([
                 {
@@ -182,7 +182,7 @@ export const qualifierGroups = [
             t.expect(qualifier.keyArray()).toBe(['selection']) ;
             t.expect(qualifier.key()).toBe('selection') ;
             t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.qualifiers()).toBe([]) ;
+            t.expect(qualifier.conditions()).toBe([]) ;
 
             t.expect(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([
                 {
@@ -202,7 +202,7 @@ export const qualifierGroups = [
             t.expect(qualifier.keyArray()).toBe(['homes', 'address', 'city']) ;
             t.expect(qualifier.key()).toBe('homes.address.city') ;
             t.expect(qualifier.value()).toBe('Lyon') ;
-            t.expect(qualifier.qualifiers()).toBe([]) ;
+            t.expect(qualifier.conditions()).toBe([]) ;
 
             t.expect(qualifier.filterValues(peoples)).toBe([
                 {
@@ -225,7 +225,7 @@ export const qualifierGroups = [
             t.expect(qualifier.keyArray()).toBe(['description']) ;
             t.expect(qualifier.key()).toBe('description') ;
             t.expect(qualifier.value()).toBe('%che_in%') ;
-            t.expect(qualifier.qualifiers()).toBe([]) ;
+            t.expect(qualifier.conditions()).toBe([]) ;
 
             t.expect(qualifier.filterValues(peoples)).toBe([
                 {   // 4

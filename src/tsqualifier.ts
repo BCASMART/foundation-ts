@@ -112,7 +112,7 @@ export class TSQualifier<T> {
     public key(): string | undefined { return this.isComposite ? undefined : this._operands[0].join('.') ; }
     public keyArray(): string[] { return this.isComposite ? [] : this._operands[0] as string[] ; }
     public value(): any { return this.isKeyValue ? this._operands[1] : undefined ; }
-    public qualifiers() : TSQualifier<T>[] { return this.isComposite ? this._operands : [] ; } 
+    public conditions() : QualifierCondition<T>[] { return this.isComposite ? this._operands : [] ; } 
 
 	public add(cond: QualifierCondition<T>) {
         if (this.operator !== 'OR' && this.operator !== 'AND') {
