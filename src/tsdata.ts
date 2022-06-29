@@ -1,7 +1,7 @@
 import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok } from "./commons";
 import { $writeBuffer } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
-import { Comparison, Same, uint, uint8 } from "./types" ;
+import { Comparison, Same, uint, uint8, UINT8_MAX } from "./types" ;
 
 /**
  * TSData is a mutable buffer class.
@@ -121,7 +121,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     }
 
     public get capacity():number { return this._buf.length ; }
-
+    
     public get length():number   { return this._len ; }
     public set length(n:number) {
         if (!$isunsigned(n)) { throw `TSDate.length = ${n} is not valid.` ; }
@@ -131,6 +131,8 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
         else { this._len = n ; }
     }
+
+    public get byteLength():number { return this._len ; }
 
     public get mutableBuffer():Buffer { return this._len === this.capacity ? this._buf : this._buf.slice(0, this._len) ; }
     public get buffer():Buffer {
@@ -146,32 +148,27 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     public values():  IterableIterator<number>           { return this.mutableBuffer.values() ; }
 
     public includes(value:Buffer|TSData|number|null|undefined, byteOffset:number = 0) {
-        if ($ok(value)) {
-            if ($isnumber(value) && !$isunsigned(value)) { return false ; }
-            if (value instanceof TSData) { value = value.mutableBuffer ; }
-            return this._buf.includes(value!, byteOffset)
-        }
-        return false ;
+        const slen = _searchedLength(value) ; 
+        if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return false ; }
+        if (value instanceof TSData) { value = value.mutableBuffer ; }
+        return this._buf.includes(value!, byteOffset) ;
     }
 
-    public indexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset?: number): number {
-        if ($ok(value)) {
-            if ($isnumber(value) && !$isunsigned(value)) { return -1 ; }
-            if (value instanceof TSData) { value = value.mutableBuffer ; }
-            return this._buf.indexOf(value!, byteOffset)
-        }
-        return -1 ;
+    // warning : byteOffset should be >= 0
+    public indexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset: number = 0): number {
+        const slen = _searchedLength(value) ; 
+        if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return -1 ; }
+        if (value instanceof TSData) { value = value.mutableBuffer ; }
+        return this._buf.indexOf(value!, byteOffset) ;
     }
 
-    public lastIndexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset?: number): number {
-        if ($ok(value)) {
-            if ($isnumber(value) && !$isunsigned(value)) { return -1 ; }
-            if (value instanceof TSData) { value = value.mutableBuffer ; }
-            return this._buf.lastIndexOf(value!, byteOffset)
-        }
-        return -1 ;
+    // warning : byteOffset should be >= 0
+    public lastIndexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset: number = 0): number {
+        const slen = _searchedLength(value) ; 
+        if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return -1 ; }
+        if (value instanceof TSData) { value = value.mutableBuffer ; }
+        return this._buf.lastIndexOf(value!, byteOffset) ;
     }
-
 
     // with slice, you get a new TSData which holds a copy of the sliced data
     public slice(begin: number = 0, end: number = this._len): TSData {
@@ -200,7 +197,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         return 0 ;
     } 
     
-    public writeToFile(path:string) { return $writeBuffer(path, this.mutableBuffer) ; }
+    public writeToFile(path:string) { return $writeBuffer(path, this) ; }
 
     public equals(otherBuffer: Uint8Array): boolean { return this.isEqual(otherBuffer) ; }
 
@@ -311,6 +308,13 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
 }
 export interface TSDataConstructor {
     new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataOptions): TSData;
+}
+
+function _searchedLength(value: TSData | number | Uint8Array | null | undefined):number {
+    if ($isnumber(value)) {
+        return $isunsigned(value, UINT8_MAX) ? 1 : -1 ; 
+    }
+    return $ok(value) ? (<TSData|Uint8Array>value).length : -1 ; 
 }
 
 function _bytesFromAsciiString(source:string|null|undefined):uint8[] {

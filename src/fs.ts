@@ -15,8 +15,10 @@ import {
 	statSync,
     accessSync,
 	unlinkSync,
-	writeFileSync,
-	constants
+    openSync,
+    writeSync,
+	constants,
+    closeSync
 }  from 'fs'
 
 import {
@@ -27,17 +29,18 @@ import {
     isAbsolute,
     normalize 
 } from 'path' ;
-import { $isstring, $length, $ok, $trim } from './commons';
+import { $isstring, $isunsigned, $length, $ok, $trim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
 import { TSData } from './tsdata';
+import { TSError } from './tserrors';
 
 export function $isfile(src:string | null | undefined) {
     if ($inbrowser()) { throw 'unavailable $isfile() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
-        try { ret = statSync(<string>src).isFile() ; }
+        try { ret = statSync(src!).isFile() ; }
 	    catch { ret = false ; }
     }
 	return ret ;
@@ -227,30 +230,33 @@ export function $loadJSON(src:string|null|undefined|Buffer) : any | null
 
 export function $readString(src:string|null|undefined, encoding:BufferEncoding='utf-8') : string|null
 {
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $readString() function in browser' ; }
 	let ret:string|null = null ;
-	if ($length(src)) {
-		try { ret = readFileSync(<string>src, $length(encoding) ? encoding:'utf-8') ; }
+	if ($length(src) && Buffer.isEncoding(encoding)) {
+		try { ret = readFileSync(src!, encoding) ; }
 		catch(e) { ret = null ; }
 	}
 	return ret ;
 }
 
-export function $writeString(src:string|null|undefined, str:string, encoding:BufferEncoding='utf-8') : boolean
-{
-    if ($inbrowser()) { throw 'unavailable function in browser' ; }
-	let done = false ;
-	if ($length(src)) {
-		try {
-			writeFileSync(<string>src, str, $length(encoding) ? encoding:'utf-8') ;
-			done = true ;
-		}
-		catch(e) {
-			done = false ;
-		}
-	}
-	return done ;
+export interface BasicWriteOptions {
+    mode?:number,
+    attomically?:boolean
 }
+
+export interface $writeStringOptions extends BasicWriteOptions {
+    encoding?:BufferEncoding,
+}
+
+export function $writeString(src:string|null|undefined, str:string, opts:$writeStringOptions = {}) : boolean
+{
+    if ($inbrowser()) { throw 'unavailable $writeString() function in browser' ; }
+    let encoding = $length(opts.encoding) ? opts.encoding! : 'utf-8' ;
+    if (!Buffer.isEncoding(encoding)) { return false ; }
+
+    return $writeBuffer(src, Buffer.from(str, encoding), opts as BasicWriteOptions )
+}
+
 
 export function $readBuffer(src:string|null|undefined) : Buffer|null
 {
@@ -263,45 +269,96 @@ export function $readBuffer(src:string|null|undefined) : Buffer|null
 	return ret ;
 }
 
-export function $readdata(src:string|null|undefined) : TSData|null
+export function $readData(src:string|null|undefined) : TSData|null
 {
-    if ($inbrowser()) { throw 'unavailable $readdata() function in browser' ; }
+    if ($inbrowser()) { throw 'unavailable $readData() function in browser' ; }
     const buf = $readBuffer(src) ;
     return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer:true }) : null ;
 }
 
-export function $writeBuffer(src:string|null|undefined, buf:TSData|Buffer|Uint8Array) : boolean
+export interface $writeBufferOptions extends BasicWriteOptions {
+    byteStart?:number,
+    byteEnd?:number
+}
+
+export function $writeBuffer(src:string|null|undefined, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions = {}) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $writeBuffer() function in browser' ; }
 	let done = false ;
-    if (buf instanceof TSData) { buf = (buf as TSData).mutableBuffer ; }
-	if ($length(src)) {
+
+    let start = $ok(opts.byteStart) ? opts.byteStart : 0 ;
+    let end   = $ok(opts.byteEnd) ? opts.byteEnd : buf.byteLength ; 
+    let mode  = $ok(opts.mode) ? opts.mode : 0o666 ;
+
+    if ($length(src) && $isunsigned(mode) && mode! <= 0o777 && $isunsigned(start) || !$isunsigned(end)) {
+        const pathToWrite = opts.attomically ? $uniquefile(src) : src! ;
+        end = Math.min(end!, buf.byteLength) ;
+        start = Math.min(start!, end) ;
+
+        // never move the next line of code before this point because 
+        // TSData.byteLength may be different from its internal storage buffer length
+        // warning: this method works because it's not async so we can
+        // consider that TSData is immutable during this scope
+        if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage ; }
+	
 		try {
-			writeFileSync(src!, buf) ;
-			done = true ;
+            const fd = openSync(pathToWrite, 'w', mode!) ;
+            const MAX_TRY = 3 ;
+            try {
+                let retries = 0 ;
+                while (start < end) {
+                    const wlen = writeSync(fd, buf, start, end - start) ;
+                    if (wlen === 0) { retries++ ; } else { retries = 0 ;} // we never should have wlen === 0 but ...
+                    if (retries > MAX_TRY) { throw `Tried to fs.writeSync() ${retries} times without any success.` ; }
+                    start += wlen ;
+                }
+    			done = true ;
+            }
+            finally {
+                closeSync(fd) ;
+            }
 		}
 		catch(e) {
 			done = false ;
 		}
+        if (done && opts.attomically) {
+            const renamedExistingFile = $uniquefile(src) ;
+            done = _safeRename(src!, renamedExistingFile) ;
+            if (done && !_safeRename(pathToWrite, src!)) {
+                // we immediately try to give back its name to our original file
+                if (!_safeRename(renamedExistingFile, src!)) {
+                    // we should have been able to give our initial file its original name back
+                    // but we could'nt do it, so, in this very hypothetical case, we will not
+                    // destroy anything and will throw an Error will all the infos in it 
+                    throw new TSError(`Unable to atomically finish writing file '${src}'`, {
+                            wantedPath:src,
+                            renamedExistingFile:renamedExistingFile,
+                            writtenDataFile:pathToWrite
+                    }) ;
+                }
+                done = false ;
+            }
+            if (!done) { _safeUnlink(pathToWrite) ; } // we may let a newly created temporary file here if unlink does not succeed
+        }        
 	}
 	return done ;
 }
 
+export function $localRenameFile(src:string|null|undefined, dest:string|null|undefined) : boolean {
+    if ($inbrowser()) { throw 'unavailable $localRenameFile() function in browser' ; }
+    return $length(src) > 0 && $length(dest) > 0 && src !== dest && $isfile(src) && _safeRename(src!, dest!) ;
+}
+
+function _safeRename(s:string, d:string):boolean { let done = false ; try { renameSync(s,d) ; done = true ; } catch { done = false ; } return done ; }
+
 export function $removeFile(src:string|null|undefined) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $removeFile() function in browser' ; }
-	let done = false
-	if ($isfile(src)) {
-		try {
-			unlinkSync(src!) ;
-			done = true ;	
-		}
-		catch (e) {
-			done = false ;
-		}
-	}
-	return done ;
+    return $length(src) > 0 && $isfile(src) && _safeUnlink(src!) ;
 }
+
+function _safeUnlink(p:string):boolean { let done = false ; try { unlinkSync(p) ; done = true ; } catch { done = false ; } return done ; }
+
 /*
 	src is a file
 	dest is a file or a directory
@@ -316,11 +373,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 			dest = $path(dest!, $filename(src)) ;
 			if (src === dest) { return false ; }
 		}
-		try {
-			renameSync(src!, dest!) ;
-			done = true ;
-		}
-		catch { done = false ; }
+        done = _safeRename(src!, dest!) ;
 		if (!done) {
 			// rename function did not work, so we will try to copy
 			// the file
@@ -329,7 +382,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 				unlinkSync(src!) ;
 				done = true ;
 			}	
-			catch { done = false ; } // WARNING: if we fails here, we may made the copy() but not the unlink()
+			catch { done = false ; } // WARNING: if we fails here, we may have made the copy() but not the unlink()
 		}
 	}
 	return done ;

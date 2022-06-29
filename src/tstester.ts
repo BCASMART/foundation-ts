@@ -30,19 +30,23 @@ export class TSTester {
         // first phase, we construct all the unary test in an asynchronus function call
         this.log(`&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
         let unaries = 0 ;
+        let unariesFailed = 0 ;
         for (let g of this.groups) { unaries += await g.prepare() ; }
         let passed = 0, failed = 0 ;
         // second phase, we run the tests
         for (let g of this.groups) {
-            const groupok = await g.run() ;
-            if (groupok) { passed++ } else { failed++ ; }
-
+            const groupFailed = await g.run() ;
+            unariesFailed += groupFailed ;
+            if (groupFailed === 0) { passed++ } else { failed++ ; }
         }
         this.log(`&y${unaries.toString().padStart(4)}&0&e unary test${unaries === 1 ? 'was' : 's were'} executed.&0`) ;
         if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
         if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
         if (passed > 0 && !failed) {
             this.log('&G&w  ALL TESTS PASSED  &0') ;
+        }
+        else if (unariesFailed > 0) {
+            this.log(`&R&w${unariesFailed.toString().padStart(4)} UNARY TEST${unariesFailed>1?'S':''} FAILED  &0`) ;
         }
     }
 }
@@ -78,7 +82,7 @@ export class TSTestGroup extends TSTest {
         $logterm('  '+format, args) ;
     }
 
-    public async run():Promise<boolean> {
+    public async run():Promise<number> {
         let failed = 0 ;
 
         this.log(`&u- Running group tests &U&k ${this.desc} &0`) ;
@@ -87,7 +91,7 @@ export class TSTestGroup extends TSTest {
             if (!unaryok) { failed++ ; }
         }
         $logterm(`${failed==0?'&j':'\n&o'}    ${this.desc} tests ${failed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ;
-        return failed === 0 ;
+        return failed ;
     }
 }
 

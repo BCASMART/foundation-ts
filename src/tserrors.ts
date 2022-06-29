@@ -1,5 +1,6 @@
 import { $ok } from "./commons";
 import { Resp } from "./tsrequest";
+import { AnyDictionary } from "./types";
 
 export class TSUniqueError extends Error {
 	private static __esInstance:TSUniqueError ;
@@ -24,11 +25,17 @@ export class TSUniqueError extends Error {
 	}
 
 }
-
-export class TSHttpError extends Error {
-    public readonly status:Resp ;
-    public constructor(message:string, status:Resp) {
+export class TSError extends Error {
+    public readonly infos:AnyDictionary|undefined ;
+    public constructor(message:string, infos?:AnyDictionary) {
         super(message) ;
+        this.infos = infos ;
+    }
+}
+export class TSHttpError extends TSError {
+    public readonly status:Resp ;
+    public constructor(message:string, status:Resp, infos?:AnyDictionary) {
+        super(message, infos) ;
         this.status = status ;
     }
 }
