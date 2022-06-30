@@ -22,47 +22,47 @@ export const intervalGroups = [
         const AB = TSInterval.make(D1B, D2) ;
     
         group.unary(`test intervals equality`, async (t) => {
-            t.expect(A).toBe(A) ;
-            t.expect(A).notToBe(B) ;
-            t.expect(A).notToBe(C) ;
-            t.expect(A).notToBe(D) ;
-            t.expect(A).notToBe(Z) ;
-            t.expect(A).toBe(AB) ;
-            t.expect(AB).toBe(A) ;
-            t.expect(B).toBe(TSInterval.make(D1B, null)) ;
-            t.expect(C).toBe(TSInterval.make(null, D2.clone())) ;
-            t.expect(D).toBe(TSInterval.make(null, null)) ;
+            t.expect0(A).toBe(A) ;
+            t.expect1(A).notToBe(B) ;
+            t.expect2(A).notToBe(C) ;
+            t.expect3(A).notToBe(D) ;
+            t.expect4(A).notToBe(Z) ;
+            t.expect5(A).toBe(AB) ;
+            t.expect6(AB).toBe(A) ;
+            t.expect7(B).toBe(TSInterval.make(D1B, null)) ;
+            t.expect8(C).toBe(TSInterval.make(null, D2.clone())) ;
+            t.expect9(D).toBe(TSInterval.make(null, null)) ;
         }) ;
     
         group.unary(`test comparison`, async (t) => {
-            t.expect(TSInterval.make(D0,D1).compare(A)).toBe(Ascending) ;
-            t.expect(A.compare(TSInterval.make(D0,D1))).toBe(Descending) ;
-            t.expect(A.compare(AB)).toBe(Same) ;
-            t.expect(A.compare(B)).toBeUndefined() ;
+            t.expect0(TSInterval.make(D0,D1).compare(A)).toBe(Ascending) ;
+            t.expect1(A.compare(TSInterval.make(D0,D1))).toBe(Descending) ;
+            t.expect2(A.compare(AB)).toBe(Same) ;
+            t.expect3(A.compare(B)).toBeUndefined() ;
         }) ;
     
         group.unary(`test significant ranges`, async (t) => {
-            t.expect(A.hasSignificantRange).toBeTruthy() ;
-            t.expect(B.hasSignificantRange).toBeFalsy() ;
-            t.expect(C.hasSignificantRange).toBeFalsy() ;
-            t.expect(D.hasSignificantRange).toBeFalsy() ;
-            t.expect(Z.hasSignificantRange).toBeFalsy() ;
+            t.expectA(A.hasSignificantRange).toBeTruthy() ;
+            t.expectB(B.hasSignificantRange).toBeFalsy() ;
+            t.expectC(C.hasSignificantRange).toBeFalsy() ;
+            t.expectD(D.hasSignificantRange).toBeFalsy() ;
+            t.expectZ(Z.hasSignificantRange).toBeFalsy() ;
         }) ;
     
         group.unary(`test emptiness`, async (t) => {
-            t.expect(A.isEmpty).toBeFalsy() ;
-            t.expect(B.isEmpty).toBeFalsy() ;
-            t.expect(C.isEmpty).toBeFalsy() ;
-            t.expect(D.isEmpty).toBeFalsy() ;
-            t.expect(Z.isEmpty).toBeTruthy() ;
+            t.expectA(A.isEmpty).toBeFalsy() ;
+            t.expectB(B.isEmpty).toBeFalsy() ;
+            t.expectC(C.isEmpty).toBeFalsy() ;
+            t.expectD(D.isEmpty).toBeFalsy() ;
+            t.expectZ(Z.isEmpty).toBeTruthy() ;
         }) ;
     
         group.unary(`test validity`, async (t) => {
-            t.expect(A.isValid).toBeTruthy() ;
-            t.expect(B.isValid).toBeTruthy() ;
-            t.expect(C.isValid).toBeFalsy() ;
-            t.expect(D.isValid).toBeFalsy() ;
-            t.expect(Z.isValid).toBeTruthy() ;
+            t.expectA(A.isValid).toBeTruthy() ;
+            t.expectB(B.isValid).toBeTruthy() ;
+            t.expectC(C.isValid).toBeFalsy() ;
+            t.expectD(D.isValid).toBeFalsy() ;
+            t.expectZ(Z.isValid).toBeTruthy() ;
         }) ;
     }),
     TSTest.group("Testing TSInterval operations", async (group) => {
@@ -80,46 +80,46 @@ export const intervalGroups = [
         const Z = TSInterval.make(null, null) ;
     
         group.unary('interval.intersects()', async (t) => {
-            t.expect(Z.intersects(X)).toBeTruthy() ;
-            t.expect(Z.intersects(Y)).toBeTruthy() ;
-            t.expect(Z.intersects(A)).toBeTruthy() ;
-            t.expect(C.intersects(A)).toBeTruthy() ;
-            t.expect(C.intersects(B)).toBeTruthy() ;
-            t.expect(A.intersects(B)).toBeFalsy() ;
-            t.expect(A.intersects(C)).toBeTruthy() ;
-            t.expect(C.intersects(D)).toBeTruthy() ;
-            t.expect(A.intersects(D)).toBeFalsy() ;
-            t.expect(B.intersects(D)).toBeFalsy() ;
-            t.expect(A.intersects(Y)).toBeFalsy() ;
-            t.expect(B.intersects(Y)).toBeFalsy() ;
-            t.expect(A.intersects(X)).toBeTruthy() ;
-            t.expect(A.intersects(Z)).toBeTruthy() ;
+            t.expect0(Z.intersects(X)).toBeTruthy() ;
+            t.expect1(Z.intersects(Y)).toBeTruthy() ;
+            t.expect2(Z.intersects(A)).toBeTruthy() ;
+            t.expect3(C.intersects(A)).toBeTruthy() ;
+            t.expect4(C.intersects(B)).toBeTruthy() ;
+            t.expect5(A.intersects(B)).toBeFalsy() ;
+            t.expect6(A.intersects(C)).toBeTruthy() ;
+            t.expect7(C.intersects(D)).toBeTruthy() ;
+            t.expect8(A.intersects(D)).toBeFalsy() ;
+            t.expect9(B.intersects(D)).toBeFalsy() ;
+            t.expectA(A.intersects(Y)).toBeFalsy() ;
+            t.expectB(B.intersects(Y)).toBeFalsy() ;
+            t.expectC(A.intersects(X)).toBeTruthy() ;
+            t.expectD(A.intersects(Z)).toBeTruthy() ;
         }) ;
     
         group.unary('interval.contains()', async (t) => {
-            t.expect(Z.contains(X)).toBeTruthy() ;
-            t.expect(Z.contains(Y)).toBeTruthy() ;
-            t.expect(Z.contains(A)).toBeTruthy() ;
-            t.expect(Z.contains(B)).toBeTruthy() ;
-            t.expect(C.contains(A)).toBeTruthy() ;
-            t.expect(C.contains(B)).toBeTruthy() ;
-            t.expect(C.contains(D)).toBeFalsy() ;
-            t.expect(D.contains(C)).toBeFalsy() ;
-            t.expect(Y.contains(D)).toBeTruthy() ;
-            t.expect(Z.contains(D)).toBeTruthy() ;
+            t.expect0(Z.contains(X)).toBeTruthy() ;
+            t.expect1(Z.contains(Y)).toBeTruthy() ;
+            t.expect2(Z.contains(A)).toBeTruthy() ;
+            t.expect3(Z.contains(B)).toBeTruthy() ;
+            t.expect4(C.contains(A)).toBeTruthy() ;
+            t.expect5(C.contains(B)).toBeTruthy() ;
+            t.expect6(C.contains(D)).toBeFalsy() ;
+            t.expect7(D.contains(C)).toBeFalsy() ;
+            t.expect8(Y.contains(D)).toBeTruthy() ;
+            t.expect9(Z.contains(D)).toBeTruthy() ;
         }) ;
     
         group.unary('interval.continuousWith()', async (t) => {
-            t.expect(B.continuousWith(D)).toBeTruthy() ;
-            t.expect(B.continuousWith(A)).toBeTruthy() ;
-            t.expect(B.continuousWith(Y)).toBeTruthy() ;
-            t.expect(X.continuousWith(Y)).toBeTruthy() ;
-            t.expect(X.continuousWith(Z)).toBeTruthy() ;
-            t.expect(A.continuousWith(B)).toBeTruthy() ;
-            t.expect(A.continuousWith(D)).toBeFalsy() ;
-            t.expect(A.continuousWith(Y)).toBeFalsy() ;
-            t.expect(D.continuousWith(A)).toBeFalsy() ;
-            t.expect(Y.continuousWith(A)).toBeFalsy() ;
+            t.expect0(B.continuousWith(D)).toBeTruthy() ;
+            t.expect1(B.continuousWith(A)).toBeTruthy() ;
+            t.expect2(B.continuousWith(Y)).toBeTruthy() ;
+            t.expect3(X.continuousWith(Y)).toBeTruthy() ;
+            t.expect4(X.continuousWith(Z)).toBeTruthy() ;
+            t.expect5(A.continuousWith(B)).toBeTruthy() ;
+            t.expect6(A.continuousWith(D)).toBeFalsy() ;
+            t.expect7(A.continuousWith(Y)).toBeFalsy() ;
+            t.expect8(D.continuousWith(A)).toBeFalsy() ;
+            t.expect9(Y.continuousWith(A)).toBeFalsy() ;
         }) ;
     
     })

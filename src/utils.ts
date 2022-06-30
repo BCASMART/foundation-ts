@@ -46,8 +46,9 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case 'E': ret += "\x1b[48;5;229m" ; break ;     // egg white background
                     // fF
                     case 'g': ret += "\x1b[32m" ; break ;           // green font  
-                    case 'G': ret += "\x1b[42m" ; break ;           // green background
-                    // hH
+                    case 'G': ret += "\x1b[42m" ; break ;           // green background                    
+                    // h
+                    case 'H': ret += "\x1b[H"; break ;              // put the cursor home
                     // iI
                     case 'j': ret += "\x1b[38;5;121m" ; break ;     // jungle green font
                     case 'J': ret += "\x1b[48;5;121m" ; break ;     // jungle green background
@@ -76,7 +77,9 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case 'X': ret += "\x1b[48;5;244m" ; break ;     // gray background
                     case 'y': ret += "\x1b[33m" ; break ;           // yellow font
                     case 'Y': ret += "\x1b[43m" ; break ;           // yellow background
-                    // zZ
+                    
+                    case 'z': ret += '\x1b[2J' ; break ;            // clear the whole terminal
+                    case 'Z': ret += '\x1b[2J\x1b[H' ; break ;      // clear the whole terminal and put the cursor home
 
                     default:
                         ret += escapeChar ;
@@ -108,12 +111,12 @@ export function $termclean(s:string, escapeChar:string = '&') {
                     else { ret += c ; }
                     break ;
                 case State.EscapeEscape:
-                    if (c === 'm') { state = State.Standard ;}
+                    if (c === 'm' || c === 'J' || c === 'H') { state = State.Standard ;}
                     if (!"[0123456789;".includes(c)) { state = State.Standard ; ret += c ; }
                     break ;
                 case State.EscapeChar:
                     if (c === escapeChar) { ret += escapeChar ; }
-                    else if (!"01>/_%<-aAbBcCdDeEgGjJkKlLmMoOpPrRuUvVwWxXyY".includes(c)) { ret += escapeChar + c ; }
+                    else if (!"01>/_%<-aAbBcCdDeEgGHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) { ret += escapeChar + c ; }
                     state = State.Standard ;
             }
         }

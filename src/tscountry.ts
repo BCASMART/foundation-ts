@@ -1,6 +1,6 @@
 import { $ascii, $length, $ok, $trim } from './commons';
 import { $language, Locales, TSDefaults } from './tsdefaults';
-import { TSObject } from './tsobject';
+import { TSClone, TSObject } from './tsobject';
 import { Comparison, country, currency, language, Languages, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
 import { $compare } from './compare';
@@ -13,7 +13,7 @@ import { $compare } from './compare';
  */
 
 
-export class TSCountry implements TSObject {
+export class TSCountry implements TSObject, TSClone<TSCountry> {
     private static __countriesMap:Map<string, TSCountry> ;
     private static __countries:TSCountry[] ;
     private static __EULocale:Locales = {
@@ -33,15 +33,15 @@ export class TSCountry implements TSObject {
         ampm: ['AM', 'PM']
     }
 
-    public alpha2Code:country;
-    public alpha3Code:string;
-    public names:StringTranslation;
-    public spokenLanguages:language[];
-    public domains:string[];
-    public EEC:boolean;
-    public dialCode: string;
-    public currency: currency;
-    public locales:Locales;
+    public readonly alpha2Code:country;
+    public readonly alpha3Code:string;
+    public readonly names:StringTranslation;
+    public readonly spokenLanguages:language[];
+    public readonly domains:string[];
+    public readonly EEC:boolean;
+    public readonly dialCode: string;
+    public readonly currency: currency;
+    public readonly locales:Locales;
     
     private constructor(infos:CountryInfos, locales:Locales) {
         this.alpha2Code = infos.alpha2Code ;
@@ -94,6 +94,8 @@ export class TSCountry implements TSObject {
     // as locales for this country. Idem for the language name.
     public get language():language { return this.locales.language ; }
     public get languageName():string { return this.locales.names[$language()!]! ; }
+
+    public clone():TSCountry { return this ; } // no clone on immutable objects
 
     public translatedName(lang?:language|null|undefined):string | null {
         const ret =  this.names[$ok(lang) ? lang! : $language()!] ;

@@ -20,12 +20,12 @@ export const dateGroups = [
         const T = $timestamp(2022,3,28) ;
         for (let i = 0 ; i < 7 ; i++) {
             group.unary(`day of week of ${new TSDate(T+i*TSDay)} should be ${(i+1)%7}`, async(t) => { 
-                t.expect($dayOfWeekFromTimestamp(T+TSDay*i)).toBe((i+1)%7) ; 
+                t.expect($dayOfWeekFromTimestamp(T+TSDay*i), `EDOW ${i}`).toBe((i+1)%7) ; 
             });
         }     
         for (let i = 0 ; i < 7 ; i++) {
             group.unary(`french day of week of ${new TSDate(T+i*TSDay)} should be ${i}`, async (t) => { 
-                t.expect($dayOfWeekFromTimestamp(T+TSDay*i,1)).toBe(i) ; 
+                t.expect($dayOfWeekFromTimestamp(T+TSDay*i,1), `FDOW ${i}`).toBe(i) ; 
             });
         }     
     }),
@@ -37,21 +37,13 @@ export const dateGroups = [
         const v1 = $timestamp(1945,5,8, 0, 0, 0) ;
         const W = V - 0.25 ;
     
-        group.unary('verifying $timestampWithoutTime() with positive TS', async (t) => {
-            t.expect($timestampWithoutTime(T)).toBe(t0) ;
+        group.unary('verifying $timestampWithoutTime()', async (t) => {
+            t.expect($timestampWithoutTime(T), "with positive TS").toBe(t0) ;
+            t.expect($timestampWithoutTime(U), "with positive non integer TS").toBe(t0) ;
+            t.expect($timestampWithoutTime(V), "with negative TS").toBe(v1) ;
+            t.expect($timestampWithoutTime(W), "with non integer negative TS").toBe(v1) ;
         }) ;
     
-        group.unary('verifying $timestampWithoutTime() with positive non integer TS', async (t) => {
-            t.expect($timestampWithoutTime(U)).toBe(t0) ;
-        }) ;
-    
-        group.unary('verifying $timestampWithoutTime() with negative TS', async (t) => {
-            t.expect($timestampWithoutTime(V)).toBe(v1) ;
-        }) ;
-    
-        group.unary('verifying $timestampWithoutTime() with non integer negative TS', async (t) => {
-            t.expect($timestampWithoutTime(W)).toBe(v1) ;
-        }) ;    
     }),
     TSTest.group("Testing TSDate creation", async (group) => {
         const ISO  = "1966-04-13T12:05:22" ;
@@ -82,22 +74,22 @@ export const dateGroups = [
     
         group.unary(`expect other ISO formated date for the same moment to be correctly created`, async (t) => {
             for (let d of ISOS) {
-                t.expect((new TSDate(d)).toIsoString()).toBe(ISO);
-                t.expect(TSDate.fromIsoString(d)?.toIsoString()).toBe(ISO);
+                t.expect((new TSDate(d)).toIsoString(), `1:${d}`).toBe(ISO);
+                t.expect(TSDate.fromIsoString(d)?.toIsoString(), `2:${d}`).toBe(ISO);
             }
         });
     
         group.unary(`expect other short ISO formated date for the same day to be correctly created`, async (t) => {
             for (let d of SHORTS) {
                 const td = new TSDate(d) ;
-                t.expect(td.toIsoString()).toBe(SHORT);
-                t.expect(TSDate.fromIsoString(d)?.toIsoString()).toBe(SHORT);
+                t.expect(td.toIsoString(), `1:${d}`).toBe(SHORT);
+                t.expect(TSDate.fromIsoString(d)?.toIsoString(), `2:${d}`).toBe(SHORT);
             }
         });
     
         group.unary(`expect same dates created by Y,M,D,H,M,S parameters to be correct`, async (t) => {
-            t.expect(B.toIsoString()).toBe(ISO);
-            t.expect(TD.toIsoString()).toBe(ISO);
+            t.expect0(B.toIsoString()).toBe(ISO);
+            t.expect1(TD.toIsoString()).toBe(ISO);
         });
     
         group.unary(`expect same date with non integer timestamp to be the same`, async (t) => {
@@ -105,16 +97,16 @@ export const dateGroups = [
             const NI = new TSDate(A.timestamp-0.22) ;
             const NM = new TSDate(A.timestamp-0.5) ;
             const NS = new TSDate(A.timestamp-0.78) ;
-            t.expect(A.isEqual(NI)).toBeTruthy();
-            t.expect(A.isEqual(NM)).toBeTruthy();
-            t.expect(A.isEqual(NS)).toBeTruthy();
+            t.expect0(A.isEqual(NI)).toBeTruthy();
+            t.expect1(A.isEqual(NM)).toBeTruthy();
+            t.expect2(A.isEqual(NS)).toBeTruthy();
         });
     
         group.unary(`expect sames dates to be equal`, async (t) => {
-            t.expect(A.isEqual(B)).toBeTruthy();
-            t.expect(B.isEqual(A)).toBeTruthy();
-            t.expect(A.isEqual(TD)).toBeTruthy();
-            t.expect(TD.isEqual(A)).toBeTruthy();
+            t.expect0(A.isEqual(B)).toBeTruthy();
+            t.expect1(B.isEqual(A)).toBeTruthy();
+            t.expect2(A.isEqual(TD)).toBeTruthy();
+            t.expect3(TD.isEqual(A)).toBeTruthy();
         });
     
         group.unary(`expect zulu created date and date representations to be within a minute`, async (t) => {
@@ -134,9 +126,9 @@ export const dateGroups = [
         group.unary(`expect new TSDate timestamp of 01/01/0001 to be ${-TSSecsFrom00010101To20010101}`, async (t) => {
             const BC = new TSDate(1, 1, 1) ;
             const BC2 = TSDate.past() ;
-            t.expect(BC.timestamp).toBe(-TSSecsFrom00010101To20010101);
-            t.expect(BC.isEqual(BC2)).toBeTruthy();
-            t.expect(BC2.isEqual(BC)).toBeTruthy();
+            t.expect0(BC.timestamp).toBe(-TSSecsFrom00010101To20010101);
+            t.expect1(BC.isEqual(BC2)).toBeTruthy();
+            t.expect2(BC2.isEqual(BC)).toBeTruthy();
         });
     
         group.unary(`expecting finding max time stamp for future date`, async (t) => {

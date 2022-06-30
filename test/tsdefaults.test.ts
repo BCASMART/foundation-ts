@@ -4,68 +4,68 @@ import { Countries, Currencies, Languages } from "../src/types";
 import { TSTest } from '../src/tstester';
 
 export const defaultsGroups = [
-    TSTest.group("Testing countries codes", async (group) => {
+    TSTest.group("Testing default countries codes", async (group) => {
         group.unary('verifying $country(x)', async (t) => {
-            t.expect($country(" France")).toBe(Countries.FR) ;
-            t.expect($country("fra")).toBe(Countries.FR) ;
-            t.expect($country("França")).toBe(Countries.FR) ;
-            t.expect($country("FRAnCa")).toBe(Countries.FR) ;
-            t.expect($country("frankreich")).toBe(Countries.FR) ;
-            t.expect($country("Eslováquia")).toBe(Countries.SK) ;
-            t.expect($country("eslovaquia")).toBe(Countries.SK) ;
-            t.expect($country(" SVK ")).toBe(Countries.SK) ;
-            t.expect($country("GB")).toBe(Countries.GB) ;
-            t.expect($country("United Kingdom")).toBe(Countries.GB) ;
-            t.expect($country("UK")).toBe(Countries.GB) ;
-            t.expect($country("Grande Bretagne")).toBe(Countries.GB) ;
-            t.expect($country("Großbritannien")).toBe(Countries.GB) ;
-            t.expect($country("Grossbritannien")).toBe(Countries.GB) ;
+            t.expect0($country(" France")).toBe(Countries.FR) ;
+            t.expect1($country("fra")).toBe(Countries.FR) ;
+            t.expect2($country("França")).toBe(Countries.FR) ;
+            t.expect3($country("FRAnCa")).toBe(Countries.FR) ;
+            t.expect4($country("frankreich")).toBe(Countries.FR) ;
+            t.expect5($country("Eslováquia")).toBe(Countries.SK) ;
+            t.expect6($country("eslovaquia")).toBe(Countries.SK) ;
+            t.expect7($country(" SVK ")).toBe(Countries.SK) ;
+            t.expect8($country("GB")).toBe(Countries.GB) ;
+            t.expect9($country("United Kingdom")).toBe(Countries.GB) ;
+            t.expectA($country("UK")).toBe(Countries.GB) ;
+            t.expectB($country("Grande Bretagne")).toBe(Countries.GB) ;
+            t.expectC($country("Großbritannien")).toBe(Countries.GB) ;
+            t.expectD($country("Grossbritannien")).toBe(Countries.GB) ;
         }) ;
     }),
-    TSTest.group("Testing languages", async (group) => {
+    TSTest.group("Testing default languages", async (group) => {
         const D = TSDefaults.defaults() ;
 
         group.unary('verifying default language', async (t) => {
-            t.expect(D.defaultLanguage).toBe(Languages.fr) ;
+            t.expect0(D.defaultLanguage).toBe(Languages.fr) ;
             D.setDefaultLanguage(Languages.en) ;
-            t.expect($language()).toBe(Languages.en) ;
+            t.expect1($language()).toBe(Languages.en) ;
             D.setDefaultLanguage(Languages.fr) ;
         }) ;
     
         group.unary('verifying $language(x)', async (t) => {
-            t.expect($language('FRF')).toBeNull() ;
-            t.expect($language(' FR ')).toBe(Languages.fr) ;
-            t.expect($language('Français ')).toBe(Languages.fr) ;
-            t.expect($language('Francais ')).toBe(Languages.fr) ;
-            t.expect($language('französisch')).toBe(Languages.fr) ;
-            t.expect($language('franzosisch')).toBe(Languages.fr) ;
+            t.expect0($language('FRF')).toBeNull() ;
+            t.expect1($language(' FR ')).toBe(Languages.fr) ;
+            t.expect2($language('Français ')).toBe(Languages.fr) ;
+            t.expect3($language('Francais ')).toBe(Languages.fr) ;
+            t.expect4($language('französisch')).toBe(Languages.fr) ;
+            t.expect5($language('franzosisch')).toBe(Languages.fr) ;
         }) ;
     }),
-    TSTest.group("Testing currency", async (group) => {
+    TSTest.group("Testing defaults currency", async (group) => {
         const D = TSDefaults.defaults() ;
 
         group.unary('verifying default currency', async (t) => {
-            t.expect(D.defaultCurrency).toBe(Currencies.EUR) ;
+            t.expect0(D.defaultCurrency).toBe(Currencies.EUR) ;
             D.setDefaultCurrency(Currencies.GBP) ;
-            t.expect($currency()).toBe(Currencies.GBP) ;
+            t.expect1($currency()).toBe(Currencies.GBP) ;
         }) ;
     
         group.unary('verifying $currency(x)', async (t) => {
-            t.expect($currency('FRF')).toBeNull() ;
-            t.expect($currency(' EUR ')).toBe(Currencies.EUR) ;
-            t.expect($currency('frankreich')).toBe(Currencies.EUR) ;
-            t.expect($currency('united kingdom')).toBe(Currencies.GBP) ;
-            t.expect($currency('Angleterre')).toBe(Currencies.GBP) ;
-            t.expect($currency(' CHF ')).toBe(Currencies.CHF) ;
-            t.expect($currency('Suisse')).toBe(Currencies.CHF) ;
-            t.expect($currency('Liechtenstein')).toBe(Currencies.CHF) ;
+            t.expect0($currency('FRF')).toBeNull() ;
+            t.expect1($currency(' EUR ')).toBe(Currencies.EUR) ;
+            t.expect2($currency('frankreich')).toBe(Currencies.EUR) ;
+            t.expect3($currency('united kingdom')).toBe(Currencies.GBP) ;
+            t.expect4($currency('Angleterre')).toBe(Currencies.GBP) ;
+            t.expect5($currency(' CHF ')).toBe(Currencies.CHF) ;
+            t.expect6($currency('Suisse')).toBe(Currencies.CHF) ;
+            t.expect7($currency('Liechtenstein')).toBe(Currencies.CHF) ;
     
             // all countries out of EEC using EURO as currency:
-            t.expect($currency('andorre')).toBe(Currencies.EUR) ;
-            t.expect($currency('principauté de monaco')).toBe(Currencies.EUR) ;
-            t.expect($currency('montenegro')).toBe(Currencies.EUR) ;
-            t.expect($currency('kosovo')).toBe(Currencies.EUR) ;
-            t.expect($currency('saint siège')).toBe(Currencies.EUR) ;
+            t.expectA($currency('andorre')).toBe(Currencies.EUR) ;
+            t.expectB($currency('principauté de monaco')).toBe(Currencies.EUR) ;
+            t.expectC($currency('montenegro')).toBe(Currencies.EUR) ;
+            t.expectD($currency('kosovo')).toBe(Currencies.EUR) ;
+            t.expectE($currency('saint siège')).toBe(Currencies.EUR) ;
         }) ;
     })
 ] ;

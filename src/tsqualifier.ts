@@ -82,9 +82,9 @@ export class TSQualifier<T> {
 		return quals.length === 1 ? quals[0] : this.AND(quals) ;
 	}
 
-    public static INRANGE<T>(key:KeyPath<T>, value:TSRange):TSQualifier<T> { 
+    public static INRANGE<T>(key:KeyPath<T>, value:TSRange|number[]):TSQualifier<T> { 
 		let qual = this.AND<T>() ;
-		qual.addRange(key, value) ;
+		qual.inRange(key, value) ;
 		if (!qual._operands.length) throw 'TSQualifier.INRANGE(): Bad TSRange value' ;
 		return qual._operands.length === 1 ? qual._operands[0] : qual ;
 	}
@@ -114,54 +114,67 @@ export class TSQualifier<T> {
     public value(): any { return this.isKeyValue ? this._operands[1] : undefined ; }
     public conditions() : QualifierCondition<T>[] { return this.isComposite ? this._operands : [] ; } 
 
-	public add(cond: QualifierCondition<T>) {
-        if (this.operator !== 'OR' && this.operator !== 'AND') {
-            throw 'TSQualifier.prototype.add(): trying to add condition on wrong qualifier' ;
-        }
-        if (cond instanceof TSQualifier && (cond as TSQualifier<T>).operator === this.operator) {
-			this._operands = [...this._operands, ...(cond as TSQualifier<T>)._operands] ;
-        }
-        else {
-            this._operands.push(cond) ;
-        }
+	public condition(cond: QualifierCondition<T>):TSQualifier<T> {
+        this._assertAndOr('condition') ; 
+        if (cond instanceof TSQualifier) { return this._add('', cond) ; }
+        this._operands.push(cond) ;
+        return this ;
+    }
+    
+    public and():TSQualifier<T> {
+        this._assertAndOr('and') ; 
+        if (this.operator === 'AND') { return this ; } 
+        const qual = (this.constructor as any).AND() ; this._add('', qual) ; return qual ;
+    }
+    
+    public or():TSQualifier<T>  {
+        this._assertAndOr('or') ; 
+        if (this.operator === 'OR') { return this ; }
+        const qual = (this.constructor as any).OR() ;  this._add('', qual) ; return qual ;
     }
 
-    public addValue(key:KeyPath<T>, value:QualifierOperand) {
-        const qualifier = (this.constructor as any).EQ(key, value) ;
-        this.add(qualifier) ;
-    }
-	public addNotValue(key:KeyPath<T>, value:QualifierOperand) {
-        const qualifier = (this.constructor as any).NEQ(key, value) ;
-        this.add(qualifier) ;
+    public not(condition:QualifierCondition<T>):TSQualifier<T>  { 
+        this._assertAndOr('not') ; 
+        const qual = (this.constructor as any).NOT(condition) ;  
+        return this._add('', qual) ;
     }
 
-    public addRange(key:KeyPath<T>, range:TSRange) {
+    public mayIs(cond:boolean, key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>  { this._assertAndOr('mayIs') ; return cond ? this.is(key, value) : this ; }
+    public if(cond:boolean):TSQualifier<T> | undefined { this._assertAndOr('if') ; return cond ? this : undefined ;}
+
+    public is(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>    { return this._add('is', (this.constructor as any).EQ(key, value)) ; }
+	public isNot(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T> { return this._add('isNot', (this.constructor as any).NEQ(key, value)) ; }
+    public gt(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>    { return this._add('gt', (this.constructor as any).GT(key as any, value)) ; }
+    public lt(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>    { return this._add('lt', (this.constructor as any).LT(key as any, value)) ; }
+    public gte(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>   { return this._add('gte', (this.constructor as any).GTE(key as any, value)) ; }
+    public lte(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T>   { return this._add('lte', (this.constructor as any).LTE(key as any, value)) ; }
+    public in(key:KeyPath<T>, value:QualifierOperand[]):TSQualifier<T>  { return this._add('in', (this.constructor as any).IN(key as any, value)) ; }
+    public nin(key:KeyPath<T>, value:QualifierOperand[]):TSQualifier<T> { return this._add('nin', (this.constructor as any).NIN(key as any, value)) ; }
+
+    public inRange(key:KeyPath<T>, range:TSRange|number[]):TSQualifier<T> {
+        this._assertAndOr('inRange') ; 
+        if (!(range instanceof TSRange)) { range = new TSRange(range) ; }
         if (!range.isValid || range.isEmpty) {
             throw 'TSQualifier.prototype.addRange(): trying to add an empty or invalid range value' ;
         }
         if (this.operator === 'AND') {
-            if (range.length === 1) { this.addValue(key, range.location) ; }
-            else {
-                this.add((this.constructor as any).GTE(key, range.location)) ;
-                this.add((this.constructor as any).LT(key, range.maxRange)) ;
-            }
+            if (range.length === 1) { return this.is(key, range.location) ; }
+            return this.gte(key, range.location).lt(key, range.maxRange)
         }
-        else {
-            const qualifier = (this.constructor as any).INRANGE(key, range) ;
-            this.add(qualifier) ;
-        }
+        return this._add('', (this.constructor as any).INRANGE(key as any, range)) ;
     }
 
-	public addInclusion(key:KeyPath<T>, value1:QualifierOperand, value2:QualifierOperand, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION) {
-        this.addIntersection(key, key, value1, value2, canUnspecify, strict) ;
-	}
+    public includes(key1:string, key2:string, value:any):TSQualifier<T> { 
+        return this._add('includes', TSQualifier<T>.INCLUDES(key1 as any, key2 as any, value)) ;
+    }
 
-	public addIntersection(key1:KeyPath<T>, key2:KeyPath<T>, value1:QualifierOperand, value2:QualifierOperand, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION) {
-		let quals = (this.constructor as any)._intersectionQuals(value1, value2, key1, key2, strict, canUnspecify) as TSQualifier<T>[] ;
-		if (quals.length === 1) { this.add(quals[0]) ; }
-		else if (this.operator === 'AND') { quals.forEach(q => this.add(q)) ; }
-		else { this.add((this.constructor as any).AND(quals)) ; }
-	}
+    public included(key:string, value1:any, value2:any, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION):TSQualifier<T> {
+        return this._add('included', TSQualifier<T>.INCLUDED(key as any, value1, value2, canUnspecify, strict)) ;
+    }
+
+    public intersects(key1:string, key2:string, value1:any, value2:any, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION):TSQualifier<T> {
+        return this._add('intersects', TSQualifier<T>.INTERSECTS(key1 as any, key2 as any, value1, value2, canUnspecify, strict)) ;
+    }
 
     public inverse():TSQualifier<T> { return (this.constructor as any).NOT(this) as TSQualifier<T> ; }
 
@@ -251,6 +264,22 @@ export class TSQualifier<T> {
         if ($ok(values)) { for (let v of values!) { if (this.validateValue(v)) { ret.push(v) ; }}}
         return ret ;
     }
+
+    private _add(method:string,qualifier:TSQualifier<T>):TSQualifier<T> { 
+        this._assertAndOr(method.length ? method : '_add') ; 
+        if (qualifier.operator === this.operator) {
+            this._operands = [...this._operands, qualifier._operands] ;
+        }
+        else { this._operands.push(qualifier) ; } 
+        return this ; 
+    }
+
+    private _assertAndOr(method:string) {
+        if (this.operator !== 'OR' && this.operator !== 'AND') {
+            throw `TSQualifier.prototype.${method}(): trying to add condition on ${this.operator} qualifier` ;
+        }
+    }
+
 }
 
 export function $valuesForKeyPath<T>(v:any, path:KeyPath<T>) { return $ok(v) ? _valuesForKeyPath(v, _split(path)) : v ; }

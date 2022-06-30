@@ -28,25 +28,26 @@ export class TSTester {
 
     public async run() {
         // first phase, we construct all the unary test in an asynchronus function call
-        this.log(`&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
-        let unaries = 0 ;
-        let unariesFailed = 0 ;
-        for (let g of this.groups) { unaries += await g.prepare() ; }
+        this.log(`&Z&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
+        let expectations = 0 ;
+        let expectationsFailed = 0 ;
+        for (let g of this.groups) { await g.prepare() ; }
         let passed = 0, failed = 0 ;
         // second phase, we run the tests
         for (let g of this.groups) {
-            const groupFailed = await g.run() ;
-            unariesFailed += groupFailed ;
+            const [groupExpected, groupFailed] = await g.run() ;
+            expectations += groupExpected ;
+            expectationsFailed += groupFailed ;
             if (groupFailed === 0) { passed++ } else { failed++ ; }
         }
-        this.log(`&y${unaries.toString().padStart(4)}&0&e unary test${unaries === 1 ? 'was' : 's were'} executed.&0`) ;
+        this.log(`&y${expectations.toString().padStart(4)}&0&e test${expectations === 1 ? 'was' : 's were'} executed.&0`) ;
         if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
         if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
         if (passed > 0 && !failed) {
             this.log('&G&w  ALL TESTS PASSED  &0') ;
         }
-        else if (unariesFailed > 0) {
-            this.log(`&R&w${unariesFailed.toString().padStart(4)} UNARY TEST${unariesFailed>1?'S':''} FAILED  &0`) ;
+        else if (expectationsFailed > 0) {
+            this.log(`&R&w${expectationsFailed.toString().padStart(4)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
         }
     }
 }
@@ -73,25 +74,26 @@ export class TSTestGroup extends TSTest {
         this._unaries.push(new TSUnaryTest(this, s, f)) ;
     }
 
-    public async prepare():Promise<number> {
+    public async prepare():Promise<void> {
         await this.fn(this) ;
-        return this._unaries.length ;
     }
 
     public log(format:string, ...args:any[]) {
         $logterm('  '+format, args) ;
     }
 
-    public async run():Promise<number> {
-        let failed = 0 ;
+    public async run():Promise<[number, number]> {
+        let expectations = 0 ;
+        let expectationFailed = 0 ;
 
         this.log(`&u- Running group tests &U&k ${this.desc} &0`) ;
         for (let u of this._unaries) {
-            const unaryok = await u.run() ;
-            if (!unaryok) { failed++ ; }
+            const [unaryExpected, unaryFailed] = await u.run() ;
+            expectationFailed += unaryFailed ;
+            expectations += unaryExpected ;
         }
-        $logterm(`${failed==0?'&j':'\n&o'}    ${this.desc} tests ${failed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ;
-        return failed ;
+        $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ;
+        return [expectations, expectationFailed] ;
     }
 }
 
@@ -109,8 +111,7 @@ export class TSUnaryTest extends TSTest {
         $logterm('    '+format,'', args) ;
     }
     
-
-    public async run():Promise<boolean> {
+    public async run():Promise<[number, number]> {
         this._passed = 0 ;
         this._failed = 0 ;
         $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ;
@@ -119,7 +120,7 @@ export class TSUnaryTest extends TSTest {
         if (this._passed > 0) { $writeterm(`&J&k ${this._passed} OK &0`) ; }
         if (this._failed > 0) { $writeterm(`&R&w ${this._failed} KO &0`) ; }
         $logterm('') ;
-        return this._failed === 0 ;
+        return [this._expected, this._failed] ;
     }
 
     public expect(v:any,msg?:string):TSExpectAgent {
@@ -127,7 +128,45 @@ export class TSUnaryTest extends TSTest {
         if (!$length(msg)) { msg = this._expected.toString().padStart(4) ; }
         return new TSExpectAgent(this, v, msg) ;
     }
-    
+
+    // this could be considered as useless but eventually, I find it very usefull and literrate 
+    public expect0(v:any):TSExpectAgent { return this.expect(v, 'Line 0') ; }
+    public expect1(v:any):TSExpectAgent { return this.expect(v, 'Line 1') ; }
+    public expect2(v:any):TSExpectAgent { return this.expect(v, 'Line 2') ; }
+    public expect3(v:any):TSExpectAgent { return this.expect(v, 'Line 3') ; }
+    public expect4(v:any):TSExpectAgent { return this.expect(v, 'Line 4') ; }
+    public expect5(v:any):TSExpectAgent { return this.expect(v, 'Line 5') ; }
+    public expect6(v:any):TSExpectAgent { return this.expect(v, 'Line 6') ; }
+    public expect7(v:any):TSExpectAgent { return this.expect(v, 'Line 7') ; }
+    public expect8(v:any):TSExpectAgent { return this.expect(v, 'Line 8') ; }
+    public expect9(v:any):TSExpectAgent { return this.expect(v, 'Line 9') ; }
+    public expectA(v:any):TSExpectAgent { return this.expect(v, 'Line A') ; }
+    public expectB(v:any):TSExpectAgent { return this.expect(v, 'Line B') ; }
+    public expectC(v:any):TSExpectAgent { return this.expect(v, 'Line C') ; }
+    public expectD(v:any):TSExpectAgent { return this.expect(v, 'Line D') ; }
+    public expectE(v:any):TSExpectAgent { return this.expect(v, 'Line E') ; }
+    public expectF(v:any):TSExpectAgent { return this.expect(v, 'Line F') ; }
+    public expectG(v:any):TSExpectAgent { return this.expect(v, 'Line G') ; }
+    public expectH(v:any):TSExpectAgent { return this.expect(v, 'Line H') ; }
+    public expectI(v:any):TSExpectAgent { return this.expect(v, 'Line I') ; }
+    public expectJ(v:any):TSExpectAgent { return this.expect(v, 'Line J') ; }
+    public expectK(v:any):TSExpectAgent { return this.expect(v, 'Line K') ; }
+    public expectL(v:any):TSExpectAgent { return this.expect(v, 'Line L') ; }
+    public expectM(v:any):TSExpectAgent { return this.expect(v, 'Line M') ; }
+    public expectN(v:any):TSExpectAgent { return this.expect(v, 'Line N') ; }
+    public expectO(v:any):TSExpectAgent { return this.expect(v, 'Line O') ; }
+    public expectP(v:any):TSExpectAgent { return this.expect(v, 'Line P') ; }
+    public expectQ(v:any):TSExpectAgent { return this.expect(v, 'Line Q') ; }
+    public expectR(v:any):TSExpectAgent { return this.expect(v, 'Line R') ; }
+    public expectS(v:any):TSExpectAgent { return this.expect(v, 'Line S') ; }
+    public expectT(v:any):TSExpectAgent { return this.expect(v, 'Line T') ; }
+    public expectU(v:any):TSExpectAgent { return this.expect(v, 'Line U') ; }
+    public expectV(v:any):TSExpectAgent { return this.expect(v, 'Line V') ; }
+    public expectW(v:any):TSExpectAgent { return this.expect(v, 'Line W') ; }
+    public expectX(v:any):TSExpectAgent { return this.expect(v, 'Line X') ; }
+    public expectY(v:any):TSExpectAgent { return this.expect(v, 'Line Y') ; }
+    public expectZ(v:any):TSExpectAgent { return this.expect(v, 'Line Z') ; }
+
     public fail() { this._failed ++ ;}
     public pass() { this._passed ++ ;}
 
@@ -180,21 +219,21 @@ export class TSExpectAgent {
 
     private _compfail(aValue:any, op:string) {
         const start = this._writeMessage() ;
-        $logterm(`&adid expect value:&O&w${inspect(this._value)}&0`) ;
-        $logterm(`${start}&eto be ${op} to value:&E&b${inspect(aValue)}&0`) ; 
+        $logterm(`&adid expect value:&O&w${inspect(this._value,false,5)}&0`) ;
+        $logterm(`${start}&eto be ${op} to value:&E&b${inspect(aValue,false,5)}&0`) ; 
         this._step?.fail() ;
     }
 
     private _elogfail(aValue:any) {
         const start = this._writeMessage() ;
-        $logterm(`&edid expect value:&E&b${inspect(aValue)}&0`) ;
-        $logterm(`${start}&adid get as value:&O&w${inspect(this._value)}&0`) ; 
+        $logterm(`&edid expect value:&E&b${inspect(aValue, false, 5)}&0`) ;
+        $logterm(`${start}&adid get as value:&O&w${inspect(this._value, false, 5)}&0`) ; 
         this._step?.fail() ;
     }
 
     private _nelogfail(aValue:any) {
         this._writeMessage() ;
-        $logterm(`&adid not expect  :&O&w${inspect(aValue)}&0`) ; 
+        $logterm(`&adid not expect  :&O&w${inspect(aValue, false, 5)}&0`) ; 
         this._step?.fail() ;
     }
 

@@ -362,8 +362,31 @@ declare global {
     export interface Array<T> {
         filteredMap: <R = T>(callBack:(e:T) => R|null|undefined) => Array<R> ;
     }
+    export interface String {
+        ascii: (this:string) => string ;
+        isDate: (this:string) => boolean ;
+        isEmail: (this:string) => boolean ;
+        isUrl: (this:string) => boolean ;
+        isUUID: (this:string) => boolean ;
+    }
+
 }
 
+if (!('ascii' in String.prototype)) {
+    String.prototype.ascii   = function ascii(this:string) { return $ascii(this) ; }
+}
+if (!('isDate' in String.prototype)) {
+    String.prototype.isDate  = function isDate(this:string) { return $ok($isodate(this)) ; }
+}
+if (!('isEmail' in String.prototype)) {
+    String.prototype.isEmail = function isEmail(this:string) { return $ok($email(this)) ; }
+}
+if (!('isUrl' in String.prototype)) {
+    String.prototype.isUrl   = function isUrl(this:string) { return $ok($url(this)) ; }
+}
+if (!('isUUID' in String.prototype)) {
+    String.prototype.isUUID  = function isUUID(this:string) { return $ok($UUID(this)) ; }
+}
 if (!('filteredMap' in Array.prototype)) {
     Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callBack:(e:T) => R|null|undefined):Array<R> { return $map(this, callBack) ; }
 }

@@ -106,19 +106,19 @@ export const qualifierGroups = [
     TSTest.group("Filtering with TSQualifier()", async (group) => {
 
         group.unary("OR filter()", async(t) => {
-            const qualifier = TSQualifier.OR<People>() ;
-            qualifier.addValue('lastName', 'Durand') ;
-            qualifier.add(TSQualifier.GTE('age', 38)) ;
-            qualifier.addValue('homes.address.city', 'Clermont-Ferrand') ;
+            const qualifier = TSQualifier.OR<People>()
+                .is('lastName', 'Durand')
+                .gte('age', 38)
+                .is('homes.address.city', 'Clermont-Ferrand') ;
 
-            t.expect(qualifier.isComposite).toBeTruthy() ;
-            t.expect(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect(qualifier.keyArray()).toBe([]) ;
-            t.expect(qualifier.key()).toBeUndefined() ;
-            t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.conditions().length).toBe(3) ;
+            t.expect0(qualifier.isComposite).toBeTruthy() ;
+            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
+            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect3(qualifier.key()).toBeUndefined() ;
+            t.expect4(qualifier.value()).toBeUndefined() ;
+            t.expect5(qualifier.conditions().length).toBe(3) ;
 
-            t.expect(peoples.filterWithQualifier(qualifier)).toBe([
+            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([
                 {
                     firstName:'Jean',
                     lastName:'Durand',
@@ -155,14 +155,14 @@ export const qualifierGroups = [
             const qualifier = TSQualifier.AND<People>(
                 [TSQualifier.EQ<People>('homes.address.city', 'Paris'), TSQualifier.GT('age', 35)]
             ) ;
-            t.expect(qualifier.isComposite).toBeTruthy() ;
-            t.expect(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect(qualifier.keyArray()).toBe([]) ;
-            t.expect(qualifier.key()).toBeUndefined() ;
-            t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.conditions().length).toBe(2) ;
+            t.expect0(qualifier.isComposite).toBeTruthy() ;
+            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
+            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect3(qualifier.key()).toBeUndefined() ;
+            t.expect4(qualifier.value()).toBeUndefined() ;
+            t.expect5(qualifier.conditions().length).toBe(2) ;
 
-            t.expect(peoples.filterWithQualifier(qualifier)).toBe([
+            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([
                 {
                     firstName:'Ange',
                     lastName:'Soleil',
@@ -177,14 +177,14 @@ export const qualifierGroups = [
 
         group.unary("Single existence filter OK()", async(t) => {
             const qualifier = TSQualifier.OK<People>('selection') ;
-            t.expect(qualifier.isComposite).toBeFalsy() ;
-            t.expect(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect(qualifier.keyArray()).toBe(['selection']) ;
-            t.expect(qualifier.key()).toBe('selection') ;
-            t.expect(qualifier.value()).toBeUndefined() ;
-            t.expect(qualifier.conditions()).toBe([]) ;
+            t.expect0(qualifier.isComposite).toBeFalsy() ;
+            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
+            t.expect2(qualifier.keyArray()).toBe(['selection']) ;
+            t.expect3(qualifier.key()).toBe('selection') ;
+            t.expect4(qualifier.value()).toBeUndefined() ;
+            t.expect5(qualifier.conditions()).toBe([]) ;
 
-            t.expect(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([
+            t.expectA(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([
                 {
                     firstName:'Jean',
                     lastName:'Valjean',
@@ -197,14 +197,14 @@ export const qualifierGroups = [
 
         group.unary("Single equalifty filter EQ()", async(t) => {
             const qualifier = TSQualifier.EQ<People>('homes.address.city', 'Lyon') ; 
-            t.expect(qualifier.isComposite).toBeFalsy() ;
-            t.expect(qualifier.isKeyValue).toBeTruthy() ;
-            t.expect(qualifier.keyArray()).toBe(['homes', 'address', 'city']) ;
-            t.expect(qualifier.key()).toBe('homes.address.city') ;
-            t.expect(qualifier.value()).toBe('Lyon') ;
-            t.expect(qualifier.conditions()).toBe([]) ;
+            t.expect0(qualifier.isComposite).toBeFalsy() ;
+            t.expect1(qualifier.isKeyValue).toBeTruthy() ;
+            t.expect2(qualifier.keyArray()).toBe(['homes', 'address', 'city']) ;
+            t.expect3(qualifier.key()).toBe('homes.address.city') ;
+            t.expect4(qualifier.value()).toBe('Lyon') ;
+            t.expect5(qualifier.conditions()).toBe([]) ;
 
-            t.expect(qualifier.filterValues(peoples)).toBe([
+            t.expectA(qualifier.filterValues(peoples)).toBe([
                 {
                     firstName:'Luna',
                     lastName:'Soleil',
@@ -220,14 +220,14 @@ export const qualifierGroups = [
 
         group.unary("Single equalifty filter LIKE()", async(t) => {
             const qualifier = TSQualifier.LIKE<People>('description', '%che_in%') ;
-            t.expect(qualifier.isComposite).toBeFalsy() ;
-            t.expect(qualifier.isKeyValue).toBeTruthy() ;
-            t.expect(qualifier.keyArray()).toBe(['description']) ;
-            t.expect(qualifier.key()).toBe('description') ;
-            t.expect(qualifier.value()).toBe('%che_in%') ;
-            t.expect(qualifier.conditions()).toBe([]) ;
+            t.expect0(qualifier.isComposite).toBeFalsy() ;
+            t.expect1(qualifier.isKeyValue).toBeTruthy() ;
+            t.expect2(qualifier.keyArray()).toBe(['description']) ;
+            t.expect3(qualifier.key()).toBe('description') ;
+            t.expect4(qualifier.value()).toBe('%che_in%') ;
+            t.expect5(qualifier.conditions()).toBe([]) ;
 
-            t.expect(qualifier.filterValues(peoples)).toBe([
+            t.expectA(qualifier.filterValues(peoples)).toBe([
                 {   // 4
                     firstName:'Pierre',
                     lastName:'Delahaye',
@@ -250,6 +250,38 @@ export const qualifierGroups = [
                                     
             ]) ;
         }) ;
+
+        group.unary("AND+OR+INRANGE filter test", async(t) => {
+            const qualifier = TSQualifier.AND<People>() ;
+
+            qualifier.inRange("age", [15, 10])
+                     .and() // does not change anything, we already are in a AND() qualifier
+                     .or().or().or() // 1, 2 or 3 or() give the same result. We already are in a OR() qualifier with the first one
+                        .is("office.address.city", "Paris")
+                        .is("homes.address.city", "Paris") ;
+
+            t.expect0(qualifier.isComposite).toBeTruthy() ;
+            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
+            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect3(qualifier.key()).toBeUndefined() ;
+            t.expect4(qualifier.value()).toBeUndefined() ;
+            t.expect5(qualifier.conditions().length).toBe(3) ; // 2 for the inRange(), 1 for the or()
+            t.expect5(qualifier.conditions()[2]?.conditions()?.length).toBe(2) ;
+
+            t.expectA(qualifier.filterValues(peoples)).toBe([
+                {   // 2
+                    firstName:'Jean',
+                    lastName:'Durand',
+                    homes: [{ address:{
+                        city:'Paris',
+                        country:'FR'
+                    }}],
+                    age:23
+                },
+            ]) ;
+
+        }) ;
+
 
     })
  ] ;

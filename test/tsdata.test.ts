@@ -31,30 +31,30 @@ export const dataGroups = [
         Z.length = 0 ;
 
         group.unary('verifying buffer creation, setData(), appendByte() and setting length', async (t) => {
-            t.expect(D.toString()).toBe(B.toString()) ;
-            t.expect(D).toBe(B) ;
-            t.expect(D1).toBe(B1) ;
-            t.expect(E).toBe(C) ;
-            t.expect(F).toBe(C) ;
-            t.expect(N).toBe(D) ;
-            t.expect(Z).toBe(Buffer.from('')) ;
+            t.expect0(D.toString()).toBe(B.toString()) ;
+            t.expect1(D).toBe(B) ;
+            t.expect2(D1).toBe(B1) ;
+            t.expect3(E).toBe(C) ;
+            t.expect4(F).toBe(C) ;
+            t.expect5(N).toBe(D) ;
+            t.expect6(Z).toBe(Buffer.from('')) ;
         }) ;
 
         group.unary('verifying TSData.slice()', async (t) => {
-            t.expect(D1.slice(0,10)).toBe(D) ;
-            t.expect(D1.slice(10)).toBe(SUP) ;
-            t.expect(D1.slice(100,100)).toBe(Buffer.from('')) ;
-            t.expect(D1.slice(10,100)).toBe(SUP) ;
+            t.expect0(D1.slice(0,10)).toBe(D) ;
+            t.expect1(D1.slice(10)).toBe(SUP) ;
+            t.expect2(D1.slice(100,100)).toBe(Buffer.from('')) ;
+            t.expect3(D1.slice(10,100)).toBe(SUP) ;
         }) ;
 
         group.unary('verifying TSData.compare()', async (t) => {
-            t.expect(N.compare(D)).toBe(Same) ;
-            t.expect(N).lt(D1) ;
-            t.expect(N).lte(D1) ;
-            t.expect(D1).gt(N) ;
-            t.expect(D1).gte(N) ;
-            t.expect(D).gte(N) ;
-            t.expect(D).lte(N) ;
+            t.expect0(N.compare(D)).toBe(Same) ;
+            t.expect1(N).lt(D1) ;
+            t.expect2(N).lte(D1) ;
+            t.expect3(D1).gt(N) ;
+            t.expect4(D1).gte(N) ;
+            t.expect5(D).gte(N) ;
+            t.expect6(D).lte(N) ;
         }) ;
 
     })

@@ -16,7 +16,7 @@ import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
 
 export class TSDate implements TSObject, TSClone<TSDate> {
-	private _timestamp: number ;
+	private readonly _timestamp: number ;
     public static readonly FUTURE = 'future' ;
     public static readonly PAST = 'past' ;
 	// =================== constructors ==========================
@@ -160,7 +160,7 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 
 
 	// ================= instance methods ========================
-	public clone():TSDate { return new TSDate(this._timestamp) ; }
+	public clone():TSDate { return this ; } // no clone on immutable objects
 
     public get timestamp():number { return this._timestamp ; }
 
@@ -169,10 +169,10 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 	public dateWithoutTime() { return new TSDate($timestampWithoutTime(this._timestamp)) ; }
     public timeSinceDate(d:TSDate) : number { return this._timestamp - d.timestamp ; }
 
-    public get year() : number { return $components(this._timestamp).year ; }
-    public get month() : number { return $components(this._timestamp).month ; }
-    public get day() : number { return $components(this._timestamp).day; }
-    public get hour() : number { return $hourFromTimestamp(this._timestamp) ; }
+    public get year() : number   { return $components(this._timestamp).year ; }
+    public get month() : number  { return $components(this._timestamp).month ; }
+    public get day() : number    { return $components(this._timestamp).day; }
+    public get hour() : number   { return $hourFromTimestamp(this._timestamp) ; }
     public get minute() : number { return $minuteFromTimestamp(this._timestamp) ; }
     public get second() : number { return $secondFromTimestamp(this._timestamp) ; }
 
@@ -228,10 +228,13 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 	public toNumber() : number { return this._timestamp ; }
     public toEpoch() : number { return this._timestamp + TSSecsFrom19700101To20010101 ; }
     public toComponents() : TSDateComp { return $components(this._timestamp) ; }
-	public toEpochTimestamp() : number { return this._timestamp + TSSecsFrom19700101To20010101 ; } // DEPRECATED, use toEpoch()
-    public toDate() : Date {
-        return $components2date($components(this._timestamp)) ;
-    }
+
+    /**
+     @deprecated use toEpoch() instead
+    */
+    public toEpochTimestamp() : number { return this.toEpoch() ; }
+
+    public toDate() : Date { return $components2date($components(this._timestamp)) ; }
 	public toIsoString(format:IsoDateFormat=TSDateForm.ISO8601) : isodate { 
         return <isodate>$components2string($components(this._timestamp), format) ; 
     }

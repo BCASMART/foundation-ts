@@ -16,68 +16,68 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     const [H6,S6,B6] = rgbGray.hsb() ;
     
     group.unary("verifying colors creation", async(t) => {
-        t.expect(TSColor.rgb('ff0')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('#ff0')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('ffff00')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('#ffff00')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('#FffF00')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('#ffff00ff')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb('#FFFF00FF')).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb(0xffff00)).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb(255,255,0)).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb(255,255,0,255)).toBe(yellowRGB) ;
-        t.expect(TSColor.rgbcomponents(1,1,0)).toBe(yellowRGB) ;
-        t.expect(TSColor.rgbcomponents(1,1,0,1)).toBe(yellowRGB) ;
-        t.expect(TSColor.rgb(0xffff00)).toBe(yellowRGB) ;
-        t.expect(TSColor.cmyk(0, 0, 1, 0)).toBe(yellowCMYK) ;
-        t.expect(yellowRGB.colorSpace).toBe(TSColorSpace.RGB) ;
-        t.expect(yellowCMYK.colorSpace).toBe(TSColorSpace.CMYK) ;
-        t.expect(realGray.colorSpace).toBe(TSColorSpace.Grayscale) ;
+        t.expect0(TSColor.rgb('ff0')).toBe(yellowRGB) ;
+        t.expect1(TSColor.rgb('#ff0')).toBe(yellowRGB) ;
+        t.expect2(TSColor.rgb('ffff00')).toBe(yellowRGB) ;
+        t.expect3(TSColor.rgb('#ffff00')).toBe(yellowRGB) ;
+        t.expect4(TSColor.rgb('#FffF00')).toBe(yellowRGB) ;
+        t.expect5(TSColor.rgb('#ffff00ff')).toBe(yellowRGB) ;
+        t.expect6(TSColor.rgb('#FFFF00FF')).toBe(yellowRGB) ;
+        t.expect7(TSColor.rgb(0xffff00)).toBe(yellowRGB) ;
+        t.expect8(TSColor.rgb(255,255,0)).toBe(yellowRGB) ;
+        t.expect9(TSColor.rgb(255,255,0,255)).toBe(yellowRGB) ;
+        t.expectA(TSColor.rgbcomponents(1,1,0)).toBe(yellowRGB) ;
+        t.expectB(TSColor.rgbcomponents(1,1,0,1)).toBe(yellowRGB) ;
+        t.expectC(TSColor.rgb(0xffff00)).toBe(yellowRGB) ;
+        t.expectD(TSColor.cmyk(0, 0, 1, 0)).toBe(yellowCMYK) ;
+        t.expectE(yellowRGB.colorSpace).toBe(TSColorSpace.RGB) ;
+        t.expectF(yellowCMYK.colorSpace).toBe(TSColorSpace.CMYK) ;
+        t.expectG(realGray.colorSpace).toBe(TSColorSpace.Grayscale) ;
     }) ;
 
     group.unary("verifying colors similaryty", async(t) => {
-        t.expect(yellowRGB.isSimilar(yellowRGB)).toBeTruthy()
-        t.expect(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy()
-        t.expect(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy()
-        t.expect(yellowRGB.isSimilar(yellowCMYK)).toBeTruthy()
-        t.expect(TSColor.rgb('blue').isSimilar(TSColor.blue)).toBeTruthy()
-        t.expect(TSColor.blue.isSimilar(TSColor.rgb('blue'))).toBeTruthy()
-        t.expect(TSColor.rgb('red').isSimilar(TSColor.red)).toBeTruthy()
-        t.expect(TSColor.red.isSimilar(TSColor.rgb('red'))).toBeTruthy()
-        t.expect(TSColor.rgb('green').isSimilar(TSColor.green)).toBeTruthy()
-        t.expect(TSColor.green.isSimilar(TSColor.rgb('green'))).toBeTruthy()
-        t.expect(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).toBeTruthy()
-        t.expect(realGray.isSimilar(TSColor.rgb(127,127,127))).toBeTruthy()
-        t.expect(realGray.isSimilar(rgbGray)).toBeTruthy()
+        t.expect0(yellowRGB.isSimilar(yellowRGB)).toBeTruthy()
+        t.expect1(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy()
+        t.expect2(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy()
+        t.expect3(yellowRGB.isSimilar(yellowCMYK)).toBeTruthy()
+        t.expect4(TSColor.rgb('blue').isSimilar(TSColor.blue)).toBeTruthy()
+        t.expect5(TSColor.blue.isSimilar(TSColor.rgb('blue'))).toBeTruthy()
+        t.expect6(TSColor.rgb('red').isSimilar(TSColor.red)).toBeTruthy()
+        t.expect7(TSColor.red.isSimilar(TSColor.rgb('red'))).toBeTruthy()
+        t.expect8(TSColor.rgb('green').isSimilar(TSColor.green)).toBeTruthy()
+        t.expect9(TSColor.green.isSimilar(TSColor.rgb('green'))).toBeTruthy()
+        t.expectA(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).toBeTruthy()
+        t.expectB(realGray.isSimilar(TSColor.rgb(127,127,127))).toBeTruthy()
+        t.expectC(realGray.isSimilar(rgbGray)).toBeTruthy()
     }) ;
 
     group.unary("verifying colors names", async(t) => {
-        t.expect(TSColor.rgb('red').name).toBe('red') ;
-        t.expect(TSColor.red.name).toBe('') ;
-        t.expect(TSColor.rgb('White').name).toBe('white') ;
-        t.expect(TSColor.rgb('#fff').name).toBe('white') ;
-        t.expect(TSColor.rgb('#FFFFFF').name).toBe('white') ;
-        t.expect(TSColor.rgb('fff').name).toBe('white') ;
-        t.expect(TSColor.rgb('FFFFFF').name).toBe('white') ;
-        t.expect(TSColor.rgb('#FFFFFFFF').name).toBe('white') ;
-        t.expect(TSColor.rgb('FFFFFFFF').name).toBe('white') ;
-        t.expect(TSColor.rgb(0xffffff).name).toBe('white') ;
-        t.expect(TSColor.rgb(0xffffffff).name).notToBe('white') ;
-        t.expect(TSColor.rgbcomponents(1,1,1).name).toBe('white') ;
-        t.expect(TSColor.cyan.name).toBe('') ;
-        t.expect(TSColor.rgb('aquamarine').name).toBe('aquamarine') ;
-        t.expect(TSColor.rgb("#7fffd4").name).toBe('aquamarine') ;
+        t.expect0(TSColor.rgb('red').name).toBe('red') ;
+        t.expect1(TSColor.red.name).toBe('') ;
+        t.expect2(TSColor.rgb('White').name).toBe('white') ;
+        t.expect3(TSColor.rgb('#fff').name).toBe('white') ;
+        t.expect4(TSColor.rgb('#FFFFFF').name).toBe('white') ;
+        t.expect5(TSColor.rgb('fff').name).toBe('white') ;
+        t.expect6(TSColor.rgb('FFFFFF').name).toBe('white') ;
+        t.expect7(TSColor.rgb('#FFFFFFFF').name).toBe('white') ;
+        t.expect8(TSColor.rgb('FFFFFFFF').name).toBe('white') ;
+        t.expect9(TSColor.rgb(0xffffff).name).toBe('white') ;
+        t.expectA(TSColor.rgb(0xffffffff).name).notToBe('white') ;
+        t.expectB(TSColor.rgbcomponents(1,1,1).name).toBe('white') ;
+        t.expectC(TSColor.cyan.name).toBe('') ;
+        t.expectD(TSColor.rgb('aquamarine').name).toBe('aquamarine') ;
+        t.expectE(TSColor.rgb("#7fffd4").name).toBe('aquamarine') ;
     }) ;
 
     group.unary("verifying HSB/HSL components", async(t) => {
-        t.expect([H1, S1, B1]).toBe([60,100,100]) ;
-        t.expect([H2, S2, L2]).toBe([60,100,50]) ;
-        t.expect([H3, S3, B3]).toBe([60,100,100]) ;
-        t.expect([H4, S4, L4]).toBe([60,100,50]) ;
-        t.expect([H5, S5, B5]).toBe([0,0,50]) ;
-        t.expect([H6, S6, B6]).toBe([0,0,50]) ;
-        t.expect(realGray.gray).toBe(0.5) ;
-        t.expect(rgbGray.gray).toBe(0.5) ;
+        t.expect0([H1, S1, B1]).toBe([60,100,100]) ;
+        t.expect1([H2, S2, L2]).toBe([60,100,50]) ;
+        t.expect2([H3, S3, B3]).toBe([60,100,100]) ;
+        t.expect3([H4, S4, L4]).toBe([60,100,50]) ;
+        t.expect4([H5, S5, B5]).toBe([0,0,50]) ;
+        t.expect5([H6, S6, B6]).toBe([0,0,50]) ;
+        t.expect6(realGray.gray).toBe(0.5) ;
+        t.expect7(rgbGray.gray).toBe(0.5) ;
     }) ;
 
 }) ;
