@@ -1,5 +1,6 @@
 import { $count, $length, $ok } from "./commons";
 import { exit } from "process";
+import { inspect } from "util";
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;
@@ -8,6 +9,8 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 		new Promise((_,rejection) => timer = setTimeout(rejection, time, exception))
 	]).finally(() => clearTimeout(timer)) ;
 }
+
+export function $inspect(v:any) { return inspect(v, false, 10) ; }
 
 export function $term(s:string, escapeChar:string = '&'):string {
     let fmtlen = $length(s) ;
@@ -25,13 +28,21 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case '0': ret += "\x1b[0m"  ; break ;           // reset
 
                     // styles
-                    case '1': ret += "\x1b[1m"  ; break ;           // bright mode
-                    case '>': ret += "\x1b[2m"  ; break ;           // dimmed
+                    case '1': ret += "\x1b[1m"  ; break ;           // bright mode (old version)
+                    case '!': ret += "\x1b[1m"  ; break ;           // bright mode
+                    case '>': ret += "\x1b[2m"  ; break ;           // dimmed (old version)
+                    case '?': ret += "\x1b[2m"  ; break ;           // dimmed
                     case '/': ret += "\x1b[3m"  ; break ;           // italic
                     case '_': ret += "\x1b[4m"  ; break ;           // underscore
                     case '%': ret += "\x1b[5m"  ; break ;           // blinked
                     case '<': ret += "\x1b[7m"  ; break ;           // inversed
                     case '-': ret += "\x1b[9m"  ; break ;           // strikethrough
+
+                    // screen + cursor
+                    case 'h': ret += "\x1b[0G"; break ;             // put the cursor at the beginning of the current line
+                    case 'H': ret += "\x1b[H"; break ;              // put the cursor home
+                    case 'z': ret += '\x1b[2K\x1b[0G' ; break ;     // clear current line and put the cursor at the first column
+                    case 'Z': ret += '\x1b[2J\x1b[H' ; break ;      // clear the whole terminal and put the cursor home
 
                     // colors
                     case 'a': ret += "\x1b[38;5;216m" ; break ;     // apricot font
@@ -47,8 +58,7 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     // fF
                     case 'g': ret += "\x1b[32m" ; break ;           // green font  
                     case 'G': ret += "\x1b[42m" ; break ;           // green background                    
-                    // h
-                    case 'H': ret += "\x1b[H"; break ;              // put the cursor home
+                    // h/H is for the cursor home
                     // iI
                     case 'j': ret += "\x1b[38;5;121m" ; break ;     // jungle green font
                     case 'J': ret += "\x1b[48;5;121m" ; break ;     // jungle green background
@@ -77,9 +87,7 @@ export function $term(s:string, escapeChar:string = '&'):string {
                     case 'X': ret += "\x1b[48;5;244m" ; break ;     // gray background
                     case 'y': ret += "\x1b[33m" ; break ;           // yellow font
                     case 'Y': ret += "\x1b[43m" ; break ;           // yellow background
-                    
-                    case 'z': ret += '\x1b[2J' ; break ;            // clear the whole terminal
-                    case 'Z': ret += '\x1b[2J\x1b[H' ; break ;      // clear the whole terminal and put the cursor home
+                    // zZ are for clearing the screen
 
                     default:
                         ret += escapeChar ;
@@ -101,24 +109,34 @@ export function $termclean(s:string, escapeChar:string = '&') {
     if (len) {
         enum State { Standard, EscapeChar, EscapeEscape} ;
         let state = State.Standard ;
+        let i = 0 ;
+        let escapeSequenceStart = 0 ;
         if ($length(escapeChar) !== 1 || escapeChar.includes('\x1b')) { escapeChar = '&' ; }
-        for (let i = 0 ; i < len ; i++) {
+        while (i < len) {
             const c = s.charAt(i) ;
             switch (state) {
                 case State.Standard:
                     if (c === escapeChar) { state = State.EscapeChar ; }
-                    else if (c === '\x1b') { state = State.EscapeEscape ; }
+                    else if (c === '\x1b') { state = State.EscapeEscape ; escapeSequenceStart = i ;}
                     else { ret += c ; }
                     break ;
                 case State.EscapeEscape:
-                    if (c === 'm' || c === 'J' || c === 'H') { state = State.Standard ;}
-                    if (!"[0123456789;".includes(c)) { state = State.Standard ; ret += c ; }
+                    if ('mGHJK'.includes(c)) { state = State.Standard ;}
+                    else if (!"[0123456789;".includes(c)) { 
+                        state = State.Standard ;
+                        ret += '\x1b' ; 
+                        i = escapeSequenceStart ; 
+                    }
                     break ;
                 case State.EscapeChar:
                     if (c === escapeChar) { ret += escapeChar ; }
-                    else if (!"01>/_%<-aAbBcCdDeEgGHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) { ret += escapeChar + c ; }
+                    else if (!"01>/_%<-?!aAbBcCdDeEgGhHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) { 
+                        ret += escapeChar ;
+                        i-- ; 
+                    }
                     state = State.Standard ;
             }
+            i++ ;
         }
     }
     return ret ;

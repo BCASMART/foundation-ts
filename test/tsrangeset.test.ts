@@ -1,4 +1,3 @@
-import { $json, $ok } from '../src/commons';
 import { TSRange } from '../src/tsrange' 
 import { TSRangeSet } from '../src/tsrangeset';
 import { TSTest } from '../src/tstester';
@@ -46,14 +45,3 @@ export const rangeSetGroups = TSTest.group("Testing TSRangeSet operations", asyn
         t.expect1(RS.substraction([7,4])).toBe(new TSRangeSet([[1,6],[11,14]])) ;
     }) ;
 }) ;
-
-export function printRS(name:string, a:TSRangeSet|null|undefined) {
-    console.log("-------------------------------------------------") ;
-    if ($ok(a)) {
-        console.log(`${name}:[${a!.count}]:\n${$json(a!.toJSON())}`) ;
-    }
-    else {
-        console.log(`${name} rangeset is null or undefined`) ;
-    }
-    console.log("-------------------------------------------------") ;
-}

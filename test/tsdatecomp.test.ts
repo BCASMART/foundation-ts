@@ -47,8 +47,9 @@ export const dateCompGroups = [
     
         const F1 = "%(%d jours%[, %]%)%[%≤%h heures%≥%<%≤%{,%b et%} %≥%m minutes%{ et %s secondes%}%>%]" ;
     
-        group.unary(`Verifying complex format "${F1}"`, async (t) => {
+        group.unary('Verifying complex format', async (t) => {
         
+            t.register('format', F1) ;
             t.expect0($duration2String(A, F1)).toBe("3 jours, 2 heures, 25 minutes et 10 secondes") ;
             t.expect1($duration2String(B, F1)).toBe("2 heures, 25 minutes et 10 secondes") ;
             t.expect2($duration2String(C, F1)).toBe("3 jours, 2 heures et 25 minutes") ;

@@ -156,10 +156,9 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     
     group.unary("verifying $fusion(objectA, objectB)", async(t) => {
         const [fusion1,] = $fusion(DICT, DICT_B) ; 
-        //$logterm('&yfusion 1:&o'+inspect(fusion1)+'&0') ;
         t.expect1(fusion1).toBe({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
+
         const [fusion2,] = $fusion(DICT, DICT_C) ; 
-        //$logterm('&rfusion 2:&p'+inspect(fusion1)+'&0') ;
         t.expect2(fusion2).toBe({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
     }) ;
 

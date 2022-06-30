@@ -1,8 +1,8 @@
 import { inspect } from "util";
-import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $length, $ok } from "./commons";
+import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal } from "./compare";
-import { Ascending, Descending } from "./types";
-import { $logterm, $writeterm } from "./utils";
+import { AnyDictionary, Ascending, Descending } from "./types";
+import { $inspect, $logterm, $writeterm } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
@@ -102,6 +102,7 @@ export class TSUnaryTest extends TSTest {
     private _failed:number = 0 ;
     private _passed:number = 0 ;
     private _expected:number = 0 ;
+    private _registrations:AnyDictionary = {} ;
 
     public constructor(g:TSTestGroup, s:string, f:unaryFN) {
         super(s, f as testFN) ;
@@ -116,11 +117,30 @@ export class TSUnaryTest extends TSTest {
         this._failed = 0 ;
         $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ;
         await this.fn(this) ;
-        if (this._failed > 0) { $writeterm('\n     ') ; }
+        if (this._failed > 0) { 
+            $writeterm('\n     ') ; 
+            this.printRegistrations() ;
+        }
         if (this._passed > 0) { $writeterm(`&J&k ${this._passed} OK &0`) ; }
         if (this._failed > 0) { $writeterm(`&R&w ${this._failed} KO &0`) ; }
         $logterm('') ;
         return [this._expected, this._failed] ;
+    }
+    
+    public register(name:string, value:any) {
+        if ($defined(value) && $length(name)) { this._registrations[name] = value ; }
+    }
+    public printRegistrations() {
+        const keys = $keys(this._registrations)
+        const n = keys.length ;
+        if (n === 1) {
+            $logterm(`\n&Y&b  REGISTERED ITEM &r&!${keys[0]}  &0&c\n${$inspect(this._registrations[keys[0]])}&0\n`) ;
+        }
+        else if (n > 1) {
+            $logterm('\n&Y&b  REGISTERED ITEMS  &0') ;
+            keys.forEach(k => { $logterm(`&x  + &o&_&/&!${k}&0&x: &c${$inspect(this._registrations[k])}&0`) ; }) ;
+            $logterm('') ;
+        }
     }
 
     public expect(v:any,msg?:string):TSExpectAgent {
@@ -220,20 +240,20 @@ export class TSExpectAgent {
     private _compfail(aValue:any, op:string) {
         const start = this._writeMessage() ;
         $logterm(`&adid expect value:&O&w${inspect(this._value,false,5)}&0`) ;
-        $logterm(`${start}&eto be ${op} to value:&E&b${inspect(aValue,false,5)}&0`) ; 
+        $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ; 
         this._step?.fail() ;
     }
 
     private _elogfail(aValue:any) {
         const start = this._writeMessage() ;
-        $logterm(`&edid expect value:&E&b${inspect(aValue, false, 5)}&0`) ;
-        $logterm(`${start}&adid get as value:&O&w${inspect(this._value, false, 5)}&0`) ; 
+        $logterm(`&edid expect value:&E&b${$inspect(aValue)}&0`) ;
+        $logterm(`${start}&adid get as value:&O&w${$inspect(this._value)}&0`) ; 
         this._step?.fail() ;
     }
 
     private _nelogfail(aValue:any) {
         this._writeMessage() ;
-        $logterm(`&adid not expect  :&O&w${inspect(aValue, false, 5)}&0`) ; 
+        $logterm(`&adid not expect  :&O&w${$inspect(aValue)}&0`) ; 
         this._step?.fail() ;
     }
 

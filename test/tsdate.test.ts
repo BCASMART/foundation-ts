@@ -201,8 +201,8 @@ export const dateGroups = [
         group.unary('d.toEpoch()', async (t) => { t.expect(D.toEpoch()).toBe(-777862740) ; }) ;
         group.unary('d.toDate()', async (t) => { t.expect(D.toDate()).toBe(ED) ; }) ;
         group.unary('d.toIsoString()', async (t) => { t.expect(D.toIsoString()).toBe("1945-05-08T23:01:00") ; }) ;
-        group.unary('d.toIsoString(TSDateForm.ISO8601C)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601C)).toBe("19450508T230100") ; }) ;
-        group.unary('d.toIsoString(TSDateForm.ISO8601L)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601L)).toBe("001945-05-08T23:01:00") ; }) ;
+        group.unary('d.toIsoString(ISO8601C)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601C)).toBe("19450508T230100") ; }) ;
+        group.unary('d.toIsoString(ISO8601L)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601L)).toBe("001945-05-08T23:01:00") ; }) ;
         
         const C = new TSDate(1966, 4, 13, 12, 5, 22) ;
         group.unary('d.compare(>date)', async (t) => { t.expect(D.compare(C)).toBe(Ascending) ; }) ;
@@ -215,13 +215,20 @@ export const dateGroups = [
         group.unary('d.isEqual(=other date)', async (t) => { t.expect(D.isEqual(E)).toBeTruthy() ; }) ;
         group.unary('d.isEqual(<date)', async (t) => { t.expect(!D.isEqual(D.firstDateOfYear())).toBeTruthy() ; }) ;
     }),
+
     TSTest.group("Testing TSDate output format", async (group) => {
         const D1 = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
         const f = "%A, %e %B %Y à %Hh%M" ;
-        group.unary(`d.toString(${f})`, async (t) => { t.expect(D1.toString(f)).toBe("mardi, 8 mai 1945 à 23h01") ; }) ;
+        group.unary(`unconditional output format`, async (t) => { 
+            t.register('format', f) ; 
+            t.expect(D1.toString(f)).toBe("mardi, 8 mai 1945 à 23h01") ; 
+        }) ;
     
         const cf = "%A, %e %B %Y%[ à %Hh%M et %T secondes%]" ;
-        group.unary(`d.toString(${cf})`, async (t) => { t.expect(D1.toString(cf)).toBe("mardi, 8 mai 1945 à 23h01 et 3 secondes") ; }) ;
-        group.unary(`d.toString(${cf})`, async (t) => { t.expect(D1.dateWithoutTime().toString(cf)).toBe("mardi, 8 mai 1945") ; }) ;
+        group.unary('conditional output format', async (t) => {
+            t.register('format', cf) ; 
+            t.expect0(D1.toString(cf)).toBe("mardi, 8 mai 1945 à 23h01 et 3 secondes") ; 
+            t.expect1(D1.dateWithoutTime().toString(cf)).toBe("mardi, 8 mai 1945") ;
+        }) ;
     })
 ] ;

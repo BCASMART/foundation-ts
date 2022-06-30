@@ -61,12 +61,3 @@ export const serverGroups = TSTest.group("Testing TSServer API definitions", asy
 }) ;
 
 const sameCallFunction = async (url:URL, parameters:StringDictionary, msg: IncomingMessage, res: ServerResponse) => {} ;
-
-/*
-
-
-
-describe("Testing TSServer API definitions", async (t) => {
-
-}) ;
-*/
