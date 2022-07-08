@@ -1,8 +1,11 @@
 import { AnyDictionary } from './types';
 import { $isnumber, $isstring, $length, $ok, $unsigned, $trim, $isarray } from './commons';
-import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 import { TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
+
+// TODO: for now, we use axios, but as good as axios is, it comes with a lot of
+// dependancies and in near future, we will upgrade this class to be autonomous
+import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 
 
 export function $basicauth(login:string, pwd:string) : string
@@ -147,7 +150,7 @@ interface TSRequestError {
 
 export interface TSResponse {
     status:Resp,
-    response:Buffer|object|string|ReadableStream|null, // WARNING: should we accept boolean return ?
+    response:Buffer|object|string|ReadableStream|null, // WARNING: should we accept number and boolean return ?
     headers:RequestHeaders
 }
 export interface TSRequestOptions {
@@ -238,7 +241,7 @@ export class TSRequest {
 		let status = 0 ;
         let headers:RequestHeaders = {} ;
 
-		const timeoutError = TSUniqueError.esError() ; // we use a singleton to avoid to use Symbol() in browsers
+		const timeoutError = TSUniqueError.timeoutError() ;
 		try {
 			const response = await $timeout(this.channel(config), timeout, timeoutError)
 			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;

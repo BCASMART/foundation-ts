@@ -3,21 +3,64 @@ import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import { $defined, $isunsigned, $keys, $length, $ok, $string, $trim, $unsigned } from "./commons";
 import { TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { StringDictionary, uint16, UINT16_MAX } from "./types";
+import { AnyDictionary, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm } from "./utils";
 
 import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "./tsservercomp";
+import { TSDate } from "./tsdate";
+import { TSColor } from "./tscolor";
 
 /**
- * This is a minimal HTTP server class provided for testing
+ * This is a minimal singleton HTTP server class provided for testing
  * 
- * You start a new API server on default port 3000 by a single line :
+ * You start a new async API server on default port 3000 by a single line : 
+ *   TSServer.start({ ... my endpoints definitions dictionary ... }) ;
  * 
  */
+export interface TSServerRequest {
+    method:Verb,                      // request method
+    url:URL,                          // request URL
+    parameters:TSParameterDictionary, // a key-value parametric path dictionary
+    query:TSQueryDictionary,          // a key-value query dictionary
+    message:IncomingMessage           // Node object
+}
 
-export type TSEndPoint = (url:URL, parameters:StringDictionary, req:IncomingMessage, resp:ServerResponse) => Promise<void> ; // the function says if it did catch the request
-export type TSEndPoints = { [key in Verb]?: TSEndPoint; };
-export type TSEndPointsDictionary = { [key:string]:TSEndPoints }
+export type TSEndPointManager = (req:TSServerRequest, resp:ServerResponse) => Promise<void> ; // the function says if it did catch the request
+export interface TSEndPoint {
+    manager:TSEndPointManager,
+    query?: TSQueryDefinition // for future usage
+}
+
+export type TSEndPoints = { [key in Verb]?: TSEndPoint|TSEndPointManager; };
+export type TSEndPointsDictionary = TSDictionary<TSEndPoints|TSEndPoint|TSEndPointManager> ;
+export type TSEndPointParameter = string|number|boolean|TSDate|TSColor ; // QUESTION: should we remove some types here ?
+export type TSParameterDictionary = TSDictionary<TSEndPointParameter> ;
+export type TSQueryValue = TSEndPointParameter ; // QUESTION: more types here ?
+export type TSQueryDictionary = TSDictionary<TSQueryValue> ; 
+
+export const TSParametricTokenType = {
+    string   : 'string',
+    number   : 'number',
+    int      : 'int',
+    unsigned : 'unsigned',
+    boolean  : 'boolean',
+    date     : 'date',
+    color    : 'color',
+    uuid     : 'uuid',
+    email    : 'email'
+} as const ;
+
+export type TSParametricTokenType = typeof TSParametricTokenType[keyof typeof TSParametricTokenType];
+
+export interface TSParametricToken {
+    name:string,
+    type:TSParametricTokenType ;
+}
+export interface TSQueryItem {
+    type:TSParametricTokenType,
+    mandatory?:boolean
+}
+export type TSQueryDefinition = TSDictionary<TSParametricTokenType|TSQueryItem> ; // if there's only a TSParametricTokenType as value, the item is optional
 
 export interface TSServerOptions extends TSStaticWebSiteOptions {
     host?:string,
@@ -107,29 +150,42 @@ export class TSServer {
             try {
                 // validating method
                 const method = TSParametricEndPoints.validRequestMethod(req.method) ;
+                const url = new URL($string(req.url), this.host);
+
                 if (!$ok(method)) {
-                    throw new TSHttpError(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed) ;
+                    throw new TSHttpError(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
+                        method:req.method,
+                        path:$length(url.pathname) ? url.pathname : '/' 
+                    }) ;
                 }
 
                 // validating url
-                const url = new URL($string(req.url), this.host);
                 if (!$length(url.pathname) || url.pathname === '/') {
-                    throw new TSHttpError('Root path is not Accessible', Resp.Forbidden) ;
+                    throw new TSHttpError('Root path is not Accessible', Resp.Forbidden, {
+                        method:req.method,
+                        path:'/'
+                    }) ;
                 }
 
                 let pep:TSParametricEndPoints|undefined = undefined ;
-                let values:StringDictionary = {} ;
+                let parameters:TSParameterDictionary = {} ;
                 this._endPoints.forEach(ep => {
-                    const vals = ep.valuesFromPath(url.pathname) ;
-                    if ($ok(vals) && (!$defined(pep) || pep!.depth < ep.depth)) {
+                    const params = ep.parametersFromPath(url.pathname) ;
+                    if ($ok(params) && (!$defined(pep) || pep!.depth < ep.depth)) {
                         pep = ep ;
-                        values = vals!
+                        parameters = params!
                     }
                 })
 
                 if ($ok(pep)) {
                     // we have a potential dynamic resource ;
-                    await pep!.execute(url, method!, values, req, res) ; 
+                    await pep!.execute({
+                        url:url, 
+                        method:method!, 
+                        parameters:parameters, 
+                        message:req,
+                        query:{} // the final query will be calculated after
+                    }, res) ; 
                     if (this._logInfos) { await this._logger(this, req, TSServerLogType.Log, `did handle resource '${url.pathname}'.`) ; }
                     return ;
                 }
@@ -147,15 +203,19 @@ export class TSServer {
                 }
                 
                 // here the resource is not found
-                throw new TSHttpError(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound) ;
+                throw new TSHttpError(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound, {
+                    method:method,
+                    path:$length(url.pathname) ? url.pathname : '/'
+                }) ;
             }
             catch (e:any) {
-                const status = $isunsigned(e?.status) && Object.values(Resp).includes(e!.status!) ? e!.status! : Resp.InternalError ;
-                let error = (e as Error).message ; if (!$length(error)) { error = 'Unknown internal Error' ; }
-                await this._logger(this, req, TSServerLogType.Warning, `${status} - ${error}`)
-                res.setHeader('Content-Type', 'text/plain')
-                res.writeHead(status);
-                res.end(`${status} - ${error}`) ;
+                let ret:AnyDictionary = {} ;
+                ret.status = $isunsigned(e?.status) && Object.values(Resp).includes(e!.status!) ? e!.status! : Resp.InternalError ;
+                ret.error = (e as Error).message ; if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; } ;
+                if ($ok(e.infos)) { ret.infos = e.infos ; }
+                await this._logger(this, req, TSServerLogType.Warning, `${ret.status} - ${ret.error}`)
+                res.writeHead(ret.status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(ret)) ;
             }
 
         }) ;        
@@ -208,3 +268,4 @@ const __TSServerlogHeaders:StringDictionary = {
     'Warning':  "&O&w WARNING ",
     'Error':    "&R&w  ERROR  "
 } ;
+

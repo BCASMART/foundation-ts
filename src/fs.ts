@@ -331,9 +331,9 @@ export function $writeBuffer(src:string|null|undefined, buf:TSData|NodeJS.ArrayB
                     // but we could'nt do it, so, in this very hypothetical case, we will not
                     // destroy anything and will throw an Error will all the infos in it 
                     throw new TSError(`Unable to atomically finish writing file '${src}'`, {
-                            wantedPath:src,
-                            renamedExistingFile:renamedExistingFile,
-                            writtenDataFile:pathToWrite
+                        wantedPath:src,
+                        renamedExistingFile:renamedExistingFile,
+                        writtenDataFile:pathToWrite
                     }) ;
                 }
                 done = false ;

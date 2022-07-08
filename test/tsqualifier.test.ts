@@ -74,7 +74,7 @@ const peoples:People[] = [
     {   // 6
         firstName:'Jean',
         lastName:'Valjean',
-        age:11,
+        age:15,
         selection:'red team',
         description:"Chemin vers la victoire"
     },
@@ -122,35 +122,10 @@ export const qualifierGroups = [
             
 
             t.expectA(peoples.filterWithQualifier(qualifier)).toBe([
-                {
-                    firstName:'Jean',
-                    lastName:'Durand',
-                    homes:[{address:{
-                        city:'Paris',
-                        country:'FR'
-                    }}],
-                    age:23
-                },
-                {
-                    firstName:'Alice',
-                    lastName:'de France',
-                    homes:[{address:{
-                        city:'Clermont-Ferrand',
-                        country:'FR'
-                    }}],
-                    age:34
-                },
-                    {
-                    firstName:'Pierre',
-                    lastName:'Delahaye',
-                    homes:[{}],
-                    age:38
-                },
-                {
-                    firstName:'Georges',
-                    lastName:'Durand',
-                    age:47
-                }        
+                peoples[2],
+                peoples[3],
+                peoples[4],
+                peoples[5]
             ]) ;
         }) ;
 
@@ -168,17 +143,7 @@ export const qualifierGroups = [
             t.expect5(qualifier.conditions().length).toBe(2) ;
 
 
-            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([
-                {
-                    firstName:'Ange',
-                    lastName:'Soleil',
-                    homes: [{address:{
-                        city:'Paris',
-                        country:'FR'
-                    }}],
-                    age:37
-                },
-            ]) ;
+            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([peoples[1]]) ;
         }) ;
 
         group.unary("Single existence filter OK()", async(t) => {
@@ -193,14 +158,7 @@ export const qualifierGroups = [
             t.expect5(qualifier.conditions()).toBe([]) ;
 
 
-            t.expectA(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([
-                {
-                    firstName:'Jean',
-                    lastName:'Valjean',
-                    age:11,
-                    selection:'red team'
-                }
-            ]) ;
+            t.expectA(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([peoples[6]]) ;
 
         }) ;
 
@@ -216,18 +174,7 @@ export const qualifierGroups = [
             t.expect5(qualifier.conditions()).toBe([]) ;
 
 
-            t.expectA(qualifier.filterValues(peoples)).toBe([
-                {
-                    firstName:'Luna',
-                    lastName:'Soleil',
-                    age:9,
-                    homes:[
-                        { address:{ city:'Lyon', country:'FR' }},
-                        { address:{ city:'Paris', country:'FR' }}
-                    ]
-                }
-        
-            ])
+            t.expectA(qualifier.filterValues(peoples)).toBe([peoples[7]]) ;
         }) ;
 
         group.unary("Single equalifty filter LIKE()", async(t) => {
@@ -244,26 +191,9 @@ export const qualifierGroups = [
 
     
             t.expectA(qualifier.filterValues(peoples)).toBe([
-                {   // 4
-                    firstName:'Pierre',
-                    lastName:'Delahaye',
-                    homes:[{}],
-                    age:38,
-                    description:" Le petit chemin, qui est plein de violettes."
-                },
-                {   // 6
-                    firstName:'Jean',
-                    lastName:'Valjean',
-                    age:11,
-                    selection:'red team',
-                    description:"Chemin vers la victoire"
-                },
-                {   // 8
-                    firstName:'Henri',
-                    lastName:'Du Mans',
-                    description:"Autrefois j'avais un CHENIN."
-                }
-                                    
+                peoples[4],
+                peoples[6],
+                peoples[8]                                    
             ]) ;
         }) ;
 
@@ -274,7 +204,8 @@ export const qualifierGroups = [
                      .and() // does not change anything, we already are in a AND() qualifier
                      .or().or().or() // 1, 2 or 3 or() give the same result. We already are in a OR() qualifier with the first one
                         .is("office.address.city", "Paris")
-                        .is("homes.address.city", "Paris") ;
+                        .is("homes.address.city", "Paris")
+                        .ok("selection")
             
             t.register('qualifier', qualifier) ;
 
@@ -284,20 +215,10 @@ export const qualifierGroups = [
             t.expect3(qualifier.key()).toBeUndefined() ;
             t.expect4(qualifier.value()).toBeUndefined() ;
             t.expect5(qualifier.conditions().length).toBe(3) ; // 2 for the inRange(), 1 for the or()
-            t.expect6(qualifier.conditions()[2]?.conditions()?.length).toBe(2) ;
+            t.expect6(qualifier.conditions()[2]?.conditions()?.length).toBe(3) ;
 
 
-            t.expectA(qualifier.filterValues(peoples)).toBe([
-                {   // 2
-                    firstName:'Jean',
-                    lastName:'Durand',
-                    homes: [{ address:{
-                        city:'Paris',
-                        country:'FR'
-                    }}],
-                    age:23
-                },
-            ]) ;
+            t.expectA(qualifier.filterValues(peoples)).toBe([peoples[2], peoples[6]]) ;
 
         }) ;
 

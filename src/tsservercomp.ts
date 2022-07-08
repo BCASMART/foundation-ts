@@ -1,12 +1,14 @@
-import { IncomingMessage, ServerResponse } from "http";
+import { ServerResponse } from "http";
 
-import { StringDictionary, uint32 } from "./types";
+import { StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
-import { $keys, $length, $objectcount, $ok, $trim } from "./commons";
+import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $trim, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
 import { TSHttpError } from "./tserrors";
 
-import { TSEndPoints, TSServerLogger } from "./tsserver";
+import { TSEndPoint, TSEndPoints, TSEndPointParameter, TSParameterDictionary, TSServerLogger, TSParametricTokenType, TSParametricToken, TSEndPointManager, TSQueryItem, TSServerRequest, TSQueryDictionary, TSQueryValue } from "./tsserver";
+import { TSDate } from "./tsdate";
+import { TSColor } from "./tscolor";
 
 export interface TSStaticWebSiteOptions {
     logger?:TSServerLogger ;
@@ -106,11 +108,42 @@ export class TSStaticWebsite {
 
 }
 
+
+const TSParametersConversions:{[key in TSParametricTokenType]:(s:string) => TSEndPointParameter|null|undefined} = {
+    string: (s:string) => s,
+    number: (s:string) => Number(s),
+    int: (s:string) => $intornull(s),
+    unsigned: (s:string) => $unsignedornull(s),
+    boolean: (s:string) => { 
+        s = $trim(s).toLowerCase() ; 
+        if (s === '1' || s === 'true' || s === 'y' || s === 'yes') { return true ; }
+        if (s === '0' || s === 'false' || s === 'n' || s === 'no') { return false ; }
+        return undefined ;
+    }, 
+    date: (s:string) => TSDate.fromIsoString(s), // since it may not be a good think to have ':' chars in a path, the date encoding should be TSDateForm.ISO8601C
+    color: (s:string) => { 
+        let c:TSColor|undefined ; 
+        try { c = TSColor.rgb(s) ; } 
+        catch { c =  undefined ; } 
+        return c ; 
+    },
+    uuid: (s:string) => $UUID(s),
+    email: (s:string) => $email(s)
+} as const ;
+
+
+export type TSParametricQueryDefinition = TSDictionary<TSQueryItem>
+export interface TSParametricEndPoint {
+    manager:TSEndPointManager,
+    query?: TSParametricQueryDefinition
+}
+
+export type TSParametricEndPointsDefinitions = { [key in Verb]?: TSParametricEndPoint; } ;
 export class TSParametricEndPoints {
     public readonly uri:string ;
     public readonly depth:number ; // measures the number of components of the path
-    public readonly tokens:string[] ;
-    public readonly endPoints:TSEndPoints ;
+    public readonly tokens:TSParametricToken[] ;
+    public readonly endPoints:TSParametricEndPointsDefinitions ;
     public readonly caseInsensitive:boolean ;
 
     private _regex:RegExp|null ;
@@ -125,27 +158,47 @@ export class TSParametricEndPoints {
         return null ;
     }
 
-    constructor (path:string, ep:TSEndPoints, caseInsensitive:boolean=false) {
+    constructor (path:string, ep:TSEndPoints|TSEndPoint|TSEndPointManager, caseInsensitive:boolean=false) {
         path = $trim(path) ;
         const len = path.length ;
-        
+        if ($isfunction(ep)) { ep = { GET: { manager:ep } as TSEndPoint } as TSEndPoints ; }
+        else if ('manager' in ep) { ep = { GET:ep as TSEndPoint} as TSEndPoints ; }
         if (len < 2) { throw `End points path '${path}' is too short`; }
-        const methods = $keys(ep) ;
+
+        const methods = $keys(ep as TSEndPoints) ;
         if (methods.length === 0) { throw `End points path '${path}' has no method defined.` ; }
-        methods.forEach(m => { if (!$ok(TSParametricEndPoints.validRequestMethod(m))) {
-            throw `End points path '${path}' did define invalid '${m}' request method.`
-        }}) ;
-        this.endPoints = ep ;
+
+        this.endPoints = {} ;
+        methods.forEach(m => {
+            if (!$ok(TSParametricEndPoints.validRequestMethod(m))) {
+                throw `End points path '${path}' did define invalid '${m}' request method.`
+            }
+            const v:TSEndPoint|TSEndPointManager = (ep as TSEndPoints)[m]! ;
+            let def = $isfunction(v) ? { manager: v as TSEndPointManager} : v as TSEndPoint ;
+            let newQuery:TSParametricQueryDefinition = {} ;
+            $keys(def.query).forEach(name => {
+                const n = $trim($string(name)) ;
+                if (!n.length) { throw `End points ${m} '${path}' did define an unamed query variable.` ; }
+                else if (n !== n.ascii()) { throw `End points ${m} '${path}' did define an invalid '${name}' query variable.` ; }
+                const q0 = def.query![name] ;
+                const q = $isstring(q0) ? { type:q0 as TSParametricTokenType } : q0 as TSQueryItem ;
+                newQuery[n.toLowerCase()] = q ;
+            }) ;
+            def.query = newQuery ; // can be an empty one
+            this.endPoints[m as Verb] = def as TSParametricEndPoint ;
+        }) ;
+
         this.caseInsensitive = caseInsensitive ;
 
         // ================= automat initialization ===============
         this.uri = '/' ;
         this.tokens = [] ;
         this.depth = 1 ;
-        enum State { Start, Standard, Bracket, Token} ;
+        enum State { Start, Standard, Bracket, Token, TokenType } ;
         let state = State.Start ;
         let regString = '' ;
-        let currentToken = '' ;    
+        let currentToken = '' ;
+        let currentType = '' ;    
         let constructUri = true ;
     
         // ================= automated path analysis ===============
@@ -180,20 +233,44 @@ export class TSParametricEndPoints {
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
                         currentToken = c ; state = State.Token ; break ; 
                     }
-                    throw `Found formidden first character '${c}' in parametric token in path '${path}'.` ;
+                    throw `Found forbidden first character '${c}' in parametric token in path '${path}'.` ;
                 case State.Token:
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c === '-' || c === '_' || c === '.') {
-                        currentToken += c ; 
+                        currentToken += c ; break ;
+                    }
+                    else if (c === ':') {
+                        // we have a token type here.
+                        state = State.TokenType ; 
+                        currentType = '' ;
                         break ;
                     } 
                     else if (c === '}') {
-                        this.tokens.push(currentToken) ;
+                        // default token type is string
+                        this.tokens.push({name:currentToken, type:TSParametricTokenType.string}) ;
                         regString += '([a-zA-Z][.a-zA-Z0-9_\-]*)' ;
                         currentToken = '' ;
+                        currentType = '' ;
                         state = State.Standard ;
                         break ;
                     }
-                    throw `Found formidden character '${c}' in parametric token in path '${path}'.` ;
+                    throw `Found forbidden character '${c}' in parametric token in path '${path}'.` ;
+                case State.TokenType:
+                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
+                        currentType += c.toLowerCase() ;
+                        break ;
+                    }
+                    else if (c === '}') {
+                        if (Object.values(TSParametricTokenType).includes(currentType as TSParametricTokenType)) {
+                            this.tokens.push({name:currentToken, type:currentType as TSParametricTokenType}) ;
+                            regString += '([a-zA-Z][.a-zA-Z0-9_\-]*)' ;
+                            currentToken = '' ;
+                            currentType = '' ;
+                            state = State.Standard ;
+                            break ;    
+                        }
+                        throw `Found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.` ;
+                    }
+                    throw `Found forbidden first character '${c}' in parametric type of token '${currentToken}' in path '${path}'.` ;
             }
         }
         if (state !== State.Standard) { 
@@ -205,27 +282,40 @@ export class TSParametricEndPoints {
     
     public get static():boolean { return !$ok(this._regex) ; } 
 
-    public async execute(url:URL, method:Verb, parameters:StringDictionary, req: IncomingMessage, res: ServerResponse):Promise<void> {
-        const ep = this.endPoints[method] ;
+    public async execute(req: TSServerRequest, res: ServerResponse):Promise<void> {
+        const ep = this.endPoints[req.method] ;
         if (!$ok(ep)) { 
-           throw new TSHttpError(`Method '${method}' not implemented on url '${url.pathname}'`, Resp.NotImplemented) ; 
+           throw new TSHttpError(`Method '${req.method}' not implemented on url '${req.url.pathname}'`, Resp.NotImplemented, {
+             method:req.method,
+             path:$length(req.url.pathname) ? req.url.pathname : '/'
+           }) ; 
         }
-        await ep!(url, parameters, req, res) ; // this method may also throw
+        if ($ok(ep!.query)) { _calculateQuery(req, ep!.query!) ; }
+        await ep!.manager(req, res) ; // QUESTION: this method may also throw, so get the stack in the infos ?
     }
 
     // can return an empty string dictionary which means that our path is not parametric
-    public valuesFromPath(path:string):StringDictionary|null {
+    public parametersFromPath(path:string):TSParameterDictionary|null {
         if (this.caseInsensitive) { path = path.toLowerCase() ; }
         if (path.startsWith(this.uri)) {
             const rp = path.slice(this.uri.length) ;
-            const ret:StringDictionary = {}
+            const ret:TSParameterDictionary = {}
             if (!rp.length && !$ok(this._regex)) { return ret ; }               
             else if (rp.length && $ok(this._regex)) {
                 const m = rp.match(this._regex!) ;
                 if ($ok(m)) {
                     if (m!.length === this._tlen + 1) {
                         for (let i = 0 ; i < this._tlen ; i++ ) {
-                            ret[this.tokens[i]] = m![i+1] ;
+                            const token = this.tokens[i] ;
+                            const r = TSParametersConversions[token.type](m![i+1]) ;
+                            if (!$ok(r)) {
+                                throw new TSHttpError(`Bad parameter '${token.name}' of type '${token.type}' in url path '${path}'`, Resp.BadRequest, {
+                                    token:token.name,
+                                    type:token.type,
+                                    path:path
+                                  }) ; 
+                            }
+                            ret[token.name] = r! ;
                         }
                     }
                     return ret ;    
@@ -234,4 +324,48 @@ export class TSParametricEndPoints {
         }
         return null ;
     }
+}
+
+function _calculateQuery(req:TSServerRequest, qdef:TSParametricQueryDefinition) {
+    let   query:TSQueryDictionary = {} ;
+
+    req.url.searchParams.forEach((v,k) => { 
+        k = $trim(k).toLowerCase() ; 
+        if (!$length(k)) { 
+            throw new TSHttpError(`Unamed query key for endpoint ${req.method} '${req.url.pathname}'`, Resp.BadRequest, {
+            method:req.method,
+            path:req.url.pathname
+        }) ; }
+        const queryItem = qdef[k] ; 
+        if (!$ok(queryItem)) {
+            throw new TSHttpError(`Unexpected query key '${k}' for endpoint ${req.method} '${req.url.pathname}'`, Resp.BadRequest, {
+                method:req.method,
+                path:req.url.pathname,
+                queryKey:k
+        }) ; }
+        if ($length(v)) {
+            const r = TSParametersConversions[queryItem!.type](v) ;
+            if (!$ok(r)) {
+                throw new TSHttpError(`Bad query value type for key '${k}' for endpoint ${req.method} '${req.url.pathname}'`, Resp.BadRequest, {
+                    method:req.method,
+                    path:req.url.pathname,
+                    queryKey:k,
+                    queryValue:v
+                }) ; 
+            }
+            query[k] = r as TSQueryValue ;
+        } 
+    }) ;
+
+    const possibleItems = $keys(qdef) as string[] ;
+    possibleItems.forEach(qn => {
+        if (qdef[qn].mandatory && !$ok(query[qn])) {
+            throw new TSHttpError(`Mandatory query value for key '${qn}' is missing for endpoint ${req.method} '${req.url.pathname}'`, Resp.BadRequest, {
+                method:req.method,
+                path:req.url.pathname,
+                queryKey:qn
+        }) ; }
+    }) ;
+
+    req.query = query ;
 }

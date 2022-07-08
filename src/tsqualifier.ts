@@ -152,6 +152,8 @@ export class TSQualifier<T> {
     public in(key:KeyPath<T>, value:QualifierOperand[]):TSQualifier<T>    { return this._add('in',      (this.constructor as any).IN(key as any, value)) ; }
     public nin(key:KeyPath<T>, value:QualifierOperand[]):TSQualifier<T>   { return this._add('nin',     (this.constructor as any).NIN(key as any, value)) ; }
     public inRange(key:KeyPath<T>, range:TSRange|number[]):TSQualifier<T> { return this._add('inRange', (this.constructor as any).INRANGE(key as any, range)) ; }
+    public ok(key:KeyPath<T>):TSQualifier<T>                              { return this._add('ok',      (this.constructor as any).OK(key as any)) ; }
+    public ko(key:KeyPath<T>):TSQualifier<T>                              { return this._add('ko',      (this.constructor as any).KO(key as any)) ; }
 
     public includes(key1:KeyPath<T>, key2:KeyPath<T>, value:any):TSQualifier<T> { 
         return this._add('includes', (this.constructor as any).INCLUDES(key1 as any, key2 as any, value)) ;
@@ -268,7 +270,6 @@ export class TSQualifier<T> {
             throw `TSQualifier.prototype.${method}(): trying to add condition on ${this.operator} qualifier` ;
         }
     }
-
 }
 
 export function $valuesForKeyPath<T>(v:any, path:KeyPath<T>) { return $ok(v) ? _valuesForKeyPath(v, _split(path)) : v ; }

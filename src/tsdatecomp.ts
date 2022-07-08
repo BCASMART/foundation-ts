@@ -47,6 +47,7 @@ export enum TSDateForm {
     ISO8601C,
     ISO8601L
 }
+
 export type TSIsoDateForm = TSDateForm.ISO8601 | TSDateForm.ISO8601C | TSDateForm.ISO8601L ;
 
 export enum TSDateRep {
@@ -248,6 +249,7 @@ export function $components2timestamp(c:TSDateComp) : number {
 export function $components2date(c:TSDateComp) : Date {
 	return new Date(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, 0);
 }
+
 
 export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Standard) : string {
 	switch(form) {

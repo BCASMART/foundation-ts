@@ -178,8 +178,8 @@ export function $ascii(source: string | undefined | null) : string
 export function $capacityForCount(count:uint):uint
 { return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; }
 
-export function $count(a:any[] | Uint8Array | undefined | null) : number
-{ return a instanceof Uint8Array || $isarray(a) ? (<any[]|Uint8Array>a).length : 0 ; }
+export function $count<T=any>(a:ArrayLike<T> | undefined | null) : number
+{ return $ok(a) ? (<ArrayLike<T>>a).length : 0 ; }
 
 export function $length(s:string | Uint8Array | TSData | undefined | null) : number
 { return $ok(s) ? (<string|Uint8Array|TSData>s).length : 0 ; }
@@ -207,6 +207,66 @@ export function $map<T, R=T>(values:Iterable<T> | undefined | null, callBack:(e:
 	    }
     }
 	return ret ;
+}
+
+export function $first<T = any>(values:ArrayLike<T>|null|undefined):T|undefined {
+    const n = $count(values) ; return n > 0 ? values![0] : undefined ;
+}
+
+export function $last<T = any>(values:ArrayLike<T>|null|undefined):T|undefined {
+    const n = $count(values) ; return n > 0 ? values![n-1] : undefined ;
+}
+
+// the sum of null, undefined or an empty array is always 0, 
+// regardless of what it could contain
+export function $sum<T=any>(values:Iterable<T>|null|undefined):number|undefined {
+    // with that implementation undefined and null values are considered as 0 for the sum
+    const [,,,sum] = _countsAndSum<T>(values) ;
+    return sum ;
+}
+
+export interface $averageOptions {
+    countsOnlyOKItems?:boolean ; // this one superseeds countsOnlyDefinedItems
+    countsOnlyDefinedItems?:boolean ;
+}
+
+export function $average<T=any>(values:Iterable<T>|null|undefined, opts:$averageOptions = {}):number|undefined {
+    let [count, definedCount, okCount, sum] = _countsAndSum<T>(values) ;
+    
+    if (opts.countsOnlyOKItems) { count = okCount ; }
+    else if (opts.countsOnlyDefinedItems) { count = definedCount ; }
+
+    return $defined(sum) && count > 0 ? sum!/count : undefined ;
+}
+
+function _countsAndSum<T>(values:Iterable<T>|null|undefined):[number, number, number, number|undefined] {
+    // since we work on Iterable, we don't use any length
+    // and count our collection when trying to perform a sum
+
+    let sum:number|undefined = 0 ;
+    let validCount = 0 ;
+    let definedCount = 0 ;
+    let totalCount = 0 ;
+    if ($ok(values)) {
+        for (let v of values!) {
+            if ($defined(v)) {
+                if (v !== null) {
+                    if ($defined(sum)) {
+                        let n = undefined ;
+                        if ($isnumber(v)) { n = v ;}
+                        else if ($isstring(v)) { n = Number(v) ; }
+                        else if ('toNumber' in v) { n = (v as any).toNumber() } 
+                        if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
+                        else { sum += n ; }
+                    }
+                    validCount ++ ;  
+                }
+                definedCount ++ ;
+            }
+            totalCount ++ ;
+        }    
+    }
+    return [totalCount, definedCount, validCount, sum]
 }
 
 export function $jsonobj(v:any): any
@@ -360,6 +420,10 @@ const __capacitiesForCounts = [
 
 declare global {
     export interface Array<T> {
+        first: () => T|undefined ;
+        last: () => T|undefined ;
+        sum: () => number|undefined ;
+        average: (opts?:$averageOptions) => number | undefined ;
         filteredMap: <R = T>(callBack:(e:T) => R|null|undefined) => Array<R> ;
     }
     export interface String {
@@ -386,6 +450,19 @@ if (!('isUrl' in String.prototype)) {
 }
 if (!('isUUID' in String.prototype)) {
     String.prototype.isUUID  = function isUUID(this:string) { return $ok($UUID(this)) ; }
+}
+
+if (!('first' in Array.prototype)) {
+    Array.prototype.first = function first<T>(this: T[]):T|undefined { return $first(this) ; }
+}
+if (!('last' in Array.prototype)) {
+    Array.prototype.last = function first<T>(this: T[]):T|undefined { return $last(this) ; }
+}
+if (!('sum' in Array.prototype)) {
+    Array.prototype.sum = function sum<T>(this: T[]):number|undefined { return $sum(this) ; }
+}
+if (!('average' in Array.prototype)) {
+    Array.prototype.average = function average<T>(this: T[], opts?:$averageOptions):number|undefined { return $average(this, opts) ; }
 }
 if (!('filteredMap' in Array.prototype)) {
     Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callBack:(e:T) => R|null|undefined):Array<R> { return $map(this, callBack) ; }

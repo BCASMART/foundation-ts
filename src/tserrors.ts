@@ -3,7 +3,7 @@ import { Resp } from "./tsrequest";
 import { AnyDictionary } from "./types";
 
 export class TSUniqueError extends Error {
-	private static __esInstance:TSUniqueError ;
+	private static __timeoutInstance:TSUniqueError ;
 	private static __genericInstance:TSUniqueError ;
 
 	private constructor(message: string) {
@@ -12,16 +12,16 @@ export class TSUniqueError extends Error {
 
 	public static genericError() : TSUniqueError {
 		if (!$ok(this.__genericInstance)) {
-			this.__genericInstance = new TSUniqueError('GENERICSINGLETONERROR') ;
+			this.__genericInstance = new TSUniqueError('GenericSingletonError') ;
 		}
 		return this.__genericInstance ;
     }
 
-    public static esError() : TSUniqueError {
-		if (!$ok(this.__esInstance)) {
-			this.__esInstance = new TSUniqueError('ESSINGLETONERROR') ;
+    public static timeoutError() : TSUniqueError {
+		if (!$ok(this.__timeoutInstance)) {
+			this.__timeoutInstance = new TSUniqueError('TimeoutSingletonError') ;
 		}
-		return this.__esInstance ;
+		return this.__timeoutInstance ;
 	}
 
 }
@@ -32,6 +32,7 @@ export class TSError extends Error {
         this.infos = infos ;
     }
 }
+
 export class TSHttpError extends TSError {
     public readonly status:Resp ;
     public constructor(message:string, status:Resp, infos?:AnyDictionary) {
@@ -39,4 +40,3 @@ export class TSHttpError extends TSError {
         this.status = status ;
     }
 }
-

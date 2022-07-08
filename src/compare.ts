@@ -1,4 +1,4 @@
-import { $isarray, $isobject, $isstring, $ok } from "./commons";
+import { $defined, $isarray, $isobject, $isstring, $ok } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending} from "./types";
 
@@ -59,6 +59,32 @@ export function $compare(a:any, b:any):Comparison {
     return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
 }
 
+
+export function $min<T=any>(values:Iterable<T> | undefined | null):any
+{ return _minmax(values, Descending) ;}
+
+export function $max(values:any[]):any 
+{ return _minmax(values, Ascending) ;}
+
+
+function _minmax<T>(values:Iterable<T> | undefined | null, compValue:Comparison):any
+{
+    let ret = undefined ;
+    if ($ok(values)) {
+        for (let v of values!) { 
+            if (!$ok(v)) { return undefined ; }
+            else if (!$ok(ret)) { ret = v ; }
+            else { 
+                let comp = $compare(ret, v) ;
+                if (!$defined(comp)) { return undefined ; }
+                else if (comp === compValue) { ret = v ; }
+            }
+        }    
+    }
+    return ret ;
+}
+
+
 export function $equal(a:any, b:any) {
 	if (a === b) { return true ; }
 	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
@@ -112,4 +138,19 @@ export function $equal(a:any, b:any) {
 	}
 	return false ; 
 }
+
+declare global {
+    export interface Array<T> {
+        min: () => T|undefined ;
+        max: () => T|undefined ;
+    }
+}
+
+if (!('min' in Array.prototype)) {
+    Array.prototype.min = function min<T>(this: T[]):T|undefined { return $min(this) ; }
+}
+if (!('max' in Array.prototype)) {
+    Array.prototype.max = function max<T>(this: T[]):T|undefined { return $max(this) ; }
+}
+
 
