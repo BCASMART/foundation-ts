@@ -193,6 +193,33 @@ export function $arraybuffer(buf:Buffer) : ArrayBuffer {
     for (let i = 0; i < buf.length; ++i) { view[i] = buf[i]; }
     return ret ;
 }
+
+
+// for length in meters (or all its multiples and submultiples) just use { unit:'m', subUnits:true }
+// for size in octets (or its multiples)
+export interface $unitOptions {
+    unitName?:string ;
+    unit?:string ;
+    subUnits?: boolean ;
+    decimals?:number ;
+}
+
+const TSUnitMultiples = ['y', 'z', 'a', 'f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'] ;
+const TSLog1000 = Math.log(1000) ;
+
+export function $unit(n:number|undefined|null, opts:$unitOptions = {}) {
+    const v = $ok(n) ? n! : 0 ;
+    const sn = $trim(opts.unitName) ;
+    const su = $trim(opts.unit) ;
+
+    const unitName = sn.length ? sn : (su.length ? su : 'octets') ;
+    if (v === 0) { return '0 ' + unitName ; }
+    const unit = su.length ? su : unitName.charAt(0) ;
+    const dm = $isunsigned(opts.decimals) ? opts.decimals as number : 2 ;
+    const i = Math.max(opts.subUnits ? -8 : 0, Math.min(8, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
+    return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+unit ;
+}
+
 /*
 	This is a map function where callback returns as null or undefined are
 	flushed from the result
@@ -309,10 +336,10 @@ export function $partial<T,U>(a:T|undefined|null, opts:$partialOptions<T,U>={}):
 // TODO: review all AnyDictionary functions to make a specific file 
 // and a more thorough specificaiton. Here, all null, undefined and function
 // properties are removed
-export function $dict(source:object|null|undefined, keys?:string[]):AnyDictionary {    
+export function $dict<T = object>(source:T|null|undefined, keys?:Array<keyof T>):AnyDictionary {    
     const ret:AnyDictionary = {} ;
     if ($ok(source)) { 
-        _fillObject<object,AnyDictionary>('dict', ret, source, { properties:keys }) ;
+        _fillObject<object,AnyDictionary>('dict', ret, source, { properties:keys as any[] }) ;
     }
     return ret ;
 }
@@ -434,22 +461,29 @@ declare global {
         isUUID: (this:string) => boolean ;
     }
 
+    export interface Number {
+        unit: (this:number, opts?:$unitOptions) => string ;
+    }
+
 }
 
+if (!('unit' in Number.prototype)) {
+    Number.prototype.unit = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
+}
 if (!('ascii' in String.prototype)) {
-    String.prototype.ascii   = function ascii(this:string) { return $ascii(this) ; }
+    String.prototype.ascii   = function ascii(this:string):string { return $ascii(this) ; }
 }
 if (!('isDate' in String.prototype)) {
-    String.prototype.isDate  = function isDate(this:string) { return $ok($isodate(this)) ; }
+    String.prototype.isDate  = function isDate(this:string):boolean { return $ok($isodate(this)) ; }
 }
 if (!('isEmail' in String.prototype)) {
-    String.prototype.isEmail = function isEmail(this:string) { return $ok($email(this)) ; }
+    String.prototype.isEmail = function isEmail(this:string):boolean { return $ok($email(this)) ; }
 }
 if (!('isUrl' in String.prototype)) {
-    String.prototype.isUrl   = function isUrl(this:string) { return $ok($url(this)) ; }
+    String.prototype.isUrl   = function isUrl(this:string):boolean { return $ok($url(this)) ; }
 }
 if (!('isUUID' in String.prototype)) {
-    String.prototype.isUUID  = function isUUID(this:string) { return $ok($UUID(this)) ; }
+    String.prototype.isUUID  = function isUUID(this:string):boolean { return $ok($UUID(this)) ; }
 }
 
 if (!('first' in Array.prototype)) {

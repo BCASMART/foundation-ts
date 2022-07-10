@@ -1,5 +1,5 @@
 
-import { $arraybuffer, $ascii, $average, $count, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $ok, $sum, $unsignedornull, $url } from "../src/commons";
+import { $arraybuffer, $ascii, $average, $count, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -145,7 +145,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
 
     group.unary("verifying $dict(object, keys)", async(t) => {
         t.expect1($dict(DICT, ['a', 'c'])).toBe(SUB) ;
-        t.expect2($dict(DICT, ['a', 'c', 'd'])).toBe(SUB) ;
+        t.expect2($dict(DICT, ['a', 'c', 'd' as any])).toBe(SUB) ; // force TS to ignore 'd' because it knows this key is not in DICT
     }) ;
     
     group.unary("verifying array functions", async(t) => {
@@ -254,5 +254,24 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect3($isuuid('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).toBeFalsy() ;
     }) ;
 
+    group.unary("Testing $unit() function", async(t) => {
+        t.expect0($unit(1324)).toBe("1.32 ko") ;
+        t.expect1($unit(132475)).toBe("132.47 ko") ;
+        t.expect2($unit(132475.1)).toBe("132.48 ko") ;
+        t.expect3($unit(1324756)).toBe("1.32 Mo") ;
+        t.expect4($unit(13247568)).toBe("13.25 Mo") ;
+        t.expect5($unit(132475681)).toBe("132.48 Mo") ;
+        t.expect6($unit(1324756810, {decimals:3})).toBe("1.325 Go") ;
 
+        const v = 0.13 ;
+        t.expectA($unit(0.13, {unit:'m', subUnits:true})).toBe("130.00 mm") ;
+        t.expectB($unit(0.13, {unit:'m', subUnits:true, decimals:0})).toBe("130 mm") ;
+        t.expectC(v.unit({unit:'m', subUnits:true, decimals:0})).toBe("130 mm") ;
+        t.expectD($unit(0.132, {unit:'m', subUnits:true})).toBe("132.00 mm") ;
+        t.expectE($unit(0.1324, {unit:'m', subUnits:true})).toBe("132.40 mm") ;
+        t.expectF($unit(0.13247, {unit:'m', subUnits:true})).toBe("132.47 mm") ;
+        t.expectG($unit(0.132479, {unit:'m', subUnits:true})).toBe("132.48 mm") ;
+        t.expectH($unit(0.132479, {unit:'m', subUnits:true, decimals:0})).toBe("132 mm") ;
+
+    }) ;
 }) ;
