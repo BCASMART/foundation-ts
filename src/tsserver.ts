@@ -24,8 +24,9 @@ export interface TSServerRequest {
     query:TSQueryDictionary,          // a key-value query dictionary
     message:IncomingMessage           // Node object
 }
+export type TSServerResponse = ServerResponse ;
 
-export type TSEndPointManager = (req:TSServerRequest, resp:ServerResponse) => Promise<void> ; // the function says if it did catch the request
+export type TSEndPointManager = (req:TSServerRequest, resp:TSServerResponse) => Promise<void> ;
 export interface TSEndPoint {
     manager:TSEndPointManager,
     query?: TSQueryDefinition // for future usage

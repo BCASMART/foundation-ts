@@ -255,13 +255,15 @@ export function $meters(n:number|undefined|null, decimals:number = 2) {
 	This is a map function where callback returns as null or undefined are
 	flushed from the result
  */
-export function $map<T, R=T>(values:Iterable<T> | undefined | null, callBack:(e:T) => R|null|undefined) : Array<R>
+export function $map<T, R=T>(values:Iterable<T> | undefined | null, callback:(value: T, index: number) => R|null|undefined): R[]
 {
 	const ret = new Array<R>() ;
     if ($ok(values)) {
+        let index = 0 ;
         for (let v of values!) {
-		    const mv = callBack(v) ;
-		    if ($ok(mv)) ret.push(mv!) ;
+		    const mv = callback(v, index) ;
+		    if ($ok(mv)) { ret.push(mv!) ; }
+            index++;
 	    }
     }
 	return ret ;
@@ -482,7 +484,7 @@ declare global {
         last: () => T|undefined ;
         sum: () => number|undefined ;
         average: (opts?:$averageOptions) => number | undefined ;
-        filteredMap: <R = T>(callBack:(e:T) => R|null|undefined) => Array<R> ;
+        filteredMap: <R = T>(callback:(value: T, index: number) => R|null|undefined) => R[] ;
     }
     export interface String {
         ascii: (this:string) => string ;
@@ -543,5 +545,5 @@ if (!('average' in Array.prototype)) {
     Array.prototype.average = function average<T>(this: T[], opts?:$averageOptions):number|undefined { return $average(this, opts) ; }
 }
 if (!('filteredMap' in Array.prototype)) {
-    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callBack:(e:T) => R|null|undefined):Array<R> { return $map(this, callBack) ; }
+    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback:(e:T,index:number) => R|null|undefined):R[] { return $map(this, callback) ; }
 }

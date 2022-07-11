@@ -136,7 +136,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
 	public search(callback: (data: T) => boolean): TSListNode<T> | null {
 		if (this._f) {
 			const findMe = (node: TSListNode<T>): TSListNode<T> | null => {
-				if (callback(node.data)) return node ;
+				if (callback(node.data)) { return node ; }
 				return node.next ? findMe(node.next) : null ;
 			} ;
 			return findMe(this._f) ;

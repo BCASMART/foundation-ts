@@ -1,5 +1,5 @@
 
-import { $arraybuffer, $ascii, $average, $count, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $meters, $octets, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
+import { $arraybuffer, $ascii, $average, $count, $defined, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $meters, $octets, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -133,8 +133,15 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     }) ;
 
     group.unary("verifying $map<T,R>(x)", async(t) => {
+        let array:string[] = [] ;
+        array[3] = '3' ;
+        array[5] = '5' ;
+        t.register("array", array) ;
         t.expect1($map([1, 5, null, 6, 'A', undefined], e => e)).toBe([1, 5, 6, 'A']);
         t.expect2([1, 5, null, 6, 'A', undefined].filteredMap(e => $ok(e) ? e!.toString() : undefined)).toBe(['1', '5', '6', 'A']);
+        t.expect3(array.filteredMap(e => e)).toBe(['3','5']) ;
+        t.expect4(array.filteredMap((e,i) => $defined(e) ? null : `<undef ${i}>`))
+         .toBe(['<undef 0>','<undef 1>', '<undef 2>','<undef 4>']) ;
     }) ;
 
     group.unary("verifying $keys(object)", async(t) => {
