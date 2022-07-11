@@ -1,5 +1,5 @@
 
-import { $arraybuffer, $ascii, $average, $count, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
+import { $arraybuffer, $ascii, $average, $count, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $meters, $octets, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -254,24 +254,51 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect3($isuuid('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).toBeFalsy() ;
     }) ;
 
-    group.unary("Testing $unit() function", async(t) => {
-        t.expect0($unit(1324)).toBe("1.32 ko") ;
-        t.expect1($unit(132475)).toBe("132.47 ko") ;
-        t.expect2($unit(132475.1)).toBe("132.48 ko") ;
-        t.expect3($unit(1324756)).toBe("1.32 Mo") ;
-        t.expect4($unit(13247568)).toBe("13.25 Mo") ;
-        t.expect5($unit(132475681)).toBe("132.48 Mo") ;
-        t.expect6($unit(1324756810, {decimals:3})).toBe("1.325 Go") ;
+    group.unary("Testing $octets(v)", async(t) => {
+        const s = 1324756810 ;
+        t.expect0($octets(1324)).toBe("1.32 ko") ;
+        t.expect1($octets(132475)).toBe("132.47 ko") ;
+        t.expect2($octets(132475.1)).toBe("132.48 ko") ;
+        t.expect3($octets(1324756)).toBe("1.32 Mo") ;
+        t.expect4($octets(13247568)).toBe("13.25 Mo") ;
+        t.expect5($octets(132475681)).toBe("132.48 Mo") ;
+        t.expect6($octets(1324756810, 3)).toBe("1.325 Go") ;
+        t.expect7(s.octets(3)).toBe("1.325 Go") ;
+        t.expect8($octets(12)).toBe("12 octets") ;
+        t.expect9($octets(0)).toBe("0 octets") ;
+    }) ;
 
+    group.unary("Testing $meters(v)", async(t) => {
         const v = 0.13 ;
-        t.expectA($unit(0.13, {unit:'m', subUnits:true})).toBe("130.00 mm") ;
-        t.expectB($unit(0.13, {unit:'m', subUnits:true, decimals:0})).toBe("130 mm") ;
-        t.expectC(v.unit({unit:'m', subUnits:true, decimals:0})).toBe("130 mm") ;
-        t.expectD($unit(0.132, {unit:'m', subUnits:true})).toBe("132.00 mm") ;
-        t.expectE($unit(0.1324, {unit:'m', subUnits:true})).toBe("132.40 mm") ;
-        t.expectF($unit(0.13247, {unit:'m', subUnits:true})).toBe("132.47 mm") ;
-        t.expectG($unit(0.132479, {unit:'m', subUnits:true})).toBe("132.48 mm") ;
-        t.expectH($unit(0.132479, {unit:'m', subUnits:true, decimals:0})).toBe("132 mm") ;
+        t.expect0($meters(0.13)).toBe("130.00 mm") ;
+        t.expect1($meters(0.13, 0)).toBe("130 mm") ;
+        t.expect2(v.meters(0)).toBe("130 mm") ;
+        t.expect3($meters(0.132)).toBe("132.00 mm") ;
+        t.expect4($meters(0.1324)).toBe("132.40 mm") ;
+        t.expect5($meters(0.13247)).toBe("132.47 mm") ;
+        t.expect6($meters(0.132479)).toBe("132.48 mm") ;
+        t.expect7($meters(0.132479, 0)).toBe("132 mm") ;
+        t.expect8($meters(0)).toBe("0.00 m") ;
+        t.expect9($meters(0, 1)).toBe("0.0 m") ;
+    }) ;
 
+    group.unary("Testing $unit(v)", async(t) => {
+        const volume = 0.0023 ;
+        t.expect0($unit(volume, { unit:'l' })).toBe("2.30 ml") ;
+        t.expect1(volume.unit({ unit:'l' })).toBe("2.30 ml") ;
+        t.expect2($unit(323.256, { unit:'l', unitName:'liters' })).toBe("323.26 liters") ;
+        t.expect3($unit(3231.256, { unit:'l' })).toBe("3.23 kl") ;
+        t.expect4($unit(3231.256, { unit:'l', maximalUnit:0 })).toBe("3231.26 l") ;
+        t.expect5(volume.unit({ unit:'l', minimalUnit:0, decimals:3 })).toBe("0.002 l") ;
+        t.expect6(volume.unit({ unit:'l', minimalUnit:0 })).toBe("0.00 l") ;
+        t.expect7($unit(volume/10, { unit:'l' })).toBe("230.00 µl") ;
+        t.expect8($unit(volume/10, { unit:'l', minimalUnit:-1 })).toBe("0.23 ml") ;
+        t.expect9($unit(volume/100, { unit:'l', minimalUnit:-1 })).toBe("0.02 ml") ;
+        t.expectA($unit(323.256, { unitName:'liters' })).toBe("323.26 liters") ;
+        t.expectB($unit(volume/100, { unitName:'liters', minimalUnit:-1 })).toBe("0.02 ml") ;
+        t.expectC($unit(volume,{ unit:'l', minimalUnit:0, ignoreZeroDecimals:true })).toBe("0.00 l") ;
+        t.expectD($unit(volume,{ unit:'l', minimalUnit:0, ignoreMinimalUnitDecimals:true })).toBe("0 l") ;
+        t.expectE($unit(0,{ unit:'l', minimalUnit:0, ignoreZeroDecimals:true })).toBe("0 l") ;
+        t.expectF($unit(0,{ unit:'l', minimalUnit:0, ignoreMinimalUnitDecimals:true })).toBe("0 l") ;
     }) ;
 }) ;

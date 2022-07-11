@@ -15,6 +15,12 @@ export function $ok(o:any) : boolean
 export function $value<T>(o:T|null|undefined, v:T):T
 { return $ok(o) ? o! : v ; }
 
+export function $valueornull<T>(o:T|null|undefined):T|null
+{ return $ok(o) ? o! : null ;}
+
+export function $valueorundefine<T>(o:T|null|undefined):T|undefined
+{ return $ok(o) ? o! : undefined ;}
+
 export function $isstring(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
 
@@ -162,7 +168,9 @@ export function $trim(s: string | undefined | null) : string
 export function $fpad2(v: uint) : string { return $fpad(v,2) ; }
 export function $fpad3(v: uint) : string { return $fpad(v,3) ; }
 export function $fpad4(v: uint) : string { return $fpad(v,4) ; }
-export function $fpad(v: uint, pad:number) : string { return v.toString().padStart(pad, '0') ; }
+export function $fpad(v: uint, pad:number) : string { 
+    return ($isunsigned(v) ? v.toString() : '').padStart(pad, '0') ; 
+}
 
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek
@@ -195,29 +203,52 @@ export function $arraybuffer(buf:Buffer) : ArrayBuffer {
 }
 
 
-// for length in meters (or all its multiples and submultiples) just use { unit:'m', subUnits:true }
-// for size in octets (or its multiples)
 export interface $unitOptions {
     unitName?:string ;
     unit?:string ;
-    subUnits?: boolean ;
+    minimalUnit?: number ;
+    maximalUnit?: number ;
     decimals?:number ;
+    ignoreZeroDecimals?:boolean ;
+    ignoreMinimalUnitDecimals?:boolean ;
 }
 
 const TSUnitMultiples = ['y', 'z', 'a', 'f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'] ;
 const TSLog1000 = Math.log(1000) ;
 
+// default unit is m (for meters)
 export function $unit(n:number|undefined|null, opts:$unitOptions = {}) {
     const v = $ok(n) ? n! : 0 ;
     const sn = $trim(opts.unitName) ;
     const su = $trim(opts.unit) ;
 
-    const unitName = sn.length ? sn : (su.length ? su : 'octets') ;
-    if (v === 0) { return '0 ' + unitName ; }
+    const unitName = sn.length ? sn : (su.length ? su : 'm') ;
+    const minU = $ok(opts.minimalUnit) ? Math.min(0, Math.max(-8, opts.minimalUnit!)) : -8 ;
+    const maxU = $ok(opts.maximalUnit) ? Math.min(8, Math.max(0, opts.maximalUnit!)) : 8 ;
+    let   dm = $isunsigned(opts.decimals) ? opts.decimals as number : 2 ;
+    if (v === 0) {
+        if (dm === 0 || opts.ignoreZeroDecimals || (minU === 0 && opts.ignoreMinimalUnitDecimals)) { return '0 ' + unitName ; }
+        return '0.'.padEnd(2+dm, '0') + ' ' + unitName ;
+    }
     const unit = su.length ? su : unitName.charAt(0) ;
-    const dm = $isunsigned(opts.decimals) ? opts.decimals as number : 2 ;
-    const i = Math.max(opts.subUnits ? -8 : 0, Math.min(8, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
-    return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+unit ;
+    const i = Math.max(minU, Math.min(maxU, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
+    if (i === minU && opts.ignoreMinimalUnitDecimals) { dm = 0 ;}
+    return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?unitName:unit) ;
+}
+
+export function $octets(n:number|undefined|null, decimals:number = 2) {
+    return $unit(n, { 
+        decimals:decimals, 
+        unit:'o', 
+        unitName:'octets', 
+        minimalUnit:0, 
+        ignoreZeroDecimals:true,
+        ignoreMinimalUnitDecimals:true
+    }) ;
+}
+
+export function $meters(n:number|undefined|null, decimals:number = 2) {
+    return $unit(n, { decimals:decimals})
 }
 
 /*
@@ -462,14 +493,27 @@ declare global {
     }
 
     export interface Number {
-        unit: (this:number, opts?:$unitOptions) => string ;
+        unit:   (this:number, opts?:$unitOptions) => string ;
+        meters: (this:number, decimals?:number) => string ;
+        octets: (this:number, decimals?:number) => string ;
+        fpad:   (this:number, pad:number) => string ;
+        fpad2:  (this:number) => string ;
+        fpad3:  (this:number) => string ;
+        fpad4:  (this:number) => string ;
     }
 
 }
 
-if (!('unit' in Number.prototype)) {
+if (!('fpad' in Number.prototype)) {
     Number.prototype.unit = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
+    Number.prototype.meters = function meters(this:number, decimals?:number) { return $meters(this, decimals) ; }
+    Number.prototype.octets = function octets(this:number, decimals?:number) { return $octets(this, decimals) ; }
+    Number.prototype.fpad  = function fpad(this:number, pad:number) { return $fpad($unsigned(this), pad) ; }
+    Number.prototype.fpad2 = function fpad(this:number) { return $fpad($unsigned(this), 2) ; }
+    Number.prototype.fpad3 = function fpad(this:number) { return $fpad($unsigned(this), 3) ; }
+    Number.prototype.fpad4 = function fpad(this:number) { return $fpad($unsigned(this), 4) ; }
 }
+
 if (!('ascii' in String.prototype)) {
     String.prototype.ascii   = function ascii(this:string):string { return $ascii(this) ; }
 }
