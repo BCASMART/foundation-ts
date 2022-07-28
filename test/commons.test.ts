@@ -1,10 +1,11 @@
 
-import { $arraybuffer, $ascii, $average, $count, $defined, $dict, $email, $first, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $map, $meters, $octets, $ok, $sum, $unit, $unsignedornull, $url } from "../src/commons";
+import { $arraybuffer, $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
+import { FoundationWhiteSpaces } from "../src/string_tables";
 
 export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
@@ -21,6 +22,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     const DICT_B = {a:'A', d:'D', e:null, f:undefined, g:function() {}, h:[0,1]} ;
     const DICT_C = {...DICT_B, c:null, b:undefined} ;
     const U = $uuid() ;
+    const SPACES = FoundationWhiteSpaces ;
 
     group.unary("verifying $intornull()", async(t) => {
         t.expect1($intornull(null)).toBeNull();
@@ -308,4 +310,50 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectE($unit(0,{ unit:'l', minimalUnit:0, ignoreZeroDecimals:true })).toBe("0 l") ;
         t.expectF($unit(0,{ unit:'l', minimalUnit:0, ignoreMinimalUnitDecimals:true })).toBe("0 l") ;
     }) ;
+
+    group.unary("Testing trim functions", async(t) => {
+        const w = "TEST ME, I'M A CENTRAL\u0009PHRASE" ;
+        const a = SPACES+w+SPACES ;
+        t.expect0($rtrim(a)).toBe(SPACES+w) ;
+        t.expect1($ltrim(a)).toBe(w+SPACES) ;
+        t.expect2($trim(a)).toBe(w) ;
+        t.expect3($rtrim(SPACES)).toBe("") ;
+        t.expect4($ltrim(SPACES)).toBe("") ;
+        t.expect5(SPACES.ftrim()).toBe("") ;
+        t.expect6($rtrim("")).toBe("") ;
+        t.expect7($ltrim("")).toBe("") ;
+        t.expect8($trim("")).toBe("") ;
+        t.expect9($rtrim(undefined)).toBe("") ;
+        t.expectA($ltrim(undefined)).toBe("") ;
+        t.expectB($trim(undefined)).toBe("") ;
+        t.expectC($rtrim(null)).toBe("") ;
+        t.expectD($ltrim(null)).toBe("") ;
+        t.expectE($trim(null)).toBe("") ;
+        t.expectF($ftrim(a)).toBe(w) ;
+        t.expectG(a.ftrim()).toBe(w) ;
+        t.expectH(a.rtrim()).toBe(SPACES+w) ;
+        t.expectI(a.ltrim()).toBe(w+SPACES) ;
+    }) ;
+
+    group.unary("Testing function $normspaces(v)", async(t) => {
+        const str = SPACES+"I'm "+SPACES+"a super"+SPACES+" function"+SPACES ;
+        t.expect0($normspaces(str)).toBe("I'm a super function") ;
+        t.expect1($normspaces("")).toBe("") ;
+        t.expect2($normspaces(null)).toBe("") ;
+        t.expect3($normspaces(undefined)).toBe("") ;
+        t.expect4(str.normalizeSpaces()).toBe("I'm a super function") ;
+    }) ;
+
+    group.unary("Testing functions $firstcap(v) && $capitalize(v)", async(t) => {
+        const str = " , jean-françois is my !!friend. yes!" ;
+        t.expect0($firstcap(str)).toBe(" , Jean-françois is my !!friend. yes!") ;
+        t.expect1($capitalize(str)).toBe(" , Jean-François Is My !!Friend. Yes!") ;
+        t.expect2($firstcap(null)).toBe("") ;
+        t.expect3($firstcap(undefined)).toBe("") ;
+        t.expect4($capitalize(null)).toBe("") ;
+        t.expect5($capitalize(undefined)).toBe("") ;
+        t.expect6(str.firstCap()).toBe(" , Jean-françois is my !!friend. yes!") ;
+        t.expect7(str.capitalize()).toBe(" , Jean-François Is My !!Friend. Yes!") ;
+    }) ;
+
 }) ;

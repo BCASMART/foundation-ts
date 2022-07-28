@@ -6,29 +6,9 @@ import { StringDictionary } from "./types";
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.    
 */
+export const FoundationWhiteSpaces =              "\u0009\u000a\u000b\u000c\u000d\u0020\u0085\u00A0\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF" ;
 
 export const FoundationASCIIConversion:StringDictionary = {
-    /* extra ASCII spaces */
-    '\u00A0':    ' ',   // NO-BREAK SPACE
-    '\u1361':    ' ',   // ETHIOPIC WORDSPACE
-    "\u1680":    ' ',   // OGHAM SPACE MARK
-    '\u2000':    ' ',   // EN QUAD
-    '\u2001':    ' ',   // EM QUAD
-    '\u2002':    ' ',   // EN SPACE
-    '\u2003':    ' ',   // EM SPACE
-    '\u2004':    ' ',   // THREE-PER-EM SPACE
-    '\u2005':    ' ',   // FOUR-PER-EM SPACE
-    '\u2006':    ' ',   // SIX-PER-EM SPACE
-    '\u2007':    ' ',   // FIGURE SPACE
-    '\u2008':    ' ',   // PUNCTUATION SPACE
-    '\u2009':    ' ',   // THIN SPACE
-    '\u200A':    ' ',   // HAIR SPACE
-    '\u200B':    ' ',   // ZERO WIDTH SPACE
-    '\u2028':    ' ',   // LINE SEPARATOR
-    '\u2029':    ' ',   // PARAGRAPH SEPARATOR
-    '\u202F':    ' ',   // NARROW NO-BREAK SPACE
-    '\u205F':    ' ',   // MEDIUM MATHEMATICAL SPACE
-    '\u3000':    ' ',   // IDEOGRAPHIC SPACE
 
     /* 00A0 */
     '¡': '!',
@@ -957,3 +937,14 @@ export const FoundationASCIIConversion:StringDictionary = {
     "😉": ";)" 
 } ;
 
+_addWhiteSpaces() ;
+export const FoundationFindAllWhitespacesRegex = new RegExp(`[${FoundationWhiteSpaces}]+`, 'g') ;
+export const FoundationLeftTrimRegex = new RegExp(`^[${FoundationWhiteSpaces}]+`) ;
+export const FoundationRightTrimRegex = new RegExp(`[${FoundationWhiteSpaces}]+$`) ;
+
+function _addWhiteSpaces() {
+    const len = FoundationWhiteSpaces.length ;
+    for (let i = 0 ; i < len ; i++) {
+        FoundationASCIIConversion[FoundationWhiteSpaces.charAt(i)] = ' ' ;
+    }
+}

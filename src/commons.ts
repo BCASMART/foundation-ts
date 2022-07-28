@@ -1,5 +1,5 @@
 import { $equal } from "./compare";
-import { FoundationASCIIConversion } from "./string_tables";
+import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationRightTrimRegex, FoundationWhiteSpaces } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
@@ -23,6 +23,9 @@ export function $valueorundefine<T>(o:T|null|undefined):T|undefined
 
 export function $isstring(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
+
+export function $iswhitespace(c:string|null|undefined) : boolean
+{ return $length(c) >= 1 && FoundationWhiteSpaces.includes(c!.charAt(0)) ; }
 
 export function $isnumber(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
@@ -118,7 +121,7 @@ export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateForm
     if ($ok(s)) {
         if (s instanceof Date) { cps = $components(s as Date) ; }
         else if (s instanceof TSDate) { cps = (s as TSDate).toComponents() ; }
-        else if ($isstring(s)) { cps = $parsedatetime($trim(s as string), format) ; } // we parse the string to verify it
+        else if ($isstring(s)) { cps = $parsedatetime($ftrim(s as string), format) ; } // we parse the string to verify it
     }
     return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
@@ -126,7 +129,7 @@ export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateForm
 export function $address(a:Address|null|undefined) : Address | null 
 {
     if (!$isobject(a)) { return null ; }
-    const city = $trim(a?.city) ;
+    const city = $ftrim(a?.city) ;
     const country = $country(a?.country) ;
     if (!$isstring(city) || !$length(city) || !$ok(country)) { return null ; }
 
@@ -162,8 +165,31 @@ export function $strings(v: string[] | string | undefined | null) : string[]
 
 export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 
-export function $trim(s: string | undefined | null) : string
-{ return $length(s) ? (s as string).replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1") : '' ; }
+/**
+ *   We don't use standard trim because it does not trim all unicode whitespaces! 
+ */
+// left-trim
+export function $ltrim(s: string | undefined | null) : string
+{ return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "") : '' ; }
+
+// right-trim
+export function $rtrim(s: string | undefined | null) : string
+{ return $length(s) ? (s as string).replace(FoundationRightTrimRegex, "") : '' ; }
+
+// full-trim
+export function $ftrim(s: string | undefined | null) : string
+{ return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : '' ; }
+
+export { $ftrim as $trim }
+
+export function $normspaces(s: string | undefined | null) : string
+{ return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " ") ; }
+
+export function $firstcap(s:string|null|undefined) : string
+{ return _capitalize(s, 1) ; }
+
+export function $capitalize(s: string | undefined | null) : string
+{ return _capitalize(s) ; }
 
 export function $fpad2(v: uint) : string { return $fpad(v,2) ; }
 export function $fpad3(v: uint) : string { return $fpad(v,3) ; }
@@ -171,7 +197,6 @@ export function $fpad4(v: uint) : string { return $fpad(v,4) ; }
 export function $fpad(v: uint, pad:number) : string { 
     return ($isunsigned(v) ? v.toString() : '').padStart(pad, '0') ; 
 }
-
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek
 export function $ascii(source: string | undefined | null) : string
@@ -219,8 +244,8 @@ const TSLog1000 = Math.log(1000) ;
 // default unit is m (for meters)
 export function $unit(n:number|undefined|null, opts:$unitOptions = {}) {
     const v = $ok(n) ? n! : 0 ;
-    const sn = $trim(opts.unitName) ;
-    const su = $trim(opts.unit) ;
+    const sn = $ftrim(opts.unitName) ;
+    const su = $ftrim(opts.unit) ;
 
     const unitName = sn.length ? sn : (su.length ? su : 'm') ;
     const minU = $ok(opts.minimalUnit) ? Math.min(0, Math.max(-8, opts.minimalUnit!)) : -8 ;
@@ -422,7 +447,7 @@ export function $json(v:any, replacer: (number | string)[] | null = null, space:
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
 {
-	const v = $trim(s) ;
+	const v = $ftrim(s) ;
 	if (!v.length || !regex.test(<string>v)) { return null ; }
 	return <T><unknown>v ;
 }
@@ -488,6 +513,12 @@ declare global {
     }
     export interface String {
         ascii: (this:string) => string ;
+        firstCap: (this:string) => string ;
+        capitalize: (this:string) => string ;
+        normalizeSpaces: (this:string) => string ;
+        ftrim: (this:string) => string ;
+        ltrim: (this:string) => string ;
+        rtrim: (this:string) => string ;
         isDate: (this:string) => boolean ;
         isEmail: (this:string) => boolean ;
         isUrl: (this:string) => boolean ;
@@ -519,6 +550,24 @@ if (!('fpad' in Number.prototype)) {
 if (!('ascii' in String.prototype)) {
     String.prototype.ascii   = function ascii(this:string):string { return $ascii(this) ; }
 }
+if (!('firstCap' in String.prototype)) {
+    String.prototype.firstCap = function firstCap(this:string):string { return $firstcap(this) ; }
+}
+if (!('capitalize' in String.prototype)) {
+    String.prototype.capitalize = function capitalize(this:string):string { return $capitalize(this) ; }
+}
+if (!('normalizeSpaces' in String.prototype)) {
+    String.prototype.normalizeSpaces = function normalizeSpaces(this:string):string { return $normspaces(this) ; }
+}
+if (!('ftrim' in String.prototype)) {
+    String.prototype.ftrim = function ftrim(this:string):string { return $ftrim(this) ; }
+}
+if (!('ltrim' in String.prototype)) {
+    String.prototype.ltrim = function ltrim(this:string):string { return $ltrim(this) ; }
+}
+if (!('rtrim' in String.prototype)) {
+    String.prototype.rtrim = function rtrim(this:string):string { return $rtrim(this) ; }
+}
 if (!('isDate' in String.prototype)) {
     String.prototype.isDate  = function isDate(this:string):boolean { return $ok($isodate(this)) ; }
 }
@@ -546,4 +595,33 @@ if (!('average' in Array.prototype)) {
 }
 if (!('filteredMap' in Array.prototype)) {
     Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback:(e:T,index:number) => R|null|undefined):R[] { return $map(this, callback) ; }
+}
+
+function _capitalize(s:string|null|undefined, max:number = 0) : string 
+{
+    const len = $length(s) ;
+    let ret = "" ;
+    if (!max) { max = len} ;
+    let lastCharWasNotLetter = true ;
+    let n = 0 ;
+
+    for (let i = 0 ; i < len ; i++) {
+        const c = s!.charAt(i) ;
+        const isLetter = _charAssimilableAsLetter(c) ;
+        if (isLetter && lastCharWasNotLetter && n < max) { ret += c.toUpperCase() ; n++ ; }
+        else { ret +=c ; }
+        lastCharWasNotLetter = !isLetter ;
+    }
+
+    return ret ;
+}
+
+function _charAssimilableAsLetter(c:string):boolean
+{
+    c = $ascii(c) ;
+    if (c.length) {
+        const v = c.charCodeAt(0) & ~32 ;
+        return v >= 65 && v <= 90 ;
+    }
+    return false ;
 }

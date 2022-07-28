@@ -17,7 +17,7 @@ export function $term(s:string, escapeChar:string = '&'):string {
     let ret = "" ;
     if (fmtlen) {
         let escape = false ;
-        if ($length(escapeChar) !== 1 || escapeChar.includes('\x1b')) { escapeChar = '&' ; }
+        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
         for (let i = 0 ; i < fmtlen ; i++) {
             const c = s.charAt(i) ;
             if (escape) {
@@ -111,7 +111,7 @@ export function $termclean(s:string, escapeChar:string = '&') {
         let state = State.Standard ;
         let i = 0 ;
         let escapeSequenceStart = 0 ;
-        if ($length(escapeChar) !== 1 || escapeChar.includes('\x1b')) { escapeChar = '&' ; }
+        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
         while (i < len) {
             const c = s.charAt(i) ;
             switch (state) {
