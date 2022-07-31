@@ -1,11 +1,12 @@
 
-import { $arraybuffer, $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
+import { $arraybuffer, $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
+import { TSDateForm } from "../src/tsdatecomp";
 
 export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
@@ -83,7 +84,30 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectD($numcompare(Infinity, Infinity)).toBe(Same);
         t.expectE($numcompare(-Infinity, -Infinity)).toBe(Same);
     }) ;
-
+    group.unary("verifying $isdate(d)", async(t) => {
+        t.expect0($isdate(A)).toBeTruthy() ;
+        t.expect1($isdate(S)).toBeTruthy() ;
+        t.expect2($isdate(D)).toBeTruthy() ;
+        t.expect3($isdate(AT)).toBeTruthy() ;
+        t.expect4($isdate(T)).toBeTruthy() ;
+        t.expect6($isdate(SPACES+A+SPACES)).toBeTruthy() ;
+        t.expect7($isdate(SPACES+A+SPACES+".")).toBeFalsy() ;
+        t.expect8($isdate(SPACES+S+SPACES)).toBeTruthy() ;
+       
+        t.register("D.toISOString", D.toISOString()) ;
+        t.register("T.toISOString", T.toISOString()) ;
+       
+        t.expect9($isdate(D.toISOString())).toBeTruthy() ;
+        t.expectA($isdate(SPACES+T.toISOString()+SPACES)).toBeTruthy() ;
+        t.expectB($isdate(SPACES+T.toIsoString()+SPACES)).toBeTruthy() ;
+        t.expectC($isdate(SPACES+T.toIsoString(TSDateForm.ISO8601C)+SPACES)).toBeTruthy() ;
+        t.expectD($isdate(SPACES+T.toIsoString(TSDateForm.ISO8601L)+SPACES)).toBeTruthy() ;
+        
+        t.expectW($isdate(SPACES)).toBeFalsy() ;
+        t.expectX($isdate("")).toBeFalsy() ;
+        t.expectY($isdate(null)).toBeFalsy() ;
+        t.expectZ($isdate(undefined)).toBeFalsy() ;
+    }) ;
     group.unary("verifying $datecompare(a,b)", async(t) => {
         t.expect1($datecompare(S, D)).toBe(Same);
         t.expect2($datecompare(S, T)).toBe(Same);

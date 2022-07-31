@@ -214,6 +214,13 @@ export const dateGroups = [
         group.unary('d.isEqual(=same var)', async (t) => { t.expect(D.isEqual(D)).toBeTruthy() ; }) ;
         group.unary('d.isEqual(=other date)', async (t) => { t.expect(D.isEqual(E)).toBeTruthy() ; }) ;
         group.unary('d.isEqual(<date)', async (t) => { t.expect(!D.isEqual(D.firstDateOfYear())).toBeTruthy() ; }) ;
+
+        group.unary('Testing ISOString compatibility', async(t) => {
+            const RD = new Date(Date.UTC(1945,4,8,23,1,0)) ;
+            const ref = RD.toISOString() ;
+            t.expect0(D.toISOString()).toBe(ref) ;
+            t.expect1(E.toISOString()).toBe(ref) ;
+        });
     }),
 
     TSTest.group("Testing TSDate output format", async (group) => {

@@ -150,42 +150,42 @@ export class TSUnaryTest extends TSTest {
     }
 
     // this could be considered as useless but eventually, I find it very usefull and literrate 
-    public expect0(v:any):TSExpectAgent { return this.expect(v, 'Line 0') ; }
-    public expect1(v:any):TSExpectAgent { return this.expect(v, 'Line 1') ; }
-    public expect2(v:any):TSExpectAgent { return this.expect(v, 'Line 2') ; }
-    public expect3(v:any):TSExpectAgent { return this.expect(v, 'Line 3') ; }
-    public expect4(v:any):TSExpectAgent { return this.expect(v, 'Line 4') ; }
-    public expect5(v:any):TSExpectAgent { return this.expect(v, 'Line 5') ; }
-    public expect6(v:any):TSExpectAgent { return this.expect(v, 'Line 6') ; }
-    public expect7(v:any):TSExpectAgent { return this.expect(v, 'Line 7') ; }
-    public expect8(v:any):TSExpectAgent { return this.expect(v, 'Line 8') ; }
-    public expect9(v:any):TSExpectAgent { return this.expect(v, 'Line 9') ; }
-    public expectA(v:any):TSExpectAgent { return this.expect(v, 'Line A') ; }
-    public expectB(v:any):TSExpectAgent { return this.expect(v, 'Line B') ; }
-    public expectC(v:any):TSExpectAgent { return this.expect(v, 'Line C') ; }
-    public expectD(v:any):TSExpectAgent { return this.expect(v, 'Line D') ; }
-    public expectE(v:any):TSExpectAgent { return this.expect(v, 'Line E') ; }
-    public expectF(v:any):TSExpectAgent { return this.expect(v, 'Line F') ; }
-    public expectG(v:any):TSExpectAgent { return this.expect(v, 'Line G') ; }
-    public expectH(v:any):TSExpectAgent { return this.expect(v, 'Line H') ; }
-    public expectI(v:any):TSExpectAgent { return this.expect(v, 'Line I') ; }
-    public expectJ(v:any):TSExpectAgent { return this.expect(v, 'Line J') ; }
-    public expectK(v:any):TSExpectAgent { return this.expect(v, 'Line K') ; }
-    public expectL(v:any):TSExpectAgent { return this.expect(v, 'Line L') ; }
-    public expectM(v:any):TSExpectAgent { return this.expect(v, 'Line M') ; }
-    public expectN(v:any):TSExpectAgent { return this.expect(v, 'Line N') ; }
-    public expectO(v:any):TSExpectAgent { return this.expect(v, 'Line O') ; }
-    public expectP(v:any):TSExpectAgent { return this.expect(v, 'Line P') ; }
-    public expectQ(v:any):TSExpectAgent { return this.expect(v, 'Line Q') ; }
-    public expectR(v:any):TSExpectAgent { return this.expect(v, 'Line R') ; }
-    public expectS(v:any):TSExpectAgent { return this.expect(v, 'Line S') ; }
-    public expectT(v:any):TSExpectAgent { return this.expect(v, 'Line T') ; }
-    public expectU(v:any):TSExpectAgent { return this.expect(v, 'Line U') ; }
-    public expectV(v:any):TSExpectAgent { return this.expect(v, 'Line V') ; }
-    public expectW(v:any):TSExpectAgent { return this.expect(v, 'Line W') ; }
-    public expectX(v:any):TSExpectAgent { return this.expect(v, 'Line X') ; }
-    public expectY(v:any):TSExpectAgent { return this.expect(v, 'Line Y') ; }
-    public expectZ(v:any):TSExpectAgent { return this.expect(v, 'Line Z') ; }
+    public expect0(v:any):TSExpectAgent { return this.expect(v, 'expct0') ; }
+    public expect1(v:any):TSExpectAgent { return this.expect(v, 'expct1') ; }
+    public expect2(v:any):TSExpectAgent { return this.expect(v, 'expct2') ; }
+    public expect3(v:any):TSExpectAgent { return this.expect(v, 'expct3') ; }
+    public expect4(v:any):TSExpectAgent { return this.expect(v, 'expct4') ; }
+    public expect5(v:any):TSExpectAgent { return this.expect(v, 'expct5') ; }
+    public expect6(v:any):TSExpectAgent { return this.expect(v, 'expct6') ; }
+    public expect7(v:any):TSExpectAgent { return this.expect(v, 'expct7') ; }
+    public expect8(v:any):TSExpectAgent { return this.expect(v, 'expct8') ; }
+    public expect9(v:any):TSExpectAgent { return this.expect(v, 'expct9') ; }
+    public expectA(v:any):TSExpectAgent { return this.expect(v, 'expctA') ; }
+    public expectB(v:any):TSExpectAgent { return this.expect(v, 'expctB') ; }
+    public expectC(v:any):TSExpectAgent { return this.expect(v, 'expctC') ; }
+    public expectD(v:any):TSExpectAgent { return this.expect(v, 'expctD') ; }
+    public expectE(v:any):TSExpectAgent { return this.expect(v, 'expctE') ; }
+    public expectF(v:any):TSExpectAgent { return this.expect(v, 'expctF') ; }
+    public expectG(v:any):TSExpectAgent { return this.expect(v, 'expctG') ; }
+    public expectH(v:any):TSExpectAgent { return this.expect(v, 'expctH') ; }
+    public expectI(v:any):TSExpectAgent { return this.expect(v, 'expctI') ; }
+    public expectJ(v:any):TSExpectAgent { return this.expect(v, 'expctJ') ; }
+    public expectK(v:any):TSExpectAgent { return this.expect(v, 'expctK') ; }
+    public expectL(v:any):TSExpectAgent { return this.expect(v, 'expctL') ; }
+    public expectM(v:any):TSExpectAgent { return this.expect(v, 'expctM') ; }
+    public expectN(v:any):TSExpectAgent { return this.expect(v, 'expctN') ; }
+    public expectO(v:any):TSExpectAgent { return this.expect(v, 'expctO') ; }
+    public expectP(v:any):TSExpectAgent { return this.expect(v, 'expctP') ; }
+    public expectQ(v:any):TSExpectAgent { return this.expect(v, 'expctQ') ; }
+    public expectR(v:any):TSExpectAgent { return this.expect(v, 'expctR') ; }
+    public expectS(v:any):TSExpectAgent { return this.expect(v, 'expctS') ; }
+    public expectT(v:any):TSExpectAgent { return this.expect(v, 'expctT') ; }
+    public expectU(v:any):TSExpectAgent { return this.expect(v, 'expctU') ; }
+    public expectV(v:any):TSExpectAgent { return this.expect(v, 'expctV') ; }
+    public expectW(v:any):TSExpectAgent { return this.expect(v, 'expctW') ; }
+    public expectX(v:any):TSExpectAgent { return this.expect(v, 'expctX') ; }
+    public expectY(v:any):TSExpectAgent { return this.expect(v, 'expctY') ; }
+    public expectZ(v:any):TSExpectAgent { return this.expect(v, 'expctZ') ; }
 
     public fail() { this._failed ++ ;}
     public pass() { this._passed ++ ;}

@@ -7,7 +7,7 @@
  * TSDate instances are immutable which means you cannot change
  * their content after creation
  */
-import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat } from "./tsdatecomp"
+import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
 import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Same, uint } from "./types";
@@ -239,10 +239,8 @@ export class TSDate implements TSObject, TSClone<TSDate> {
         return <isodate>$components2string($components(this._timestamp), format) ; 
     }
 	
-    // if we use this method it may be because the caller thinks he used a Date object
     public toISOString() : string {
-        console.log('toISOString() method should not be used on TSDate instances. Use toIsoString() instead') ; 
-        return this.toIsoString() ; 
+        return $components2StringWithOffset($components(this._timestamp), { forceZ:true, milliseconds:0 as uint }) ; 
     }
     
 	// ============ TSObject conformance =============== 

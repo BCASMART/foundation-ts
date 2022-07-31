@@ -52,7 +52,7 @@ export function $isiterable(o:any) : boolean
 { return $isarray(o) || ($ok(o) && $isfunction(o[Symbol.iterator]))}
 
 export function $isdate(o:any) : boolean
-{ return o instanceof Date || o instanceof TSDate || ($isstring(o) && $ok($isodate(o))) ; }
+{ return (o instanceof Date || o instanceof TSDate || $isstring(o)) && $ok($isodate(o)) ; }
 
 export function $isemail(o:any) : boolean
 { return $isstring(o) && $ok($email(o)) ; }

@@ -208,10 +208,10 @@ export interface Iso8601ParseOptions {
 	noTime?:boolean ;
 }
 const NO_TIME_ISO_REGEX = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})$/ ;
-const TIME_ISO_REGEX     = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
+const TIME_ISO_REGEX     = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
 
 const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
-const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2}))?)?([zZ]|\+00(:?00)?)?)?$/ ;
+const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
 
 export function $isostring2components(source:string|null|undefined, opts:Iso8601ParseOptions={}) : TSDateComp|null {
     const s = $trim(source) ;
