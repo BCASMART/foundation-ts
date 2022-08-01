@@ -1,5 +1,4 @@
 import { $count, $length, $ok } from "./commons";
-import { exit } from "process";
 import { inspect } from "util";
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
@@ -168,7 +167,12 @@ export function $fatalerror(test: boolean, s: string = 'FATAL ERROR', exitCode: 
     if (test) {
         if ($ok(exitCode)) {
             $logterm(style + ' ' + s + ` &0&o —— EXITING with code &O&k ${exitCode} &0\n`);
-            exit(exitCode!);
+            let process:any = undefined ;
+            if (!$inbrowser()) { process = require("process") ;}
+            if (!$ok(process)) { throw s ; }
+            else {
+                process.exit(exitCode!);
+            }
         }
         else {
             $logterm(style + ' ' + s + ` &0&o —— will throw`);
