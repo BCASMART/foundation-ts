@@ -1,4 +1,4 @@
-import { $count, $length, $ok } from "./commons";
+import { $count, $length } from "./commons";
 import { inspect } from "util";
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
@@ -160,25 +160,6 @@ export function $logheader(s: string, width: number = 0, style: string = '&w', s
     $logterm("\n&0" + starStyle + "".padEnd(width + 4, '*'));
     $logterm(starStyle + '* ' + style + s.padEnd(width + 1, ' ') + '&0' + starStyle + '*');
     $logterm(starStyle + "".padEnd(width + 4, '*') + "&0\n");
-}
-
-export function $fatalerror(test: boolean, s: string = 'FATAL ERROR', exitCode: number | null | undefined = -1, style: string = '&R&w')
-{
-    if (test) {
-        if ($ok(exitCode)) {
-            $logterm(style + ' ' + s + ` &0&o —— EXITING with code &O&k ${exitCode} &0\n`);
-            let process:any = undefined ;
-            if (!$inbrowser()) { process = require("process") ;}
-            if (!$ok(process)) { throw s ; }
-            else {
-                process.exit(exitCode!);
-            }
-        }
-        else {
-            $logterm(style + ' ' + s + ` &0&o —— will throw`);
-            throw s;
-        }
-    }
 }
 
 export function $inbrowser():boolean {
