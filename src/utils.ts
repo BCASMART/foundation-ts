@@ -1,6 +1,8 @@
 import { $count, $length } from "./commons";
 import { inspect } from "util";
 
+export const $noop = () => {} ;
+
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;
 	return Promise.race([

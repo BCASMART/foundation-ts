@@ -208,7 +208,11 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 		return new TSDate($timestamp(years, months, comp.day, comp.hour, comp.minute, comp.second)) ;
 	}
 	public dateByAddingWeeks(weeks:number) : TSDate { return new TSDate(this._timestamp+weeks*TSWeek) ; }
-	public dateByAddingTime(time:number) : TSDate { return new TSDate(this._timestamp+time) ; }
+	public dateByAddingDays(days:number) : TSDate { return new TSDate(this._timestamp+days*TSDay) ; }
+	public dateByAddingHours(hours:number) : TSDate { return new TSDate(this._timestamp+hours*TSHour) ; }
+	public dateByAddingMinutes(mn:number) : TSDate { return new TSDate(this._timestamp+mn*TSMinute) ; }
+
+    public dateByAddingTime(time:number) : TSDate { return new TSDate(this._timestamp+time) ; }
 
 	public firstDateOfYear()  : TSDate  { let c = $components(this._timestamp) ; return new TSDate(c.year,1, 1); }
     public lastDateOfYear()   : TSDate   { let c = $components(this._timestamp) ; return new TSDate(c.year,12, 31); }

@@ -1,5 +1,5 @@
 
-import { $arraybuffer, $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
+import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -7,6 +7,7 @@ import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
 import { TSDateForm } from "../src/tsdatecomp";
+import { $arrayBufferFromBuffer } from "../src/tsdata";
 
 export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
@@ -130,8 +131,8 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect8($compare(S1, S2)).toBe(Descending);
         t.expect9($compare(B1, B1)).toBe(Same);
         t.expectA($compare(B1, B2)).toBe(Descending);
-        t.expectB($compare($arraybuffer(B1), $arraybuffer(B1))).toBe(Same);
-        t.expectC($compare($arraybuffer(B1), $arraybuffer(B2))).toBe(Descending);
+        t.expectB($compare($arrayBufferFromBuffer(B1), $arrayBufferFromBuffer(B1))).toBe(Same);
+        t.expectC($compare($arrayBufferFromBuffer(B1), $arrayBufferFromBuffer(B2))).toBe(Descending);
         t.expectD($compare(T, D)).toBe(Same);
         t.expectE($compare(D, null)).toBeUndefined();
         t.expectF($compare(null, null)).toBeUndefined();

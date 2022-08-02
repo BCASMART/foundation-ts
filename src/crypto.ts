@@ -3,7 +3,20 @@ import { createReadStream } from 'fs' ;
 import { $length } from './commons';
 import { UUID } from './types';
 
-export function $uuid() : UUID { return <UUID>crypto.randomUUID() ; }
+export function $uuid() : UUID
+{ 
+    try { return <UUID>crypto.randomUUID() ; }
+    catch {
+        console.log('Warning:crypto.randomUUID() is not available') ;
+        let uuid = "" ;
+        for (let i = 0 ; i < 32 ; i++) {
+            const rand = Math.random() * 16 | 0;        
+            if (i == 8 || i == 12 || i == 16 || i == 20) { uuid += '-' ; }       
+            uuid += (i == 12 ? 4 : (i == 16 ? (rand & 3 | 8) : rand)).toString(16);    
+        }    
+        return uuid as UUID ;
+    }
+}
 
 export enum HashMethod {
 	SHA256 = 'SHA256',

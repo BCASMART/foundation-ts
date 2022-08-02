@@ -220,14 +220,6 @@ export function $length(s:string | Uint8Array | TSData | undefined | null) : num
 export function $lengthin(s:string | Uint8Array | TSData | undefined | null, min:number=0, max:number=INT_MAX) : boolean
 { const l = $length(s) ; return l >= min && l <= max ; }
 
-export function $arraybuffer(buf:Buffer) : ArrayBuffer {
-    const ret = new ArrayBuffer(buf.length) ;
-    const view = new Uint8Array(ret) ;
-    for (let i = 0; i < buf.length; ++i) { view[i] = buf[i]; }
-    return ret ;
-}
-
-
 export interface $unitOptions {
     unitName?:string ;
     unit?:string ;

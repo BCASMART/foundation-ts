@@ -1,7 +1,8 @@
-import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok } from "./commons";
-import { $writeBuffer } from "./fs";
+import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $unsigned } from "./commons";
+import { $readBuffer, $writeBuffer } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Same, uint, uint8, UINT8_MAX } from "./types" ;
+import { $inbrowser } from "./utils";
 
 /**
  * TSData is a mutable buffer class.
@@ -46,6 +47,12 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         else {
             throw 'Bad TSData constructor() number parameter' ;
         }
+    }
+
+    public static fromFile(src:string|undefined|null):TSData|null {
+        if ($inbrowser()) { throw 'TSData.fromFile(): unavailable static method in browser' ; }
+        const b = $readBuffer(src) ;
+        return $ok(b) ? new TSData(b, { dontCopySourceBuffer:true }) : null ;
     }
 
     public [Symbol.iterator]() {
@@ -102,7 +109,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     }
 
     public appendAsciiString(source:string|null|undefined) {
-        this.appendBytes(_bytesFromAsciiString(source)) ;
+        this.appendBytes($bytesFromAsciiString(source)) ;
     }
 
     public replaceBytes(source:uint8[]|Uint8Array|null|undefined, targetStart:number=0, sourceStart:number=0, sourceEnd?:number) {
@@ -117,7 +124,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
     }
     public replaceAsciiString(source:string|null|undefined, targetStart?:number) {
-        this.replaceBytes(_bytesFromAsciiString(source), targetStart) ;
+        this.replaceBytes($bytesFromAsciiString(source), targetStart) ;
     }
 
     public get capacity():number { return this._buf.length ; }
@@ -140,7 +147,6 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         this._copyTo(ret) ;
         return ret ;
     }
-    
     public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
 
     public entries(): IterableIterator<[number, number]> { return this.mutableBuffer.entries() ; }
@@ -197,9 +203,14 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         return 0 ;
     } 
     
-    public writeToFile(path:string) { return $writeBuffer(path, this) ; }
+    public writeToFile(path:string) { 
+        if ($inbrowser()) { throw 'TSData.writeToFile(): unavailable method in browser' ; }
+        return $writeBuffer(path, this) ; 
+    }
 
     public equals(otherBuffer: Uint8Array): boolean { return this.isEqual(otherBuffer) ; }
+
+    public toArrayBuffer():ArrayBuffer { return $arrayBufferFromBuffer(this._buf, 0, this._len) ; }
 
     // ============ TSObject conformance =============== 
 
@@ -317,14 +328,35 @@ function _searchedLength(value: TSData | number | Uint8Array | null | undefined)
     return $ok(value) ? (<TSData|Uint8Array>value).length : -1 ; 
 }
 
-function _bytesFromAsciiString(source:string|null|undefined):uint8[] {
-    const len = $length(source) ;
+const _blobToBase64 = (blob:Blob) => new Promise<string|null>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = () => resolve(reader.result as (string|null));
+    reader.onerror = error => reject(error);
+});
+
+export async function $blobToBase64(source:Blob):Promise<string|null>
+{ return await _blobToBase64(source) }
+
+export function $bytesFromAsciiString(source:string|null|undefined, start:number = 0, end:number = $length(source)):uint8[] {
     let bytes:uint8[] = [] ;        
-    for (let i = 0 ; i < len ; i++) {
+    end = Math.min($length(source), $unsigned(end)) ;
+    start = Math.min(end, $unsigned(start)) ;
+
+    for (let i = start, j = 0 ; i < end ; i++, j++ ) {
         const c = source!.charCodeAt(i) ;
-        if (c < 128) { bytes[i] = c as uint8}
+        if (c < 128) { bytes[j] = c as uint8 ; }
     }
     return bytes ;
 }
 
+export function $arrayBufferFromBuffer(source:Buffer, start:number = 0, end:number = source.length) : ArrayBuffer {
+    end = Math.min(source.length, $unsigned(end)) ;
+    start = Math.min(end, $unsigned(start)) ;
 
+    const ret = new ArrayBuffer(end - start) ;
+    const view = new Uint8Array(ret) ;
+    for (let i = start, j = 0 ; i < end; i++, j++) { view[j] = source[i]; }
+
+    return ret ;
+}
