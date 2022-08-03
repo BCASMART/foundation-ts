@@ -369,3 +369,5 @@ export function TSPixels2Inches(pixels:number) { return pixels / 72 ; }
 export function TSEqualSizes(A:TSSize, B:TSSize) { return A.w === B.w && A.h === B.h ; }
 export function TSEqualPoints(A:TSPoint, B:TSPoint) { return A.x === B.x && A.y === B.y ; }
 
+export const TSCM = TScm2Pixels(1) ;
+export const TSMM = TSmm2Pixels(1) ;

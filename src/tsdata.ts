@@ -19,12 +19,12 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     protected _buf:Buffer ;
     private _allocFn:(n:number) => Buffer ;
 
-    constructor (source?:TSData|Buffer|number|null|undefined, opts:TSDataOptions={}) 
+    constructor (source?:TSData|Buffer|ArrayBuffer|Uint8Array|number|null|undefined, opts:TSDataOptions={}) 
     {
         this._allocFn = $ok(opts.allocMethod) ? opts.allocMethod! : (opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe) ;
 
         if (!$ok(source)) { source = 0 ; }
-
+        
         if (source instanceof TSData) {
             this._len = (source as TSData)._len ;
             this._buf = this._allocFn((source as TSData).capacity) ;
@@ -38,6 +38,10 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
                 this._buf = this._allocFn($capacityForCount(this._len as uint)) ;
                 (source as Buffer).copy(this._buf) ;
             }
+        }
+        else if (source instanceof ArrayBuffer || source instanceof Uint8Array) {
+            this._buf = $bufferFromArrayBuffer(source) ;
+            this._len = this._buf.length ;
         }
         else if ($isunsigned(source)) {
             const capacity = $capacityForCount(source as uint) 
@@ -335,7 +339,7 @@ const _blobToBase64 = (blob:Blob) => new Promise<string|null>((resolve, reject) 
     reader.onerror = error => reject(error);
 });
 
-export async function $blobToBase64(source:Blob):Promise<string|null>
+export async function $blobToUrlData(source:Blob):Promise<string|null>
 { return await _blobToBase64(source) }
 
 export function $bytesFromAsciiString(source:string|null|undefined, start:number = 0, end:number = $length(source)):uint8[] {
@@ -348,6 +352,10 @@ export function $bytesFromAsciiString(source:string|null|undefined, start:number
         if (c < 128) { bytes[j] = c as uint8 ; }
     }
     return bytes ;
+}
+
+export function $bufferFromArrayBuffer(a:ArrayBuffer) : Buffer {
+    return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a) ;
 }
 
 export function $arrayBufferFromBuffer(source:Buffer, start:number = 0, end:number = source.length) : ArrayBuffer {

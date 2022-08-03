@@ -1,5 +1,5 @@
 
-import { TSData } from '../src/tsdata';
+import { $arrayBufferFromBuffer, $bufferFromArrayBuffer, TSData } from '../src/tsdata';
 import { TSTest } from '../src/tstester';
 import { Same, uint8 } from '../src/types';
 
@@ -56,7 +56,21 @@ export const dataGroups = [
             t.expect5(D).gte(N) ;
             t.expect6(D).lte(N) ;
         }) ;
-
+        group.unary('Testing $bufferFromArrayBuffer() and $arrayBufferFromBuffer()', async(t) => {
+            const a = new Uint8Array([65,66,67,68]) ;
+            const b = $bufferFromArrayBuffer(a) ;
+            const c = Buffer.from("ABCD") ;
+            const d = $arrayBufferFromBuffer(c) ;
+            t.expect0(b).toBe(c) ;
+            t.expect1(d).toBe(a) ;
+            const ta = new TSData(a) ;
+            const tb = new TSData(b) ;
+            const tc = new TSData(c) ;
+            const td = new TSData(d) ;
+            t.expect2(ta).toBe(tb) ;
+            t.expect3(ta).toBe(tc) ;
+            t.expect4(ta).toBe(td) ;
+        }) ;
     })
 ] ;
 
