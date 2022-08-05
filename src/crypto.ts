@@ -1,7 +1,7 @@
 import * as crypto from 'crypto' ;
 import { createReadStream } from 'fs' ;
 import { $length } from './commons';
-import { UUID } from './types';
+import { Nullable, UUID } from './types';
 
 export function $uuid() : UUID
 { 
@@ -71,7 +71,7 @@ export function $hash(buf:Buffer, method?:HashMethod):string|null
     return ret ;
 }
 
-export async function $hashfile(filePath:string|null|undefined, method?:HashMethod):Promise<string|null>
+export async function $hashfile(filePath:Nullable<string>, method?:HashMethod):Promise<string|null>
 {
 	return new Promise((resolve, reject) => {
 		let hash = crypto.createHash($length(method) ? (<string>method).toLowerCase() : 'sha256') ;

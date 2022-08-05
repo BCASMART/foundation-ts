@@ -1,7 +1,7 @@
 import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $unsigned } from "./commons";
 import { $readBuffer, $writeBuffer } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
-import { Comparison, Same, uint, uint8, UINT8_MAX } from "./types" ;
+import { Comparison, Nullable, Same, uint, uint8, UINT8_MAX } from "./types" ;
 import { $inbrowser } from "./utils";
 
 /**
@@ -19,7 +19,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     protected _buf:Buffer ;
     private _allocFn:(n:number) => Buffer ;
 
-    constructor (source?:TSData|Buffer|ArrayBuffer|Uint8Array|number|null|undefined, opts:TSDataOptions={}) 
+    constructor (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts:TSDataOptions={}) 
     {
         this._allocFn = $ok(opts.allocMethod) ? opts.allocMethod! : (opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe) ;
 
@@ -53,7 +53,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
     }
 
-    public static fromFile(src:string|undefined|null):TSData|null {
+    public static fromFile(src:Nullable<string>):TSData|null {
         if ($inbrowser()) { throw 'TSData.fromFile(): unavailable static method in browser' ; }
         const b = $readBuffer(src) ;
         return $ok(b) ? new TSData(b, { dontCopySourceBuffer:true }) : null ;
@@ -68,7 +68,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
 
     public clone():TSData { return new TSData(this, { allocMethod:this._allocFn }) ; }
 
-    public appendData(source:TSData|Buffer|null|undefined, start:number=0, end?:number) {
+    public appendData(source:Nullable<TSData|Buffer>, start:number=0, end?:number) {
         let len = $length(source)! ;
         if (start < 0) { start = 0 ; }
         end = $ok(end) && end! < len ? end! : len ;
@@ -81,7 +81,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
     }
 
-    public setData(source:TSData|Buffer|null|undefined, targetStart:number = 0, sourceStart:number=0, sourceEnd?:number) {
+    public setData(source:Nullable<TSData|Buffer>, targetStart:number = 0, sourceStart:number=0, sourceEnd?:number) {
         let len = $length(source) ;
         sourceEnd = $ok(sourceEnd) ? Math.min(sourceEnd!, len) : len ;
         len = sourceEnd - sourceStart ;
@@ -99,7 +99,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         this._buf[this._len++] = source ;
     }
 
-    public appendBytes(source:uint8[]|Uint8Array|null|undefined, start:number=0, end?:number) {
+    public appendBytes(source:Nullable<uint8[]|Uint8Array>, start:number=0, end?:number) {
         let len = $count(source)! ;
         if (start < 0) { start = 0 ; }
         end = $ok(end) && end! < len ? end! : len ;
@@ -112,11 +112,11 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
     }
 
-    public appendAsciiString(source:string|null|undefined) {
+    public appendAsciiString(source:Nullable<string>) {
         this.appendBytes($bytesFromAsciiString(source)) ;
     }
 
-    public replaceBytes(source:uint8[]|Uint8Array|null|undefined, targetStart:number=0, sourceStart:number=0, sourceEnd?:number) {
+    public replaceBytes(source:Nullable<uint8[]|Uint8Array>, targetStart:number=0, sourceStart:number=0, sourceEnd?:number) {
         let len = $count(source)! ;
         sourceEnd = $ok(sourceEnd) ? Math.min(sourceEnd!, len) : len ;
         len = sourceEnd - sourceStart ;
@@ -127,7 +127,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
             if (targetStart + len > this._len) { this._len = targetStart + len ; }
         }
     }
-    public replaceAsciiString(source:string|null|undefined, targetStart?:number) {
+    public replaceAsciiString(source:Nullable<string>, targetStart?:number) {
         this.replaceBytes($bytesFromAsciiString(source), targetStart) ;
     }
 
@@ -157,7 +157,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     public keys():    IterableIterator<number>           { return this.mutableBuffer.keys() ; }
     public values():  IterableIterator<number>           { return this.mutableBuffer.values() ; }
 
-    public includes(value:Buffer|TSData|number|null|undefined, byteOffset:number = 0) {
+    public includes(value:Nullable<Buffer|TSData>, byteOffset:number = 0) {
         const slen = _searchedLength(value) ; 
         if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return false ; }
         if (value instanceof TSData) { value = value.mutableBuffer ; }
@@ -165,7 +165,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     }
 
     // warning : byteOffset should be >= 0
-    public indexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset: number = 0): number {
+    public indexOf(value:Nullable<TSData | number | Uint8Array>, byteOffset: number = 0): number {
         const slen = _searchedLength(value) ; 
         if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return -1 ; }
         if (value instanceof TSData) { value = value.mutableBuffer ; }
@@ -173,7 +173,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     }
 
     // warning : byteOffset should be >= 0
-    public lastIndexOf(value: TSData | number | Uint8Array | null | undefined, byteOffset: number = 0): number {
+    public lastIndexOf(value:Nullable<TSData | number | Uint8Array>, byteOffset: number = 0): number {
         const slen = _searchedLength(value) ; 
         if (slen <= 0 || !$isunsigned(byteOffset) || byteOffset + slen > this._len) { return -1 ; }
         if (value instanceof TSData) { value = value.mutableBuffer ; }
@@ -322,27 +322,17 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
 
 }
 export interface TSDataConstructor {
-    new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataOptions): TSData;
+    new (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts?:TSDataOptions): TSData;
 }
 
-function _searchedLength(value: TSData | number | Uint8Array | null | undefined):number {
+function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
     if ($isnumber(value)) {
         return $isunsigned(value, UINT8_MAX) ? 1 : -1 ; 
     }
     return $ok(value) ? (<TSData|Uint8Array>value).length : -1 ; 
 }
 
-const _blobToBase64 = (blob:Blob) => new Promise<string|null>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onload = () => resolve(reader.result as (string|null));
-    reader.onerror = error => reject(error);
-});
-
-export async function $blobToUrlData(source:Blob):Promise<string|null>
-{ return await _blobToBase64(source) }
-
-export function $bytesFromAsciiString(source:string|null|undefined, start:number = 0, end:number = $length(source)):uint8[] {
+export function $bytesFromAsciiString(source:Nullable<string>, start:number = 0, end:number = $length(source)):uint8[] {
     let bytes:uint8[] = [] ;        
     end = Math.min($length(source), $unsigned(end)) ;
     start = Math.min(end, $unsigned(start)) ;

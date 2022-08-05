@@ -56,8 +56,10 @@ export const dataGroups = [
             t.expect5(D).gte(N) ;
             t.expect6(D).lte(N) ;
         }) ;
+    }),
+    TSTest.group("Testing data manipulations functions", async (group) => {
         group.unary('Testing $bufferFromArrayBuffer() and $arrayBufferFromBuffer()', async(t) => {
-            const a = new Uint8Array([65,66,67,68]) ;
+            const a:Uint8Array = new Uint8Array([65,66,67,68]) ;
             const b = $bufferFromArrayBuffer(a) ;
             const c = Buffer.from("ABCD") ;
             const d = $arrayBufferFromBuffer(c) ;

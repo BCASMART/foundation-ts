@@ -1,6 +1,7 @@
 import { $isarray, $isnumber, $isobject, $isstring, $ok } from "./commons";
+import { $numcompare } from "./compare";
 import { TSClone, TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
 export interface TSPoint {
     x:number ;
@@ -172,7 +173,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
 
     public get isEmpty():boolean  { return this.w > 0 && this.h > 0 ? false : true ; }
 
-    public contains(p:TSPoint|TSRect|number[]|null|undefined):boolean {
+    public contains(p:Nullable<TSPoint|TSRect|number[]>):boolean {
         if (p instanceof TSRect) {
             const r = p as TSRect ;
             return !r.isEmpty && this.minX <= r.minX && this.minY <= r.minY && this.maxX >= r.maxX && this.maxY >= r.maxY ;
@@ -187,26 +188,26 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
         return $isobject(p) && ('x' in p!) && ('y' in p!) ? p!.x >= this.minX && p!.x <= this.maxX && p!.y >= this.minY && p!.y <= this.maxY : false ;
     }
 
-    public containsPoint(p:TSPoint|number[]|null|undefined):boolean {
+    public containsPoint(p:Nullable<TSPoint|number[]>):boolean {
         if ($isarray(p) && (p as number[]).length !== 2) { return false ; }
         return this.contains(p) ;
     }
 
-    public containsRect(p:TSRect|number[]|null|undefined):boolean {
+    public containsRect(p:Nullable<TSRect|number[]>):boolean {
         if ($isarray(p) && (p as number[]).length !== 4) { return false ; }
         return this.contains(p) ;
     }
 
-    public containedIn(r:TSRect|number[]|null|undefined):boolean {
+    public containedIn(r:Nullable<TSRect|number[]>):boolean {
         if (!$ok(r)) { return false ; }
         try { r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ; }
         catch { return false ; }
 
         return r.contains(this) ;
     }
-    public containedInRect(r:TSRect|number[]|null|undefined):boolean { return this.containedIn(r) ; }
+    public containedInRect(r:Nullable<TSRect|number[]>):boolean { return this.containedIn(r) ; }
 
-    public intersects(r:TSRect|number[]|null|undefined):boolean {
+    public intersects(r:Nullable<TSRect|number[]>):boolean {
         if (!$ok(r)) { return false ; }
 
         try { r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ; }
@@ -214,9 +215,9 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
 
         return this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty ? false : true ;
     }
-    public intersectsRect(r:TSRect|number[]|null|undefined):boolean { return this.intersects(r) ; }
+    public intersectsRect(r:Nullable<TSRect|number[]>):boolean { return this.intersects(r) ; }
 
-    public intersection(r:TSRect|number[]|null|undefined):TSRect {
+    public intersection(r:Nullable<TSRect|number[]>):TSRect {
         let rect = new TSRect() ;
         if (!$ok(r)) { return rect ; }
         try { r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ; }
@@ -233,9 +234,9 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
 
         return rect ;
     }
-    public intersectionRect(r:TSRect|number[]|null|undefined):TSRect { return this.intersection(r) ; }
+    public intersectionRect(r:Nullable<TSRect|number[]>):TSRect { return this.intersection(r) ; }
 
-    public union(r:TSRect|number[]|undefined|null):TSRect {
+    public union(r:Nullable<TSRect|number[]>):TSRect {
         if (!$ok(r))      { return this.clone() ; }
         r = $isarray(r) ? new TSRect(r as number[]) : r as TSRect ;
 
@@ -251,7 +252,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
 
         return rect ;
     }
-    public unionRect(r:TSRect|number[]|null|undefined):TSRect { return this.union(r) ; }
+    public unionRect(r:Nullable<TSRect|number[]>):TSRect { return this.union(r) ; }
 
     public offset(dx:number, dy:number):TSRect {
         if (!$isnumber(dx) || !$isnumber(dy)) { throw 'Invalid offser' ; }
@@ -357,17 +358,56 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
     public toArray(): number[] { return [this.minX, this.minY, this.maxX, this.maxY] ; }
 }
 
-export function TSmm2Pixels(mm:number) { return mm * 45 / 16 ; }
-export function TScm2Pixels(cm:number) { return cm * 225 / 8 ; }
 
-export function TSPixels2cm(pixels:number) { return pixels * 8 / 225 ; }
-export function TSPixels2mm(pixels:number) { return pixels * 16 / 45 ; }
+export function TSmm2Pixels(mm:number):number { return mm * 45 / 16 ; }
+export function TScm2Pixels(cm:number):number { return cm * 225 / 8 ; }
 
-export function TSInches2Pixels(inches:number) { return inches * 72 ; }
-export function TSPixels2Inches(pixels:number) { return pixels / 72 ; }
+export function TSPixels2cm(pixels:number):number { return pixels * 8 / 225 ; }
+export function TSPixels2mm(pixels:number):number { return pixels * 16 / 45 ; }
 
-export function TSEqualSizes(A:TSSize, B:TSSize) { return A.w === B.w && A.h === B.h ; }
-export function TSEqualPoints(A:TSPoint, B:TSPoint) { return A.x === B.x && A.y === B.y ; }
+export function TSInches2Pixels(inches:number):number { return inches * 72 ; }
+export function TSPixels2Inches(pixels:number):number { return pixels / 72 ; }
+
+export function TSEqualPoints(A:TSPoint, B:TSPoint):boolean { return A.x === B.x && A.y === B.y ; }
+
+export function TSEqualSizes(A:TSSize, B:TSSize):boolean { return A.w === B.w && A.h === B.h ; }
+export function TSArea(A:TSSize):number { return A.w * A.h ; }
+export function TSValidSize(A:Nullable<TSSize>):boolean { return $ok(A) && A!.w >=0 && A!.h >= 0 ; }
+export function TSCompareSizes(A:TSSize, B:TSSize):Comparison { return $numcompare(TSArea(A), TSArea(B)) ; }
+
+export interface TSAssertFormatOptions {
+    defaultSize?:TSSize,
+    minimalSize?:TSSize,
+    maximalSize?:TSSize,
+    invalidSizeRaise?:boolean,
+    undersizeRaise?:boolean,
+    oversizeRaise?:boolean
+} ;
+
+export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TSAssertFormatOptions={}):TSSize 
+{
+    const size:Nullable<TSSize> = $isstring(format) ? TSDocumentFormats[format as TSDocumentFormat] : format as Nullable<TSSize> ;
+    
+    const defaultSize = TSValidSize(opts.defaultSize) ? opts.defaultSize! : TSDocumentFormats.a4 ;
+    if (!TSValidSize(size)) { 
+        if (opts.invalidSizeRaise) { throw 'TSAssertFormat(): invalid format.' ;} 
+        return defaultSize ; 
+    }
+
+    const min = TSValidSize(opts.minimalSize) ? opts.minimalSize! : TSDocumentFormats.a6 ;
+    if (size!.w < min.w || size!.h < min.h) { 
+        if (opts.oversizeRaise) { throw 'TSAssertFormat(): format too small.' ;} 
+        return min ;
+    }
+
+    const max = TSValidSize(opts.maximalSize) ? opts.maximalSize! : TSDocumentFormats.a0 ;
+    if (size!.w > max.w || size!.h > max.h) {
+        if (opts.oversizeRaise) { throw 'TSAssertFormat(): format too large.' ;} 
+        return max ; 
+    }
+
+    return size!
+}
 
 export const TSCM = TScm2Pixels(1) ;
 export const TSMM = TSmm2Pixels(1) ;

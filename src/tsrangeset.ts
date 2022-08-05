@@ -1,14 +1,14 @@
 import { $count, $isarray, $isnumber, $ok } from "./commons";
 import { TSList, TSListConstructor } from "./tslist";
 import { $comformsToInterval, Interval, TSBadRange, TSRange } from "./tsrange";
-import { Ascending, Comparison, Descending, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
 
 type trrs = TSRange|number|Interval|Array<number> ;
 type trrsa = Array<trrs> ;
 export class TSRangeSet extends TSList<TSRange> implements Interval {
 
-	public constructor(v?:TSRangeSet|trrs|trrsa|null|undefined) {
+	public constructor(v?:Nullable<TSRangeSet|trrs|trrsa>) {
 		super() ;
 		if ($ok(v)) {
 			if (v instanceof TSRangeSet) {
@@ -34,7 +34,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
             }
 
             for (let e of u) {
-                let r:TSRange|undefined|null = undefined ;
+                let r:Nullable<TSRange> = undefined ;
                 if (e instanceof TSRange) { r = e as TSRange ; }
                 else if ($isarray(e)) { r = TSRange.fromArray(e as Array<number>) ; }
                 else if ($comformsToInterval(e) && (e as Interval).hasSignificantRange) { r = (e as Interval).range ; }
@@ -368,5 +368,5 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 
 export interface TSRangeSetConstructor extends TSListConstructor<TSRange>
 {
-    new (v?:TSRangeSet|trrs|trrsa|null|undefined): TSRangeSet ;
+    new (v?:Nullable<TSRangeSet|trrs|trrsa>): TSRangeSet ;
 }

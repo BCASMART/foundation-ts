@@ -1,4 +1,5 @@
 export type Opaque<V> = V & { readonly __opq__: unique symbol };
+export type Nullable<V> = V | null | undefined;
 
 // ========== number types =====================
 export type int8 	 = Opaque<number> ;

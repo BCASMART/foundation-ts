@@ -1,6 +1,6 @@
 import { $count, $int, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $unsigned } from "./commons";
 import { TSDate } from "./tsdate";
-import { Ascending, Comparison, Descending, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 import { TSClone, TSObject } from "./tsobject";
 import { TSRangeSet } from "./tsrangeset";
 
@@ -89,7 +89,7 @@ export class TSRange implements TSObject, TSClone<TSRange>, Interval {
 	}
     
     public static make(loc:number, len:number):TSRange { return new TSRange(loc, len) ; }
-    public static fromArray(a:number[]|null|undefined):TSRange | null {
+    public static fromArray(a:Nullable<number[]>):TSRange | null {
         return $israngearray(a) ? new TSRange(a![0], a![1]) : null ;
     }
 
@@ -192,7 +192,7 @@ export function $israngeparams(loc:number, len:number) {
     return $isint(loc) && $isunsigned(len) && $isint(loc + len) ;
 }
 
-export function $israngearray(v:number[]|null|undefined):boolean {
+export function $israngearray(v:Nullable<number[]>):boolean {
     return $count(v) === 2 && $israngeparams(v![0], v![1]) ;
 }
 

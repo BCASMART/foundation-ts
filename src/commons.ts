@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationRightTrimRegex, FoundationWhiteSpaces } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable} from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 
@@ -12,19 +12,19 @@ export function $defined(o:any):boolean
 export function $ok(o:any) : boolean
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
 
-export function $value<T>(o:T|null|undefined, v:T):T
+export function $value<T>(o:Nullable<T>, v:T):T
 { return $ok(o) ? o! : v ; }
 
-export function $valueornull<T>(o:T|null|undefined):T|null
+export function $valueornull<T>(o:Nullable<T>):T|null
 { return $ok(o) ? o! : null ;}
 
-export function $valueorundefine<T>(o:T|null|undefined):T|undefined
+export function $valueorundefine<T>(o:Nullable<T>):T|undefined
 { return $ok(o) ? o! : undefined ;}
 
 export function $isstring(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
 
-export function $iswhitespace(c:string|null|undefined) : boolean
+export function $iswhitespace(c:Nullable<string>) : boolean
 { return $length(c) >= 1 && FoundationWhiteSpaces.includes(c!.charAt(0)) ; }
 
 export function $isnumber(o:any) : boolean
@@ -66,21 +66,21 @@ export function $isuuid(o:any) : boolean
 
 export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
 
-export function $intornull(n:string|number|null|undefined) : int | null
+export function $intornull(n:Nullable<string|number>) : int | null
 {
 	if (!$ok(n)) { return null ; }
 	if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
 	return $isint(n) ? <int>n : null ;
 }
 
-export function $int(n:string|number|null|undefined, defaultValue:int=<int>0) : int
+export function $int(n:Nullable<string|number>, defaultValue:int=<int>0) : int
 {
 	n = $intornull(n) ;
 	return $ok(n) ? <int>n : defaultValue ;
 }
 
 
-export function $email(s:string|null|undefined) : email | null
+export function $email(s:Nullable<string>) : email | null
 {
     const m = _regexvalidatedstring<email>(emailRegex, s) ;
     return $ok(m) ? m!.toLowerCase() as email : null ;
@@ -91,7 +91,7 @@ export interface $urlOptions {
     acceptedProtocols?:string[] ;
 }
 
-export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | null
+export function $url(s:Nullable<string>, opts:$urlOptions = {}) : url | null
 {
     if (!$length(s)) { return null ;}
     const m = s!.match(urlRegex) ;
@@ -107,7 +107,7 @@ export function $url(s:string|null|undefined, opts:$urlOptions = {}) : url | nul
     return m![1] !== null && opts.acceptsProtocolRelativeUrl ? s as url : null ; 
 }
 
-export function $UUID(s:string|null|undefined) : UUID | null
+export function $UUID(s:Nullable<string>) : UUID | null
 { 
     if (!$isstring(s)) { return null ; } 
     return _regexvalidatedstring<UUID>(uuidRegex, s) ; 
@@ -115,7 +115,7 @@ export function $UUID(s:string|null|undefined) : UUID | null
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
-export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateFormat=TSDateForm.ISO8601) : isodate | null
+export function $isodate(s:Nullable<Date|TSDate|string>, format:IsoDateFormat=TSDateForm.ISO8601) : isodate | null
 {
     let cps:TSDateComp|null = null ;
     if ($ok(s)) {
@@ -126,7 +126,7 @@ export function $isodate(s:Date|TSDate|string|null|undefined, format:IsoDateForm
     return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
 
-export function $address(a:Address|null|undefined) : Address | null 
+export function $address(a:Nullable<Address>) : Address | null 
 {
     if (!$isobject(a)) { return null ; }
     const city = $ftrim(a?.city) ;
@@ -140,17 +140,17 @@ export function $address(a:Address|null|undefined) : Address | null
     return ret ;
 }
 
-export function $unsignedornull(n:string|number|null|undefined) : uint | null
+export function $unsignedornull(n:Nullable<string|number>) : uint | null
 {
 	if (!$ok(n)) { return null ; }
 	if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
-	return $isunsigned(n) ? <uint>n : null ;
+	return $isunsigned(n) ? n as uint : null ;
 }
 
-export function $unsigned(n:string|number|null|undefined, defaultValue:uint=<uint>0) : uint
+export function $unsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
 {
-	n = $unsignedornull(n) ;
-	return $ok(n) ? <uint>n : defaultValue ;
+	const n = $unsignedornull(v) ;
+	return $ok(n) ? n as uint : defaultValue ;
 }
 
 export function $div(a: number, b: number) : number { return a/b | 0 ; }
@@ -160,7 +160,7 @@ export function $string(v:any) : string {
 	return typeof v === 'object' && 'toString' in v ? v.toString() : `${v}`;
 }
 
-export function $strings(v: string[] | string | undefined | null) : string[]
+export function $strings(v: Nullable<string[] | string>) : string[]
 { return $ok(v) ? ($isarray(v) ? v as string[] : [v as string]) : [] ; }
 
 export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
@@ -169,26 +169,26 @@ export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
  *   We don't use standard trim because it does not trim all unicode whitespaces! 
  */
 // left-trim
-export function $ltrim(s: string | undefined | null) : string
+export function $ltrim(s:Nullable<string>) : string
 { return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "") : '' ; }
 
 // right-trim
-export function $rtrim(s: string | undefined | null) : string
+export function $rtrim(s: Nullable<string>) : string
 { return $length(s) ? (s as string).replace(FoundationRightTrimRegex, "") : '' ; }
 
 // full-trim
-export function $ftrim(s: string | undefined | null) : string
+export function $ftrim(s: Nullable<string>) : string
 { return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : '' ; }
 
 export { $ftrim as $trim }
 
-export function $normspaces(s: string | undefined | null) : string
+export function $normspaces(s: Nullable<string>) : string
 { return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " ") ; }
 
-export function $firstcap(s:string|null|undefined) : string
+export function $firstcap(s: Nullable<string>) : string
 { return _capitalize(s, 1) ; }
 
-export function $capitalize(s: string | undefined | null) : string
+export function $capitalize(s: Nullable<string>) : string
 { return _capitalize(s) ; }
 
 export function $fpad2(v: uint) : string { return $fpad(v,2) ; }
@@ -199,7 +199,7 @@ export function $fpad(v: uint, pad:number) : string {
 }
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek
-export function $ascii(source: string | undefined | null) : string
+export function $ascii(source: Nullable<string>) : string
 {
 	const l = $length(source) ;
 	if (!l) return '' ;
@@ -211,13 +211,13 @@ export function $ascii(source: string | undefined | null) : string
 export function $capacityForCount(count:uint):uint
 { return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; }
 
-export function $count<T=any>(a:ArrayLike<T> | undefined | null) : number
+export function $count<T=any>(a: Nullable<ArrayLike<T>>) : number
 { return $ok(a) ? (<ArrayLike<T>>a).length : 0 ; }
 
-export function $length(s:string | Uint8Array | TSData | undefined | null) : number
+export function $length(s: Nullable<string | Uint8Array | TSData>) : number
 { return $ok(s) ? (<string|Uint8Array|TSData>s).length : 0 ; }
 
-export function $lengthin(s:string | Uint8Array | TSData | undefined | null, min:number=0, max:number=INT_MAX) : boolean
+export function $lengthin(s: Nullable<string | Uint8Array | TSData>, min:number=0, max:number=INT_MAX) : boolean
 { const l = $length(s) ; return l >= min && l <= max ; }
 
 export interface $unitOptions {
@@ -234,7 +234,7 @@ const TSUnitMultiples = ['y', 'z', 'a', 'f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 
 const TSLog1000 = Math.log(1000) ;
 
 // default unit is m (for meters)
-export function $unit(n:number|undefined|null, opts:$unitOptions = {}) {
+export function $unit(n: Nullable<number>, opts:$unitOptions = {}) {
     const v = $ok(n) ? n! : 0 ;
     const sn = $ftrim(opts.unitName) ;
     const su = $ftrim(opts.unit) ;
@@ -253,7 +253,7 @@ export function $unit(n:number|undefined|null, opts:$unitOptions = {}) {
     return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?unitName:unit) ;
 }
 
-export function $octets(n:number|undefined|null, decimals:number = 2) {
+export function $octets(n: Nullable<number>, decimals:number = 2) {
     return $unit(n, { 
         decimals:decimals, 
         unit:'o', 
@@ -264,7 +264,7 @@ export function $octets(n:number|undefined|null, decimals:number = 2) {
     }) ;
 }
 
-export function $meters(n:number|undefined|null, decimals:number = 2) {
+export function $meters(n: Nullable<number>, decimals:number = 2) {
     return $unit(n, { decimals:decimals})
 }
 
@@ -272,7 +272,7 @@ export function $meters(n:number|undefined|null, decimals:number = 2) {
 	This is a map function where callback returns as null or undefined are
 	flushed from the result
  */
-export function $map<T, R=T>(values:Iterable<T> | undefined | null, callback:(value: T, index: number) => R|null|undefined): R[]
+export function $map<T, R=T>(values: Nullable<Iterable<T>>, callback:(value: T, index: number) => Nullable<R>): R[]
 {
 	const ret = new Array<R>() ;
     if ($ok(values)) {
@@ -286,17 +286,17 @@ export function $map<T, R=T>(values:Iterable<T> | undefined | null, callback:(va
 	return ret ;
 }
 
-export function $first<T = any>(values:ArrayLike<T>|null|undefined):T|undefined {
+export function $first<T = any>(values: Nullable<ArrayLike<T>>):T|undefined {
     const n = $count(values) ; return n > 0 ? values![0] : undefined ;
 }
 
-export function $last<T = any>(values:ArrayLike<T>|null|undefined):T|undefined {
+export function $last<T = any>(values: Nullable<ArrayLike<T>>):T|undefined {
     const n = $count(values) ; return n > 0 ? values![n-1] : undefined ;
 }
 
 // the sum of null, undefined or an empty array is always 0, 
 // regardless of what it could contain
-export function $sum<T=any>(values:Iterable<T>|null|undefined):number|undefined {
+export function $sum<T=any>(values: Nullable<Iterable<T>>):number|undefined {
     // with that implementation undefined and null values are considered as 0 for the sum
     const [,,,sum] = _countsAndSum<T>(values) ;
     return sum ;
@@ -307,7 +307,7 @@ export interface $averageOptions {
     countsOnlyDefinedItems?:boolean ;
 }
 
-export function $average<T=any>(values:Iterable<T>|null|undefined, opts:$averageOptions = {}):number|undefined {
+export function $average<T=any>(values:Nullable<Iterable<T>>, opts:$averageOptions = {}):number|undefined {
     let [count, definedCount, okCount, sum] = _countsAndSum<T>(values) ;
     
     if (opts.countsOnlyOKItems) { count = okCount ; }
@@ -316,7 +316,7 @@ export function $average<T=any>(values:Iterable<T>|null|undefined, opts:$average
     return $defined(sum) && count > 0 ? sum!/count : undefined ;
 }
 
-function _countsAndSum<T>(values:Iterable<T>|null|undefined):[number, number, number, number|undefined] {
+function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number, number|undefined] {
     // since we work on Iterable, we don't use any length
     // and count our collection when trying to perform a sum
 
@@ -364,7 +364,7 @@ export function $jsonobj(v:any): any
 	} 
 }
 
-export function $keys<T>(o:T|undefined|null):Array<keyof T> { return $ok(o) ? Object.getOwnPropertyNames(o!) as (keyof T)[] : [] ; }
+export function $keys<T>(o:Nullable<T>):Array<keyof T> { return $ok(o) ? Object.getOwnPropertyNames(o!) as (keyof T)[] : [] ; }
 
 export interface $partialOptions<T,U> {
     properties?:Array<keyof T | keyof U>,
@@ -373,7 +373,7 @@ export interface $partialOptions<T,U> {
 
 // default filter supress undefined, null values and functions (methods for real class instances)
 // if properties is not set, we use all the object keys to apply the filter
-export function $partial<T,U>(a:T|undefined|null, opts:$partialOptions<T,U>={}):[U, number]
+export function $partial<T,U>(a:Nullable<T>, opts:$partialOptions<T,U>={}):[U, number]
 {
     let ret:any = {} ;
     let n = 0 ;
@@ -386,7 +386,7 @@ export function $partial<T,U>(a:T|undefined|null, opts:$partialOptions<T,U>={}):
 // TODO: review all AnyDictionary functions to make a specific file 
 // and a more thorough specificaiton. Here, all null, undefined and function
 // properties are removed
-export function $dict<T = object>(source:T|null|undefined, keys?:Array<keyof T>):AnyDictionary {    
+export function $dict<T = object>(source:Nullable<T>, keys?:Array<keyof T>):AnyDictionary {    
     const ret:AnyDictionary = {} ;
     if ($ok(source)) { 
         _fillObject<object,AnyDictionary>('dict', ret, source, { properties:keys as any[] }) ;
@@ -394,7 +394,7 @@ export function $dict<T = object>(source:T|null|undefined, keys?:Array<keyof T>)
     return ret ;
 }
 
-export function $includesdict(source:object|null|undefined, dict:AnyDictionary, keys?:string[]):boolean {
+export function $includesdict(source:Nullable<object>, dict:AnyDictionary, keys?:string[]):boolean {
     if ($ok(source)) {
         keys = $ok(keys) ? keys! : $keys(dict) as string[] ;
         if (keys.length) {
@@ -418,7 +418,7 @@ export interface $fusionOptions<T,U> {
     fusionObjects?:(a:object, b:object) => object
 }
 
-export function $fusion<T,U>(a:T|undefined|null, b:U|undefined|null, opts:$fusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
+export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
 {
     if (!$ok(a)) { return $ok(b) ? $partial(b, opts.B as any) : [{}, 0] }
     else if (!$ok(b)) { return $partial(a, opts.A) ; }
@@ -437,7 +437,7 @@ export function $json(v:any, replacer: (number | string)[] | null = null, space:
 
 
 // ===== private functions ===================================
-function _regexvalidatedstring<T>(regex:RegExp, s:string|null|undefined) : T | null 
+function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 
 {
 	const v = $ftrim(s) ;
 	if (!v.length || !regex.test(<string>v)) { return null ; }
@@ -501,7 +501,7 @@ declare global {
         last: () => T|undefined ;
         sum: () => number|undefined ;
         average: (opts?:$averageOptions) => number | undefined ;
-        filteredMap: <R = T>(callback:(value: T, index: number) => R|null|undefined) => R[] ;
+        filteredMap: <R = T>(callback:(value: T, index: number) => Nullable<R>) => R[] ;
     }
     export interface String {
         ascii: (this:string) => string ;
@@ -586,10 +586,10 @@ if (!('average' in Array.prototype)) {
     Array.prototype.average = function average<T>(this: T[], opts?:$averageOptions):number|undefined { return $average(this, opts) ; }
 }
 if (!('filteredMap' in Array.prototype)) {
-    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback:(e:T,index:number) => R|null|undefined):R[] { return $map(this, callback) ; }
+    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback:(e:T,index:number) => Nullable<R>):R[] { return $map(this, callback) ; }
 }
 
-function _capitalize(s:string|null|undefined, max:number = 0) : string 
+function _capitalize(s:Nullable<string>, max:number = 0) : string 
 {
     const len = $length(s) ;
     let ret = "" ;

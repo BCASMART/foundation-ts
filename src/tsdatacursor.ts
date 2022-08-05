@@ -1,6 +1,7 @@
 import { endianness } from "os"
 import { $isunsigned, $ok } from "./commons";
 import { TSData, TSDataOptions } from "./tsdata";
+import { Nullable } from "./types";
 
 export type TSEndianness = 'BE' | 'LE' ;
 
@@ -14,7 +15,7 @@ export class TSDataCursor extends TSData
     protected _cursor:number = 0 ;
     protected _endianness:TSEndianness ;
 
-    constructor (source?:TSData|Buffer|number|null|undefined, opts:TSDataCursorOptions={}) {
+    constructor (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts:TSDataCursorOptions={}) {
         super(source, {
             dontCopySourceBuffer:opts.dontCopySourceBuffer,
             fillWithZeros:opts.fillWithZeros,
@@ -67,6 +68,6 @@ export class TSDataCursor extends TSData
 }
 
 export interface TSDataCursorConstructor {
-    new (source?:TSData|Buffer|number|null|undefined, opts?:TSDataCursorOptions): TSDataCursor;
+    new (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts?:TSDataCursorOptions): TSDataCursor;
 }
 

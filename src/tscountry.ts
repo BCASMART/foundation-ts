@@ -1,7 +1,7 @@
 import { $ascii, $length, $ok, $trim } from './commons';
 import { $language, Locales, TSDefaults } from './tsdefaults';
 import { TSClone, TSObject } from './tsobject';
-import { Comparison, country, currency, language, Languages, Same, StringTranslation } from './types';
+import { Comparison, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
 import { $compare } from './compare';
 /**
@@ -72,7 +72,7 @@ export class TSCountry implements TSObject, TSClone<TSCountry> {
         }
     }
 
-    public static country(c:country|string|undefined|null) : TSCountry | null {
+    public static country(c:Nullable<country|string>) : TSCountry | null {
         c = $trim(c) ;
         if (c.length) {
             if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
@@ -97,7 +97,7 @@ export class TSCountry implements TSObject, TSClone<TSCountry> {
 
     public clone():TSCountry { return this ; } // no clone on immutable objects
 
-    public translatedName(lang?:language|null|undefined):string | null {
+    public translatedName(lang?:Nullable<language>):string | null {
         const ret =  this.names[$ok(lang) ? lang! : $language()!] ;
         return $length(ret) ? ret! : null ;
     }

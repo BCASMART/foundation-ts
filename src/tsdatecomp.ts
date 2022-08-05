@@ -16,7 +16,7 @@ import {
     TSDaysFrom00000229To20010101, 
     $dayOfWeekFromTimestamp
 } from "./tsdate";
-import { country, int, language, uint, UINT_MIN } from "./types";
+import { country, int, language, Nullable, uint, UINT_MIN } from "./types";
 import { TSCountry } from "./tscountry";
 
 export interface TimeComp {
@@ -65,7 +65,7 @@ export enum TSDateRep {
  * in order to create components from string, you need
  * to user functions $parsetime()
  */
- export function $timecomponents(source: number|Date|TSDate|null|undefined=null) : TimeComp {
+ export function $timecomponents(source: Nullable<number|Date|TSDate>) : TimeComp {
 	if (!$ok(source)) { source = new Date() ;}
 	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
 
@@ -92,7 +92,7 @@ export enum TSDateRep {
  * in order to create components from string, you need
  * to user functions $parsedate(), $parsedatetime() or $isostring2components()
  */
-export function $components(source: number|Date|TSDate|null|undefined=null) : TSDateComp {
+export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
 
 	if (!$ok(source)) { source = new Date() ;}
 	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
@@ -132,7 +132,7 @@ export function $components(source: number|Date|TSDate|null|undefined=null) : TS
 	} ;
 }
 
-export function $componentsarevalid(comp:TSDateComp|null|undefined) : boolean {
+export function $componentsarevalid(comp:Nullable<TSDateComp>) : boolean {
 	if (!$ok(comp)) { return false } ;
 	const c = comp as TSDateComp ;
 	return $dayisvalid(c.year, c.month, c.day) && $timeisvalid(c.hour, c.minute, c.second) ;
@@ -142,7 +142,7 @@ export function $componentshavetime(c:TSDateComp) : boolean {
 	return c.hour > 0 || c.minute > 0 || c. second > 0
 }
 
-export function $parsetime(s:string|null|undefined) : TimeComp|null {
+export function $parsetime(s:Nullable<string>) : TimeComp|null {
 	if (!$length(s)) { return null ; }
 	const m = (<string>s).match(/^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/) ;
 	if (!$ok(m)) { return null ; }
@@ -170,11 +170,11 @@ export function $parsetime(s:string|null|undefined) : TimeComp|null {
  * 
  * ==WARNING== dayOfWeek is not initialized after parsing.
  */
-export function $parsedatetime(s:string|null|undefined, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
+export function $parsedatetime(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
 	return _parsedt(s, /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4})(\s+(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?)?)?)?\s*$/, form) ;
 }
 
-export function $parsedate(s:string|null|undefined, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
+export function $parsedate(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
 	return _parsedt(s, /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4}))?)?\s*$/, form, { noTime:true }) ;
 }
 
@@ -213,11 +213,11 @@ const TIME_ISO_REGEX     = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]
 const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
 const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
 
-export function $isostring2components(source:string|null|undefined, opts:Iso8601ParseOptions={}) : TSDateComp|null {
+export function $isostring2components(source:Nullable<string>, opts:Iso8601ParseOptions={}) : TSDateComp|null {
     const s = $trim(source) ;
 	if (!s.length) { return null ; }
 
-    let m:RegExpMatchArray|null|undefined = undefined ;
+    let m:Nullable<RegExpMatchArray> = undefined ;
 
     if (opts.noTime) {
         m = s.match(NO_TIME_ISO_REGEX) ; 
@@ -354,7 +354,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
  *          (meaning enabled if hour > 0 || minute > 0 || second > 0)
  *      %]  exit previous format zone without time
  */
-export function $components2stringformat(comp:TSDateComp, format:string|TSDateRep|undefined|null='', locale?:language|country|TSCountry|Locales|null|undefined) : string | null {
+export function $components2stringformat(comp:TSDateComp, format:Nullable<string|TSDateRep>='', locale?:Nullable<language|country|TSCountry|Locales>) : string | null {
     if (!$componentsarevalid(comp)) { return null ; }
     const ts = $components2timestamp(comp) ;
     const trs = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
@@ -491,7 +491,7 @@ export function $components2stringformat(comp:TSDateComp, format:string|TSDateRe
 }
 
 
-export function $durationcomponents(duration: number|null|undefined) : TSDurationComp {
+export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
     let time:number = $unsigned(duration, 0 as uint) ;
     let d:number, h:number, m:number ;
 
@@ -514,7 +514,7 @@ export function $duration(comps:TSDurationComp):number {
     return comps.days*TSDay+comps.hours*TSHour+comps.minutes*TSMinute+comps.seconds ;
 }
 
-export function $duration2String(comps:TSDurationComp, format?:string|null|undefined):string {
+export function $duration2String(comps:TSDurationComp, format?:Nullable<string>):string {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
     return $durationNumber2StringFormat($duration(comps), format) ;
@@ -580,7 +580,7 @@ export function $duration2String(comps:TSDurationComp, format?:string|null|undef
  *      You can use $setdefault('debugDurationStateAutomat', true) ; before calling the present
  *      function in order to debug the format automat if you think you don't obtain what you should
  */
-export function $durationNumber2StringFormat(duration: number|null|undefined, format?:string|null|undefined) : string {
+export function $durationNumber2StringFormat(duration: Nullable<number>, format?:Nullable<string>) : string {
     
     enum State {
         Standard = 0,
@@ -855,7 +855,7 @@ function _completeWithToday(c:TSDateComp) {
 	}
 }
 
-function _parsedt(s:string|null|undefined, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
+function _parsedt(s:Nullable<string>, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
 	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C || form === TSDateForm.ISO8601L) { return $isostring2components(s, opts) ; }
 	if (!$length(s)) { return null ; }
 	const m = (<string>s).match(regexp) ;

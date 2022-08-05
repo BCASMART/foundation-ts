@@ -10,7 +10,7 @@
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
 import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat } from "./commons";
 import { $numcompare } from "./compare";
-import { Comparison, country, isodate, language, Same, uint } from "./types";
+import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
 import { TSClone, TSObject } from "./tsobject";
 import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
@@ -99,7 +99,7 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 
     // this specific method takes a Date representation 
     // in Zulu timezone.
-    public static fromZulu(s:Date|null|undefined) : TSDate | null {
+    public static fromZulu(s:Nullable<Date>) : TSDate | null {
         if (!$ok(s)) { return null ; }
         return this.fromComponents({
             year:<uint>s!.getUTCFullYear(), 
@@ -112,29 +112,29 @@ export class TSDate implements TSObject, TSClone<TSDate> {
         }) ;
     }
 
-    public static fromEpoch(timestamp:number|null|undefined) : TSDate | null {
+    public static fromEpoch(timestamp:Nullable<number>) : TSDate | null {
         if (!$ok(timestamp)) { return null ; }
         return new TSDate((timestamp as number) - TSSecsFrom19700101To20010101) ;
     }
 
-    public static from(date:number|string|Date|null|undefined) : TSDate | null {
+    public static from(date:Nullable<number|string|Date>) : TSDate | null {
         if (!$ok(date)) { return null ; }
         if ($isnumber(date)) { return this.fromTimeStamp(date as number) ; }
         if (date instanceof Date) { return this.fromDate(date as Date) ; }
         return this.fromIsoString(date as string) ;
     }
 
-    public static fromTimeStamp(d:number|null|undefined) : TSDate | null {
+    public static fromTimeStamp(d:Nullable<number>) : TSDate | null {
         return $ok(d) ? new TSDate(d!) : null ;
     }
 
-    public static fromDate(d:Date|null|undefined) : TSDate | null {
+    public static fromDate(d:Nullable<Date>) : TSDate | null {
         return $ok(d) ? new TSDate(d!) : null ;
     }
 
     // usage TSDate.fromComponents(myComponents)
 	// if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
-	public static fromComponents(comp:TSDateComp|undefined|null) : TSDate | null {
+	public static fromComponents(comp:Nullable<TSDateComp>) : TSDate | null {
 		if (!$componentsarevalid(comp)) { return null ; }
 		const c = comp as TSDateComp ;
 		
@@ -142,19 +142,19 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 		return new TSDate($timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second)) ;
 	}
 
-    public static fromIsoString(s:string|null|undefined) : TSDate | null {
+    public static fromIsoString(s:Nullable<string>) : TSDate | null {
         if (!$ok(s)) { return null ; }
         return this.fromComponents($parsedatetime(s, TSDateForm.ISO8601)) ;
     }
 
 	// usage TSDate.fromString(aString[, parsing form])
-	public static fromString(s:string|null|undefined, form:TSDateForm=TSDateForm.Standard) : TSDate | null {
+	public static fromString(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDate | null {
 		return this.fromComponents($parsedatetime(s, form)) ;
 	} 
 
 	// usage TSDate.fromDateString(aString[, parsing form]).
 	// this function only parse day date string (no time should be included in the string)
-	public static fromDateString(s:string|null|undefined, form:TSDateForm=TSDateForm.Standard) : TSDate | null {
+	public static fromDateString(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDate | null {
 		return this.fromComponents($parsedate(s, form)) ;
 	} 
 
@@ -255,12 +255,12 @@ export class TSDate implements TSObject, TSClone<TSDate> {
     }
     public isEqual(other:any) : boolean { return this === other || (other instanceof TSDate && other.timestamp === this._timestamp) ; }
 	
-    public toString(format?:TSDateForm|string|undefined|null,locale?:language|country|TSCountry|Locales|null|undefined) : string {
+    public toString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
         if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
         return this._toString(false, format, locale) ;
     }
 
-    public toLocaleString(format?:TSDateForm|string|undefined|null,locale?:language|country|TSCountry|Locales|null|undefined) : string {
+    public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
         return this._toString(true, format, locale) ;
     }
 
@@ -268,7 +268,7 @@ export class TSDate implements TSObject, TSClone<TSDate> {
 	public toArray():TSDate[] { return [this] ; }
 
 	// ============ Private methods =============== 
-    private _toString(localTime:boolean, format?:TSDateForm|string|undefined|null, locale?:language|country|TSCountry|Locales|null|undefined) : string {
+    private _toString(localTime:boolean, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
         const offset = localTime ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
         if ($isstring(format)) {
             const ret = $components2stringformat($components(this._timestamp+offset), format as string, locale) ;

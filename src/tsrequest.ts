@@ -1,4 +1,4 @@
-import { AnyDictionary } from './types';
+import { AnyDictionary, Nullable } from './types';
 import { $isnumber, $isstring, $length, $ok, $unsigned, $trim, $isarray } from './commons';
 import { TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
@@ -25,7 +25,7 @@ export function $query(baseURL:string, query:AnyDictionary) : string {
         key = $trim(key) ;
         if (key.length) {
             if ($isarray(value)) {
-                let uniques = new Set<string|undefined|null>() ; // we don't want to add the same value twice
+                let uniques = new Set<Nullable<string>>() ; // we don't want to add the same value twice
                 for (let v of (value as Array<any>)) {
                     if ($ok(v)) { 
                         v = v.toString() ; 
@@ -178,7 +178,7 @@ export class TSRequest {
 		this.channel = axios.create({baseURL:baseURL, withCredentials:opts.managesCredentials}) ;
 	} 
 
-	public setAuth(auth?:RequestAuth|null|undefined) {
+	public setAuth(auth?:Nullable<RequestAuth>) {
 		if ($ok(auth) && $length(auth?.login)) {
 			this.basicAuth = $basicauth(<string>auth?.login, (<RequestAuth>auth).password) ;
 		}
@@ -187,7 +187,7 @@ export class TSRequest {
 		}
 	}
 
-	public setToken(token?:string|null|undefined) {
+	public setToken(token?:Nullable<string>) {
 		if ($length(token)) {
 			token = $barerauth(<string>token) ;
 		}
@@ -201,7 +201,7 @@ export class TSRequest {
 		method?:Verb, 
 		responseType?:RespType, 
 		statuses:number[] = [200], 
-		body?:object|Buffer|ArrayBuffer|null|undefined, 
+		body?:Nullable<object|Buffer|ArrayBuffer>, 
 		suplHeaders?:RequestHeaders,
 		timeout?:number
 	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
@@ -214,7 +214,7 @@ export class TSRequest {
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
-		body:object|Buffer|ArrayBuffer|null|undefined=null, 
+		body:Nullable<object|Buffer|ArrayBuffer>=null, 
 		suplHeaders:RequestHeaders={},
 		timeout?:number
 	) : Promise<TSResponse> 

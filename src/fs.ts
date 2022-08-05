@@ -35,8 +35,9 @@ import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
+import { Nullable } from './types';
 
-export function $isfile(src:string | null | undefined) {
+export function $isfile(src:Nullable<string>) {
     if ($inbrowser()) { throw 'unavailable $isfile() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
@@ -46,7 +47,7 @@ export function $isfile(src:string | null | undefined) {
 	return ret ;
 }
 
-export function $isexecutable(src:string | null | undefined) {
+export function $isexecutable(src:Nullable<string>) {
     if ($inbrowser()) { throw 'unavailable $isexecutable() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
@@ -63,7 +64,7 @@ export function $isexecutable(src:string | null | undefined) {
 }
 
 
-export function $isdirectory(src:string | null | undefined) {
+export function $isdirectory(src:Nullable<string>) {
     if ($inbrowser()) { throw 'unavailable $isdirectory() function in browser' ; }
 	let ret:boolean = false ;
     if ($length(src)) {
@@ -73,7 +74,7 @@ export function $isdirectory(src:string | null | undefined) {
 	return ret ;
 }
 
-export function $createDirectory(p:string|null|undefined) : boolean
+export function $createDirectory(p:Nullable<string>) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $createDirectory() function in browser' ; }
     let ret:boolean = false ;
@@ -91,7 +92,7 @@ export function $createDirectory(p:string|null|undefined) : boolean
     return ret ;
 }
 
-export function $filesize(src:string|null|undefined) : number
+export function $filesize(src:Nullable<string>) : number
 {
     if ($inbrowser()) { throw 'unavailable $filesize() function in browser' ; }
 	let ret:number = 0 ;
@@ -102,7 +103,7 @@ export function $filesize(src:string|null|undefined) : number
     return ret ;
 }
 
-export function $temporarypath(ext:string|null|undefined='', src:string|null|undefined='') : string 
+export function $temporarypath(ext:Nullable<string>='', src:Nullable<string>='') : string 
 {
     if ($inbrowser()) { throw 'unavailable $temporarypath() function in browser' ; }
     ext = $trim(ext) ;
@@ -111,7 +112,7 @@ export function $temporarypath(ext:string|null|undefined='', src:string|null|und
     return $path($tmp(), file) ;
 }
 
-export function $uniquefile(src?:string|null|undefined, e:string|null|undefined=undefined, internalImplementation:boolean=false) : string
+export function $uniquefile(src?:Nullable<string>, e:Nullable<string>=undefined, internalImplementation:boolean=false) : string
 {
 	const rand = $uuid() ;
     e = $trim(e) ;
@@ -120,11 +121,11 @@ export function $uniquefile(src?:string|null|undefined, e:string|null|undefined=
     return $newext(`${$withoutext(src, internalImplementation)}-${rand}`, finalExt, internalImplementation) ;
 }
 
-export function $isabsolutepath(src?:string|null|undefined, internalImplementation:boolean=false) : boolean {
+export function $isabsolutepath(src?:Nullable<string>, internalImplementation:boolean=false) : boolean {
     return $length(src) ? (internalImplementation || $inbrowser() ? src!.startsWith('/') : isAbsolute(src!)): false ;
 }
 
-export function $normalizepath(src?:string|null|undefined, internalImplementation:boolean=false) : string {
+export function $normalizepath(src?:Nullable<string>, internalImplementation:boolean=false) : string {
     if (!$length(src)) { return '' ; }
     return internalImplementation || $inbrowser() ? $path(true, src!) : normalize(src!) ;
 }
@@ -163,7 +164,7 @@ export function $path(first:string|boolean, ...paths:string[]): string {
     return $inbrowser() ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
 }
 
-export function $ext(s:string|null|undefined, internalImplementation:boolean=false):string 
+export function $ext(s:Nullable<string>, internalImplementation:boolean=false):string 
 { 
     if ($length(s)) { 
         if (internalImplementation || $inbrowser()) {
@@ -178,7 +179,7 @@ export function $ext(s:string|null|undefined, internalImplementation:boolean=fal
 	return '' ;
 }
 
-export function $withoutext(s:string|null|undefined, internalImplementation?:boolean):string
+export function $withoutext(s:Nullable<string>, internalImplementation?:boolean):string
 {
     if (!$length(s)) { return '' ;}
 	const e = $ext(s, internalImplementation) ;
@@ -186,12 +187,12 @@ export function $withoutext(s:string|null|undefined, internalImplementation?:boo
     return s.length && s.charAt(s.length-1) === '.' ? s.slice(0, s!.length - 1) : s ;
 }
 
-export function $newext(s:string|null|undefined, e:string|null|undefined=undefined, internalImplementation?:boolean):string {
+export function $newext(s:Nullable<string>, e:Nullable<string>=undefined, internalImplementation?:boolean):string {
     let b = $withoutext(s, internalImplementation) ;
     return $length(e) ? `${b}.${e}` : b ;
 }
 
-export function $dir(s:string|null|undefined, internalImplementation:boolean=false):string { 
+export function $dir(s:Nullable<string>, internalImplementation:boolean=false):string { 
     if (!$length(s)) { return '' ; } 
     if (internalImplementation || $inbrowser()) {
         const p = s!.lastIndexOf('/') ;
@@ -199,7 +200,7 @@ export function $dir(s:string|null|undefined, internalImplementation:boolean=fal
     }
     return dirname(s!) ; 
 }
-export function $filename(s:string|null|undefined, internalImplementation:boolean=false):string { 
+export function $filename(s:Nullable<string>, internalImplementation:boolean=false):string { 
     if (!$length(s)) { return '' ; } 
     if (internalImplementation || $inbrowser()) {
         const p = s!.lastIndexOf('/') ;
@@ -208,7 +209,7 @@ export function $filename(s:string|null|undefined, internalImplementation:boolea
     return basename(s!) ; 
 }
 
-export function $loadJSON(src:string|null|undefined|Buffer) : any | null
+export function $loadJSON(src:Nullable<string|Buffer>) : any | null
 {
     if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret = null ;
@@ -228,7 +229,7 @@ export function $loadJSON(src:string|null|undefined|Buffer) : any | null
 	return ret ;
 }
 
-export function $readString(src:string|null|undefined, encoding:BufferEncoding='utf-8') : string|null
+export function $readString(src:Nullable<string>, encoding:BufferEncoding='utf-8') : string|null
 {
     if ($inbrowser()) { throw 'unavailable $readString() function in browser' ; }
 	let ret:string|null = null ;
@@ -248,7 +249,7 @@ export interface $writeStringOptions extends BasicWriteOptions {
     encoding?:BufferEncoding,
 }
 
-export function $writeString(src:string|null|undefined, str:string, opts:$writeStringOptions = {}) : boolean
+export function $writeString(src:Nullable<string>, str:string, opts:$writeStringOptions = {}) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $writeString() function in browser' ; }
     let encoding = $length(opts.encoding) ? opts.encoding! : 'utf-8' ;
@@ -258,7 +259,7 @@ export function $writeString(src:string|null|undefined, str:string, opts:$writeS
 }
 
 
-export function $readBuffer(src:string|null|undefined) : Buffer|null
+export function $readBuffer(src:Nullable<string>) : Buffer|null
 {
     if ($inbrowser()) { throw 'unavailable $readBuffer() function in browser' ; }
 	let ret:Buffer|null = null ;
@@ -269,19 +270,18 @@ export function $readBuffer(src:string|null|undefined) : Buffer|null
 	return ret ;
 }
 
-export function $readData(src:string|null|undefined) : TSData|null
+export function $readData(src:Nullable<string>) : TSData|null
 {
     if ($inbrowser()) { throw 'unavailable $readData() function in browser' ; }
     const buf = $readBuffer(src) ;
     return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer:true }) : null ;
 }
-
 export interface $writeBufferOptions extends BasicWriteOptions {
     byteStart?:number,
     byteEnd?:number
 }
 
-export function $writeBuffer(src:string|null|undefined, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions = {}) : boolean
+export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions = {}) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $writeBuffer() function in browser' ; }
 	let done = false ;
@@ -344,14 +344,14 @@ export function $writeBuffer(src:string|null|undefined, buf:TSData|NodeJS.ArrayB
 	return done ;
 }
 
-export function $localRenameFile(src:string|null|undefined, dest:string|null|undefined) : boolean {
+export function $localRenameFile(src:Nullable<string>, dest:Nullable<string>) : boolean {
     if ($inbrowser()) { throw 'unavailable $localRenameFile() function in browser' ; }
     return $length(src) > 0 && $length(dest) > 0 && src !== dest && $isfile(src) && _safeRename(src!, dest!) ;
 }
 
 function _safeRename(s:string, d:string):boolean { let done = false ; try { renameSync(s,d) ; done = true ; } catch { done = false ; } return done ; }
 
-export function $removeFile(src:string|null|undefined) : boolean
+export function $removeFile(src:Nullable<string>) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $removeFile() function in browser' ; }
     return $length(src) > 0 && $isfile(src) && _safeUnlink(src!) ;
@@ -364,7 +364,7 @@ function _safeUnlink(p:string):boolean { let done = false ; try { unlinkSync(p) 
 	dest is a file or a directory
 	if it's a directory, it must exist and the src filename is used
  */
-export function $realMoveFile(src:string|null|undefined, dest:string|null|undefined) : boolean
+export function $realMoveFile(src:Nullable<string>, dest:Nullable<string>) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $realMoveFile() function in browser' ; }
 	let done = false ;
@@ -388,7 +388,7 @@ export function $realMoveFile(src:string|null|undefined, dest:string|null|undefi
 	return done ;
 }
 
-export function $copyFile(src:string|null|undefined, dest:string|null|undefined, overwrite:boolean=false) : boolean
+export function $copyFile(src:Nullable<string>, dest:Nullable<string>, overwrite:boolean=false) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $copyFile() function in browser' ; }
 	let done = false ;

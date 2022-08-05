@@ -1,5 +1,5 @@
 import { $ascii, $isobject, $isstring, $length, $ok, $trim } from "./commons";
-import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, StringDictionary, StringTranslation } from "./types";
+import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
@@ -87,7 +87,7 @@ export class TSDefaults {
 	}
     
     public managedLanguages() : language[] { return [... this._managedLanguages] ; } // send a copy
-    public managedLanguage(s?:string|null|undefined) : language | null {
+    public managedLanguage(s?:Nullable<string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
         const v = $ascii($trim(s).toLowerCase()) ;
         const locales = this._managedLocalesMap.get(v) ;
@@ -95,7 +95,7 @@ export class TSDefaults {
         return null ;
     }
 
-    public country(s:string|null|undefined) : country | null {
+    public country(s:Nullable<string>) : country | null {
         if ($ok(s) && !$isstring(s)) { return null ; }
         const v = $ascii($trim(s).toUpperCase()) ;
         const managedCountry = TSCountry.country(v) ;
@@ -104,7 +104,7 @@ export class TSDefaults {
         return $ok(ret) ? ret! : null ;
     }
 
-    public language(s?:TSCountry|string|null|undefined) : language | null {
+    public language(s?:Nullable<TSCountry|string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
         if (s instanceof TSCountry) { return (s as TSCountry).language ; }
         const v = $ascii($trim(s).toLowerCase()) ;
@@ -114,7 +114,7 @@ export class TSDefaults {
         return $ok(ret) ? ret! : null ;
     }
 
-    public currency(s?:TSCountry|string|null|undefined) : currency | null {
+    public currency(s?:Nullable<TSCountry|string>) : currency | null {
         if (!$ok(s)) { return this.defaultCurrency ;}
         if (s instanceof TSCountry) { return (s as TSCountry).currency ; }
         s = $ascii($trim(s).toUpperCase()) ;
@@ -136,7 +136,7 @@ export class TSDefaults {
         else { this._localizations[lang] = {...actualLocalization, ...loc} ; }    
     }
     
-    public localizations(locale:language|country|TSCountry|string|undefined|null) : StringDictionary {
+    public localizations(locale:Nullable<language|country|TSCountry|string>) : StringDictionary {
         if (locale instanceof TSCountry) {
             return this._localizations[locale.language!] || {} ;
         }
@@ -154,7 +154,7 @@ export class TSDefaults {
         return {}
     }
 
-    public locales(locale?:language|country|TSCountry|string|undefined|null):Locales {
+    public locales(locale?:Nullable<language|country|TSCountry|string>):Locales {
         if (locale instanceof TSCountry) { return locale.locales ; }
         locale = $ascii($trim(locale)) ;
         if (locale.length) {
@@ -216,10 +216,10 @@ export class TSDefaults {
 }
 export function $localpath() { return TSDefaults.defaults().defaultPath; }
 export function $tmp() { return TSDefaults.defaults().tmpDirectory ; }
-export function $locales(locale?:language|country|TSCountry|undefined|null):Locales { return TSDefaults.defaults().locales(locale) ; }
-export function $country(s:string|null|undefined) : country | null { return TSDefaults.defaults().country(s) ; }
-export function $language(s?:TSCountry|string|null|undefined) : language | null { return TSDefaults.defaults().language(s) ; }
-export function $currency(s?:TSCountry|string|null|undefined) : currency | null { return TSDefaults.defaults().currency(s) ; }
+export function $locales(locale?:Nullable<language|country|TSCountry>):Locales { return TSDefaults.defaults().locales(locale) ; }
+export function $country(s:Nullable<string>) : country | null { return TSDefaults.defaults().country(s) ; }
+export function $language(s?:Nullable<TSCountry|string>) : language | null { return TSDefaults.defaults().language(s) ; }
+export function $currency(s?:Nullable<TSCountry|string>) : currency | null { return TSDefaults.defaults().currency(s) ; }
 
 // to get default language, tou call $language() with no parameters or TSDefaults.defaults().defaultLanguage 
 

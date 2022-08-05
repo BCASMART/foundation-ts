@@ -1,6 +1,6 @@
 import { $isarray, $isstring, $ok } from "./commons";
 import { TSRange } from "./tsrange";
-import { AnyDictionary, Ascending, Descending, Same } from "./types";
+import { AnyDictionary, Ascending, Descending, Nullable, Same } from "./types";
 import { $compare, $equal } from "./compare";
 import { $iscollection, TSCollection } from "./tsobject";
 
@@ -250,7 +250,7 @@ export class TSQualifier<T> {
         }       
     }
 
-    public filterValues(values:Iterable<T>|null|undefined):Array<T> {
+    public filterValues(values:Nullable<Iterable<T>>):Array<T> {
         const ret:Array<T> = []
         if ($ok(values)) { for (let v of values!) { if (this.validateValue(v)) { ret.push(v) ; }}}
         return ret ;

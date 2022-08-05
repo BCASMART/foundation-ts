@@ -1,7 +1,7 @@
 import { $jsonobj, $length, $ok, $string } from "./commons";
 import { $compare, $equal} from "./compare"
 import { TSClone, TSCollection, TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
 
 export class TSListNode<T> implements TSObject {
@@ -27,7 +27,7 @@ export interface TSListToStringOptions<T> {
 	prefix?:string,
 	separator?:string,
 	suffix?:string,
-	printer?:(data:T) => string|null|undefined
+	printer?:(data:T) => Nullable<string>
 }
 
 export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>, Iterable<T> {
@@ -202,7 +202,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
 
 	public toJSON():any[] { return this.toArray(e => $jsonobj(e)) ; }
 
-	public toArray(map?:(data:T) => any|null|undefined):T[] {
+	public toArray(map?:(data:T) => Nullable<any>):T[] {
 		let array:T[] = [] ;
 		if (this._f) {
 			const addMe = (node:TSListNode<T>) => {

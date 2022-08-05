@@ -1,6 +1,6 @@
 import { ServerResponse } from "http";
 
-import { StringDictionary, TSDictionary, uint32 } from "./types";
+import { Nullable, StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
 import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $trim, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
@@ -48,8 +48,8 @@ export class TSStaticWebsite {
         if (!$ok(this._opts.maxBlacklistedFiles))   { this._opts.maxBlacklistedFiles = 50000 as uint32 ; }
     }
 
-    public getStaticResource(uri:string):[Buffer|undefined|null, string] {
-        let ret:Buffer|undefined|null = undefined ;
+    public getStaticResource(uri:string):[Nullable<Buffer>, string] {
+        let ret:Nullable<Buffer> = undefined ;
         let type = '' ;
         const lcUri = uri.toLowerCase() ;
         if (lcUri.startsWith(this.uri)) {
@@ -109,7 +109,7 @@ export class TSStaticWebsite {
 }
 
 
-const TSParametersConversions:{[key in TSParametricTokenType]:(s:string) => TSEndPointParameter|null|undefined} = {
+const TSParametersConversions:{[key in TSParametricTokenType]:(s:string) => Nullable<TSEndPointParameter>} = {
     string: (s:string) => s,
     number: (s:string) => Number(s),
     int: (s:string) => $intornull(s),
@@ -150,7 +150,7 @@ export class TSParametricEndPoints {
     private _tlen ;
     private static __verbs = Object.values(Verb) ;
 
-    public static validRequestMethod(method:string|undefined|null):Verb|null {
+    public static validRequestMethod(method:Nullable<string>):Verb|null {
         if ($ok(method)) {
             method = method!.toUpperCase() ;
             if (TSParametricEndPoints.__verbs.includes(method as Verb)) { return method as Verb ; }

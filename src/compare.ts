@@ -1,6 +1,6 @@
 import { $defined, $isarray, $isobject, $isstring, $ok } from "./commons";
 import { TSDate } from "./tsdate";
-import { Comparison, Same, Ascending, Descending} from "./types";
+import { Comparison, Same, Ascending, Descending, Nullable} from "./types";
 
 export function $numcompare(a:number, b:number):Comparison {
     if (isNaN(a) || isNaN(b)) { return undefined ; }
@@ -9,8 +9,8 @@ export function $numcompare(a:number, b:number):Comparison {
 }
 
 export function $datecompare(
-    a:number|string|Date|TSDate|null|undefined, 
-    b:number|string|Date|TSDate|null|undefined) : Comparison 
+    a:Nullable<number|string|Date|TSDate>, 
+    b:Nullable<number|string|Date|TSDate>) : Comparison 
 {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	if (a === b) { return Same ; }
@@ -60,14 +60,14 @@ export function $compare(a:any, b:any):Comparison {
 }
 
 
-export function $min<T=any>(values:Iterable<T> | undefined | null):any
+export function $min<T=any>(values:Nullable<Iterable<T>>):any
 { return _minmax(values, Descending) ;}
 
 export function $max(values:any[]):any 
 { return _minmax(values, Ascending) ;}
 
 
-function _minmax<T>(values:Iterable<T> | undefined | null, compValue:Comparison):any
+function _minmax<T>(values:Nullable<Iterable<T>>, compValue:Comparison):any
 {
     let ret = undefined ;
     if ($ok(values)) {

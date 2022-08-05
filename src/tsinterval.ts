@@ -1,16 +1,16 @@
 import { $isint, $jsonobj, $ok } from "./commons";
 import { Interval, TSBadRange, TSRange } from "./tsrange" ;
 import { TSDate } from "./tsdate";
-import { Ascending, Comparison, Descending, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 import { TSCouple, TSCoupleConstructor } from "./tscouple";
 
 /************************************************
  *  WARNING: range conformance methods and containing 
  *  and intersectionning methods do round dates to minutes
  ************************************************/
-export class TSInterval extends TSCouple<TSDate | null | undefined, TSDate | null | undefined> implements Interval
+export class TSInterval extends TSCouple<Nullable<TSDate>, Nullable<TSDate>> implements Interval
 {
-    public static make(a:TSDate | null | undefined, b:TSDate | null | undefined):TSInterval { return new TSInterval(a, b) ; }
+    public static make(a:Nullable<TSDate>, b:Nullable<TSDate>):TSInterval { return new TSInterval(a, b) ; }
 
     get start():TSDate { return $ok(this.first) ? this.first! : new TSDate(TSDate.PAST) ; }
 	get end():TSDate { return $ok(this.second) ? this.second! : new TSDate(TSDate.FUTURE) ; }
@@ -131,12 +131,12 @@ export class TSInterval extends TSCouple<TSDate | null | undefined, TSDate | nul
                (($ok(this.first) && this.first!.isEqual(other.first)) || (!$ok(this.first) && !$ok(other.first))) &&
                (($ok(this.second) && this.second!.isEqual(other.second)) || (!$ok(this.second) && !$ok(other.second))) ;
     }
-	public toJSON():{start:TSDate|null|undefined, end:TSDate|null|undefined} { return {start:$jsonobj(this.first), end:$jsonobj(this.second)} ; }
+	public toJSON():{start:Nullable<TSDate>, end:Nullable<TSDate>} { return {start:$jsonobj(this.first), end:$jsonobj(this.second)} ; }
 	public toArray():TSInterval[] { return [this] ; } // should we not return one or two dates here ?
 }
 
-export interface TSIntervalConstructor extends TSCoupleConstructor<TSDate | null | undefined, TSDate | null | undefined>
+export interface TSIntervalConstructor extends TSCoupleConstructor<Nullable<TSDate>, Nullable<TSDate>>
 {
-    new (first:TSDate | null | undefined, second:TSDate | null | undefined): TSInterval ;
+    new (first:Nullable<TSDate>, second:Nullable<TSDate>): TSInterval ;
 }
 
