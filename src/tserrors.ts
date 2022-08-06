@@ -33,6 +33,13 @@ export class TSError extends Error {
     }
 }
 
+export function $subclassReponsabililty(instance:object, method:Function):any {
+    throw new TSError(`implementation of method ${instance.constructor.name}.${method.name}() is subclasses reponsabillity.`, {
+        object:instance,
+        method:method
+    }) ;
+}
+
 export class TSHttpError extends TSError {
     public readonly status:Resp ;
     public constructor(message:string, status:Resp, infos?:AnyDictionary) {

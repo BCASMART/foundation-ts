@@ -20,6 +20,22 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect5(G).toBe(H) ;
     }) ;
 
+    group.unary("verifying TSRect.closedPolygon()", async(t) => {
+        let p = A.closedPolygon() ;
+        t.expect0(p[0]).toBe({x:10.5, y:20.5}) ;
+        t.expect1(p[1]).toBe({x:14, y:20.5}) ;
+        t.expect2(p[2]).toBe({x:14, y:27.7}) ;
+        t.expect3(p[3]).toBe({x:10.5, y:27.7}) ;
+        t.expect4(p[4]).toBe({x:10.5, y:20.5}) ;
+
+        p = A.closedPolygon(true) ;
+        t.expectA(p[0]).toBe({x:10.5, y:20.5}) ;
+        t.expectB(p[1]).toBe({x:10.5, y:27.7}) ;
+        t.expectC(p[2]).toBe({x:14, y:27.7}) ;
+        t.expectD(p[3]).toBe({x:14, y:20.5}) ;
+        t.expectE(p[4]).toBe({x:10.5, y:20.5}) ;
+    }) ;
+
     group.unary("verifying TSRect.contains()", async(t) => {
         t.expect0(B.contains({x:A.midX, y:A.midY})).toBeTruthy() ;
         t.expect1(B.contains([A.midX, A.midY])).toBeTruthy() ;

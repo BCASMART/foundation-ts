@@ -321,7 +321,14 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
     public clone():TSRect {
         return new TSRect(this.minX, this.minY, this.width, this.height) ; 
     }
-
+   
+    // this method returns 5 points
+    public closedPolygon(updatesYCoordinatesfirst:boolean = false):TSPoint[] {
+        const x1 = this.minX, y1 = this.minY, x2 = this.maxX, y2 = this.maxY ;
+        return updatesYCoordinatesfirst ?
+            [{x:x1,y:y1}, {x:x1, y:y2}, {x:x2, y:y2}, {x:x2, y:y1}, {x:x1, y:y1}] :
+            [{x:x1,y:y1}, {x:x2, y:y1}, {x:x2, y:y2}, {x:x1, y:y2}, {x:x1, y:y1}] ;
+    }
     // ============ TSObject conformance =============== 
 
     public isEqual(other:any) : boolean 
