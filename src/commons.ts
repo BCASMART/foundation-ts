@@ -182,6 +182,9 @@ export function $ftrim(s: Nullable<string>) : string
 
 export { $ftrim as $trim }
 
+export function $lines(s: Nullable<string>) : string[]
+{ return $ok(s) ? s!.split(/[\n\f\r\u000B]/) : [] ; }
+
 export function $normspaces(s: Nullable<string>) : string
 { return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " ") ; }
 
@@ -515,6 +518,7 @@ declare global {
         isEmail: (this:string) => boolean ;
         isUrl: (this:string) => boolean ;
         isUUID: (this:string) => boolean ;
+        lines: (this:string) => string[] ;
     }
 
     export interface Number {
@@ -571,6 +575,9 @@ if (!('isUrl' in String.prototype)) {
 }
 if (!('isUUID' in String.prototype)) {
     String.prototype.isUUID  = function isUUID(this:string):boolean { return $ok($UUID(this)) ; }
+}
+if (!('lines' in String.prototype)) {
+    String.prototype.lines  = function lines(this:string):string[] { return $lines(this) ; }
 }
 
 if (!('first' in Array.prototype)) {

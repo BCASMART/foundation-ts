@@ -1,5 +1,5 @@
 
-import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
+import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $lines, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -379,6 +379,17 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect5($capitalize(undefined)).toBe("") ;
         t.expect6(str.firstCap()).toBe(" , Jean-françois is my !!friend. yes!") ;
         t.expect7(str.capitalize()).toBe(" , Jean-François Is My !!Friend. Yes!") ;
+    }) ;
+
+    group.unary("Testing function $lines(s)", async(t) => {
+        const str = "  Testing \n\tsplit \n\f\r\u000Bfunction\u000B" ;
+        const res = ["  Testing ", "\tsplit ", "", "", "", "function", ""] ;
+        t.expect0($lines(str)).toBe(res) ;
+        t.expect1(str.lines()).toBe(res) ;
+        t.expect2("\n\f\r\u000B".lines()).toBe(["", "", "", "", ""]) ;
+        t.expect3("".lines()).toBe([""]) ;
+        t.expect4($lines(undefined)).toBe([]) ;
+        t.expect5($lines(null)).toBe([]) ;
     }) ;
 
 }) ;
