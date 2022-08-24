@@ -1,4 +1,5 @@
-import { TSmm2Pixels, TSRect } from '../src/tsgeometry';
+import { $keys } from '../src/commons';
+import { TSAssertFormat, TSDocumentFormats, TSmm2Pixels, TSRect } from '../src/tsgeometry';
 import { TSTest } from '../src/tstester';
 
 export const geometryGroups = TSTest.group("Geometry functions and classes", async (group) => {
@@ -98,5 +99,39 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectA(equality).toBeFalsy() ;
     }) ;
 
+    group.unary("verifying TSRect creation with formats", async(t) => {
+        const formatKeys = $keys(TSDocumentFormats) ;
+        for (let f of formatKeys) {
+            const newRect = new TSRect(f) ;
+            t.expect(newRect.size,f as string).toBe(TSDocumentFormats[f]) ;
+        }
+    }) ;
+
+    group.unary("verifying TSAssertFormat() function", async(t) => {
+        const mini = TSDocumentFormats['min'] ;
+        const maxi = TSDocumentFormats['max'] ;
+        const dflt = TSDocumentFormats['a4'] ;
+        t.expect0(TSAssertFormat({w:2,h:105})).toBe(mini) ;
+        t.expect1(TSAssertFormat({w:105,h:2})).toBe(mini) ;
+        t.expect2(TSAssertFormat({w:2,h:2})).toBe(mini) ;
+        t.expect3(TSAssertFormat({w:2,h:200000})).toBe(mini) ;
+        t.expect4(TSAssertFormat({w:200000,h:2})).toBe(mini) ;
+        t.expect5(TSAssertFormat({w:200000,h:200000})).toBe(maxi) ;
+        t.expect6(TSAssertFormat({w:0,h:0})).toBe(mini) ;
+        t.expect7(TSAssertFormat({w:1000,h:-1})).toBe(dflt) ;
+        t.expect8(TSAssertFormat({w:-1,h:1000})).toBe(dflt) ;
+        t.expect9(TSAssertFormat({w:200000,h:-1})).toBe(dflt) ;
+        t.expectA(TSAssertFormat({w:-1,h:200000})).toBe(dflt) ;
+        t.expectB(TSAssertFormat({w:20000,h:200000})).toBe(maxi) ;
+        t.expectC(TSAssertFormat({w:200000,h:20000})).toBe(maxi) ;
+        t.expectD(TSAssertFormat({w:-100,h:-100})).toBe(dflt) ;
+        t.expectE(TSAssertFormat({w:20000,h:NaN})).toBe(dflt) ;
+        t.expectF(TSAssertFormat({w:NaN,h:20000})).toBe(dflt) ;
+        t.expectG(TSAssertFormat({w:NaN,h:NaN})).toBe(dflt) ;
+        t.expectH(TSAssertFormat({w:20000,h:Infinity})).toBe(maxi) ;
+        t.expectI(TSAssertFormat({w:Infinity,h:20000})).toBe(maxi) ;
+        t.expectJ(TSAssertFormat({w:100,h:Infinity})).toBe(mini) ;
+        t.expectK(TSAssertFormat({w:Infinity,h:100})).toBe(mini) ;
+    }) ;
 
 }) ;

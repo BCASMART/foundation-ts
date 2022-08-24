@@ -20,19 +20,35 @@ export enum TSRectEdge {
   TSMaxYEdge = 3
 } ;
 
-export type TSDocumentFormat    = 'letter' | 'legal' | 'tabloid' | 'a0' | 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6' ;
+export type TSDocumentFormat = 'min' | 'max' |
+                              'letter' | 'legal' | 'tabloid' | 
+                              'a0' | 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6' | 
+                              'letter-landscape' | 'legal-landscape' | 'tabloid-landscape' | 'a0-landscape' | 
+                              'a1-landscape' | 'a2-landscape' | 'a3-landscape' | 'a4-landscape' | 'a5-landscape' | 'a6-landscape' ;
 
 export const  TSDocumentFormats:{[key in TSDocumentFormat]:TSSize} = {
-    letter:     { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(11) },
-    legal:      { w:TSInches2Pixels(8.5),  h:TSInches2Pixels(14) },
-    tabloid:    { w:TSInches2Pixels(11),   h:TSInches2Pixels(17) },
-    a0:         { w:TSmm2Pixels(841),      h:TSmm2Pixels(1189) },
-    a1:         { w:TSmm2Pixels(594),      h:TSmm2Pixels(841)  },
-    a2:         { w:TSmm2Pixels(420),      h:TSmm2Pixels(594)  },
-    a3:         { w:TSmm2Pixels(297),      h:TSmm2Pixels(420)  },
-    a4:         { w:TSmm2Pixels(210),      h:TSmm2Pixels(297)  },
-    a5:         { w:TSmm2Pixels(148),      h:TSmm2Pixels(210)  },
-    a6:         { w:TSmm2Pixels(105),      h:TSmm2Pixels(148)  }
+    max:                 { w:TSmm2Pixels(1200),    h:TSmm2Pixels(1200) },
+    min:                 { w:TSmm2Pixels(100),     h:TSmm2Pixels(100) },
+    letter:              { w:TSInches2Pixels(8.5), h:TSInches2Pixels(11) },
+    legal:               { w:TSInches2Pixels(8.5), h:TSInches2Pixels(14) },
+    tabloid:             { w:TSInches2Pixels(11),  h:TSInches2Pixels(17) },
+    a0:                  { w:TSmm2Pixels(841),     h:TSmm2Pixels(1189) },
+    a1:                  { w:TSmm2Pixels(594),     h:TSmm2Pixels(841)  },
+    a2:                  { w:TSmm2Pixels(420),     h:TSmm2Pixels(594)  },
+    a3:                  { w:TSmm2Pixels(297),     h:TSmm2Pixels(420)  },
+    a4:                  { w:TSmm2Pixels(210),     h:TSmm2Pixels(297)  },
+    a5:                  { w:TSmm2Pixels(148),     h:TSmm2Pixels(210)  },
+    a6:                  { w:TSmm2Pixels(105),     h:TSmm2Pixels(148)  },
+    'letter-landscape':  { w:TSInches2Pixels(11),  h:TSInches2Pixels(8.5) },
+    'legal-landscape':   { w:TSInches2Pixels(14),  h:TSInches2Pixels(8.5) },
+    'tabloid-landscape': { w:TSInches2Pixels(17),  h:TSInches2Pixels(11) },
+    'a0-landscape':      { w:TSmm2Pixels(1189),    h:TSmm2Pixels(841) },
+    'a1-landscape':      { w:TSmm2Pixels(841),     h:TSmm2Pixels(594)  },
+    'a2-landscape':      { w:TSmm2Pixels(594),     h:TSmm2Pixels(420)  },
+    'a3-landscape':      { w:TSmm2Pixels(420),     h:TSmm2Pixels(297)  },
+    'a4-landscape':      { w:TSmm2Pixels(297),     h:TSmm2Pixels(210)  },
+    'a5-landscape':      { w:TSmm2Pixels(210),     h:TSmm2Pixels(148)  },
+    'a6-landscape':      { w:TSmm2Pixels(148),     h:TSmm2Pixels(105)  }
 } ;
 
 export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
@@ -401,13 +417,13 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
         return defaultSize ; 
     }
 
-    const min = TSValidSize(opts.minimalSize) ? opts.minimalSize! : TSDocumentFormats.a6 ;
+    const min = TSValidSize(opts.minimalSize) ? opts.minimalSize! : TSDocumentFormats.min ;
     if (size!.w < min.w || size!.h < min.h) { 
         if (opts.oversizeRaise) { throw 'TSAssertFormat(): format too small.' ;} 
         return min ;
     }
 
-    const max = TSValidSize(opts.maximalSize) ? opts.maximalSize! : TSDocumentFormats.a0 ;
+    const max = TSValidSize(opts.maximalSize) ? opts.maximalSize! : TSDocumentFormats.max ;
     if (size!.w > max.w || size!.h > max.h) {
         if (opts.oversizeRaise) { throw 'TSAssertFormat(): format too large.' ;} 
         return max ; 
@@ -418,3 +434,4 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
 
 export const TSCM = TScm2Pixels(1) ;
 export const TSMM = TSmm2Pixels(1) ;
+export const TSIN = TSInches2Pixels(1) ;
