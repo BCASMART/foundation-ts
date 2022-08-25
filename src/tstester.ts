@@ -187,8 +187,8 @@ export class TSUnaryTest extends TSTest {
     public expectY(v:any):TSExpectAgent { return this.expect(v, 'expctY') ; }
     public expectZ(v:any):TSExpectAgent { return this.expect(v, 'expctZ') ; }
 
-    public fail() { this._failed ++ ;}
-    public pass() { this._passed ++ ;}
+    public fail():boolean { this._failed ++ ; return false ; }
+    public pass():boolean { this._passed ++ ; return true ; }
 
 }
 
@@ -202,59 +202,61 @@ export class TSExpectAgent {
         this._message = msg ;
     }
 
+    public toBe(aValue:any):boolean     { return !$equal(aValue, this._value) ? this._elogfail(aValue) : this._step?.pass() ; }
+    public notToBe(aValue:any):boolean  { return $equal(aValue, this._value)  ? this._nelogfail(aValue) : this._step?.pass() ; }
 
-    public toBe(aValue:any)     { if (!$equal(aValue, this._value)) { this._elogfail(aValue) ; } else { this._step?.pass() ; }}
-    public notToBe(aValue:any)  { if ($equal(aValue, this._value))  { this._nelogfail(aValue) ; } else { this._step?.pass() ; }}
+    public toBeTruthy():boolean         { return !this._value           ? this._elogfail(true)       : this._step?.pass() ; }
+    public toBeFalsy():boolean          { return !!this._value          ? this._elogfail(false)      : this._step?.pass() ; }
+    public toBeUndefined():boolean      { return $defined(this._value)  ? this._elogfail(undefined)  : this._step?.pass() ; }
+    public toBeDefined():boolean        { return !$defined(this._value) ? this._nelogfail(undefined) : this._step?.pass() ; }
+    public toBeNull():boolean           { return this._value !== null   ? this._elogfail(null)       : this._step?.pass() ; }
+    public toBeNotNull():boolean        { return this._value === null   ? this._nelogfail(null)      : this._step?.pass() ; }
 
-    public toBeTruthy()         { if (!this._value)                 { this._elogfail(true) ;} else { this._step?.pass() ; }}
-    public toBeFalsy()          { if (this._value)                  { this._elogfail(false) ;} else { this._step?.pass() ; }}
-    public toBeUndefined()      { if ($defined(this._value))        { this._elogfail(undefined) ; } else { this._step?.pass() ; }}
-    public toBeDefined()        { if (!$defined(this._value))       { this._nelogfail(undefined) ; ; } else { this._step?.pass() ; }}
-    public toBeNull()           { if (this._value !== null)         { this._elogfail(null) ; } else { this._step?.pass() ; }}
-    public toBeNotNull()        { if (this._value === null)         { this._nelogfail(null) ; } else { this._step?.pass() ; }}
+    public toBeOK():boolean             { return !$ok(this._value)          ? this._elogfail('<a non null defined value>')  : this._step?.pass() ; }
+    public toBeNotOK():boolean          { return $ok(this._value)           ? this._elogfail('<a null or undefined value>') : this._step?.pass() ; }
 
-    public toBeOK()             { if (!$ok(this._value))            { this._elogfail('<a non null defined value>') ; } else { this._step?.pass() ; }}
-    public toBeNotOK()          { if ($ok(this._value))             { this._elogfail('<a null or undefined value>') ; } else { this._step?.pass() ; }}
+    public toBeNaN():boolean            { return !isNaN(this._value)        ? this._elogfail(NaN)                : this._step?.pass() ; }
+    public toBeANumber():boolean        { return !$isnumber(this._value)    ? this._elogfail('<a valid number>') : this._step?.pass() ; }
+    public toBeAnInt():boolean          { return !$isint(this._value)       ? this._elogfail('<an integer>')     : this._step?.pass() ; }
+    public toBeAnUnsigned():boolean     { return !$isunsigned(this._value)  ? this._elogfail('<an unsigned>')    : this._step?.pass() ; }
+    public toBeAString():boolean        { return !$isstring(this._value)    ? this._elogfail('<a string>')       : this._step?.pass() ; }
+    public toBeBool():boolean           { return !$isbool(this._value)      ? this._elogfail('<a boolean>')      : this._step?.pass() ; }
 
-    public toBeNaN()            { if (!isNaN(this._value))          { this._elogfail(NaN) ; } else { this._step?.pass() ; }}
-    public toBeANumber()        { if (!$isnumber(this._value))      { this._elogfail('<a valid number>') ; } else { this._step?.pass() ; }}
-    public toBeAnInt()          { if (!$isint(this._value))         { this._elogfail('<an integer>') ; } else { this._step?.pass() ; }}
-    public toBeAnUnsigned()     { if (!$isunsigned(this._value))    { this._elogfail('<an unsigned>') ; } else { this._step?.pass() ; }}
-    public toBeAString()        { if (!$isstring(this._value))      { this._elogfail('<a string>') ; } else { this._step?.pass() ; }}
-    public toBeBool()           { if (!$isbool(this._value))        { this._elogfail('<a boolean>') ; } else { this._step?.pass() ; }}
+    public toBeAnEmail():boolean        { return !$isemail(this._value)     ? this._elogfail('<an email>')       : this._step?.pass() ; }
+    public toBeAnUrl():boolean          { return !$isurl(this._value)       ? this._elogfail('<an url>')         : this._step?.pass() ; }
+    public toBeAnUUID():boolean         { return !$isuuid(this._value)      ? this._elogfail('<an UUID>')        : this._step?.pass() ; }
 
-    public toBeAnEmail()        { if (!$isemail(this._value))       { this._elogfail('<an email>') ; } else { this._step?.pass() ; }}
-    public toBeAnUrl()          { if (!$isurl(this._value))         { this._elogfail('<an url>') ; } else { this._step?.pass() ; }}
-    public toBeAnUUID()         { if (!$isuuid(this._value))        { this._elogfail('<an UUID>') ; } else { this._step?.pass() ; }}
+    public toBeAnObject():boolean       { return !$isobject(this._value)    ? this._elogfail('<an object>')      : this._step?.pass() ; }
+    public toBeArray():boolean          { return !$isarray(this._value)     ? this._elogfail('<an array>')       : this._step?.pass() ; }
+    public toBeADate():boolean          { return !$isdate(this._value)      ? this._elogfail('<a date>')         : this._step?.pass() ; }
+    public toBeAFunction():boolean      { return !$isfunction(this._value)  ? this._elogfail('<a function>')     : this._step?.pass() ; }
 
-    public toBeAnObject()       { if (!$isobject(this._value))      { this._elogfail('<an object>') ; } else { this._step?.pass() ; }}
-    public toBeArray()          { if (!$isarray(this._value))       { this._elogfail('<an array>') ; } else { this._step?.pass() ; }}
-    public toBeADate()          { if (!$isdate(this._value))        { this._elogfail('<a date>') ; } else { this._step?.pass() ; }}
-    public toBeAFunction()      { if (!$isfunction(this._value))    { this._elogfail('<a function>') ; } else { this._step?.pass() ; }}
+    public eq(aValue:any):boolean       { return this.toBe(aValue) ; }
+    public neq(aValue:any):boolean      { return this.notToBe(aValue) ; }
+    
+    public gt(aValue:any):boolean       { return $compare(aValue, this._value) !== Ascending  ? this._compfail(aValue, '>') : this._step?.pass() ; }
+    public gte(aValue:any):boolean      { return $compare(aValue, this._value) === Descending ? this._compfail(aValue, '≥') : this._step?.pass() ; }
+    public lt(aValue:any):boolean       { return $compare(aValue, this._value) !== Descending ? this._compfail(aValue, '<') : this._step?.pass() ; }
+    public lte(aValue:any):boolean      { return $compare(aValue, this._value) === Ascending  ? this._compfail(aValue, '≤') : this._step?.pass() ; }
 
-    public gt(aValue:any)       { if ($compare(aValue, this._value) !== Ascending)  { this._compfail(aValue, '>') ; } else { this._step?.pass() ; }}
-    public gte(aValue:any)      { if ($compare(aValue, this._value) === Descending) { this._compfail(aValue, '≥') ; } else { this._step?.pass() ; }}
-    public lt(aValue:any)       { if ($compare(aValue, this._value) !== Descending) { this._compfail(aValue, '<') ; } else { this._step?.pass() ; }}
-    public lte(aValue:any)      { if ($compare(aValue, this._value) === Ascending)  { this._compfail(aValue, '≤') ; } else { this._step?.pass() ; }}
-
-    private _compfail(aValue:any, op:string) {
+    private _compfail(aValue:any, op:string):boolean {
         const start = this._writeMessage() ;
         $logterm(`&adid expect value:&O&w${inspect(this._value,false,5)}&0`) ;
         $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ; 
-        this._step?.fail() ;
+        return this._step?.fail() ;
     }
 
-    private _elogfail(aValue:any) {
+    private _elogfail(aValue:any):boolean {
         const start = this._writeMessage() ;
         $logterm(`&edid expect value:&E&b${$inspect(aValue)}&0`) ;
         $logterm(`${start}&adid get as value:&O&w${$inspect(this._value)}&0`) ; 
-        this._step?.fail() ;
+        return this._step?.fail() ;
     }
 
-    private _nelogfail(aValue:any) {
+    private _nelogfail(aValue:any):boolean {
         this._writeMessage() ;
         $logterm(`&adid not expect  :&O&w${$inspect(aValue)}&0`) ; 
-        this._step?.fail() ;
+        return this._step?.fail() ;
     }
 
     private _writeMessage():string {
