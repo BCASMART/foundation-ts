@@ -1,5 +1,5 @@
 import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $unsigned } from "./commons";
-import { $readBuffer, $writeBuffer } from "./fs";
+import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, uint, uint8, UINT8_MAX } from "./types" ;
 import { $inbrowser } from "./utils";
@@ -207,9 +207,15 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         return 0 ;
     } 
     
-    public writeToFile(path:string) { 
+    public writeToFile(path:string, opts?:$writeBufferOptions):boolean { 
         if ($inbrowser()) { throw 'TSData.writeToFile(): unavailable method in browser' ; }
-        return $writeBuffer(path, this) ; 
+        return $writeBuffer(path, this, opts) ; 
+    }
+
+    // second part of the return tupple may contains the path of the precedent version of the data
+    public fullWriteToFile(path:string, opts:$writeBufferOptions):[boolean, string|null] { 
+        if ($inbrowser()) { throw 'TSData.fullWriteToFile(): unavailable method in browser' ; }
+        return $fullWriteBuffer(path, this, opts) ; 
     }
 
     public equals(otherBuffer: Uint8Array): boolean { return this.isEqual(otherBuffer) ; }

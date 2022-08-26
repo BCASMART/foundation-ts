@@ -1,4 +1,3 @@
-import { inspect } from "util";
 import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal } from "./compare";
 import { AnyDictionary, Ascending, Descending } from "./types";
@@ -233,7 +232,7 @@ export class TSExpectAgent {
 
     public eq(aValue:any):boolean       { return this.toBe(aValue) ; }
     public neq(aValue:any):boolean      { return this.notToBe(aValue) ; }
-    
+
     public gt(aValue:any):boolean       { return $compare(aValue, this._value) !== Ascending  ? this._compfail(aValue, '>') : this._step?.pass() ; }
     public gte(aValue:any):boolean      { return $compare(aValue, this._value) === Descending ? this._compfail(aValue, '≥') : this._step?.pass() ; }
     public lt(aValue:any):boolean       { return $compare(aValue, this._value) !== Descending ? this._compfail(aValue, '<') : this._step?.pass() ; }
@@ -241,7 +240,7 @@ export class TSExpectAgent {
 
     private _compfail(aValue:any, op:string):boolean {
         const start = this._writeMessage() ;
-        $logterm(`&adid expect value:&O&w${inspect(this._value,false,5)}&0`) ;
+        $logterm(`&adid expect value:&O&w${$inspect(this._value)}&0`) ;
         $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ; 
         return this._step?.fail() ;
     }

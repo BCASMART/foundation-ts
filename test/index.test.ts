@@ -20,7 +20,6 @@ import { utilsGroups } from './utils.test';
 const tester = new TSTester("Foundation-ts unary tests") ;
 
 tester.addGroups(commonsGroups) ;
-tester.addGroups(fsGroups) ;
 tester.addGroups(countriesGroups) ;
 tester.addGroups(dateGroups) ;
 tester.addGroups(dateCompGroups) ;
@@ -36,5 +35,6 @@ tester.addGroups(colorGroups) ;
 tester.addGroups(geometryGroups) ;
 tester.addGroups(qualifierGroups) ;
 tester.addGroups(errorsGroups) ;
+tester.addGroups(fsGroups) ;
 
 tester.run() ;

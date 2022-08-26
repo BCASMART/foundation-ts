@@ -18,7 +18,9 @@ import {
     openSync,
     writeSync,
 	constants,
-    closeSync
+    closeSync,
+    Stats,
+    chmodSync
 }  from 'fs'
 
 import {
@@ -37,57 +39,71 @@ import { TSData } from './tsdata';
 import { TSError } from './tserrors';
 import { Nullable } from './types';
 
-export function $isfile(src:Nullable<string>) {
-    if ($inbrowser()) { throw 'unavailable $isfile() function in browser' ; }
-	let ret:boolean = false ;
+// if $stats() returns null it means that the path does not exist.
+export function $stats(src:Nullable<string>):Nullable<Stats> {
+    if ($inbrowser()) { throw 'unavailable $stats() function in browser' ; }
     if ($length(src)) {
-        try { ret = statSync(src!).isFile() ; }
-	    catch { ret = false ; }
-    }
-	return ret ;
-}
-
-export function $isexecutable(src:Nullable<string>) {
-    if ($inbrowser()) { throw 'unavailable $isexecutable() function in browser' ; }
-	let ret:boolean = false ;
-    if ($length(src)) {
-        try {
-            if (statSync(<string>src).isFile()) {
-                // we cound use stats.mode but we should take care of who we are, so better to rely on accessSync(-)
-                accessSync(src as string, constants.R_OK | constants.X_OK);
-                ret = true ;
-            }
+        try { return statSync(src!) ; }
+        catch (e) {
+            if ((e as any)?.code === 'ENOENT') return null ;
+            throw e ;
         }
-        catch { ret = false ; }    
     }
-	return ret ;
+    return null ;
+}
+
+export function $isfile(src:Nullable<string>):boolean {
+    if ($inbrowser()) { throw 'unavailable $isfile() function in browser' ; }
+    const stats = $stats(src) ;
+    return $ok(stats) ? stats!.isFile() : false ;
+}
+
+export function $isexecutable(src:Nullable<string>):boolean { 
+    if ($inbrowser()) { throw 'unavailable $isexecutable() function in browser' ; }
+    return $isfile(src) && _safeCheckPermissions(src, constants.R_OK | constants.X_OK) ; 
+}
+
+export function $isreadable(src:Nullable<string>):boolean { 
+    if ($inbrowser()) { throw 'unavailable $isreadable() function in browser' ; }
+    return $ok($stats(src)) && _safeCheckPermissions(src, constants.R_OK) ; 
+}
+
+export function $chmod(src:Nullable<string>, mode:number):boolean {
+    if ($inbrowser()) { throw 'unavailable $chmod() function in browser' ; }
+    let ret:boolean = false ;
+    if ($length(src) && $isunsigned(mode) && mode <= 0o777) {
+        try { chmodSync(src!, mode) ; ret = true ;}
+        catch { ret = false }
+    }
+    return ret ;
+}
+
+export function $iswritable(src:Nullable<string>):boolean { 
+    if ($inbrowser()) { throw 'unavailable $iswritable() function in browser' ; }
+    return $ok($stats(src)) && _safeCheckPermissions(src, constants.W_OK) ; 
 }
 
 
-export function $isdirectory(src:Nullable<string>) {
+export function $isdirectory(src:Nullable<string>):boolean {
     if ($inbrowser()) { throw 'unavailable $isdirectory() function in browser' ; }
-	let ret:boolean = false ;
-    if ($length(src)) {
-        try { ret = statSync(<string>src).isDirectory() ; }
-	    catch { ret = false ; }
-    }
-	return ret ;
+    const stats = $stats(src) ;
+    return $ok(stats) ? stats!.isDirectory() : false ;
 }
 
-export function $createDirectory(p:Nullable<string>) : boolean
+export function $createDirectory(p:Nullable<string>):boolean
 {
     if ($inbrowser()) { throw 'unavailable $createDirectory() function in browser' ; }
     let ret:boolean = false ;
     if ($length(p)) {
-        try { 
-            const stats = statSync(p!) ;
-            ret = stats.isDirectory() ;
-            if (!ret && !stats.isFile()) {
+        const stats = $stats(p) ;
+        if ($ok(stats) && stats!.isDirectory()) { ret = true ; }
+        else if (!$ok(stats) || !stats!.isFile()) {
+            try { 
                 mkdirSync(p!, { recursive: true }) ; 
                 ret = true ;
-            }
-        } 
-        catch { ret = false ; }
+            } 
+            catch { ret = false ; }
+        }
     }
     return ret ;
 }
@@ -95,12 +111,8 @@ export function $createDirectory(p:Nullable<string>) : boolean
 export function $filesize(src:Nullable<string>) : number
 {
     if ($inbrowser()) { throw 'unavailable $filesize() function in browser' ; }
-	let ret:number = 0 ;
-    if ($length(src)) {
-        try { ret = statSync(<string>src).size ; }
-	    catch { ret = 0 ; }
-    }
-    return ret ;
+    const stats = $stats(src) ;
+    return $ok(stats) ? stats!.size : 0 ;
 }
 
 export function $temporarypath(ext:Nullable<string>='', src:Nullable<string>='') : string 
@@ -241,21 +253,27 @@ export function $readString(src:Nullable<string>, encoding:BufferEncoding='utf-8
 }
 
 export interface BasicWriteOptions {
-    mode?:number,
-    attomically?:boolean
+    attomically?:boolean,
+    removePrecedentVersion?:boolean
 }
 
 export interface $writeStringOptions extends BasicWriteOptions {
     encoding?:BufferEncoding,
 }
 
-export function $writeString(src:Nullable<string>, str:string, opts:$writeStringOptions = {}) : boolean
+export function $writeString(src:Nullable<string>, str:string, opts:$writeStringOptions = {}):boolean {
+    const [res,] = $fullWriteString(src, str, opts) ;
+    return res ;
+}
+
+// returns [OK/KO and the name of the precedent version if it exists
+export function $fullWriteString(src:Nullable<string>, str:string, opts:$writeStringOptions) : [boolean, string|null]
 {
     if ($inbrowser()) { throw 'unavailable $writeString() function in browser' ; }
     let encoding = $length(opts.encoding) ? opts.encoding! : 'utf-8' ;
-    if (!Buffer.isEncoding(encoding)) { return false ; }
+    if (!Buffer.isEncoding(encoding)) { return [false, null] ; }
 
-    return $writeBuffer(src, Buffer.from(str, encoding), opts as BasicWriteOptions )
+    return $fullWriteBuffer(src, Buffer.from(str, encoding), opts as BasicWriteOptions )
 }
 
 
@@ -281,16 +299,22 @@ export interface $writeBufferOptions extends BasicWriteOptions {
     byteEnd?:number
 }
 
-export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions = {}) : boolean
+export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions = {}):boolean {
+    const [res,] = $fullWriteBuffer(src, buf, opts) ;
+    return res ;
+}
+
+// returns [OK/KO and the name of the precedent version if it exists
+export function $fullWriteBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBufferView, opts:$writeBufferOptions) : [boolean, string|null]
 {
     if ($inbrowser()) { throw 'unavailable $writeBuffer() function in browser' ; }
 	let done = false ;
+    let precedent:string|null = null ;
 
     let start = $ok(opts.byteStart) ? opts.byteStart : 0 ;
     let end   = $ok(opts.byteEnd) ? opts.byteEnd : buf.byteLength ; 
-    let mode  = $ok(opts.mode) ? opts.mode : 0o666 ;
 
-    if ($length(src) && $isunsigned(mode) && mode! <= 0o777 && $isunsigned(start) || !$isunsigned(end)) {
+    if ($length(src) && $isunsigned(start) || !$isunsigned(end)) {
         const pathToWrite = opts.attomically ? $uniquefile(src) : src! ;
         end = Math.min(end!, buf.byteLength) ;
         start = Math.min(start!, end) ;
@@ -302,7 +326,7 @@ export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBuffer
         if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage ; }
 	
 		try {
-            const fd = openSync(pathToWrite, 'w', mode!) ;
+            const fd = openSync(pathToWrite, 'w', 0o666) ;
             const MAX_TRY = 3 ;
             try {
                 let retries = 0 ;
@@ -321,6 +345,7 @@ export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBuffer
 		catch(e) {
 			done = false ;
 		}
+
         if (done && opts.attomically) {
             const renamedExistingFile = $uniquefile(src) ;
             done = _safeRename(src!, renamedExistingFile) ;
@@ -339,9 +364,11 @@ export function $writeBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBuffer
                 done = false ;
             }
             if (!done) { _safeUnlink(pathToWrite) ; } // we may let a newly created temporary file here if unlink does not succeed
+            else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile) ; }
+            else { precedent = renamedExistingFile ; }
         }        
 	}
-	return done ;
+	return [done, precedent] ;
 }
 
 export function $localRenameFile(src:Nullable<string>, dest:Nullable<string>) : boolean {
@@ -349,15 +376,11 @@ export function $localRenameFile(src:Nullable<string>, dest:Nullable<string>) : 
     return $length(src) > 0 && $length(dest) > 0 && src !== dest && $isfile(src) && _safeRename(src!, dest!) ;
 }
 
-function _safeRename(s:string, d:string):boolean { let done = false ; try { renameSync(s,d) ; done = true ; } catch { done = false ; } return done ; }
-
 export function $removeFile(src:Nullable<string>) : boolean
 {
     if ($inbrowser()) { throw 'unavailable $removeFile() function in browser' ; }
     return $length(src) > 0 && $isfile(src) && _safeUnlink(src!) ;
 }
-
-function _safeUnlink(p:string):boolean { let done = false ; try { unlinkSync(p) ; done = true ; } catch { done = false ; } return done ; }
 
 /*
 	src is a file
@@ -404,4 +427,21 @@ export function $copyFile(src:Nullable<string>, dest:Nullable<string>, overwrite
         catch { done = false ; }
 	}
 	return done ;
+}
+
+function _safeRename(s:string, d:string):boolean { let done = false ; try { renameSync(s,d) ; done = true ; } catch { done = false ; } return done ; }
+
+function _safeUnlink(p:string):boolean { let done = false ; try { unlinkSync(p) ; done = true ; } catch { done = false ; } return done ; }
+
+function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean {
+	let ret:boolean = false ;
+    try {
+        if (statSync(<string>src).isFile()) {
+            // we cound use stats.mode but we should take care of who we are, so better to rely on accessSync(-)
+            accessSync(src as string, permissions);
+            ret = true ;
+        }
+    }
+    catch { ret = false ; }    
+	return ret ;
 }
