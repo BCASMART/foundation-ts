@@ -19,8 +19,12 @@ export const utilsGroups = TSTest.group("Utils functions", async (group) => {
         t.expect2($termclean(v5)).toBe(v6) ;
     }) ;
 
+    group.description("This is a description") ;
+    group.description("This is a second description") ;
+    group.description("This is a third description") ;
     group.unary("verifying $inbrowser()", async(t) => {
         t.expect($inbrowser()).toBeFalsy() ;
     }) ;
+
 
 }) ;

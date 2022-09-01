@@ -1,13 +1,13 @@
 import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal } from "./compare";
 import { AnyDictionary, Ascending, Descending } from "./types";
-import { $inspect, $logterm, $writeterm } from "./utils";
+import { $inspect, $logterm, $term, $writeterm } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
 export type testFN = (t:TSTest) => Promise<void> ;
 
-
+const noopTest:testFN = async (t:TSTest):Promise<void> => {}
 
 export class TSTester {
     groups:TSTestGroup[] = [] ;
@@ -61,10 +61,14 @@ export class TSTest {
     public static group(s:string, f:groupFN) {
         return new TSTestGroup(s, f) ;
     }
+    public async run():Promise<[number, number]> { return [0,0] ; }
+
+    public log(format:string, ...args:any[]) { $logterm(format, args) ; }
+
 }
 
 export class TSTestGroup extends TSTest {
-    private _unaries:TSUnaryTest[] = [] ; 
+    private _unaries:TSTest[] = [] ; 
     public constructor(s:string, f:groupFN) {
         super(s, f as testFN) ;
     }
@@ -72,14 +76,16 @@ export class TSTestGroup extends TSTest {
     public unary(s:string, f:unaryFN) {
         this._unaries.push(new TSUnaryTest(this, s, f)) ;
     }
+    
+    public description(str:string) {
+        if ($length(str)) { this._unaries.push(new TSTestDescriptor(str)) ; }
+    }
 
     public async prepare():Promise<void> {
         await this.fn(this) ;
     }
 
-    public log(format:string, ...args:any[]) {
-        $logterm('  '+format, args) ;
-    }
+    public log(format:string, ...args:any[]) { super.log('  '+format, args) ; }
 
     public async run():Promise<[number, number]> {
         let expectations = 0 ;
@@ -96,6 +102,15 @@ export class TSTestGroup extends TSTest {
     }
 }
 
+export class TSTestDescriptor extends TSTest {
+    public constructor(s:string) { super($term(s), noopTest) ; }
+    public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
+    public async run():Promise<[number, number]> {
+        $logterm(`&x     ➤ logging &y${this.desc} &0`) ;
+        return [0,0] ; 
+    }
+
+}
 export class TSUnaryTest extends TSTest {
     public _group:TSTestGroup ;
     private _failed:number = 0 ;
@@ -107,10 +122,9 @@ export class TSUnaryTest extends TSTest {
         super(s, f as testFN) ;
         this._group = g ;
     }
-    public log(format:string, ...args:any[]) {
-        $logterm('    '+format,'', args) ;
-    }
-    
+
+    public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
+
     public async run():Promise<[number, number]> {
         this._passed = 0 ;
         this._failed = 0 ;
