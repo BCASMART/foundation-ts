@@ -19,22 +19,54 @@ import { utilsGroups } from './utils.test';
 
 const tester = new TSTester("Foundation-ts unary tests") ;
 
-tester.addGroups(commonsGroups) ;
-tester.addGroups(countriesGroups) ;
-tester.addGroups(dateGroups) ;
-tester.addGroups(dateCompGroups) ;
-tester.addGroups(defaultsGroups) ;
-tester.addGroups(intervalGroups) ;
-tester.addGroups(rangeGroups) ;
-tester.addGroups(rangeSetGroups) ;
-tester.addGroups(requestGroups) ;
-tester.addGroups(serverGroups) ;
-tester.addGroups(utilsGroups) ;
-tester.addGroups(dataGroups) ;
-tester.addGroups(colorGroups) ;
-tester.addGroups(geometryGroups) ;
-tester.addGroups(qualifierGroups) ;
-tester.addGroups(errorsGroups) ;
-tester.addGroups(fsGroups) ;
+tester.addGroups(commonsGroups,     "commons") ;
+tester.addGroups(countriesGroups,   "countries") ;
+tester.addGroups(dateGroups,        "dates") ;
+tester.addGroups(dateCompGroups,    "dates") ;
+tester.addGroups(defaultsGroups,    "defaults") ;
+tester.addGroups(intervalGroups,    "intervals") ;
+tester.addGroups(rangeGroups,       "ranges") ;
+tester.addGroups(rangeSetGroups,    "ranges") ;
+tester.addGroups(requestGroups,     "requests") ;
+tester.addGroups(serverGroups,      "server") ;
+tester.addGroups(utilsGroups,       "utils") ;
+tester.addGroups(dataGroups,        "data") ;
+tester.addGroups(colorGroups,       "colors") ;
+tester.addGroups(geometryGroups,    "geometry") ;
+tester.addGroups(qualifierGroups,   "qualifiers") ;
+tester.addGroups(errorsGroups,      "errors") ;
+tester.addGroups(fsGroups,          "fs") ;
 
-tester.run() ;
+let args = process.argv.slice(2);
+const dumper = args.length === 1 && args.first() === '-list' ;
+
+
+tester.addGroup("Testing tester system itself", async (group) => {
+    const setA = new Set(tester.names) ;
+    const setB = new Set([
+        "commons", "countries", "dates", "dates", "defaults", 
+        "intervals", "ranges", "ranges", "requests", "server", 
+        "utils", "data", "colors", "geometry", "qualifiers", 
+        "errors", "fs"]) ;
+    group.unary("Testing tests list", async (t) => {
+        t.expect0(tester.names.length).toBe(15) ;
+        t.expect1(setA).toBe(setB) ;
+    }) ;
+    if (args.length > 0 && !dumper) {
+        group.focused = true ;
+        group.silent = true ;
+        for (let a of args) {
+            group.unary(`Testing ${a} restrictive test parameter`, async (t) => {
+                t.expect(tester.containsName(a)).toBeTruthy() ;
+            }, {focus:true}) ;    
+        }
+    }
+}) ;
+
+if (dumper) {
+    tester.dumpGroupsList() ;
+}
+else {
+    //console.log(`***********************************\n(${args.join(',')})\n******************************`) ;
+    tester.run({focusNames:args, clearScreen:true}) ;
+}

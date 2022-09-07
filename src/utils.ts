@@ -145,14 +145,14 @@ export function $termclean(s:string, escapeChar:string = '&') {
 
 
 export function $logterm(format:string, ...args:any[]) {
-    format = $term($length(format) ? format : '') ;
-    if ($count(args)) { format += args.join() ; }
+    format = $length(format) ? $term(format) : '' ;
+    if ($count(args)) { format += args.join('') ; }
     console.log(format)
 }
 
 export function $writeterm(format:string, ...args:any[]) {
     format = $term($length(format) ? format : '') ;
-    if ($count(args)) { format += args.join() ; }
+    if ($count(args)) { format += args.join('') ; }
     if (format.length) { process.stdout.write(format) ; }
 }
 

@@ -335,7 +335,7 @@ function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number,
                         let n = undefined ;
                         if ($isnumber(v)) { n = v ;}
                         else if ($isstring(v)) { n = Number(v) ; }
-                        else if ('toNumber' in v) { n = (v as any).toNumber() } 
+                        else if ('toNumber' in v!) { n = (v as any).toNumber() } 
                         if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
                         else { sum += n ; }
                     }
@@ -424,14 +424,14 @@ export interface $fusionOptions<T,U> {
 export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
 {
     if (!$ok(a)) { return $ok(b) ? $partial(b, opts.B as any) : [{}, 0] }
-    else if (!$ok(b)) { return $partial(a, opts.A) ; }
+    else if (!$ok(b)) { return $partial(a, opts.A as any) ; }
 
     let [ret, n] = $partial(a, opts.A) ;
     let fopts:_fillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
     if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays! ; }
     if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects! ; }
     n += _fillObject<T,U>('fusion', ret, b, fopts) ;
-    return [ret, n] ;
+    return [ret as any, n] ;
 }
 
 

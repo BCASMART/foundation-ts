@@ -1,48 +1,96 @@
-import { $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
+import { $count, $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal } from "./compare";
-import { AnyDictionary, Ascending, Descending } from "./types";
+import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
 import { $inspect, $logterm, $term, $writeterm } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
-export type testFN = (t:TSTest) => Promise<void> ;
+export type testFN = (t:TSGenericTest) => Promise<void> ;
 
-const noopTest:testFN = async (t:TSTest):Promise<void> => {}
+const noopTest:testFN = async (t:TSGenericTest):Promise<void> => {}
+
+export interface TSTesterOptions {
+    focusNames?:string[] ;
+    clearScreen?:boolean ;
+}
 
 export class TSTester {
     groups:TSTestGroup[] = [] ;
+    public _names:Set<string> ;
     public desc:string ;
 
     public constructor(s:string) {
+        this._names = new Set<string>() ;
         this.desc = s ;
     }
-    public addGroup(grp:TSTestGroup) { this.addGroups([grp]) ; }
-    public addGroups(grps:TSTestGroup|TSTestGroup[]) {
+    
+    public addGroup(s:string, f:groupFN, name?:Nullable<string>, opts?:TSGenericTestOptions)
+    { this.addGroups([TSTest.group(s,f,opts)], name) ; }
+
+    public addGroups(grps:TSTestGroup|TSTestGroup[], name?:Nullable<string>) {
+        const hasName = $length(name) > 0 ;
+        if (hasName) { this._names.add(name!) ; }
         if (grps instanceof TSTestGroup) { grps = [grps] ; }
-        for (let g of grps) { this.groups.push(g) ; }
+        for (let g of grps) { this.groups.push(g) ; if (hasName) { g.name = name! ;}}
     }
     public log(format:string, ...args:any[]) {
         $logterm(format, args) ;
     }
 
-    public async run() {
+    public get names():string[] { return Array.from(this._names) ; }
+    public containsName(s:Nullable<string>) { return $length(s) ? this._names.has(s!) : false ; }
+
+    public async dumpGroupsList() {
+        const n = $count(this.groups) ;
+        if (n > 0) {
+            this.log(`&eTSTester will now list &Y&k ${this.desc} &0&e :`) ;
+            let i = 1 ;
+            for (let g of this.groups) {
+                await g.prepare() ; 
+                $writeterm(`&e${i.fpad4()} `) ; 
+                g.dumpGroupInfos() ;
+                $logterm('') ;
+                i++ ;
+            }
+        }
+        else {
+            this.log(`&aTSTester has no test groups defined for &O&w ${this.desc} &0&e !`) ;
+        }
+    }
+
+    public async run(opts:TSTesterOptions = {}) {
         // first phase, we construct all the unary test in an asynchronus function call
-        this.log(`&Z&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
+
+        this.log(`${opts.clearScreen?'&Z':''}&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
         let expectations = 0 ;
         let expectationsFailed = 0 ;
-        for (let g of this.groups) { await g.prepare() ; }
-        let passed = 0, failed = 0 ;
+        let focusNames = $count(opts.focusNames) ? opts.focusNames!.filter(fn => this.containsName(fn)) : [] ;
+        
+        for (let g of this.groups) { 
+            if ($length(g.name) && focusNames.includes(g.name!)) { g.focused = true ; }
+            await g.prepare() ; 
+        }
+
+        let groups = this.groups.filter(g => g.focused) ;
+        const n = $count(groups) ;
+        if (n > 0) {
+            this.log(`&0&O&rTest will be restricted to ${n} groups out of ${this.groups.length}&0`) ;
+        }
+        else { groups = this.groups ; }
+
+        let passed = 0, failed = 0, silent = 0 ;
         // second phase, we run the tests
-        for (let g of this.groups) {
+        for (let g of groups) {
             const [groupExpected, groupFailed] = await g.run() ;
             expectations += groupExpected ;
             expectationsFailed += groupFailed ;
-            if (groupFailed === 0) { passed++ } else { failed++ ; }
+            if (groupFailed === 0) { if (g.silent) { silent ++ ; } else { passed++ ; } } else { failed++ ; }
         }
         this.log(`&y${expectations.toString().padStart(4)}&0&e test${expectations === 1 ? 'was' : 's were'} executed.&0`) ;
         if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
+        if (silent > 0) { this.log(`&g${silent.toString().padStart(4)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
         if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
-        if (passed > 0 && !failed) {
+        if ((passed > 0 || silent > 0) && !failed) {
             this.log('&G&w  ALL TESTS PASSED  &0') ;
         }
         else if (expectationsFailed > 0) {
@@ -51,58 +99,91 @@ export class TSTester {
     }
 }
 
-export class TSTest {
+export interface TSGenericTestOptions {
+    focus?:boolean ;
+    focusGroup?:boolean ;
+    silent?:boolean ;
+}
+
+export class TSGenericTest {
     public desc:string ;
     public fn:testFN ;
-    protected constructor(s:string, f:testFN) {
+    public name:string|undefined = undefined ;
+    public focused:boolean = false ;
+    public silent:boolean = false ;
+
+    protected constructor(s:string, f:testFN, opts?:TSGenericTestOptions) {
         this.desc = s ;
         this.fn = f ;
+        if (opts?.focus) { this.focused = true ; }
+        if (opts?.silent) { this.silent = true ; }
     }
-    public static group(s:string, f:groupFN) {
-        return new TSTestGroup(s, f) ;
-    }
-    public async run():Promise<[number, number]> { return [0,0] ; }
 
+    public async run():Promise<[number, number]> { return [0,0] ; }
     public log(format:string, ...args:any[]) { $logterm(format, args) ; }
 
 }
+export class TSTest extends TSGenericTest {
+    public static group(s:string, f:groupFN, opts?:TSGenericTestOptions) {
+        return new TSTestGroup(s, f, opts) ;
+    }
+}
 
-export class TSTestGroup extends TSTest {
-    private _unaries:TSTest[] = [] ; 
-    public constructor(s:string, f:groupFN) {
-        super(s, f as testFN) ;
+export class TSTestGroup extends TSGenericTest {
+    private _unaries:TSGenericTest[] = [] ; 
+    public constructor(s:string, f:groupFN, opts?:TSGenericTestOptions) {
+        super(s, f as testFN, opts) ;
+        if (opts?.focusGroup) { this.focused = true ; }
     }
 
-    public unary(s:string, f:unaryFN) {
-        this._unaries.push(new TSUnaryTest(this, s, f)) ;
+    public unary(s:string, f:unaryFN, opts:TSGenericTestOptions = {})
+    {
+        if (this.silent) { opts.silent = true ; } 
+        this._unaries.push(new TSUnaryTest(this, s, f, opts)) ; 
     }
     
-    public description(str:string) {
-        if ($length(str)) { this._unaries.push(new TSTestDescriptor(str)) ; }
-    }
+    public description(str:string)
+    { if ($length(str) && !this.silent) { this._unaries.push(new TSTestDescriptor(str)) ; }}
 
-    public async prepare():Promise<void> {
-        await this.fn(this) ;
-    }
+    public async prepare():Promise<void>
+    { await this.fn(this) ; }
 
-    public log(format:string, ...args:any[]) { super.log('  '+format, args) ; }
+    public log(format:string, ...args:any[])
+    { super.log('  '+format, args) ; }
+
+    public dumpGroupInfos() {
+        const n = this._unaries.length ;
+        if (n > 0) {
+            const silent = this.silent ? 'silent ' : '' ;
+            const focused = this.focused ? 'focused ' : '' ;
+            const name = $length(this.name) ? `&J&w ${this.name!} &0` : '&U&k <Unamed> &0' ;
+            let tests = n === 1 ? `1 test` : `${n} tests` ;
+            $writeterm(`&u${silent}${focused}group ${this.desc} ${name}&B&w ${tests} &0`) ;
+        }
+    }
 
     public async run():Promise<[number, number]> {
         let expectations = 0 ;
         let expectationFailed = 0 ;
 
-        this.log(`&u- Running group tests &U&k ${this.desc} &0`) ;
-        for (let u of this._unaries) {
+        if (!this.silent) { this.log(`&u- Running group tests &U&k ${this.desc} &0`) ; }
+        let unaries = this._unaries.filter(u => u.focused) ;
+        if (unaries.length === 0) { unaries = this._unaries ; }
+
+        for (let u of unaries) {
             const [unaryExpected, unaryFailed] = await u.run() ;
             expectationFailed += unaryFailed ;
             expectations += unaryExpected ;
         }
-        $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ;
+        if (this.silent && expectationFailed > 0) {
+            this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
+        }
+        if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ; }
         return [expectations, expectationFailed] ;
     }
 }
 
-export class TSTestDescriptor extends TSTest {
+export class TSTestDescriptor extends TSGenericTest {
     public constructor(s:string) { super($term(s), noopTest) ; }
     public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
     public async run():Promise<[number, number]> {
@@ -111,16 +192,17 @@ export class TSTestDescriptor extends TSTest {
     }
 
 }
-export class TSUnaryTest extends TSTest {
+export class TSUnaryTest extends TSGenericTest {
     public _group:TSTestGroup ;
     private _failed:number = 0 ;
     private _passed:number = 0 ;
     private _expected:number = 0 ;
     private _registrations:AnyDictionary = {} ;
 
-    public constructor(g:TSTestGroup, s:string, f:unaryFN) {
-        super(s, f as testFN) ;
+    public constructor(g:TSTestGroup, s:string, f:unaryFN, opts?:TSGenericTestOptions) {
+        super(s, f as testFN, opts) ;
         this._group = g ;
+        if (opts?.focusGroup) { g.focused = true ; }
     }
 
     public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
@@ -128,21 +210,26 @@ export class TSUnaryTest extends TSTest {
     public async run():Promise<[number, number]> {
         this._passed = 0 ;
         this._failed = 0 ;
-        $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ;
+        if (!this.silent) { $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ; }
         await this.fn(this) ;
-        if (this._failed > 0) { 
-            $writeterm('\n     ') ; 
-            this.printRegistrations() ;
+        if (!this.silent) {
+            if (this._failed > 0) { 
+                $writeterm('\n     ') ; 
+                this.printRegistrations() ;
+            }
+            if (this._passed > 0) { $writeterm(`&J&k ${this._passed} OK &0`) ; }
+            if (this._failed > 0) { $writeterm(`&R&w ${this._failed} KO &0`) ; }
+            $logterm('') ;    
         }
-        if (this._passed > 0) { $writeterm(`&J&k ${this._passed} OK &0`) ; }
-        if (this._failed > 0) { $writeterm(`&R&w ${this._failed} KO &0`) ; }
-        $logterm('') ;
+        else if (this._failed > 0) {
+            $logterm(`&x     ➤ &ldid execute test &B&w ${this.desc} &0&R&w ${this._failed} KO &0`) ;
+        }
         return [this._expected, this._failed] ;
     }
     
-    public register(name:string, value:any) {
-        if ($defined(value) && $length(name)) { this._registrations[name] = value ; }
-    }
+    public register(name:string, value:any)
+    { if ($defined(value) && $length(name)) { this._registrations[name] = value ; }}
+
     public printRegistrations() {
         const keys = $keys(this._registrations)
         const n = keys.length ;
@@ -253,22 +340,28 @@ export class TSExpectAgent {
     public lte(aValue:any):boolean      { return $compare(aValue, this._value) === Ascending  ? this._compfail(aValue, '≤') : this._step?.pass() ; }
 
     private _compfail(aValue:any, op:string):boolean {
-        const start = this._writeMessage() ;
-        $logterm(`&adid expect value:&O&w${$inspect(this._value)}&0`) ;
-        $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ; 
+        if (!this._step.silent) {
+            const start = this._writeMessage() ;
+            $logterm(`&adid expect value:&O&w${$inspect(this._value)}&0`) ;
+            $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ;
+        } 
         return this._step?.fail() ;
     }
 
     private _elogfail(aValue:any):boolean {
-        const start = this._writeMessage() ;
-        $logterm(`&edid expect value:&E&b${$inspect(aValue)}&0`) ;
-        $logterm(`${start}&adid get as value:&O&w${$inspect(this._value)}&0`) ; 
+        if (!this._step.silent) {
+            const start = this._writeMessage() ;
+            $logterm(`&edid expect value:&E&b${$inspect(aValue)}&0`) ;
+            $logterm(`${start}&adid get as value:&O&w${$inspect(this._value)}&0`) ; 
+        }
         return this._step?.fail() ;
     }
 
     private _nelogfail(aValue:any):boolean {
-        this._writeMessage() ;
-        $logterm(`&adid not expect  :&O&w${$inspect(aValue)}&0`) ; 
+        if (!this._step.silent) {
+            this._writeMessage() ;
+            $logterm(`&adid not expect  :&O&w${$inspect(aValue)}&0`) ; 
+        }
         return this._step?.fail() ;
     }
 
