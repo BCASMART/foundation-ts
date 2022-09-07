@@ -154,4 +154,4 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
         t.expectE($isexecutable(file)).toBeFalsy() ;
     }) ;
 
-}) ;
+}, { name:'fs' }) ;

@@ -35,7 +35,7 @@ tester.addGroups(colorGroups,       "colors") ;
 tester.addGroups(geometryGroups,    "geometry") ;
 tester.addGroups(qualifierGroups,   "qualifiers") ;
 tester.addGroups(errorsGroups,      "errors") ;
-tester.addGroups(fsGroups,          "fs") ;
+tester.addGroups(fsGroups) ;  // directly named 'fs' in definition
 
 let args = process.argv.slice(2);
 const dumper = args.length === 1 && args.first() === '-list' ;
@@ -63,10 +63,4 @@ tester.addGroup("Testing tester system itself", async (group) => {
     }
 }) ;
 
-if (dumper) {
-    tester.dumpGroupsList() ;
-}
-else {
-    //console.log(`***********************************\n(${args.join(',')})\n******************************`) ;
-    tester.run({focusNames:args, clearScreen:true}) ;
-}
+tester.run({focusNames:args, clearScreen:!dumper, listTests:dumper}) ;

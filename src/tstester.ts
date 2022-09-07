@@ -12,6 +12,7 @@ const noopTest:testFN = async (t:TSGenericTest):Promise<void> => {}
 export interface TSTesterOptions {
     focusNames?:string[] ;
     clearScreen?:boolean ;
+    listTests?:boolean ;
 }
 
 export class TSTester {
@@ -31,7 +32,11 @@ export class TSTester {
         const hasName = $length(name) > 0 ;
         if (hasName) { this._names.add(name!) ; }
         if (grps instanceof TSTestGroup) { grps = [grps] ; }
-        for (let g of grps) { this.groups.push(g) ; if (hasName) { g.name = name! ;}}
+        for (let g of grps) { 
+            this.groups.push(g) ; 
+            if (hasName) { g.name = name! ; }
+            else if ($length(g.name) > 0) { this._names.add(g.name!) ; }
+        }
     }
     public log(format:string, ...args:any[]) {
         $logterm(format, args) ;
@@ -40,10 +45,10 @@ export class TSTester {
     public get names():string[] { return Array.from(this._names) ; }
     public containsName(s:Nullable<string>) { return $length(s) ? this._names.has(s!) : false ; }
 
-    public async dumpGroupsList() {
+    public async dumpGroupsList(clearScreen:boolean = false) {
         const n = $count(this.groups) ;
         if (n > 0) {
-            this.log(`&eTSTester will now list &Y&k ${this.desc} &0&e :`) ;
+            this.log(`${clearScreen?'&Z':''}&eTSTester will now list &Y&k ${this.desc} &0&e :`) ;
             let i = 1 ;
             for (let g of this.groups) {
                 await g.prepare() ; 
@@ -59,8 +64,11 @@ export class TSTester {
     }
 
     public async run(opts:TSTesterOptions = {}) {
-        // first phase, we construct all the unary test in an asynchronus function call
 
+        if (opts.listTests) {
+            await this.dumpGroupsList(opts.clearScreen) ;
+            return ;
+        }
         this.log(`${opts.clearScreen?'&Z':''}&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
         let expectations = 0 ;
         let expectationsFailed = 0 ;
@@ -103,6 +111,7 @@ export interface TSGenericTestOptions {
     focus?:boolean ;
     focusGroup?:boolean ;
     silent?:boolean ;
+    name?:string ;
 }
 
 export class TSGenericTest {
@@ -117,6 +126,7 @@ export class TSGenericTest {
         this.fn = f ;
         if (opts?.focus) { this.focused = true ; }
         if (opts?.silent) { this.silent = true ; }
+        if ($length(opts?.name) > 0) { this.name = opts!.name! ; }
     }
 
     public async run():Promise<[number, number]> { return [0,0] ; }
