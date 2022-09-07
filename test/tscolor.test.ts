@@ -1,5 +1,6 @@
 import { TSColor, TSColorSpace } from '../src/tscolor';
 import { TSTest } from '../src/tstester';
+import { uint8 } from '../src/types';
 
 // TOTO
 
@@ -8,6 +9,8 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     const yellowCMYK = TSColor.yellow ;
     const realGray = TSColor.grayscale(0.5) ;
     const rgbGray = TSColor.rgbcomponents(0.5,0.5,0.5) ;
+    const cmykGray = TSColor.cmyk(0,0,0,0.5) ;
+
     const [H1,S1,B1] = yellowRGB.hsb() ;
     const [H2,S2,L2] = yellowRGB.hsl() ;
     const [H3,S3,B3] = yellowCMYK.hsb() ;
@@ -36,19 +39,28 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     }) ;
 
     group.unary("verifying colors similaryty", async(t) => {
-        t.expect0(yellowRGB.isSimilar(yellowRGB)).toBeTruthy()
-        t.expect1(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy()
-        t.expect2(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy()
-        t.expect3(yellowRGB.isSimilar(yellowCMYK)).toBeTruthy()
-        t.expect4(TSColor.rgb('blue').isSimilar(TSColor.blue)).toBeTruthy()
-        t.expect5(TSColor.blue.isSimilar(TSColor.rgb('blue'))).toBeTruthy()
-        t.expect6(TSColor.rgb('red').isSimilar(TSColor.red)).toBeTruthy()
-        t.expect7(TSColor.red.isSimilar(TSColor.rgb('red'))).toBeTruthy()
-        t.expect8(TSColor.rgb('green').isSimilar(TSColor.green)).toBeTruthy()
-        t.expect9(TSColor.green.isSimilar(TSColor.rgb('green'))).toBeTruthy()
-        t.expectA(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).toBeTruthy()
-        t.expectB(realGray.isSimilar(TSColor.rgb(127,127,127))).toBeTruthy()
-        t.expectC(realGray.isSimilar(rgbGray)).toBeTruthy()
+        t.expect0(yellowRGB.isSimilar(yellowRGB)).toBeTruthy() ;
+        t.expect1(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy() ;
+        t.expect2(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy() ;
+        t.expect3(yellowRGB.isSimilar(yellowCMYK)).toBeTruthy() ;
+        t.expect4(TSColor.rgb('blue').isSimilar(TSColor.blue)).toBeTruthy() ;
+        t.expect5(TSColor.blue.isSimilar(TSColor.rgb('blue'))).toBeTruthy() ;
+        t.expect6(TSColor.rgb('red').isSimilar(TSColor.red)).toBeTruthy() ;
+        t.expect7(TSColor.red.isSimilar(TSColor.rgb('red'))).toBeTruthy() ;
+        t.expect8(TSColor.rgb('green').isSimilar(TSColor.green)).toBeTruthy() ;
+        t.expect9(TSColor.green.isSimilar(TSColor.rgb('green'))).toBeTruthy() ;
+        t.expectA(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).toBeTruthy() ;
+        t.expectB(realGray.isSimilar(TSColor.rgb(127,127,127))).toBeTruthy() ;
+        t.expectC(realGray.isSimilar(rgbGray)).toBeTruthy() ;
+    }) ;
+
+    group.unary("verifying colors conversion equality", async(t) => {
+        t.expect0(yellowCMYK.toRGB()).toBe(yellowRGB) ;
+        t.expect1(yellowRGB.toCMYK()).toBe(yellowCMYK) ;
+        t.expect2(realGray.toCMYK()).toBe(cmykGray) ;
+        t.expect3(realGray.toRGB()).toBe(rgbGray) ;
+        t.expect4(cmykGray.toGrayscale()).toBe(realGray) ;
+        t.expect5(rgbGray.toGrayscale()).toBe(realGray) ;
     }) ;
 
     group.unary("verifying colors names", async(t) => {
@@ -78,6 +90,12 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect5([H6, S6, B6]).toBe([0,0,50]) ;
         t.expect6(realGray.gray).toBe(0.5) ;
         t.expect7(rgbGray.gray).toBe(0.5) ;
+    }) ;
+    group.unary("verifying toAlpha(...) and toOpacity(...) methods", async(t) => {
+        const yaRGB1 = yellowRGB.toAlpha(127 as uint8) ;
+        const yaRGB2 = yellowRGB.toOpacity(0.5) ;
+
+        t.expect0(yaRGB2).toBe(yaRGB1) ;
     }) ;
 
 }) ;

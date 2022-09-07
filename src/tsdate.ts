@@ -8,7 +8,7 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
-import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat } from "./commons";
+import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat, $toint } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
 import { TSClone, TSObject } from "./tsobject";
@@ -63,7 +63,7 @@ export class TSDate implements TSObject, TSClone<TSDate> {
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
             if ($isnumber(t)) { 
-                t = t | 0 ; // we trash all info after the second
+                t = $toint(t) ; // we trash all info after the second
                 this._timestamp = Math.min(Math.max(-TSSecsFrom00010101To20010101, t), TSMaxTimeStamp) ;
 			}
             else if (t instanceof TSDate) {
@@ -324,11 +324,11 @@ export function $timestamp(year: number, month: number, day: number, hours:numbe
 	return Math.floor((day + TSDaysInPreviousMonth[month] + 365 * year + leaps - TSDaysFrom00000229To20010101) * TSDay) + hours * TSHour + minutes * TSMinute + seconds ;
 }
 
-export function $secondFromTimestamp(ts: number) : uint { return <uint>(((ts | 0) + TSSecsFrom00010101To20010101) % TSMinute) ; }
-export function $minuteFromTimestamp(ts: number) : uint { return <uint>$div(((ts | 0) + TSSecsFrom00010101To20010101) % TSHour,  TSMinute) ; }
-export function $hourFromTimestamp(ts: number) : uint { return <uint>$div(((ts | 0) + TSSecsFrom00010101To20010101) %  TSDay,  TSHour) ; }
+export function $secondFromTimestamp(ts: number) : uint { return <uint>(($toint(ts) + TSSecsFrom00010101To20010101) % TSMinute) ; }
+export function $minuteFromTimestamp(ts: number) : uint { return <uint>$div(($toint(ts) + TSSecsFrom00010101To20010101) % TSHour,  TSMinute) ; }
+export function $hourFromTimestamp(ts: number) : uint { return <uint>$div(($toint(ts) + TSSecsFrom00010101To20010101) %  TSDay,  TSHour) ; }
 export function $timestampWithoutTime(ts:number) : number {
-    ts = ts | 0 ; 
+    ts = $toint(ts) ; 
     const overhead = (ts+TSSecsFrom00010101To20010101) % TSDay ; 
     return ts - overhead ;
 }

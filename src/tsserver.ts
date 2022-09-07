@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $defined, $isunsigned, $keys, $length, $ok, $string, $trim, $unsigned } from "./commons";
+import { $defined, $isunsigned, $keys, $length, $ok, $string, $toint, $ftrim } from "./commons";
 import { TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { AnyDictionary, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
@@ -134,12 +134,12 @@ export class TSServer {
         }) ;
 
         if ($ok(opts.port)) {
-            this.port = $unsigned(opts.port) ;
+            this.port = $toint(opts.port, UINT16_MAX) ;
             if (this.port <= 0 || this.port > UINT16_MAX) { throw `Bad HTTP server port ${this.port}.` ; }    
         }
         else { this.port = 3000 ; }
 
-        this.host = $trim(opts.host) ;
+        this.host = $ftrim(opts.host) ;
         if (!this.host.length) { this.host = 'http://localhost/' ; }
     }
 

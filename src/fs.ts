@@ -31,7 +31,7 @@ import {
     isAbsolute,
     normalize 
 } from 'path' ;
-import { $isstring, $isunsigned, $length, $ok, $trim } from './commons';
+import { $isstring, $isunsigned, $length, $ok, $ftrim } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
@@ -118,7 +118,7 @@ export function $filesize(src:Nullable<string>) : number
 export function $temporarypath(ext:Nullable<string>='', src:Nullable<string>='') : string 
 {
     if ($inbrowser()) { throw 'unavailable $temporarypath() function in browser' ; }
-    ext = $trim(ext) ;
+    ext = $ftrim(ext) ;
     let file = $uniquefile(src) ;
     if ($length(ext)) { file = $newext(file, ext) ; }
     return $path($tmp(), file) ;
@@ -127,7 +127,7 @@ export function $temporarypath(ext:Nullable<string>='', src:Nullable<string>='')
 export function $uniquefile(src?:Nullable<string>, e:Nullable<string>=undefined, internalImplementation:boolean=false) : string
 {
 	const rand = $uuid() ;
-    e = $trim(e) ;
+    e = $ftrim(e) ;
 	if (!$length(src)) { return $newext(rand, e, internalImplementation) ; }
 	const finalExt = e.length ? e : $ext(src) ;
     return $newext(`${$withoutext(src, internalImplementation)}-${rand}`, finalExt, internalImplementation) ;

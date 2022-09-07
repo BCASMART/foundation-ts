@@ -1,4 +1,4 @@
-import { $count, $int, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $unsigned } from "./commons";
+import { $count, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $toint, $tounsigned } from "./commons";
 import { TSDate } from "./tsdate";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 import { TSClone, TSObject } from "./tsobject";
@@ -76,8 +76,8 @@ export class TSRange implements TSObject, TSClone<TSRange>, Interval {
                     this._length = 0 ;
                 }
 				else if ($isint(arguments[0]) && $isunsigned(arguments[1]) && $isint(arguments[0]+arguments[1])) {
-                    this._location = $int(arguments[0]) ;
-					this._length = $unsigned(arguments[1]) ;		
+                    this._location = $toint(arguments[0]) ;
+					this._length = $tounsigned(arguments[1]) ;		
 				}
 				else {
 					throw 'Bad TSRange() constructor: should have 2 valid and in range TSDate or numbers' ;
@@ -105,7 +105,7 @@ export class TSRange implements TSObject, TSClone<TSRange>, Interval {
             if (!$isint(loc) || !$isint(loc + this._length)) { 
                 throw `TSRange set location(${loc}) bad parameter`;
             }
-            this._location = $int(loc) ;    
+            this._location = $toint(loc) ;    
         }
 	}
 	
@@ -119,7 +119,7 @@ export class TSRange implements TSObject, TSClone<TSRange>, Interval {
             if (!$isunsigned(len) || !$isint(len + this._location)) { 
                 throw `TSRange set length(${len}) bad parameter`;
             }
-            this._length = $unsigned(len) ;    
+            this._length = $tounsigned(len) ;    
         }
 	}
 

@@ -1,4 +1,4 @@
-import { $defined, $isnumber, $isstring, $isunsigned, $ok, $trim, $string, $keys, $unsigned, $length } from "./commons";
+import { $defined, $isnumber, $isstring, $isunsigned, $ok, $ftrim, $string, $keys, $length, $tounsigned } from "./commons";
 import { $equal, $numcompare } from "./compare";
 import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
@@ -66,7 +66,7 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public static rgb():TSColor {
         if (arguments.length === 1) {
             if ($isstring(arguments[0])) {
-                const s = $trim(arguments[0]).toLowerCase() ;
+                const s = $ftrim(arguments[0]).toLowerCase() ;
                 let color = TSColor._cachedRGBColor(s) ;
                 if ($defined(color)) { return color! ;}
                 const [channels, alpha] = TSColor._parseHexColorString(s) ;
@@ -102,10 +102,10 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public static rgbcomponents(r:number, g:number, b:number, opacity?:number) {
         opacity = $ok(opacity) ? opacity! : 1 ;
         if ($isnumber(r) && $isnumber(g) && $isnumber(b) && $isnumber(opacity)) {
-            r = Math.min(1, Math.max(0, r)) ;
-            g = Math.min(1, Math.max(0, g)) ;
-            b = Math.min(1, Math.max(0, b)) ;
-            opacity = Math.min(1, Math.max(0, opacity)) ;
+            r = _component(r) ;
+            g = _component(g) ;
+            b = _component(b) ;
+            opacity = _component(opacity) ;
             return TSColor.rgb((r*255) | 0, (g*255) | 0, (b*255) | 0, (opacity*255) | 0) ;
         }
         throw 'TSColor.rgbcomponents() : Bad parameters' ;
@@ -114,11 +114,11 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public static cmyk(C:number,M:number,Y:number,K:number, opacity?:number) {
         opacity = $ok(opacity) ? opacity! : 1 ;
         if ($isnumber(C) && $isnumber(M) && $isnumber(Y) && $isnumber(K) && $isnumber(opacity)) {
-            C = Math.min(1, Math.max(0, C)) ;
-            M = Math.min(1, Math.max(0, M)) ;
-            Y = Math.min(1, Math.max(0, Y)) ;
-            K = Math.min(1, Math.max(0, K)) ;
-            opacity = Math.min(1, Math.max(0, opacity)) ;
+            C = _component(C) ;
+            M = _component(M) ;
+            Y = _component(Y) ;
+            K = _component(K) ;
+            opacity = _component(opacity) ;
             return new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
         }
         throw 'TSColor.cmyk() : Bad parameters' ;
@@ -127,7 +127,7 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public static grayscale(whiteIntensity:number, opacity?:number) {
         opacity = $ok(opacity) ? opacity! : 1 ;
         if ($isnumber(whiteIntensity) && $isnumber(opacity)) {
-            whiteIntensity = Math.min(1, Math.max(0, whiteIntensity)) ;
+            whiteIntensity = _component(whiteIntensity) ;
             return new TSColor(TSColorSpace.Grayscale, [0,0,0,1-whiteIntensity], opacity) ;
         }
         throw 'TSColor.grayscale() : Bad parameters' ;
@@ -204,7 +204,7 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public get red():uint8   { const [R,,] = this.rgb() ; return R as uint8 ;}
     public get green():uint8 { const [,G,] = this.rgb() ; return G as uint8 ;}
     public get blue():uint8  { const [,,B] = this.rgb() ; return B as uint8 ;}
-    public get alpha():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._alpha : $unsigned(this._alpha * 255)) as uint8 ;}
+    public get alpha():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._alpha : $tounsigned(_component(this._alpha) * 255)) as uint8 ;}
     public get transparency():uint8 { return 255 - this.alpha as uint8 ; }
 
     // CYMK color space
@@ -212,7 +212,7 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     public get magenta():number { const [,M,,] = this.cmykComponents() ; return M ; }
     public get yellow():number  { const [,,Y,] = this.cmykComponents() ; return Y ; }
     public get black():number   { const [,,,K] = this.cmykComponents() ; return K ; }
-    public get opacity():number { return this.colorSpace !== TSColorSpace.RGB ? this._alpha : this._alpha / 255 ; }
+    public get opacity():number { return this.colorSpace !== TSColorSpace.RGB ? this._alpha : _component(this._alpha / 255) ; }
 
     // GRAY color space
     public get gray():number    { return this.grayComponent() ; }
@@ -269,9 +269,11 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     }
 
     public toOpacity(newOpacity:number):TSColor {
-        newOpacity = Math.min(1, Math.max(0, newOpacity)) ;
-        if (this.colorSpace === TSColorSpace.RGB) { return this.toAlpha(newOpacity * 255.0 as uint8) ; }
-        return newOpacity === this._alpha ? this : new (Function.prototype.bind.apply(TSColor, [null, this.colorSpace, ...this._channels, newOpacity]));
+        newOpacity = _component(newOpacity) ;
+        if (this.colorSpace === TSColorSpace.RGB) { return this.toAlpha(((newOpacity * 255.0) | 0) as uint8) ; }
+        if (newOpacity === this._alpha) { return this ; } 
+        const [C,M,Y,K] = this.cmykComponents() ; 
+        return this.colorSpace === TSColorSpace.Grayscale ? TSColor.grayscale(1-K, newOpacity) : TSColor.cmyk(C,M,Y,K, newOpacity) ;
     }
 
     public toRGB():TSColor       { 
@@ -640,6 +642,7 @@ export class TSColor implements TSObject, TSClone<TSColor> {
     }
 }
 
+
 function _isShortRGB(R:uint8, G:uint8, B:uint8) {
     return (R >> 4 & 0x0f) === (R & 0x0f) && 
            (G >> 4 & 0x0f) === (G & 0x0f) &&
@@ -668,9 +671,10 @@ interface _StringColorRegex {
     rx: RegExp ;
     short:boolean ;
 }
+function _component(x:number):number { return isNaN(x) ? 0 : Math.min(1, Math.max(0, x)) ; }
 
-function _cmykLighter(X:number):number { X = Math.max(0, Math.min(X,1)) ; return -(X*X)/3.0+5.0*(X)/6.0 ; }
-function _cmykDarker(X:number):number  { X = Math.max(0, Math.min(X,1)) ; return 2*(X*X)/3.0+X/2.0+0.25 ; }
+function _cmykLighter(X:number):number { X = _component(X) ; return -(X*X)/3.0+5.0*(X)/6.0 ; }
+function _cmykDarker(X:number):number  { X = _component(X) ; return 2*(X*X)/3.0+X/2.0+0.25 ; }
 
 function _rgbLighter(X:number):uint8   { return ((_cmykDarker(X/255.0) * 255) | 0) as uint8}
 function _rgbDarker(X:number):uint8   { return ((_cmykLighter(X/255.0) * 255) | 0) as uint8}

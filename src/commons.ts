@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationRightTrimRegex, FoundationWhiteSpaces } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN} from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 
@@ -153,7 +153,21 @@ export function $unsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) 
 	return $ok(n) ? n as uint : defaultValue ;
 }
 
-export function $div(a: number, b: number) : number { return a/b | 0 ; }
+export function $toint(v:Nullable<string|number>, defaultValue:int=<int>0) : int
+{
+    if (!$ok(v)) { return defaultValue ; }
+    if (typeof v === 'string') { v = parseInt(<string>v, 10) ; }
+    return isNaN(v!) ? defaultValue : Math.max(INT_MIN, _icast(Math.min(v!, INT_MAX))) as int ;
+}
+
+export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
+{
+    if (!$ok(v)) { return defaultValue ; }
+    if (typeof v === 'string') { v = parseInt(<string>v, 10) ; }
+    return isNaN(v!) ? defaultValue : Math.max(UINT_MIN, _icast(Math.min(v!, UINT_MAX))) as uint ;
+}
+
+export function $div(a: number, b: number) : number { return _icast(a/b) ; }
 
 export function $string(v:any) : string {
 	if (!$ok(v)) return '' ;
@@ -529,18 +543,27 @@ declare global {
         fpad2:  (this:number) => string ;
         fpad3:  (this:number) => string ;
         fpad4:  (this:number) => string ;
+        toInt:  (this:number, defaultValue?:int) => int ;
+        toUnsigned:  (this:number, defaultValue?:uint) => uint ;
     }
-
 }
 
 if (!('fpad' in Number.prototype)) {
     Number.prototype.unit = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
     Number.prototype.meters = function meters(this:number, decimals?:number) { return $meters(this, decimals) ; }
     Number.prototype.octets = function octets(this:number, decimals?:number) { return $octets(this, decimals) ; }
-    Number.prototype.fpad  = function fpad(this:number, pad:number) { return $fpad($unsigned(this), pad) ; }
-    Number.prototype.fpad2 = function fpad(this:number) { return $fpad($unsigned(this), 2) ; }
-    Number.prototype.fpad3 = function fpad(this:number) { return $fpad($unsigned(this), 3) ; }
-    Number.prototype.fpad4 = function fpad(this:number) { return $fpad($unsigned(this), 4) ; }
+    Number.prototype.fpad  = function fpad(this:number, pad:number) { return $fpad($tounsigned(this), pad) ; }
+    Number.prototype.fpad2 = function fpad(this:number) { return $fpad($tounsigned(this), 2) ; }
+    Number.prototype.fpad3 = function fpad(this:number) { return $fpad($tounsigned(this), 3) ; }
+    Number.prototype.fpad4 = function fpad(this:number) { return $fpad($tounsigned(this), 4) ; }
+}
+
+if (!('toInt' in Number.prototype)) {
+    Number.prototype.toInt = function toInt(this:number, defaultValue?:int) { return $toint(this, defaultValue) ; }
+}
+
+if (!('toUnsigned' in Number.prototype)) {
+    Number.prototype.toUnsigned = function toUnsigned(this:number, defaultValue?:int) { return $tounsigned(this, defaultValue) ; }
 }
 
 if (!('ascii' in String.prototype)) {
@@ -594,6 +617,10 @@ if (!('average' in Array.prototype)) {
 }
 if (!('filteredMap' in Array.prototype)) {
     Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback:(e:T,index:number) => Nullable<R>):R[] { return $map(this, callback) ; }
+}
+
+function _icast(v:number):number {
+    return v >= 0 ? (v! <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v! >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ;
 }
 
 function _capitalize(s:Nullable<string>, max:number = 0) : string 

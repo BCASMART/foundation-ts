@@ -1,5 +1,5 @@
 import { AnyDictionary, Nullable } from './types';
-import { $isnumber, $isstring, $length, $ok, $unsigned, $trim, $isarray } from './commons';
+import { $isnumber, $isstring, $length, $ok, $ftrim, $isarray, $tounsigned } from './commons';
 import { TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
 
@@ -22,7 +22,7 @@ export function $query(baseURL:string, query:AnyDictionary) : string {
     let params = new URLSearchParams() ;
         
     for (let [key, value] of Object.entries(query)) {
-        key = $trim(key) ;
+        key = $ftrim(key) ;
         if (key.length) {
             if ($isarray(value)) {
                 let uniques = new Set<Nullable<string>>() ; // we don't want to add the same value twice
@@ -173,7 +173,7 @@ export class TSRequest {
         this.commonHeaders= $ok(opts?.headers) ? opts.headers! : {} ;
 		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
 		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
-		const commonTimeout = $unsigned(opts.timeout) ;
+		const commonTimeout = $tounsigned(opts.timeout) ;
 		if (commonTimeout>0) { this.defaultTimeOut = commonTimeout ; }
 		this.channel = axios.create({baseURL:baseURL, withCredentials:opts.managesCredentials}) ;
 	} 
@@ -235,7 +235,7 @@ export class TSRequest {
 		}
 		if ($ok(body)) { config.data = body } ;
 		
-		timeout = $unsigned(timeout) ;
+		timeout = $tounsigned(timeout) ;
 		if (!timeout) { timeout = this.defaultTimeOut ; }
 		let ret = null ;
 		let status = 0 ;

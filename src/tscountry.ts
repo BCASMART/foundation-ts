@@ -1,4 +1,4 @@
-import { $ascii, $length, $ok, $trim } from './commons';
+import { $ascii, $length, $ok, $ftrim } from './commons';
 import { $language, Locales, TSDefaults } from './tsdefaults';
 import { TSClone, TSObject } from './tsobject';
 import { Comparison, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
@@ -73,7 +73,7 @@ export class TSCountry implements TSObject, TSClone<TSCountry> {
     }
 
     public static country(c:Nullable<country|string>) : TSCountry | null {
-        c = $trim(c) ;
+        c = $ftrim(c) ;
         if (c.length) {
             if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
             const ret = TSCountry.__countriesMap.get($ascii(c!.toUpperCase())) ;

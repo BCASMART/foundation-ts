@@ -1,4 +1,4 @@
-import { $ascii, $isobject, $isstring, $length, $ok, $trim } from "./commons";
+import { $ascii, $isobject, $isstring, $length, $ok, $ftrim } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
@@ -89,7 +89,7 @@ export class TSDefaults {
     public managedLanguages() : language[] { return [... this._managedLanguages] ; } // send a copy
     public managedLanguage(s?:Nullable<string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
-        const v = $ascii($trim(s).toLowerCase()) ;
+        const v = $ascii($ftrim(s).toLowerCase()) ;
         const locales = this._managedLocalesMap.get(v) ;
         if ($ok(locales)) { return locales!.language ; }
         return null ;
@@ -97,7 +97,7 @@ export class TSDefaults {
 
     public country(s:Nullable<string>) : country | null {
         if ($ok(s) && !$isstring(s)) { return null ; }
-        const v = $ascii($trim(s).toUpperCase()) ;
+        const v = $ascii($ftrim(s).toUpperCase()) ;
         const managedCountry = TSCountry.country(v) ;
         if ($ok(managedCountry)) { return managedCountry!.alpha2Code ; }
         const ret = this._countriesMap.get(v) ;
@@ -107,7 +107,7 @@ export class TSDefaults {
     public language(s?:Nullable<TSCountry|string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
         if (s instanceof TSCountry) { return (s as TSCountry).language ; }
-        const v = $ascii($trim(s).toLowerCase()) ;
+        const v = $ascii($ftrim(s).toLowerCase()) ;
         const locales = this._managedLocalesMap.get(v) ;
         if ($ok(locales)) { return locales!.language ; }
         const ret = this._languagesMap.get(v) ;
@@ -117,7 +117,7 @@ export class TSDefaults {
     public currency(s?:Nullable<TSCountry|string>) : currency | null {
         if (!$ok(s)) { return this.defaultCurrency ;}
         if (s instanceof TSCountry) { return (s as TSCountry).currency ; }
-        s = $ascii($trim(s).toUpperCase()) ;
+        s = $ascii($ftrim(s).toUpperCase()) ;
         const c = TSCountry.country(s) ;
         if ($ok(c)) { return c!.currency ; }
         const ret = this._currenciesMap.get(s) ;
@@ -140,7 +140,7 @@ export class TSDefaults {
         if (locale instanceof TSCountry) {
             return this._localizations[locale.language!] || {} ;
         }
-        locale = $trim(locale) ;
+        locale = $ftrim(locale) ;
         if (locale.length) {
             const lang = this.language(locale as string) ;
             if ($ok(lang)) { return this._localizations[lang!] || {} ; }
@@ -156,7 +156,7 @@ export class TSDefaults {
 
     public locales(locale?:Nullable<language|country|TSCountry|string>):Locales {
         if (locale instanceof TSCountry) { return locale.locales ; }
-        locale = $ascii($trim(locale)) ;
+        locale = $ascii($ftrim(locale)) ;
         if (locale.length) {
             const locales = this._managedLocalesMap.get((locale as string).toLowerCase()) ;
             if ($ok(locales)) { return locales! ; }

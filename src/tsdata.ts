@@ -1,4 +1,4 @@
-import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $unsigned } from "./commons";
+import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, uint, uint8, UINT8_MAX } from "./types" ;
@@ -340,8 +340,8 @@ function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
 
 export function $bytesFromAsciiString(source:Nullable<string>, start:number = 0, end:number = $length(source)):uint8[] {
     let bytes:uint8[] = [] ;        
-    end = Math.min($length(source), $unsigned(end)) ;
-    start = Math.min(end, $unsigned(start)) ;
+    end = Math.min($length(source), $tounsigned(end)) ;
+    start = Math.min(end, $tounsigned(start)) ;
 
     for (let i = start, j = 0 ; i < end ; i++, j++ ) {
         const c = source!.charCodeAt(i) ;
@@ -355,8 +355,8 @@ export function $bufferFromArrayBuffer(a:ArrayBuffer) : Buffer {
 }
 
 export function $arrayBufferFromBuffer(source:Buffer, start:number = 0, end:number = source.length) : ArrayBuffer {
-    end = Math.min(source.length, $unsigned(end)) ;
-    start = Math.min(end, $unsigned(start)) ;
+    end = Math.min(source.length, $tounsigned(end)) ;
+    start = Math.min(end, $tounsigned(start)) ;
 
     const ret = new ArrayBuffer(end - start) ;
     const view = new Uint8Array(ret) ;

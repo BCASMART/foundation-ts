@@ -1,5 +1,5 @@
 
-import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $intornull, $isdate, $isuuid, $keys, $last, $lines, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $trim, $unit, $unsignedornull, $url } from "../src/commons";
+import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $int, $intornull, $isdate, $isuuid, $keys, $last, $lines, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $toint, $tounsigned, $trim, $unit, $unsigned, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
@@ -65,6 +65,78 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectD($unsignedornull('45.5A')).toBe(45);
         t.expectE($unsignedornull('-4 5c')).toBeNull();
         t.expectF($unsignedornull('- 4 5c')).toBeNull();
+    }) ;
+
+    group.unary("verifying $int()", async(t) => {
+        t.expect0($int(null)).toBe(0);
+        t.expect1($int(undefined)).toBe(0);
+        t.expect2($int(NaN)).toBe(0);
+        t.expect3($int(Number.MAX_SAFE_INTEGER)).toBe(0);
+        t.expect4($int(INT_MAX)).toBe(INT_MAX);
+        t.expect5($int(0)).toBe(0);
+        t.expect6($int(-1)).toBe(-1);
+        t.expect7($int(1.3)).toBe(0);
+        t.expect8($int(-1.2)).toBe(0);
+        t.expect9($int(Infinity)).toBe(0);
+        t.expectA($int(-Infinity)).toBe(0);
+        t.expectB($int(1.5)).toBe(0);
+        t.expectC($int(1.6)).toBe(0);
+        t.expectD($int(Number.MIN_SAFE_INTEGER)).toBe(0);
+        t.expectE($int(INT_MIN)).toBe(INT_MIN);
+    }) ;
+
+    group.unary("verifying $unsigned()", async(t) => {
+        t.expect0($unsigned(null)).toBe(0);
+        t.expect1($unsigned(undefined)).toBe(0);
+        t.expect2($unsigned(NaN)).toBe(0);
+        t.expect3($unsigned(Number.MAX_SAFE_INTEGER)).toBe(0);
+        t.expect4($unsigned(UINT_MAX)).toBe(UINT_MAX);
+        t.expect5($unsigned(0)).toBe(0);
+        t.expect6($unsigned(-1)).toBe(0);
+        t.expect7($unsigned(1.3)).toBe(0);
+        t.expect8($unsigned(-1.2)).toBe(0);
+        t.expect9($unsigned(Infinity)).toBe(0);
+        t.expectA($unsigned(-Infinity)).toBe(0);
+        t.expectB($unsigned(1.5)).toBe(0);
+        t.expectC($unsigned(1.6)).toBe(0);
+    }) ;
+
+    group.unary("verifying $toint()", async(t) => {
+        t.expect0($toint(null)).toBe(0);
+        t.expect1($toint(undefined)).toBe(0);
+        t.expect2($toint(NaN)).toBe(0);
+        t.expect3($toint(Number.MAX_SAFE_INTEGER)).toBe(INT_MAX);
+        t.expect4($toint(INT_MAX)).toBe(INT_MAX);
+        t.expect5($toint(0)).toBe(0);
+        t.expect6($toint(-1)).toBe(-1);
+        t.expect7($toint(1.3)).toBe(1);
+        t.expect8($toint(-1.2)).toBe(-1);
+        t.expect9($toint(Infinity)).toBe(INT_MAX);
+        t.expectA($toint(-Infinity)).toBe(INT_MIN);
+        t.expectB($toint(1.5)).toBe(1);
+        t.expectC($toint(1.6)).toBe(1);
+        t.expectD($toint(Number.MIN_SAFE_INTEGER)).toBe(INT_MIN);
+        t.expectE($toint(INT_MIN)).toBe(INT_MIN);
+        t.expectF($toint(UINT_MAX)).toBe(INT_MAX);
+        t.expectG($toint(-UINT_MAX)).toBe(INT_MIN);
+        t.expectH($toint(-1.5)).toBe(-1);
+        t.expectI($toint(-1.6)).toBe(-1);
+    }) ;
+
+    group.unary("verifying $tounsigned()", async(t) => {
+        t.expect0($tounsigned(null)).toBe(0);
+        t.expect1($tounsigned(undefined)).toBe(0);
+        t.expect2($tounsigned(NaN)).toBe(0);
+        t.expect3($tounsigned(Number.MAX_SAFE_INTEGER)).toBe(UINT_MAX);
+        t.expect4($tounsigned(UINT_MAX)).toBe(UINT_MAX);
+        t.expect5($tounsigned(0)).toBe(0);
+        t.expect6($tounsigned(-1)).toBe(0);
+        t.expect7($tounsigned(1.3)).toBe(1);
+        t.expect8($tounsigned(-1.2)).toBe(0);
+        t.expect9($tounsigned(Infinity)).toBe(UINT_MAX);
+        t.expectA($tounsigned(-Infinity)).toBe(0);
+        t.expectB($tounsigned(1.5)).toBe(1);
+        t.expectC($tounsigned(1.6)).toBe(1);
     }) ;
 
     group.unary("verifying $numcompare(a,b)", async(t) => {

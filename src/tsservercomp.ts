@@ -2,7 +2,7 @@ import { ServerResponse } from "http";
 
 import { Nullable, StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
-import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $trim, $unsignedornull, $UUID } from "./commons";
+import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $ftrim, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
 import { TSHttpError } from "./tserrors";
 
@@ -115,7 +115,7 @@ const TSParametersConversions:{[key in TSParametricTokenType]:(s:string) => Null
     int: (s:string) => $intornull(s),
     unsigned: (s:string) => $unsignedornull(s),
     boolean: (s:string) => { 
-        s = $trim(s).toLowerCase() ; 
+        s = $ftrim(s).toLowerCase() ; 
         if (s === '1' || s === 'true' || s === 'y' || s === 'yes') { return true ; }
         if (s === '0' || s === 'false' || s === 'n' || s === 'no') { return false ; }
         return undefined ;
@@ -159,7 +159,7 @@ export class TSParametricEndPoints {
     }
 
     constructor (path:string, ep:TSEndPoints|TSEndPoint|TSEndPointManager, caseInsensitive:boolean=false) {
-        path = $trim(path) ;
+        path = $ftrim(path) ;
         const len = path.length ;
         if ($isfunction(ep)) { ep = { GET: { manager:ep } as TSEndPoint } as TSEndPoints ; }
         else if ('manager' in ep) { ep = { GET:ep as TSEndPoint} as TSEndPoints ; }
@@ -177,7 +177,7 @@ export class TSParametricEndPoints {
             let def = $isfunction(v) ? { manager: v as TSEndPointManager} : v as TSEndPoint ;
             let newQuery:TSParametricQueryDefinition = {} ;
             $keys(def.query).forEach(name => {
-                const n = $trim($string(name)) ;
+                const n = $ftrim($string(name)) ;
                 if (!n.length) { throw `End points ${m} '${path}' did define an unamed query variable.` ; }
                 else if (n !== n.ascii()) { throw `End points ${m} '${path}' did define an invalid '${name}' query variable.` ; }
                 const q0 = def.query![name] ;
@@ -330,7 +330,7 @@ function _calculateQuery(req:TSServerRequest, qdef:TSParametricQueryDefinition) 
     let   query:TSQueryDictionary = {} ;
 
     req.url.searchParams.forEach((v,k) => { 
-        k = $trim(k).toLowerCase() ; 
+        k = $ftrim(k).toLowerCase() ; 
         if (!$length(k)) { 
             throw new TSHttpError(`Unamed query key for endpoint ${req.method} '${req.url.pathname}'`, Resp.BadRequest, {
             method:req.method,

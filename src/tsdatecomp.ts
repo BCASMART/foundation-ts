@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $trim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $int } from "./commons";
+import { $div, $isnumber, $length, $ok, $ftrim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $tounsigned, $toint } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -214,7 +214,7 @@ const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
 const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
 
 export function $isostring2components(source:Nullable<string>, opts:Iso8601ParseOptions={}) : TSDateComp|null {
-    const s = $trim(source) ;
+    const s = $ftrim(source) ;
 	if (!s.length) { return null ; }
 
     let m:Nullable<RegExpMatchArray> = undefined ;
@@ -283,7 +283,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
     if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
 
-    const m = $int(opts.minutesOffset) ;
+    const m = $toint(opts.minutesOffset) ;
     const a = Math.abs(m) ;
     
     if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
@@ -433,7 +433,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                     }
                     case 'P': ret += trs.ampm[comp.hour <= 12 ? 0 : 1] ; break ;
                     case 'q': 
-                        ret += $fpad3($unsigned($dayOfYear(ts))) ;
+                        ret += $fpad3($tounsigned($dayOfYear(ts))) ;
                         break ;
                     case 'r': 
                         ret += $dayOfYear(ts) ;
@@ -447,7 +447,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                         break ;
                     }
                     case 'v':
-                        ret += $fpad2($unsigned($weekOfYear(ts, trs.startingWeekDay))) ;
+                        ret += $fpad2($tounsigned($weekOfYear(ts, trs.startingWeekDay))) ;
                         break ;
                     case 'w':
                         ret += $weekOfYear(ts, trs.startingWeekDay) ;
@@ -492,7 +492,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
 
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
-    let time:number = $unsigned(duration, 0 as uint) ;
+    let time:number = $tounsigned(duration) ;
     let d:number, h:number, m:number ;
 
     d = $div(time,TSDay) ;
