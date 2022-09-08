@@ -34,7 +34,17 @@ export class TSError extends Error {
 }
 
 export function $subclassReponsabililty(instance:object, method:Function):any {
-    throw new TSError(`implementation of method ${instance.constructor.name}.${method.name}() is subclasses reponsabillity.`, {
+    const c = instance.constructor ;
+    if (c === Function) {
+        throw new TSError(`implementation of static method ${(instance as any).name}.${method.name}() is subclasses reponsabillity.`, {
+            isStatic:true,
+            object:instance,
+            method:method
+        }) ;
+    }
+
+    throw new TSError(`implementation of method ${c.name}.${method.name}() is subclasses reponsabillity.`, {
+        isStatic:false,
         object:instance,
         method:method
     }) ;
