@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationRightTrimRegex, FoundationWhiteSpaces } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN} from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 
@@ -208,11 +208,12 @@ export function $firstcap(s: Nullable<string>) : string
 export function $capitalize(s: Nullable<string>) : string
 { return _capitalize(s) ; }
 
-export function $fpad2(v: uint) : string { return $fpad(v,2) ; }
-export function $fpad3(v: uint) : string { return $fpad(v,3) ; }
-export function $fpad4(v: uint) : string { return $fpad(v,4) ; }
-export function $fpad(v: uint, pad:number) : string { 
-    return ($isunsigned(v) ? v.toString() : '').padStart(pad, '0') ; 
+export function $fpad2(v: number, failedChar?:string) : string { return $fpad(v,2, failedChar) ; }
+export function $fpad3(v: number, failedChar?:string) : string { return $fpad(v,3, failedChar) ; }
+export function $fpad4(v: number, failedChar?:string) : string { return $fpad(v,4, failedChar) ; }
+export function $fpad(v: number, pad:number, failedChar?:string) : string {
+    const isUnsigned = $isunsigned(v) ;
+    return (isUnsigned ? v.toString() : '').padStart(pad, isUnsigned ? '0' : $length(failedChar) === 1 ? failedChar! : 'X') ; 
 }
 // for now $ascii() does not mak any transliterations from
 // non-latin languages like Greek
@@ -539,10 +540,10 @@ declare global {
         unit:   (this:number, opts?:$unitOptions) => string ;
         meters: (this:number, decimals?:number) => string ;
         octets: (this:number, decimals?:number) => string ;
-        fpad:   (this:number, pad:number) => string ;
-        fpad2:  (this:number) => string ;
-        fpad3:  (this:number) => string ;
-        fpad4:  (this:number) => string ;
+        fpad:   (this:number, pad:number, failedChar?:string) => string ;
+        fpad2:  (this:number, failedChar?:string) => string ;
+        fpad3:  (this:number, failedChar?:string) => string ;
+        fpad4:  (this:number, failedChar?:string) => string ;
         toInt:  (this:number, defaultValue?:int) => int ;
         toUnsigned:  (this:number, defaultValue?:uint) => uint ;
     }
@@ -552,10 +553,10 @@ if (!('fpad' in Number.prototype)) {
     Number.prototype.unit = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
     Number.prototype.meters = function meters(this:number, decimals?:number) { return $meters(this, decimals) ; }
     Number.prototype.octets = function octets(this:number, decimals?:number) { return $octets(this, decimals) ; }
-    Number.prototype.fpad  = function fpad(this:number, pad:number) { return $fpad($tounsigned(this), pad) ; }
-    Number.prototype.fpad2 = function fpad(this:number) { return $fpad($tounsigned(this), 2) ; }
-    Number.prototype.fpad3 = function fpad(this:number) { return $fpad($tounsigned(this), 3) ; }
-    Number.prototype.fpad4 = function fpad(this:number) { return $fpad($tounsigned(this), 4) ; }
+    Number.prototype.fpad  = function fpad(this:number, pad:number, failedChar?:string) { return $fpad(this, pad, failedChar) ; }
+    Number.prototype.fpad2 = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
+    Number.prototype.fpad3 = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }
+    Number.prototype.fpad4 = function fpad(this:number, failedChar?:string) { return $fpad(this, 4, failedChar) ; }
 }
 
 if (!('toInt' in Number.prototype)) {

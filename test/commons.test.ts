@@ -1,8 +1,8 @@
 
-import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $ftrim, $fusion, $includesdict, $int, $intornull, $isdate, $isuuid, $keys, $last, $lines, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $toint, $tounsigned, $trim, $unit, $unsigned, $unsignedornull, $url } from "../src/commons";
+import { $ascii, $average, $capitalize, $count, $defined, $dict, $email, $first, $firstcap, $fpad, $ftrim, $fusion, $includesdict, $int, $intornull, $isdate, $isuuid, $keys, $last, $lines, $ltrim, $map, $meters, $normspaces, $octets, $ok, $rtrim, $sum, $toint, $tounsigned, $trim, $unit, $unsigned, $unsignedornull, $url } from "../src/commons";
 import { $compare, $datecompare, $equal, $max, $min, $numcompare } from "../src/compare";
 import { TSDate } from "../src/tsdate";
-import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT_MAX } from "../src/types";
+import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT32_MAX, UINT_MAX } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
@@ -137,6 +137,33 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectA($tounsigned(-Infinity)).toBe(0);
         t.expectB($tounsigned(1.5)).toBe(1);
         t.expectC($tounsigned(1.6)).toBe(1);
+    }) ;
+
+    group.unary("verifying $fpad() functions", async(t) => {
+        const n = 12 ;
+        t.expect0($fpad(1,5)).toBe('00001') ;
+        t.expect1($fpad(0,5)).toBe('00000') ;
+        t.expect2($fpad(9999,5)).toBe('09999') ;
+        t.expect3($fpad(99999,5)).toBe('99999') ;
+        t.expect4($fpad(99999999,5)).toBe('99999999') ;
+        t.expect5($fpad(-1,5)).toBe('XXXXX') ;
+        t.expect6($fpad(-99999,5)).toBe('XXXXX') ;
+        t.expect7($fpad(1.3,5)).toBe('XXXXX') ;
+        t.expect8($fpad(-1.3,5)).toBe('XXXXX') ;
+        t.expect9($fpad(NaN,5)).toBe('XXXXX') ;
+        t.expectA($fpad(Infinity,5)).toBe('XXXXX') ;
+        t.expectB($fpad(-Infinity,5)).toBe('XXXXX') ;
+        t.expectC($fpad(UINT32_MAX,5)).toBe(UINT32_MAX.toString()) ;
+        t.expectD($fpad(UINT_MAX,5)).toBe(UINT_MAX.toString()) ;
+        t.expectE($fpad(Number.MAX_SAFE_INTEGER,5)).toBe('XXXXX') ;
+        t.expectF($fpad(Number.MAX_SAFE_INTEGER,6, "*")).toBe("******") ;
+        t.expectG(Number.MAX_SAFE_INTEGER.fpad(6, "*")).toBe("******") ;
+        t.expectH(n.fpad2()).toBe("12") ;
+        t.expectI(n.fpad3()).toBe("012") ;
+        t.expectJ(n.fpad4()).toBe("0012") ;
+        t.expectK(n.fpad(6)).toBe("000012") ;
+        t.expectL(Number.MAX_SAFE_INTEGER.fpad2('-')).toBe("--") ;
+        t.expectM(UINT32_MAX.fpad2('-')).toBe(UINT32_MAX.toString()) ;
     }) ;
 
     group.unary("verifying $numcompare(a,b)", async(t) => {

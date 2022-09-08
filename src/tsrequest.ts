@@ -173,8 +173,11 @@ export class TSRequest {
         this.commonHeaders= $ok(opts?.headers) ? opts.headers! : {} ;
 		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
 		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
+
+        if ($ok(opts.timeout) && opts.timeout! < 0) { throw 'new TSRequest() timeout should be positive'}
+
 		const commonTimeout = $tounsigned(opts.timeout) ;
-		if (commonTimeout>0) { this.defaultTimeOut = commonTimeout ; }
+		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
 		this.channel = axios.create({baseURL:baseURL, withCredentials:opts.managesCredentials}) ;
 	} 
 
@@ -235,6 +238,8 @@ export class TSRequest {
 		}
 		if ($ok(body)) { config.data = body } ;
 		
+        if ($ok(timeout) && timeout! < 0) { throw 'TSRequest.req() timeout should be positive'}
+
 		timeout = $tounsigned(timeout) ;
 		if (!timeout) { timeout = this.defaultTimeOut ; }
 		let ret = null ;

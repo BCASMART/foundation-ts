@@ -339,7 +339,8 @@ function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
 }
 
 export function $bytesFromAsciiString(source:Nullable<string>, start:number = 0, end:number = $length(source)):uint8[] {
-    let bytes:uint8[] = [] ;        
+    let bytes:uint8[] = [] ;
+    if (!$isunsigned(start) || !$isunsigned(end)) { throw '$bytesFromAsciiString(): start and end parameters must be true unsigned values' ; }       
     end = Math.min($length(source), $tounsigned(end)) ;
     start = Math.min(end, $tounsigned(start)) ;
 
@@ -355,6 +356,7 @@ export function $bufferFromArrayBuffer(a:ArrayBuffer) : Buffer {
 }
 
 export function $arrayBufferFromBuffer(source:Buffer, start:number = 0, end:number = source.length) : ArrayBuffer {
+    if (!$isunsigned(start) || !$isunsigned(end)) { throw '$arrayBufferFromBuffer(): start and end parameters must be true unsigned values' ; }       
     end = Math.min(source.length, $tounsigned(end)) ;
     start = Math.min(end, $tounsigned(start)) ;
 

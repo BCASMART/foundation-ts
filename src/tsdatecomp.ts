@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $ftrim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $tounsigned, $toint } from "./commons";
+import { $div, $isnumber, $length, $ok, $ftrim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $tounsigned } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -282,12 +282,13 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
 
     if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
     if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
+    if (!$isint(opts.minutesOffset)) { throw '$components2isodateString(): output time zone offset must be a plain unsigned integer' ; }
+    if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { throw '$components2isodateString(): milliseconds offset should be in 0...999 range' ; }    
 
-    const m = $toint(opts.minutesOffset) ;
+    const m = opts.minutesOffset! as int ;
     const a = Math.abs(m) ;
     
-    if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { throw '$components2isodateString(): Bad milliseconds offset' ; }    
-    if (!$isint(opts.minutesOffset) || a % 15 !== 0) { throw '$components2isodateString(): Bad output time zone offset infos' ; }
+    if (a % 15 !== 0) { throw '$components2isodateString(): output time zone offset must be a multiple of 15' ; }
     
     let s = $components2string(c, opts.form!) ;
     
@@ -298,13 +299,13 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     if (opts.form === TSDateForm.ISO8601C) {
         // in short form, we use Z, +HH and +HHMM offsets
         if (!a) { return s+'Z' ;}
-        return a % 60 === 0 ? `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}` :
-                              `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}${$fpad2((a % 60) as int)}`
+        return a % 60 === 0 ? `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}` :
+                              `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}${$fpad2((a % 60) as int)}`
     }
     if (!a && opts.forceZ) { return s+'Z' ; }
 
     // other forms commes with +HH:MM offsets, even for hour's round offsets
-    return `${s}${a<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
+    return `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
 }
 
 /**
@@ -433,7 +434,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                     }
                     case 'P': ret += trs.ampm[comp.hour <= 12 ? 0 : 1] ; break ;
                     case 'q': 
-                        ret += $fpad3($tounsigned($dayOfYear(ts))) ;
+                        ret += $fpad3($dayOfYear(ts)) ;
                         break ;
                     case 'r': 
                         ret += $dayOfYear(ts) ;
@@ -447,7 +448,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                         break ;
                     }
                     case 'v':
-                        ret += $fpad2($tounsigned($weekOfYear(ts, trs.startingWeekDay))) ;
+                        ret += $fpad2($weekOfYear(ts, trs.startingWeekDay)) ;
                         break ;
                     case 'w':
                         ret += $weekOfYear(ts, trs.startingWeekDay) ;
@@ -492,7 +493,8 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
 
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
-    let time:number = $tounsigned(duration) ;
+    if ($ok(duration) && duration! < 0) { throw '$durationcomponents() : duration must be positive or 0'}
+    let time:number = $tounsigned(duration) ; // we trash subseconds duration digits
     let d:number, h:number, m:number ;
 
     d = $div(time,TSDay) ;
