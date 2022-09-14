@@ -1,5 +1,5 @@
 import { $equal } from "./compare";
-import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationRightTrimRegex, FoundationWhiteSpaces } from "./string_tables";
+import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationNewLinesSplitRegex, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
 import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN } from "./types";
@@ -24,8 +24,8 @@ export function $valueorundefine<T>(o:Nullable<T>):T|undefined
 export function $isstring(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'string' ; }
 
-export function $iswhitespace(c:Nullable<string>) : boolean
-{ return $length(c) >= 1 && FoundationWhiteSpaces.includes(c!.charAt(0)) ; }
+export function $iswhitespace(s: Nullable<string|number>) : boolean
+{ return $isstring(s) ? FoundationWhiteSpacesStringCodeSet.has(s as string) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s as number) : false) ; }
 
 export function $isnumber(o:any) : boolean
 { return o !== null && o !== undefined && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
@@ -197,7 +197,7 @@ export function $ftrim(s: Nullable<string>) : string
 export { $ftrim as $trim }
 
 export function $lines(s: Nullable<string>) : string[]
-{ return $ok(s) ? s!.split(/[\n\f\r\u000B]/) : [] ; }
+{ return $ok(s) ? s!.split(FoundationNewLinesSplitRegex) : [] ; }
 
 export function $normspaces(s: Nullable<string>) : string
 { return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " ") ; }
@@ -534,6 +534,11 @@ declare global {
         isUrl: (this:string) => boolean ;
         isUUID: (this:string) => boolean ;
         lines: (this:string) => string[] ;
+        toInt:  (this:string, defaultValue?:int) => int ;
+        toUnsigned:  (this:string, defaultValue?:uint) => uint ;
+        isNewLine:   (this:string) => boolean ;
+        isWhiteSpace:(this:string) => boolean ;
+        isStrictWhiteSpace:(this:string) => boolean ;
     }
 
     export interface Number {
@@ -546,6 +551,9 @@ declare global {
         fpad4:  (this:number, failedChar?:string) => string ;
         toInt:  (this:number, defaultValue?:int) => int ;
         toUnsigned:  (this:number, defaultValue?:uint) => uint ;
+        isNewLine:   (this:number) => boolean ;
+        isWhiteSpace:(this:number) => boolean ;
+        isStrictWhiteSpace:(this:number) => boolean ;
     }
 }
 
@@ -557,16 +565,32 @@ if (!('fpad' in Number.prototype)) {
     Number.prototype.fpad2 = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
     Number.prototype.fpad3 = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }
     Number.prototype.fpad4 = function fpad(this:number, failedChar?:string) { return $fpad(this, 4, failedChar) ; }
+    Number.prototype.isNewLine = function isNewLine(this:number) { return this === 10 || this === 11 || this === 12 || this === 13 ; }
+    Number.prototype.isWhiteSpace = function isWhiteSpace(this:number) { return FoundationWhiteSpacesNumberCodeSet.has(this) ; }
+    Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number) { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; }
 }
 
 if (!('toInt' in Number.prototype)) {
     Number.prototype.toInt = function toInt(this:number, defaultValue?:int) { return $toint(this, defaultValue) ; }
 }
+if (!('toInt' in String.prototype)) {
+    String.prototype.toInt = function toInt(this:string, defaultValue?:int) { return $toint(this, defaultValue) ; }
+}
 
 if (!('toUnsigned' in Number.prototype)) {
     Number.prototype.toUnsigned = function toUnsigned(this:number, defaultValue?:int) { return $tounsigned(this, defaultValue) ; }
 }
+if (!('toUnsigned' in String.prototype)) {
+    String.prototype.toUnsigned = function toUnsigned(this:string, defaultValue?:int) { return $tounsigned(this, defaultValue) ; }
+}
 
+if (!('isWhiteSpace' in String.prototype)) {
+    String.prototype.isWhiteSpace = function isNewLine(this:string) { return FoundationWhiteSpacesStringCodeSet.has(this) ; }
+    String.prototype.isStrictWhiteSpace = function isNewLine(this:string) { return FoundationStrictWhiteSpacesStringCodeSet.has(this) ; }
+}
+if (!('isNewLine' in String.prototype)) {
+    String.prototype.isNewLine = function isNewLine(this:string) { return this === '\u000a' || this === '\u000b' || this === '\u000c' || this === '\u000d' ; }
+}
 if (!('ascii' in String.prototype)) {
     String.prototype.ascii   = function ascii(this:string):string { return $ascii(this) ; }
 }

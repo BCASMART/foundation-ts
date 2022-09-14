@@ -5,7 +5,7 @@ import { TSDate } from "../src/tsdate";
 import { Ascending, Descending, INT_MAX, INT_MIN, Same, UINT32_MAX, UINT_MAX } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
-import { FoundationWhiteSpaces } from "../src/string_tables";
+import { FoundationNewLines, FoundationWhiteSpaces } from "../src/string_tables";
 import { TSDateForm } from "../src/tsdatecomp";
 import { $arrayBufferFromBuffer } from "../src/tsdata";
 
@@ -138,7 +138,8 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectB($tounsigned(1.5)).toBe(1);
         t.expectC($tounsigned(1.6)).toBe(1);
     }) ;
-
+    let a = new Array(10) ;
+    let b = a.filter((v:any, index:number, tab:any[]) => v)
     group.unary("verifying $fpad() functions", async(t) => {
         const n = 12 ;
         t.expect0($fpad(1,5)).toBe('00001') ;
@@ -468,6 +469,47 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect4(str.normalizeSpaces()).toBe("I'm a super function") ;
     }) ;
 
+    group.unary("Testing x.isWhiteSpace() methods", async(t) => {
+        const n = SPACES.length ;
+        for (let i = 0 ; i < n ; i++) {
+            t.expect(SPACES.charAt(i).isWhiteSpace(),'Sws'+i).toBeTruthy() ;
+            t.expect(SPACES.charCodeAt(i).isWhiteSpace(),'Nws'+i).toBeTruthy() ;
+        }
+        const c = 64 ;
+        t.expect0(c.isWhiteSpace()).toBeFalsy() ;
+        t.expect1(NaN.isWhiteSpace()).toBeFalsy() ;
+        t.expect2(Infinity.isWhiteSpace()).toBeFalsy() ;
+        t.expect3((-Infinity).isWhiteSpace()).toBeFalsy() ;
+        t.expectA('a'.isWhiteSpace()).toBeFalsy() ;
+        t.expectB(' a'.isWhiteSpace()).toBeFalsy() ;
+        t.expectC('  '.isWhiteSpace()).toBeFalsy() ;
+        t.expectD(SPACES.isWhiteSpace()).toBeFalsy() ;
+        t.expectE(' '.isStrictWhiteSpace()).toBeTruthy() ;
+        t.expectF('\n'.isStrictWhiteSpace()).toBeFalsy() ;
+    }) ;
+
+    group.unary("Testing x.isNewLine() methods", async(t) => {
+        const NLS = FoundationNewLines ;
+        const n = NLS.length ;
+        for (let i = 0 ; i < n ; i++) {
+            t.expect(NLS.charAt(i).isWhiteSpace(),'Sws'+i).toBeTruthy() ;
+            t.expect(NLS.charCodeAt(i).isWhiteSpace(),'Nws'+i).toBeTruthy() ;
+            t.expect(NLS.charAt(i).isNewLine(),'Snl'+i).toBeTruthy() ;
+            t.expect(NLS.charCodeAt(i).isNewLine(),'Nnl'+i).toBeTruthy() ;
+        }
+        const c = 64 ;
+        t.expect0(c.isNewLine()).toBeFalsy() ;
+        t.expect1(NaN.isNewLine()).toBeFalsy() ;
+        t.expect2(Infinity.isNewLine()).toBeFalsy() ;
+        t.expect3((-Infinity).isNewLine()).toBeFalsy() ;
+        t.expectA('a'.isNewLine()).toBeFalsy() ;
+        t.expectB('\na'.isNewLine()).toBeFalsy() ;
+        t.expectC('\n\t'.isNewLine()).toBeFalsy() ;
+        t.expectD(NLS.isNewLine()).toBeFalsy() ;
+        t.expectE(' '.isNewLine()).toBeFalsy() ;
+        t.expectE('\t'.isNewLine()).toBeFalsy() ;
+    }) ;
+
     group.unary("Testing functions $firstcap(v) && $capitalize(v)", async(t) => {
         const str = " , jean-françois is my !!friend. yes!" ;
         t.expect0($firstcap(str)).toBe(" , Jean-françois is my !!friend. yes!") ;
@@ -481,11 +523,11 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     }) ;
 
     group.unary("Testing function $lines(s)", async(t) => {
-        const str = "  Testing \n\tsplit \n\f\r\u000Bfunction\u000B" ;
+        const str = `  Testing \n\tsplit ${FoundationNewLines}function\u000B` ;
         const res = ["  Testing ", "\tsplit ", "", "", "", "function", ""] ;
         t.expect0($lines(str)).toBe(res) ;
         t.expect1(str.lines()).toBe(res) ;
-        t.expect2("\n\f\r\u000B".lines()).toBe(["", "", "", "", ""]) ;
+        t.expect2(FoundationNewLines.lines()).toBe(["", "", "", "", ""]) ;
         t.expect3("".lines()).toBe([""]) ;
         t.expect4($lines(undefined)).toBe([]) ;
         t.expect5($lines(null)).toBe([]) ;

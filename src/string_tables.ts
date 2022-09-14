@@ -6,8 +6,14 @@ import { StringDictionary } from "./types";
     to their ASCII transliteration. All unichars > 0x7F non declared
     in FoundationASCIIConversion dictionary are ignored.    
 */
-export const FoundationWhiteSpaces =              "\u0009\u000a\u000b\u000c\u000d\u0020\u0085\u00A0\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF" ;
-
+const _otherWhiteSpaces = "\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF" ;
+export const FoundationNewLines = "\u000a\u000b\u000c\u000d" ;
+export const FoundationASCIIStrictWhiteSpaces = "\u0009\u0020" ;
+export const FoundationBynaryStrictWhiteSpaces = FoundationASCIIStrictWhiteSpaces+"\u0085\u00A0" ;
+export const FoundationASCIIWhiteSpaces = FoundationASCIIStrictWhiteSpaces+FoundationNewLines ;
+export const FoundationBinaryWhiteSpaces = FoundationBynaryStrictWhiteSpaces+FoundationNewLines ;
+export const FoundationStrictWhiteSpaces = FoundationBynaryStrictWhiteSpaces+_otherWhiteSpaces ;
+export const FoundationWhiteSpaces = FoundationBinaryWhiteSpaces+_otherWhiteSpaces ;
 export const FoundationASCIIConversion:StringDictionary = {
 
     /* 00A0 */
@@ -942,9 +948,34 @@ export const FoundationFindAllWhitespacesRegex = new RegExp(`[${FoundationWhiteS
 export const FoundationLeftTrimRegex = new RegExp(`^[${FoundationWhiteSpaces}]+`) ;
 export const FoundationRightTrimRegex = new RegExp(`[${FoundationWhiteSpaces}]+$`) ;
 
+export const FoundationNewLinesSplitRegex = new RegExp(`[${FoundationNewLines}]`) ;
+
+export const FoundationWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationWhiteSpaces) ;
+export const FoundationWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationWhiteSpaces) ;
+export const FoundationStricWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationStrictWhiteSpaces) ;
+export const FoundationStrictWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationStrictWhiteSpaces) ;
+
 function _addWhiteSpaces() {
     const len = FoundationWhiteSpaces.length ;
     for (let i = 0 ; i < len ; i++) {
         FoundationASCIIConversion[FoundationWhiteSpaces.charAt(i)] = ' ' ;
     }
+}
+
+function _whiteSpacesAsNumberSet(reference:string):Set<number> {
+    let ret = new Set<number>() ;
+    const len = reference.length ;
+    for (let i = 0 ; i < len ; i++) {
+        ret.add(reference.charCodeAt(i)) ;
+    }
+    return ret ;
+}
+
+function _whiteSpaceAsStringSet(reference:string):Set<string> {
+    let ret = new Set<string>() ;
+    const len = reference.length ;
+    for (let i = 0 ; i < len ; i++) {
+        ret.add(reference.charAt(i)) ;
+    }
+    return ret ;
 }
