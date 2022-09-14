@@ -138,8 +138,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectB($tounsigned(1.5)).toBe(1);
         t.expectC($tounsigned(1.6)).toBe(1);
     }) ;
-    let a = new Array(10) ;
-    let b = a.filter((v:any, index:number, tab:any[]) => v)
+
     group.unary("verifying $fpad() functions", async(t) => {
         const n = 12 ;
         t.expect0($fpad(1,5)).toBe('00001') ;
