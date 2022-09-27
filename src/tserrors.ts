@@ -1,6 +1,6 @@
-import { $ok } from "./commons";
+import { $isint, $isunsigned, $ok } from "./commons";
 import { Resp } from "./tsrequest";
-import { AnyDictionary } from "./types";
+import { AnyDictionary, Nullable } from "./types";
 
 export class TSUniqueError extends Error {
 	private static __timeoutInstance:TSUniqueError ;
@@ -31,6 +31,28 @@ export class TSError extends Error {
         super(message) ;
         this.infos = infos ;
     }
+
+    public static assertIntParam(v:Nullable<number>, fn:string, param:string) {
+        if ($ok(v) && !$isint(v)) {
+            throw new TSError(`parameter '${param}' of ${fn}() must be an integer`, {
+                fn:fn,
+                param:param,
+                value:v
+            }) ;    
+        }
+    }
+
+    public static assertUnsignedParam(v:Nullable<number>, fn:string, param:string) {
+        if ($ok(v) && !$isunsigned(v)) {
+            throw new TSError(`parameter '${param}' of ${fn}() must be an unsigned`, {
+                fn:fn,
+                param:param,
+                value:v
+            }) ;
+        }
+    }
+
+
 }
 
 export function $subclassReponsabililty(instance:object, method:Function):any {

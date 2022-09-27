@@ -1,4 +1,4 @@
-import { $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
+import { $bytesFromAsciiString, $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, uint, uint8, UINT8_MAX } from "./types" ;
@@ -99,6 +99,33 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
         }
         else { this._len = 0 ; }
     }
+
+/*    public splice(targetStart:number, deleteCount:number, source?:Nullable<TSData|Uint8Array>, sourceStart:number=0, sourceEnd?:number) {
+        const slen = $length(source) ;
+
+        TSError.assertIntParam(targetStart, 'TSData.splice', 'targetStart') ;
+        targetStart = Math.min(Math.max(targetStart, 0), slen) ;
+        
+        TSError.assertIntParam(deleteCount, 'TSData.splice', 'deleteCount') ;
+        deleteCount = Math.max(deleteCount, 0) ;
+        if (targetStart === slen) { deleteCount = 0 ; }
+        
+        TSError.assertIntParam(sourceStart, 'TSData.splice', 'sourceStart') ;
+        sourceStart = Math.max(sourceStart, 0) ;
+
+        TSError.assertIntParam(sourceEnd, 'TSData.splice', 'sourceEnd') ;
+        sourceEnd = $ok(sourceEnd) ? Math.min(Math.max(sourceEnd!, 0), slen) : slen ;
+        
+        const len = sourceEnd - sourceStart ;
+
+        if (!deleteCount && len <= 0) { 
+            throw new TSError(
+                "TSData.splice(): if 'deleteCount' parameter is not strictly positive or 'targetStart' >= 'source.length', you need to have a valid combination of 'source', 'sourceStart' and 'sourceEnd' parameter",
+                { fn:'TSData.splice', targetStart:targetStart, deleteCount:deleteCount, source:source, sourceStart:sourceStart, sourceEnd:sourceEnd }
+            ) 
+        }
+    }
+*/
 
     public appendByte(source:uint8) {
         this._willGrow(1) ;
@@ -375,18 +402,6 @@ function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
     return $ok(value) ? (<TSData|Uint8Array>value).length : -1 ; 
 }
 
-export function $bytesFromAsciiString(source:Nullable<string>, start:number = 0, end:number = $length(source)):uint8[] {
-    let bytes:uint8[] = [] ;
-    if (!$isunsigned(start) || !$isunsigned(end)) { throw '$bytesFromAsciiString(): start and end parameters must be true unsigned values' ; }       
-    end = Math.min($length(source), $tounsigned(end)) ;
-    start = Math.min(end, $tounsigned(start)) ;
-
-    for (let i = start, j = 0 ; i < end ; i++, j++ ) {
-        const c = source!.charCodeAt(i) ;
-        if (c < 128) { bytes[j] = c as uint8 ; }
-    }
-    return bytes ;
-}
 
 export function $bufferFromArrayBuffer(a:ArrayBuffer) : Buffer {
     return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a) ;

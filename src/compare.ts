@@ -21,6 +21,19 @@ export function $datecompare(
     return a.compare(b) ;
 }
 
+export function $uint8ArrayCompare(a:Nullable<Uint8Array>, b:Nullable<Uint8Array>):Comparison {
+    if (!$ok(a) || !$ok(b)) { return undefined ; }
+	if (a === b) { return Same ; }
+    const na = a!.length, nb = b!.length ;
+    let i = 0 ;
+    while (i < na && i < nb) {
+        const c = $numcompare(a![i], b![i]) ;
+        if (c !== Same) { return c ; }
+        i++ ;
+    }
+    return na === nb ? Same : (i < na ? Descending : Ascending) ;
+}
+
 export function $compare(a:any, b:any):Comparison {
 
     if (!$ok(a) || !$ok(b)) { return undefined ; }
@@ -43,18 +56,9 @@ export function $compare(a:any, b:any):Comparison {
     }
 	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
+	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $uint8ArrayCompare(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-		a = new Uint8Array(a as ArrayBufferLike) ;
-		b = new Uint8Array(b as ArrayBufferLike) ;
-        const na = a.length, nb = b.length ;
-        let i = 0 ;
-        while (i < na && i < nb) {
-
-            const c = $numcompare(a[i], b[i]) ;
-            if (c !== Same) { return c ; }
-            i++ ;
-        }
-        return na === nb ? Same : (i < na ? Descending : Ascending) ;
+        return $uint8ArrayCompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
     }
     return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
 }
@@ -84,8 +88,16 @@ function _minmax<T>(values:Nullable<Iterable<T>>, compValue:Comparison):any
     return ret ;
 }
 
+export function $uint8ArrayEqual(a:Nullable<Uint8Array>, b:Nullable<Uint8Array>):boolean {
+	if (a === b) { return true ; }
+	if (!$ok(a) || !$ok(b)) return false ;
+    const n = a!.length ;
+    if (n !== b!.length) return false ;
+    for(let i = 0 ; i < n ; i++) { if (a![i] !== b![i]) return false ; }
+    return true ;
+}
 
-export function $equal(a:any, b:any) {
+export function $equal(a:any, b:any):boolean {
 	if (a === b) { return true ; }
 	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
 	if (!$ok(a) || !$ok(b)) return false ;
@@ -118,13 +130,9 @@ export function $equal(a:any, b:any) {
 		return true ;
 	}
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
+	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $uint8ArrayEqual(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-		a = new Uint8Array(a as ArrayBufferLike) ;
-		b = new Uint8Array(b as ArrayBufferLike) ;
-		const n = a.length ;
-		if (n !== b.length) return false ;
-		for(let i = 0 ; i < n ; i++) { if (a[i] !== b[i]) return false ; }
-		return true ;
+        return $uint8ArrayEqual(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
 	}
 
 	if (Object.getPrototypeOf(a) === Object.prototype && Object.getPrototypeOf(b) === Object.prototype) {

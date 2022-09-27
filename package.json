@@ -1,11 +1,12 @@
 {
   "name": "foundation-ts",
-  "version": "1.2.28",
+  "version": "1.2.29",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist tdist",
+    "clean": "rm -rf dist tdist browser/*.js",
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
+    "browser": "npm run clean && npm run build && browserify dist/index.js -o browser/foundationts.js",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
     "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node --async-stack-traces --experimental-modules tdist/test/index.test.js"
   },

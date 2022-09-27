@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationLeftTrimRegex, FoundationNewLinesSplitRegex, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, UINT32_MAX, INT32_MIN, uint8 } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 
@@ -453,6 +453,82 @@ export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T
 export function $json(v:any, replacer: (number | string)[] | null = null, space: string | number = 2): string
 { return JSON.stringify(v, replacer, space) ; }
 
+export function $bytesFromAsciiString(source:Nullable<string>, start:number = 0, end:number = $length(source)):uint8[] {
+    let bytes:uint8[] = [] ;
+    if (!$isunsigned(start) || !$isunsigned(end)) { throw '$bytesFromAsciiString(): start and end parameters must be true unsigned values' ; }       
+    end = Math.min($length(source), $tounsigned(end)) ;
+    start = Math.min(end, $tounsigned(start)) ;
+
+    for (let i = start, j = 0 ; i < end ; i++, j++ ) {
+        const c = source!.charCodeAt(i) ;
+        if (c < 128) { bytes[j] = c as uint8 ; }
+    }
+    return bytes ;
+}
+
+const base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" ;
+
+export function $decodeBase64(input:string, reference:string=base64KeyStr) : Uint8Array
+{
+    var chr1, chr2, chr3;
+    var enc1, enc2, enc3, enc4;
+    var i = 0;
+    var size = 0;
+    const len = input.length ;
+            
+    input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+    var uint8 = new Uint8Array(input.length);
+
+    while (i < len) {
+
+        enc1 = reference.indexOf(input.charAt(i++));
+        enc2 = reference.indexOf(input.charAt(i++));
+        enc3 = reference.indexOf(input.charAt(i++));
+        enc4 = reference.indexOf(input.charAt(i++));
+
+        chr1 = (enc1 << 2) | (enc2 >> 4);
+        chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        chr3 = ((enc3 & 3) << 6) | enc4;
+
+        uint8[size++] = (chr1 & 0xff);
+        if (enc3 !== 64) {
+            uint8[size++] = (chr2 & 0xff);
+        }
+	if (enc4 !== 64) {
+            uint8[size++] = (chr3 & 0xff);
+	}
+
+    }
+    return uint8.subarray(0,size);
+}
+
+export function $encodeBase64(input:Uint8Array, reference:string=base64KeyStr):string
+{
+    var output = "";
+    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+    const len = input.length ;
+    var i = 0;
+
+    while (i < len) {
+        chr1 = input[i++];
+        chr2 = input[i++];
+        chr3 = input[i++];
+ 
+        enc1 = chr1 >> 2;
+        enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+        enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+        enc4 = chr3 & 63;
+ 
+        if (isNaN(chr2)) {
+            enc3 = enc4 = 64;
+        } else if (isNaN(chr3)) {
+            enc4 = 64;
+        }
+        output = output + reference.charAt(enc1) + reference.charAt(enc2) + reference.charAt(enc3) + reference.charAt(enc4);
+    }
+    return output;
+}
 
 // ===== private functions ===================================
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 
