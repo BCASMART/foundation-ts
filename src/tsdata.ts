@@ -1,7 +1,7 @@
-import { $bytesFromAsciiString, $capacityForCount, $count, $isfunction, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
+import { $bytesFromAsciiString, $capacityForCount, $count, $encoding, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { TSClone, TSObject } from "./tsobject";
-import { Comparison, Nullable, Same, uint, uint8, UINT8_MAX } from "./types" ;
+import { Comparison, Nullable, Same, StringEncoding, uint, uint8, UINT8_MAX } from "./types" ;
 import { $inbrowser } from "./utils";
 
 /**
@@ -20,7 +20,7 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     private _allocFn:(n:number) => Buffer ;
 
     // ============================ TSDATA creation =============================================
-    constructor (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts:TSDataOptions={}) 
+    constructor (source?:Nullable<TSData|Uint8Array|ArrayBuffer|number>, opts:TSDataOptions={}) 
     {
         this._allocFn = $ok(opts.allocMethod) ? opts.allocMethod! : (opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe) ;
 
@@ -326,15 +326,10 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
     public readDoubleBE(offset?:number): number     { return this._read(offset, 8, Buffer.prototype.readDoubleBE) ; }
 
     // ============ TSObject conformance =============== 
-
-    public toString(encoding:((b:Buffer, start:number, end:number) => string)|BufferEncoding = 'binary', start:number = 0, end:number = this._len): string {
+    public toString(encoding: StringEncoding = 'binary', start: number = 0, end: number = this._len): string {
         start = Math.max(0, start) ;
         end   = Math.min(end, this._len) ;
-        
-        if (start >= end) { return '' ; }
-        return $isfunction(encoding) ? 
-            (encoding as ((b:Buffer, start:number, end:number) => string))(this._buf, start, end) : 
-            this._buf.toString(encoding as BufferEncoding, start, end) ;
+        return this._buf.toString($encoding(encoding), start, end) ;
     }
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }

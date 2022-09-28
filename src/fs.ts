@@ -31,13 +31,13 @@ import {
     isAbsolute,
     normalize 
 } from 'path' ;
-import { $isstring, $isunsigned, $length, $ok, $ftrim } from './commons';
+import { $isstring, $isunsigned, $length, $ok, $ftrim, $encoding } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { Nullable } from './types';
+import { Nullable, StringEncoding } from './types';
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
@@ -241,12 +241,12 @@ export function $loadJSON(src:Nullable<string|Buffer>) : any | null
 	return ret ;
 }
 
-export function $readString(src:Nullable<string>, encoding:BufferEncoding='utf-8') : string|null
+export function $readString(src:Nullable<string>, encoding:StringEncoding='utf-8') : string|null
 {
     if ($inbrowser()) { throw 'unavailable $readString() function in browser' ; }
 	let ret:string|null = null ;
-	if ($length(src) && Buffer.isEncoding(encoding)) {
-		try { ret = readFileSync(src!, encoding) ; }
+	if ($length(src)) {
+		try { ret = readFileSync(src!, $encoding(encoding)) ; }
 		catch(e) { ret = null ; }
 	}
 	return ret ;
@@ -258,7 +258,7 @@ export interface BasicWriteOptions {
 }
 
 export interface $writeStringOptions extends BasicWriteOptions {
-    encoding?:BufferEncoding,
+    encoding?:StringEncoding,
 }
 
 export function $writeString(src:Nullable<string>, str:string, opts:$writeStringOptions = {}):boolean {
@@ -271,9 +271,8 @@ export function $fullWriteString(src:Nullable<string>, str:string, opts:$writeSt
 {
     if ($inbrowser()) { throw 'unavailable $writeString() function in browser' ; }
     let encoding = $length(opts.encoding) ? opts.encoding! : 'utf-8' ;
-    if (!Buffer.isEncoding(encoding)) { return [false, null] ; }
 
-    return $fullWriteBuffer(src, Buffer.from(str, encoding), opts as BasicWriteOptions )
+    return $fullWriteBuffer(src, Buffer.from(str, $encoding(encoding)), opts as BasicWriteOptions )
 }
 
 

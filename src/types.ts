@@ -40,13 +40,24 @@ export const MONEY_MIN = <money>-999999999 ;
 export const MONEY_MAX = <money>+999999999 ;
 export const FREE = <money>0 ;
 
-// ========== string types =====================
+// ========== string related types =====================
 export type UUID   	= Opaque<string> ;
 export type email 	= Opaque<string> ;
 export type url 	= Opaque<string> ; 
 export type isodate = Opaque<string> ; 
 
 export type GUID    = UUID ; // just an alias
+
+// to have a NormativeStringEncoding from a StringEncoding, use the $encoding() function  
+export type NormativeStringEncoding = 'ascii' | 'latin1' | 'utf8' | 'utf16le' | 'base64' | 'base64url' | 'hex' ;
+export type StringEncoding = NormativeStringEncoding | 
+                            'ASCII' |
+                            'bin' | 'BIN' | 'binary' | 'BINARY' | 'LATIN1' | 'iso-latin1' | 'ISO-LATIN1' | 'isolatin1' | 'ISOLATIN1' |
+                            'utf-8' | 'UTF8' | 'UTF-8' | 
+                            'unicode' | 'UNICODE' | 'utf16' | 'utf-16' | 'UTF16' | 'UTF-16' | "ucs2" | "ucs-2" | 'UCS2' | 'UCS-2' | 'utf-16le' | 'UTF-16LE' | 'UTF16LE' |
+                            'BASE64' | 'BASE64URL' |
+                            'HEX' | 'hexa' | 'HEXA' ;
+
 
 export const uuidRegex:RegExp  = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i ;
 export const emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;

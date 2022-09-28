@@ -1,5 +1,5 @@
 import { AnyDictionary, Nullable } from './types';
-import { $isnumber, $isstring, $length, $ok, $ftrim, $isarray, $tounsigned } from './commons';
+import { $isnumber, $isstring, $length, $ok, $ftrim, $isarray, $tounsigned, $encodeBase64 } from './commons';
 import { TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
 
@@ -10,7 +10,7 @@ import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 
 export function $basicauth(login:string, pwd:string) : string
 {
-	return 'Basic ' + Buffer.from(`${login}:${pwd}`).toString('base64') ;
+	return 'Basic ' + $encodeBase64(`${login}:${pwd}`) ;
 }
 export function $barerauth(base64token:string) : string
 {

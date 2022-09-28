@@ -24,13 +24,14 @@ export enum HashMethod {
 	SHA512 = 'SHA512'
 }
 
-export function $encrypt(source:string, key:string) : string|null
+// TODO: Add TSData as parameter here
+export function $encrypt(source:string, key:string|Uint8Array) : string|null
 {
 	if ($length(key) !== 32 || !$length(source)) { return null ; }
 	let returnValue ;
 	try {
 		let iv = crypto.randomBytes(16);
-		let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key), iv);
+		let cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 		let encrypted = cipher.update(source);
 		encrypted = Buffer.concat([encrypted, cipher.final()]) ;
 		returnValue = iv.toString('hex') + encrypted.toString('hex') ;
@@ -41,14 +42,15 @@ export function $encrypt(source:string, key:string) : string|null
 	return returnValue ;
 }
 
-export function $decrypt(source:string, key:string) : string|null
+// TODO: Add TSData as parameter here
+export function $decrypt(source:string, key:string|Uint8Array) : string|null
 {
 	if ($length(key) !== 32 || $length(source) < 32) { return null ; }
 	let returnValue ;
 	try {
 		let iv = Buffer.from(source.slice(0,32), 'hex');
 		let encryptedText = Buffer.from(source.slice(32), 'hex');
-		let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
+		let decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
 		let decrypted = decipher.update(encryptedText);
 		decrypted = Buffer.concat([decrypted, decipher.final()]);
 		returnValue = decrypted.toString();
@@ -59,7 +61,7 @@ export function $decrypt(source:string, key:string) : string|null
 	return returnValue ;
 }
 
-export function $hash(buf:Buffer, method?:HashMethod):string|null
+export function $hash(buf:string|Uint8Array, method?:HashMethod):string|null
 {
     let ret:string|null = null ;
     try {

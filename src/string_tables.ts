@@ -1,4 +1,4 @@
-import { StringDictionary } from "./types";
+import { NormativeStringEncoding, StringDictionary, StringEncoding } from "./types";
 
 /*
     Since there's no login in String.normalize() function,
@@ -979,3 +979,46 @@ function _whiteSpaceAsStringSet(reference:string):Set<string> {
     }
     return ret ;
 }
+
+export const FoundationStringEncodings:{ [k in StringEncoding]: NormativeStringEncoding } = {
+    'ascii':        'ascii',
+    'ASCII':        'ascii',
+    'bin':          'latin1',
+    'BIN':          'latin1',
+    'binary':       'latin1', 
+    'BINARY':       'latin1', 
+    'latin1':       'latin1', 
+    'LATIN1':       'latin1', 
+    'iso-latin1':   'latin1',
+    'ISO-LATIN1':   'latin1',
+    'isolatin1':    'latin1',
+    'ISOLATIN1':    'latin1',
+    'utf8':         'utf8', 
+    'utf-8':        'utf8', 
+    'UTF8':         'utf8', 
+    'UTF-8':        'utf8', 
+    'utf16':        'utf16le', 
+    'utf-16':       'utf16le', 
+    'UTF16':        'utf16le', 
+    'UTF-16':       'utf16le', 
+    "ucs2":         'utf16le',
+    "ucs-2":        'utf16le', 
+    'UCS2':         'utf16le', 
+    'UCS-2':        'utf16le',
+    'utf16le':      'utf16le',
+    'unicode':      'utf16le',
+    'UNICODE':      'utf16le',
+    'utf-16le':     'utf16le', 
+    'UTF-16LE':     'utf16le', 
+    'UTF16LE' :     'utf16le',
+    'base64':       'base64',
+    'BASE64':       'base64',
+    'base64url':    'base64url',
+    'BASE64URL':    'base64url',
+    'hex':          'hex',
+    'HEX':          'hex', 
+    'hexa':         'hex', 
+    'HEXA':         'hex'
+} ;
+
+

@@ -538,6 +538,10 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect0(array).toBe(Buffer.from(b64, 'base64')) ;
         const b64_2 = $encodeBase64(array) ;
         t.expect1(b64_2).toBe(b64) ;
+
+        const str = 'This is a string' ;
+        const str64 = $encodeBase64(str) ;
+        t.expect2(str64).toBe(Buffer.from(str, 'binary').toString('base64')) ;
     })
 
 }) ;

@@ -41,7 +41,6 @@ export function $compare(a:any, b:any):Comparison {
 
     if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
     if ($isstring(a) && $isstring(b)) {
-        // before, we used Buffer.compare() to make bytes comparison
         return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
 	if ($isarray(a) && $isarray(b)) {
