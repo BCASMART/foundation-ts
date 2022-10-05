@@ -2,12 +2,13 @@ import * as crypto from 'crypto' ;
 import { createReadStream } from 'fs' ;
 import { $length } from './commons';
 import { Nullable, UUID } from './types';
+import { $logterm } from './utils';
 
 export function $uuid() : UUID
 { 
     try { return <UUID>crypto.randomUUID() ; }
     catch {
-        console.log('Warning:crypto.randomUUID() is not available') ;
+        $logterm('Warning:crypto.randomUUID() is not available') ;
         let uuid = "" ;
         for (let i = 0 ; i < 32 ; i++) {
             const rand = Math.random() * 16 | 0;        

@@ -1,4 +1,4 @@
-import { $div, $isnumber, $length, $ok, $ftrim, $unsigned, $fpad2, $fpad4, $fpad3, $isstring, $fpad, $isunsigned, $isint, $tounsigned } from "./commons";
+import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned } from "./commons";
 import { $default, $locales, Locales } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -18,6 +18,9 @@ import {
 } from "./tsdate";
 import { country, int, language, Nullable, uint, UINT_MIN } from "./types";
 import { TSCountry } from "./tscountry";
+import { $div, $fpad, $fpad2, $fpad3, $fpad4 } from "./number";
+import { $ftrim } from "./strings";
+import { $logterm } from "./utils";
 
 export interface TimeComp {
 	hour:uint;
@@ -616,13 +619,13 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
     const debug = $default("debugDurationStateAutomat") ;
 
     if (debug) {
-        console.log(`Format:      "${format}"`) ;
-        console.log(`comp.days:    ${comp.days}`) ;
-        console.log(`comp.hours:   ${comp.hours}`) ;
-        console.log(`comp.minutes: ${comp.minutes}`) ;
-        console.log(`comp.seconds: ${comp.seconds}`) ;
-        console.log(`subhour:      ${subhour}`) ;
-        console.log(`subday:       ${subday}`) ;
+        $logterm(`Format:      "${format}"`) ;
+        $logterm(`comp.days:    ${comp.days}`) ;
+        $logterm(`comp.hours:   ${comp.hours}`) ;
+        $logterm(`comp.minutes: ${comp.minutes}`) ;
+        $logterm(`comp.seconds: ${comp.seconds}`) ;
+        $logterm(`subhour:      ${subhour}`) ;
+        $logterm(`subday:       ${subday}`) ;
     }
 
     function _pop():[State, boolean] { const p = stack.pop() ; return [p!.state, p!.elsePart] ; }
@@ -645,7 +648,7 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
     
     for (let i = 0 ; i < fmtlen ; i++) {
         const c = format!.charAt(i) ;
-        if (debug) console.log(`stack.count = ${stack.length}, state = ${state}, elsePart = ${elsePart}, char[${i}] = '${c}'`) ;
+        if (debug) $logterm(`stack.count = ${stack.length}, state = ${state}, elsePart = ${elsePart}, char[${i}] = '${c}'`) ;
         switch (state) {
             case State.Standard:
                 elsePart = false ;
@@ -787,7 +790,7 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 }
                 break ;                
         }
-        if (debug) { console.log(`state after:${state}, composed string = "${ret}"`) ; }
+        if (debug) { $logterm(`state after:${state}, composed string = "${ret}"`) ; }
     }
 
     switch (state) {
@@ -818,7 +821,7 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
             break ; 
     }
 
-    if (debug) { console.log(`$durationNumber2StringFormat() returned string = "${ret}"`) ; }
+    if (debug) { $logterm(`$durationNumber2StringFormat() returned string = "${ret}"`) ; }
 
     return ret ;
 }

@@ -1,10 +1,11 @@
-import { $ascii, $isobject, $isstring, $length, $ok, $ftrim } from "./commons";
+import { $isobject, $isstring, $length, $ok } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
 import { $inbrowser } from "./utils";
+import { $ascii, $ftrim } from "./strings";
 
 export interface Locales {
     names:StringTranslation;

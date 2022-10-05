@@ -1,7 +1,7 @@
 import { $count, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $toint, $tounsigned } from "./commons";
 import { TSDate } from "./tsdate";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
-import { TSClone, TSObject } from "./tsobject";
+import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { TSRangeSet } from "./tsrangeset";
 
 export interface Interval {
@@ -9,10 +9,12 @@ export interface Interval {
 	hasSignificantRange:boolean ;
 }
 
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
 export function TSBadRange():TSRange { return new TSRange(NaN, 0) ; }
 export function TSEmptyRange():TSRange { return new TSRange(0, 0) ; }
 
-export class TSRange implements TSObject, TSClone<TSRange>, Interval {
+export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Interval {
 	private _location:number = 0 ;
 	private _length:number = 0 ;
 
@@ -170,6 +172,13 @@ export class TSRange implements TSObject, TSClone<TSRange>, Interval {
 			   (this.intersects(other) || this.maxRange === other.location || other.maxRange === this.location) ;
 	}
 
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string { return `[${this.location}, ${this.length}]` ; }
+
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
+    }
+    
 	// ============ TSObject conformance =============== 
 
 	public isEqual(other:any) : boolean { 

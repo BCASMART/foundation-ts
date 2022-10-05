@@ -2,13 +2,14 @@ import { ServerResponse } from "http";
 
 import { Nullable, StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
-import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $ftrim, $unsignedornull, $UUID } from "./commons";
+import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
 import { TSHttpError } from "./tserrors";
 
 import { TSEndPoint, TSEndPoints, TSEndPointParameter, TSParameterDictionary, TSServerLogger, TSParametricTokenType, TSParametricToken, TSEndPointManager, TSQueryItem, TSServerRequest, TSQueryDictionary, TSQueryValue } from "./tsserver";
 import { TSDate } from "./tsdate";
 import { TSColor } from "./tscolor";
+import { $ftrim } from "./strings";
 
 export interface TSStaticWebSiteOptions {
     logger?:TSServerLogger ;
@@ -204,7 +205,7 @@ export class TSParametricEndPoints {
         // ================= automated path analysis ===============
         for (let i = 0 ; i < len ; i++) {
             const c = path.charAt(i) ;
-            //console.log(`state = ${state}, char = "${c}"`) ;
+            //$logterm(`state = ${state}, char = "${c}"`) ;
             switch (state) {
                 case State.Start:
                     if (c !== '/') { throw `End points path '${path}' is not absolute.` ; }

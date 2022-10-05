@@ -1022,3 +1022,38 @@ export const FoundationStringEncodings:{ [k in StringEncoding]: NormativeStringE
 } ;
 
 
+export const FoundationHTMLEncoding:string[] = [
+    /* 00 */	"", "", "", "", "", "", "", "",
+    /* 08 */	"", "\u0009", "\u000a", "\u000b", "\u000c", "\u000d", "\u000e", "\u000f",
+    /* 10 */	"", "", "", "", "", "", "", "",
+    /* 18 */	"", "", "", "", "", "", "", "",
+    /* 20 */	" ", "!", "&quot;", "#", "$", "%", "&amp;", "'",
+    /* 28 */	"(", ")", "*", "+", ",", "-", ".", "/",
+    /* 30 */	"0", "1", "2", "3", "4", "5", "6", "7",
+    /* 38 */	"8", "9", ":", ";", "&lt;", "=", "&gt;", "?",
+    /* 40 */	"@", "A", "B", "C", "D", "E", "F", "G",
+    /* 48 */	"H", "I", "J", "K", "L", "M", "N", "O",
+    /* 50 */	"P", "Q", "R", "S", "T", "U", "V", "W",
+    /* 58 */	"X", "Y", "Z", "[", "\\", "]", "^", "_",
+    /* 60 */	"`", "a", "b", "c", "d", "e", "f", "g",
+    /* 68 */	"h", "i", "j", "k", "l", "m", "n", "o",
+    /* 70 */	"p", "q", "r", "s", "t", "u", "v", "w",
+    /* 78 */	"x", "y", "z", "{", "|", "}", "~", "",
+    /* 80 */	"", "", "", "", "", "", "", "",
+    /* 88 */	"", "", "", "", "", "", "", "",
+    /* 90 */	"", "", "", "", "", "", "", "",
+    /* 98 */	"", "", "", "", "", "", "", "",
+    /* A0 */	"&nbsp;", "&iexcl;", "&cent;", "&pound;", "&curren;", "&yen;", "&brvbar;", "&sect;",
+    /* A8 */	"&uml;", "&copy;", "&ordf;", "&laquo;", "&not;", "&shy;", "&reg;", "&macr;",
+    /* B0 */	"&deg;", "&plusmn;", "&sup2;", "&sup3;", "&acute;", "&micro;", "&para;", "&middot;",
+    /* B8 */	"&cedil;", "&sup1;", "&ordm;", "&raquo;", "&frac14;", "&frac12;", "&frac34;", "&iquest;",
+    /* C0 */	"&Agrave;", "&Aacute;", "&Acirc;", "&Atilde;", "&Auml;", "&Aring;", "&AElig;", "&Ccedil;",
+    /* C8 */ 	"&Egrave;", "&Eacute;", "&Ecirc;", "&Euml;", "&Igrave;", "&Iacute;", "&Icirc;", "&Iuml;",
+    /* D0 */ 	"&ETH;", "&Ntilde;", "&Ograve;", "&Oacute;", "&Ocirc;", "&Otilde;", "&Ouml;", "&times;",
+    /* D8 */ 	"&Oslash;", "&Ugrave;", "&Uacute;", "&Ucirc;", "&Uuml;", "&Yacute;", "&THORN;", "&szlig;",
+    /* E0 */	"&agrave;", "&aacute;", "&acirc;", "&atilde;", "&auml;", "&aring;", "&aelig;", "&ccedil;",
+    /* E8 */ 	"&egrave;", "&eacute;", "&ecirc;", "&euml;", "&igrave;", "&iacute;", "&icirc;", "&iuml;",
+    /* F0 */ 	"&eth;", "&ntilde;", "&ograve;", "&oacute;", "&ocirc;", "&otilde;", "&ouml;", "&divide;",
+    /* F8 */ 	"&oslash;", "&ugrave;", "&uacute;", "&ucirc;", "&uuml;", "&yacute;", "&thorn;", "&yuml;"
+ ] ;
+

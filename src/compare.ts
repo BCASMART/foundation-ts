@@ -1,4 +1,4 @@
-import { $defined, $isarray, $isobject, $isstring, $ok } from "./commons";
+import { $isarray, $isobject, $isstring, $ok } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending, Nullable} from "./types";
 
@@ -63,29 +63,6 @@ export function $compare(a:any, b:any):Comparison {
 }
 
 
-export function $min<T=any>(values:Nullable<Iterable<T>>):any
-{ return _minmax(values, Descending) ;}
-
-export function $max(values:any[]):any 
-{ return _minmax(values, Ascending) ;}
-
-
-function _minmax<T>(values:Nullable<Iterable<T>>, compValue:Comparison):any
-{
-    let ret = undefined ;
-    if ($ok(values)) {
-        for (let v of values!) { 
-            if (!$ok(v)) { return undefined ; }
-            else if (!$ok(ret)) { ret = v ; }
-            else { 
-                let comp = $compare(ret, v) ;
-                if (!$defined(comp)) { return undefined ; }
-                else if (comp === compValue) { ret = v ; }
-            }
-        }    
-    }
-    return ret ;
-}
 
 export function $uint8ArrayEqual(a:Nullable<Uint8Array>, b:Nullable<Uint8Array>):boolean {
 	if (a === b) { return true ; }
@@ -145,19 +122,3 @@ export function $equal(a:any, b:any):boolean {
 	}
 	return false ; 
 }
-
-declare global {
-    export interface Array<T> {
-        min: () => T|undefined ;
-        max: () => T|undefined ;
-    }
-}
-
-if (!('min' in Array.prototype)) {
-    Array.prototype.min = function min<T>(this: T[]):T|undefined { return $min(this) ; }
-}
-if (!('max' in Array.prototype)) {
-    Array.prototype.max = function max<T>(this: T[]):T|undefined { return $max(this) ; }
-}
-
-

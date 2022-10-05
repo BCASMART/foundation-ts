@@ -1,6 +1,7 @@
 import { $length } from "../src/commons";
 import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isexecutable, $isfile, $isreadable, $iswritable, $newext, $normalizepath, $path, $readString, $withoutext, $writeString } from "../src/fs";
 import { TSTest } from '../src/tstester';
+import { $inbrowser } from "../src/utils";
 
 export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     const A = '/Users/durand/Developer/foundation-ts/files' ;
@@ -127,31 +128,33 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
         t.expectF($dir('./file', true)).toBe('.') ;
     }) ;
 
-    group.unary('testing $createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
-        const folder = $path($dir(__dirname), 'output') ;
-        t.register("Folder", folder) ;
-        t.expect0($createDirectory(folder)).toBeTruthy() ;
-        t.expect1($isdirectory(folder)).toBeTruthy() ;
-        t.expect2($isfile(folder)).toBeFalsy() ;
-        const str = "Sursum" ;
-        const file = $path(folder, 'sc.txt') ;
-        t.expect3($writeString(file, str)).toBeTruthy() ;
-        t.expect4($readString(file)).toBe(str) ;
-        const str2 = str + ' Corda' ;
-        const [wres2, prec2] = $fullWriteString(file,  str2, { attomically:true, removePrecedentVersion:true }) ;
-        t.expect5(wres2).toBeTruthy() ;
-        t.expect6(prec2).toBeNull() ;
-        t.expect7($readString(file)).toBe(str2) ;
-
-        const str3 = str2 + ' 2' ;
-        const [wres3, prec3] = $fullWriteString(file,  str3, { attomically:true }) ;
-        t.expect8(wres3).toBeTruthy() ;
-        t.expect9($length(prec3)).gt(0) ;
-        t.expectA($readString(file)).toBe(str3) ;
-        t.expectB($readString(prec3)).toBe(str2) ;
-        t.expectC($isreadable(file)).toBeTruthy() ;
-        t.expectD($iswritable(file)).toBeTruthy() ;
-        t.expectE($isexecutable(file)).toBeFalsy() ;
-    }) ;
+    if (!$inbrowser()) {
+        group.unary('testing $createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
+            const folder = $path($dir(__dirname), 'output') ;
+            t.register("Folder", folder) ;
+            t.expect0($createDirectory(folder)).toBeTruthy() ;
+            t.expect1($isdirectory(folder)).toBeTruthy() ;
+            t.expect2($isfile(folder)).toBeFalsy() ;
+            const str = "Sursum" ;
+            const file = $path(folder, 'sc.txt') ;
+            t.expect3($writeString(file, str)).toBeTruthy() ;
+            t.expect4($readString(file)).toBe(str) ;
+            const str2 = str + ' Corda' ;
+            const [wres2, prec2] = $fullWriteString(file,  str2, { attomically:true, removePrecedentVersion:true }) ;
+            t.expect5(wres2).toBeTruthy() ;
+            t.expect6(prec2).toBeNull() ;
+            t.expect7($readString(file)).toBe(str2) ;
+    
+            const str3 = str2 + ' 2' ;
+            const [wres3, prec3] = $fullWriteString(file,  str3, { attomically:true }) ;
+            t.expect8(wres3).toBeTruthy() ;
+            t.expect9($length(prec3)).gt(0) ;
+            t.expectA($readString(file)).toBe(str3) ;
+            t.expectB($readString(prec3)).toBe(str2) ;
+            t.expectC($isreadable(file)).toBeTruthy() ;
+            t.expectD($iswritable(file)).toBeTruthy() ;
+            t.expectE($isexecutable(file)).toBeFalsy() ;
+        }) ;    
+    }
 
 }, { name:'fs' }) ;

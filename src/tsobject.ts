@@ -13,7 +13,7 @@ export interface TSObject {
 }
 
 export interface TSCollection<T> {
-    getItems: () => T[]
+    getItems: () => T[] ;
 }
 
 export function $iscollection(o:any) {
@@ -22,4 +22,8 @@ export function $iscollection(o:any) {
 
 export interface TSClone<T> {
     clone(): T ;
+}
+
+export interface TSLeafInspect {
+    leafInspect():string ;
 }

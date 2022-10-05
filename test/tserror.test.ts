@@ -2,6 +2,7 @@ import { $uuid } from '../src/crypto';
 import { $subclassReponsabililty, TSError } from '../src/tserrors';
 import { TSTest } from '../src/tstester';
 import { AnyDictionary } from '../src/types';
+//import { $logterm } from '../src/utils';
 
 class A {
     constructor(public identifier:string) {}
@@ -16,8 +17,8 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
         const instance = new A(identifier) ;
         let infos:AnyDictionary|undefined = undefined ;
         try {
-            const res = instance.method(12) ;
-            console.log(`res = ${res}`) ;
+            /*const res =*/ instance.method(12) ;
+            //$logterm(`res = ${res}`) ;
         }
         catch(e) {
             if (e instanceof TSError) { infos = e.infos ; }

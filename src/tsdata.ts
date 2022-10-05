@@ -1,6 +1,7 @@
-import { $bytesFromAsciiString, $capacityForCount, $count, $encoding, $isnumber, $isunsigned, $length, $ok, $tounsigned } from "./commons";
+import { $capacityForCount, $count, $encoding, $isnumber, $isunsigned, $length, $ok } from "./commons";
+import { $arrayBufferFromBuffer, $bufferAspect, $bufferFromArrayBuffer, $bytesFromAsciiString } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
-import { TSClone, TSObject } from "./tsobject";
+import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, StringEncoding, uint, uint8, UINT8_MAX } from "./types" ;
 import { $inbrowser } from "./utils";
 
@@ -8,13 +9,15 @@ import { $inbrowser } from "./utils";
  * TSData is a mutable buffer class.
  */
 
+ const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
 export interface TSDataOptions {
     dontCopySourceBuffer?:boolean;
     fillWithZeros?:boolean;
     allocMethod?:(n:number) => Buffer;
 } ;
 
-export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
+export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClone<TSData> {
     protected _len:number ;
     protected _buf:Buffer ;
     private _allocFn:(n:number) => Buffer ;
@@ -62,6 +65,13 @@ export class TSData implements Iterable<number>, TSObject, TSClone<TSData> {
 
     public static fromBinaryString(src:Nullable<string>):TSData {
         return $length(src) ? new TSData(Buffer.from(src!, "binary"), { dontCopySourceBuffer: true }): new TSData() ;
+    }
+
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string { return '<'+$bufferAspect(this.mutableBuffer, { name:this.constructor.name, prefix: '', suffix:'', separator:'', showLength:false, transformFn: (n) => n.toHex2() })+'>' }
+    
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
     }
 
     // ============================ STANDARD JS ENUMERATION =============================================
@@ -398,18 +408,3 @@ function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
 }
 
 
-export function $bufferFromArrayBuffer(a:ArrayBuffer) : Buffer {
-    return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a) ;
-}
-
-export function $arrayBufferFromBuffer(source:Buffer, start:number = 0, end:number = source.length) : ArrayBuffer {
-    if (!$isunsigned(start) || !$isunsigned(end)) { throw '$arrayBufferFromBuffer(): start and end parameters must be true unsigned values' ; }       
-    end = Math.min(source.length, $tounsigned(end)) ;
-    start = Math.min(end, $tounsigned(start)) ;
-
-    const ret = new ArrayBuffer(end - start) ;
-    const view = new Uint8Array(ret) ;
-    for (let i = start, j = 0 ; i < end; i++, j++) { view[j] = source[i]; }
-
-    return ret ;
-}

@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $defined, $isunsigned, $keys, $length, $ok, $string, $ftrim } from "./commons";
+import { $defined, $isunsigned, $keys, $length, $ok, $string } from "./commons";
 import { TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { AnyDictionary, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
@@ -9,6 +9,7 @@ import { $inbrowser, $logterm } from "./utils";
 import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "./tsservercomp";
 import { TSDate } from "./tsdate";
 import { TSColor } from "./tscolor";
+import { $ftrim } from "./strings";
 
 /**
  * This is a minimal singleton HTTP server class provided for testing

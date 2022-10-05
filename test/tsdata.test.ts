@@ -1,6 +1,7 @@
 
+import { $arrayBufferFromBuffer, $bufferFromArrayBuffer } from '../src/data';
 import { FoundationBinaryWhiteSpaces, FoundationBynaryStrictWhiteSpaces, FoundationNewLines } from '../src/string_tables';
-import { $arrayBufferFromBuffer, $bufferFromArrayBuffer, TSData } from '../src/tsdata';
+import { TSData } from '../src/tsdata';
 import { TSTest } from '../src/tstester';
 import { Same, uint8 } from '../src/types';
 

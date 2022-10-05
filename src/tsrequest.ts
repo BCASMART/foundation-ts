@@ -1,11 +1,13 @@
 import { AnyDictionary, Nullable } from './types';
-import { $isnumber, $isstring, $length, $ok, $ftrim, $isarray, $tounsigned, $encodeBase64 } from './commons';
+import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned } from './commons';
 import { TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
+import { $ftrim } from './strings';
 
 // TODO: for now, we use axios, but as good as axios is, it comes with a lot of
 // dependancies and in near future, we will upgrade this class to be autonomous
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
+import { $encodeBase64 } from './data';
 
 
 export function $basicauth(login:string, pwd:string) : string

@@ -1,6 +1,10 @@
 import { TSTester } from '../src/tstester'
+import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
+import { compareGroups } from './compare.test';
 import { fsGroups } from './fs.test';
+import { numberGroups } from './number.test';
+import { stringGroups } from './strings.test';
 import { colorGroups } from './tscolor.test';
 import { countriesGroups } from './tscountry.test';
 import { dataGroups } from './tsdata.test';
@@ -20,6 +24,10 @@ import { utilsGroups } from './utils.test';
 const tester = new TSTester("Foundation-ts unary tests") ;
 
 tester.addGroups(commonsGroups,     "commons") ;
+tester.addGroups(stringGroups,      "strings") ;
+tester.addGroups(numberGroups,      "numbers") ;
+tester.addGroups(arrayGroups,       "arrays") ;
+tester.addGroups(compareGroups,     "compare") ;
 tester.addGroups(countriesGroups,   "countries") ;
 tester.addGroups(dateGroups,        "dates") ;
 tester.addGroups(dateCompGroups,    "dates") ;
@@ -44,12 +52,14 @@ const dumper = args.length === 1 && args.first() === '-list' ;
 tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
     const setB = new Set([
-        "commons", "countries", "dates", "dates", "defaults", 
-        "intervals", "ranges", "ranges", "requests", "server", 
-        "utils", "data", "colors", "geometry", "qualifiers", 
-        "errors", "fs"]) ;
+        "commons", "strings", "numbers", "arrays", 
+        "compare", "countries", "dates", "dates", 
+        "defaults", "intervals", "ranges", "ranges", 
+        "requests", "server", "utils", "data", 
+        "colors", "geometry", "qualifiers", "errors", 
+        "fs"]) ;
     group.unary("Testing tests list", async (t) => {
-        t.expect0(tester.names.length).toBe(15) ;
+        t.expect0(tester.names.length).toBe(19) ;
         t.expect1(setA).toBe(setB) ;
     }) ;
     if (args.length > 0 && !dumper) {

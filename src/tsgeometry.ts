@@ -1,6 +1,6 @@
 import { $isarray, $isnumber, $isobject, $isstring, $ok } from "./commons";
 import { $numcompare } from "./compare";
-import { TSClone, TSObject } from "./tsobject";
+import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
 export interface TSPoint {
@@ -51,7 +51,9 @@ export const  TSDocumentFormats:{[key in TSDocumentFormat]:TSSize} = {
     'a6-landscape':      { w:TSmm2Pixels(148),     h:TSmm2Pixels(105)  }
 } ;
 
-export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
+export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone<TSRect> {
     public x:number ;
     public y:number ;
     public w:number ;
@@ -373,12 +375,20 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSClone<TSRect> {
         return { x:this.minX, y:this.minY, w:this.width, h:this.height } ; 
     }
     public toString(): string { 
-        return `{x = ${this.minX}, y = ${this.minY}), w:${this.width}, h:${this.height}}` ; 
+        return `{ x = ${this.minX}, y = ${this.minY}), w:${this.width}, h:${this.height} }` ; 
     }
 
     // warning : dont use generated array to create new Rect because we did send the oposite points here
     // QUESTION: should we return [x,y,w,h] here ? 
     public toArray(): number[] { return [this.minX, this.minY, this.maxX, this.maxY] ; }
+
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string { return this.toString() ; }
+
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
+    }
+    
 }
 
 

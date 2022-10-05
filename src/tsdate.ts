@@ -8,14 +8,17 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
-import { $isint, $isnumber, $div, $ok, $isstring, IsoDateFormat, $toint } from "./commons";
+import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
-import { TSClone, TSObject } from "./tsobject";
+import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
+import { $div } from "./number";
 
-export class TSDate implements TSObject, TSClone<TSDate> {
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
+export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 	private readonly _timestamp: number ;
     public static readonly FUTURE = 'future' ;
     public static readonly PAST = 'past' ;
@@ -131,7 +134,7 @@ export class TSDate implements TSObject, TSClone<TSDate> {
     public static fromDate(d:Nullable<Date>) : TSDate | null {
         return $ok(d) ? new TSDate(d!) : null ;
     }
-
+    
     // usage TSDate.fromComponents(myComponents)
 	// if you only want to set a day, that's up to you to put 0 in hour, minute and second fields
 	public static fromComponents(comp:Nullable<TSDateComp>) : TSDate | null {
@@ -267,6 +270,13 @@ export class TSDate implements TSObject, TSClone<TSDate> {
     public toJSON() : string { return this.toIsoString() ; }
 	public toArray():TSDate[] { return [this] ; }
 
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string { return this.toISOString() ; }
+    
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
+    }
+    
 	// ============ Private methods =============== 
     private _toString(localTime:boolean, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
         const offset = localTime ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
@@ -279,6 +289,16 @@ export class TSDate implements TSObject, TSClone<TSDate> {
     }
 
 }
+declare global {
+    export interface Date {
+        leafInspect: (this:Date) => string ;
+    }
+}
+
+if (!('leafInspect' in Date.prototype)) {
+    Date.prototype.leafInspect = Date.prototype.toISOString ;
+}
+
 
 /***************************************************************************************************************
  * PUBLIC FUNCTIONS AND CONSTANTS

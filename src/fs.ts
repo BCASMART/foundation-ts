@@ -31,13 +31,14 @@ import {
     isAbsolute,
     normalize 
 } from 'path' ;
-import { $isstring, $isunsigned, $length, $ok, $ftrim, $encoding } from './commons';
+import { $isstring, $isunsigned, $length, $ok, $encoding } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
-import { $inbrowser } from './utils';
+import { $inbrowser, $logterm } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
 import { Nullable, StringEncoding } from './types';
+import { $ftrim } from './strings';
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
@@ -226,14 +227,14 @@ export function $loadJSON(src:Nullable<string|Buffer>) : any | null
     if ($inbrowser()) { throw 'unavailable function in browser' ; }
 	let ret = null ;
     if ($length(src)) {
-        let loadedString = src instanceof Buffer ? src.toString('utf-8') : $readString(src, 'utf-8') ;
+        let loadedString = src instanceof Buffer ? src.toString('utf8') : $readString(src, 'utf8') ;
         if ($length(loadedString)) {
             try {
                 ret = JSON.parse(<string>loadedString) ;
                 ret = $ok(ret) ? ret : null ;
             }
             catch (e) {
-                console.log(`Impossible to parse JSON file ${src}`) ;
+                $logterm(`Impossible to parse JSON file ${src}`) ;
                 ret = null ;			
             }
         }    
@@ -241,7 +242,7 @@ export function $loadJSON(src:Nullable<string|Buffer>) : any | null
 	return ret ;
 }
 
-export function $readString(src:Nullable<string>, encoding:StringEncoding='utf-8') : string|null
+export function $readString(src:Nullable<string>, encoding:StringEncoding='utf8') : string|null
 {
     if ($inbrowser()) { throw 'unavailable $readString() function in browser' ; }
 	let ret:string|null = null ;
@@ -270,7 +271,7 @@ export function $writeString(src:Nullable<string>, str:string, opts:$writeString
 export function $fullWriteString(src:Nullable<string>, str:string, opts:$writeStringOptions) : [boolean, string|null]
 {
     if ($inbrowser()) { throw 'unavailable $writeString() function in browser' ; }
-    let encoding = $length(opts.encoding) ? opts.encoding! : 'utf-8' ;
+    let encoding = $length(opts.encoding) ? opts.encoding! : 'utf8' ;
 
     return $fullWriteBuffer(src, Buffer.from(str, $encoding(encoding)), opts as BasicWriteOptions )
 }

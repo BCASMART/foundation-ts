@@ -1,9 +1,10 @@
-import { $ascii, $length, $ok, $ftrim } from './commons';
+import { $length, $ok } from './commons';
 import { $language, Locales, TSDefaults } from './tsdefaults';
-import { TSClone, TSObject } from './tsobject';
+import { TSClone, TSLeafInspect, TSObject } from './tsobject';
 import { Comparison, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
 import { $compare } from './compare';
+import { $ascii, $ftrim } from './strings';
 /**
  *  WARNING ABOUT countries.json
  *  - Ireland has no localeLanguage : our EULocale is used 
@@ -13,7 +14,9 @@ import { $compare } from './compare';
  */
 
 
-export class TSCountry implements TSObject, TSClone<TSCountry> {
+ const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
+export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     private static __countriesMap:Map<string, TSCountry> ;
     private static __countries:TSCountry[] ;
     private static __EULocale:Locales = {
@@ -89,6 +92,7 @@ export class TSCountry implements TSObject, TSClone<TSCountry> {
 
     // WARNING: we return the name in the current language
     public get name():string { return this.names[$language()!]! ; }
+    public get label():string { return this.names[Languages.en]! ; }
 
     // WARNING: this is not the spoken language, but the language we use
     // as locales for this country. Idem for the language name.
@@ -110,6 +114,12 @@ export class TSCountry implements TSObject, TSClone<TSCountry> {
         if (this === other) { return Same ;}
         if (other instanceof TSCountry) { return $compare(this.alpha2Code, other.alpha2Code) ; }
         return undefined ;
+    }
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string { return `<${this.label.capitalize()} (${this.alpha2Code})>`; }
+
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
     }
 
 }

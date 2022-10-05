@@ -1,6 +1,7 @@
-import { $defined, $isnumber, $isstring, $isunsigned, $ok, $ftrim, $string, $keys, $length, $tounsigned } from "./commons";
+import { $defined, $isnumber, $isstring, $isunsigned, $ok, $string, $keys, $length, $tounsigned } from "./commons";
 import { $equal, $numcompare } from "./compare";
-import { TSClone, TSObject } from "./tsobject";
+import { $ftrim } from "./strings";
+import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
 
 
@@ -39,7 +40,9 @@ export enum TSToGrayScaleMode {
     Luminance
 }
 
-export class TSColor implements TSObject, TSClone<TSColor> {
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
+export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public readonly colorSpace:TSColorSpace ;
     private _channels:number[] ;
 	private _alpha: number;
@@ -321,6 +324,24 @@ export class TSColor implements TSObject, TSClone<TSColor> {
             } 
         }
         return false ;
+    }
+    // ============ TSLeafInspect conformance =============== 
+    public leafInspect(): string {
+        switch (this.colorSpace) {
+            case TSColorSpace.RGB:
+                const [R,G,B] = this.rgb() ;
+                return `<RGB ${R} ${G} ${B}/${this._alpha}>`
+            case TSColorSpace.CMYK:
+                const [C,M,Y,K] = this.cmykComponents() ;
+                return `<CMYK ${C} ${M}, ${Y} ${K}/${this.opacity}>`
+            case TSColorSpace.Grayscale:
+                const [,,,KS] = this.cmykComponents() ;
+                return `<GRAY ${1-KS}/${this.opacity}>` ;
+        }
+    }
+
+    [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
+        return this.leafInspect()
     }
 
 	// ============ TSObject conformance =============== 
