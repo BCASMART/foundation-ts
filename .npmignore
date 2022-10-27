@@ -3,3 +3,5 @@
 SetupPackage.*
 *.debug.*
 .DS_Store
+__*
+

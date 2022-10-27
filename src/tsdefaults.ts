@@ -1,4 +1,4 @@
-import { $isobject, $isstring, $length, $ok } from "./commons";
+import { $isobject, $isstring, $length, $ok, $valueornull } from "./commons";
 import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation } from "./types";
 import { $dir, $filename, $isdirectory } from "./fs";
 import os from 'os'
@@ -6,6 +6,7 @@ import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
 import { $inbrowser } from "./utils";
 import { $ascii, $ftrim } from "./strings";
+import { TSError } from "./tserrors";
 
 export interface Locales {
     names:StringTranslation;
@@ -101,8 +102,7 @@ export class TSDefaults {
         const v = $ascii($ftrim(s).toUpperCase()) ;
         const managedCountry = TSCountry.country(v) ;
         if ($ok(managedCountry)) { return managedCountry!.alpha2Code ; }
-        const ret = this._countriesMap.get(v) ;
-        return $ok(ret) ? ret! : null ;
+        return $valueornull(this._countriesMap.get(v)) ;
     }
 
     public language(s?:Nullable<TSCountry|string>) : language | null {
@@ -111,8 +111,7 @@ export class TSDefaults {
         const v = $ascii($ftrim(s).toLowerCase()) ;
         const locales = this._managedLocalesMap.get(v) ;
         if ($ok(locales)) { return locales!.language ; }
-        const ret = this._languagesMap.get(v) ;
-        return $ok(ret) ? ret! : null ;
+        return $valueornull(this._languagesMap.get(v)) ;
     }
 
     public currency(s?:Nullable<TSCountry|string>) : currency | null {
@@ -121,16 +120,15 @@ export class TSDefaults {
         s = $ascii($ftrim(s).toUpperCase()) ;
         const c = TSCountry.country(s) ;
         if ($ok(c)) { return c!.currency ; }
-        const ret = this._currenciesMap.get(s) ;
-        return $ok(ret) ? ret! : null ;
+        return $valueornull(this._currenciesMap.get(s)) ;
     }
 
     public addLocalizations(lang:language, loc:StringDictionary) {
         if (!this._managedLocalesMap.get(lang)) {
-            throw "Impossible to add localizations to a non managed language" ;
+            throw new TSError(`Impossible to add localizations to non managed language '${lang}'`, { language:lang, localizations:loc }) ;
         }
-        if (!$isobject(loc)) {
-            throw "Needed to pass a StringDictionary as localization" ;
+        else if (!$isobject(loc)) {
+            throw new TSError(`Impossible to add non string-dictionary localization to language '${lang}'`, { language:lang, localizations:loc }) ;
         }
         let actualLocalization = this._localizations[lang] ;
         if (!$ok(actualLocalization)) { this._localizations[lang] = {...loc} ; }

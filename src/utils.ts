@@ -1,7 +1,6 @@
 import { inspect } from "util";
 import { $count, $defined, $isarray, $isfunction, $isstring, $length, $ok, $unsigned } from "./commons";
-import { $normspaces } from "./strings";
-//import { inspect } from "util";
+import { $HTML, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
 
 export const $noop = () => {} ;
@@ -357,7 +356,7 @@ function _tsinspect(v:any, level:number = 10):string {
     return _recursiveInspect(v, inspectContext, 0).toString() ;
 }
 
-let FoundationHTMLEncodingExtended = FoundationHTMLEncoding ;
+const FoundationHTMLEncodingExtended = FoundationHTMLEncoding ;
 FoundationHTMLEncodingExtended[10] = "<br/>"
 FoundationHTMLEncodingExtended[11] = "<br/>"
 FoundationHTMLEncodingExtended[12] = "<br/>"
@@ -366,9 +365,9 @@ FoundationHTMLEncodingExtended[13] = "<br/>"
 export function _logwriteterm(log:boolean, format:string, args:any[]) {
     format = $length(format) ? $term(format) : '' ;
     if ($inbrowser()) {
-        format = format.toHTML(FoundationHTMLEncodingExtended) ;
+        format = $HTML(format, FoundationHTMLEncodingExtended) ;
         for (let a of args) {
-            format += a.toString().toHTML(FoundationHTMLEncodingExtended) ;
+            format += $HTML(a.toString(), FoundationHTMLEncodingExtended) ;
         }
         var c:any = $isfunction(document?.getElementById) ? document!.getElementById("ftsconsole") : undefined ;
         if ($ok(c)) {

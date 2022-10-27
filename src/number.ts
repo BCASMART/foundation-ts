@@ -1,6 +1,6 @@
 import { $isunsigned, $length, $ok, $toint, $tounsigned } from "./commons";
 import { $ftrim } from "./strings";
-import { FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
+import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
 import { int, INT32_MIN, Nullable, uint, UINT32_MAX } from "./types";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
@@ -111,7 +111,7 @@ if (!('fpad' in Number.prototype)) {
     Number.prototype.fpad2 = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
     Number.prototype.fpad3 = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }
     Number.prototype.fpad4 = function fpad(this:number, failedChar?:string) { return $fpad(this, 4, failedChar) ; }
-    Number.prototype.isNewLine = function isNewLine(this:number) { return this === 10 || this === 11 || this === 12 || this === 13 ; }
+    Number.prototype.isNewLine = function isNewLine(this:number) { return FoundationNewLineNumberCodeSet.has(this) ; }
     Number.prototype.isWhiteSpace = function isWhiteSpace(this:number) { return FoundationWhiteSpacesNumberCodeSet.has(this) ; }
     Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number) { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; }
 }

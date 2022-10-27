@@ -4,9 +4,9 @@ import { inspect } from "util";
 import { TSDate } from "../src/tsdate";
 import { TSRange } from "../src/tsrange";
 import { TSColor } from "../src/tscolor";
-import { $binaryStringToUint8Array } from "../src/data";
 import { TSData } from "../src/tsdata";
 import { TSCountry } from "../src/tscountry";
+import { TSCharset } from "../src/tscharset";
 
 function stringifyMe(e: any) { return `${e}`; }
 
@@ -24,7 +24,7 @@ export const utilsGroups = TSTest.group("Utils functions", async (group) => {
     const leaf2 = { leaf: 'common leaf2' };
     const set = new Set<any>();
     const map = new Map<any, any>();
-    const uint8array = $binaryStringToUint8Array('ABCDEFG\u0001') ;
+    const uint8array = TSCharset.binaryCharset().uint8ArrayFromString('ABCDEFG\u0001') ;
     const uint16array = new Uint16Array([1, 2, 614]) ;
     const uint32array = new Uint32Array([1, 2, 614, 100000]) ;
     const ab = new ArrayBuffer(4) ;

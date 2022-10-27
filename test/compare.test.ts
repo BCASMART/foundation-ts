@@ -1,5 +1,5 @@
 import { $compare, $datecompare, $equal, $numcompare } from "../src/compare";
-import { $arrayBufferFromBuffer } from "../src/data";
+import { $arrayBufferFromBytes } from "../src/data";
 import { TSDate } from "../src/tsdate";
 import { TSTest } from "../src/tstester";
 import { Ascending, Descending, Same, UINT_MAX } from "../src/types";
@@ -37,8 +37,8 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect8($compare(S1, S2)).toBe(Descending);
         t.expect9($compare(B1, B1)).toBe(Same);
         t.expectA($compare(B1, B2)).toBe(Descending);
-        t.expectB($compare($arrayBufferFromBuffer(B1), $arrayBufferFromBuffer(B1))).toBe(Same);
-        t.expectC($compare($arrayBufferFromBuffer(B1), $arrayBufferFromBuffer(B2))).toBe(Descending);
+        t.expectB($compare($arrayBufferFromBytes(B1), $arrayBufferFromBytes(B1))).toBe(Same);
+        t.expectC($compare($arrayBufferFromBytes(B1), $arrayBufferFromBytes(B2))).toBe(Descending);
         t.expectD($compare(T, D)).toBe(Same);
         t.expectE($compare(D, null)).toBeUndefined();
         t.expectF($compare(null, null)).toBeUndefined();

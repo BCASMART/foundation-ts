@@ -8,13 +8,14 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
-import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint } from "./commons";
+import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
 import { $div } from "./number";
+import { TSError } from "./tserrors";
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
@@ -52,17 +53,25 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     constructor() {
         let n = arguments.length;
         if (n >= 3) {
-            if (!$dayisvalid(arguments[0], arguments[1], arguments[2])) { throw `Bad TSDate(${arguments[0]}, ${arguments[1]}, ${arguments[2]}) day arguments` ; }
-            if (n !== 3 && n !== 6 ) { throw `Impossible to initialize a new TSDate() with ${n} arguments` ; }
+            if (!$dayisvalid(arguments[0], arguments[1], arguments[2])) { 
+                throw new TSError(`TSDate.constructor() : Bad year, month or day argument`, { arguments:Array.from(arguments)}) ; 
+            }
+            if (n !== 3 && n !== 6 ) { 
+                throw new TSError(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
+            }
             if (n === 6) {
-                if (!$timeisvalid(arguments[3], arguments[4], arguments[5])) { throw `Bad TSDate(,,,${arguments[3]}, ${arguments[4]}, ${arguments[5]}) time arguments` ; }
+                if (!$timeisvalid(arguments[3], arguments[4], arguments[5])) { 
+                    throw new TSError(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:Array.from(arguments)}) ; 
+                }
                 this._timestamp = $timestamp(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]) ;
             }
             else {
                 this._timestamp = $timestamp(arguments[0], arguments[1], arguments[2], 0, 0, 0) ;
             }
         }
-        else if (n === 2) { throw "Impossible to initialize a new TSDate() with 2 arguments" ; }
+        else if (n === 2) { 
+            throw new TSError(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
+        }
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
             if ($isnumber(t)) { 
@@ -90,7 +99,9 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
                 }
 				else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
 
-				if (!$ok(comps)) { throw "Bad TSDate constructor parameters" ; }
+				if (!$ok(comps)) { 
+                    throw new TSError(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
+                }
 				this._timestamp = $components2timestamp(<TSDateComp>comps) ;
 			}
         }
@@ -186,7 +197,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
 	public dateByAdding(years:number, months:number=0, days:number=0, hours:number=0, minutes:number=0, seconds:number=0) : TSDate {
         if (!$isint(years) || !$isint(months) || !$isint(days) || !$isint(hours) || !$isint(minutes) || !$isint(seconds)) { 
-            throw "TSDate.dateByAdding() non integer arguments" ; 
+            throw new TSError(`TSDate.dateByAdding() has at lease one non integer argument`, { years:years, months:months, days:days, hours:hours, minutes:minutes, seconds:seconds}) ; 
         }
         let ts = this._timestamp+days*TSDay+hours*TSHour+minutes*TSMinute+seconds ;
 
@@ -281,8 +292,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     private _toString(localTime:boolean, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
         const offset = localTime ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
         if ($isstring(format)) {
-            const ret = $components2stringformat($components(this._timestamp+offset), format as string, locale) ;
-            return $ok(ret) ? ret! : '' ;
+            return $value($components2stringformat($components(this._timestamp+offset), format as string, locale), '') ;
         }
         if (!$ok(format)) { format = TSDateForm.Standard ; }
         return $components2string($components(this._timestamp + offset), format as TSDateForm) ; 
@@ -334,8 +344,12 @@ export function $timeisvalid(hour: number, minute: number, second: number) : boo
 
 export function $timestamp(year: number, month: number, day: number, hours:number = 0, minutes:number=0, seconds:number=0) : number {
 
-    if (!$dayisvalid(year, month, day)) { throw `Bad $timestamp(${year}, ${month}, ${day}) day arguments` ; }
-    if (!$timeisvalid(hours, minutes, seconds)) { throw `Bad  $timestamp(,,,${hours}, ${minutes}, ${seconds}) time arguments` ; }
+    if (!$dayisvalid(year, month, day)) { 
+        throw new TSError(`$timestamp(${year}, ${month}, ${day}): wrong day definition arguments`, { arguments:Array.from(arguments) }) ;
+     }
+    if (!$timeisvalid(hours, minutes, seconds)) { 
+        throw new TSError(`$timestamp(${year}, ${month}, ${day}, ${hours}, ${minutes}, ${seconds}): wrong time arguments`, { arguments:Array.from(arguments) }) ;
+    }
 
 	if (month < 3) { month += 12; year--; }
 

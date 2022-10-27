@@ -15,16 +15,16 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
     group.unary('verifying $subclassReponsabililty(instance, method)', async (t) => {
         const identifier = $uuid() ;
         const instance = new A(identifier) ;
-        let infos:AnyDictionary|undefined = undefined ;
+        let info:AnyDictionary|undefined = undefined ;
         try {
             /*const res =*/ instance.method(12) ;
             //$logterm(`res = ${res}`) ;
         }
         catch(e) {
-            if (e instanceof TSError) { infos = e.infos ; }
+            if (e instanceof TSError) { info = e.info ; }
         }
-        t.expect0(infos?.object?.identifier).toBe(identifier) ;
-        t.expect1(infos?.method?.name).toBe('method') ;
+        t.expect0(info?.object?.identifier).toBe(identifier) ;
+        t.expect1(info?.method?.name).toBe('method') ;
     }) ;
 }) ;
 

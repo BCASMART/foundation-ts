@@ -4,16 +4,24 @@ import { NormativeStringEncoding, StringDictionary, StringEncoding } from "./typ
     Since there's no login in String.normalize() function,
     we are obliged to force conversion of all those unichars > 0x7F
     to their ASCII transliteration. All unichars > 0x7F non declared
-    in FoundationASCIIConversion dictionary are ignored.    
+    in FoundationASCIIConversion dictionary are ignored.   
+    
+    Separation in white spaces and new lines are conform to unicode 4 specifications.
+    Note the character VT (\u000b) is not condidered as a new line but as a whitespace
 */
-const _otherWhiteSpaces = "\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF" ;
-export const FoundationNewLines = "\u000a\u000b\u000c\u000d" ;
-export const FoundationASCIIStrictWhiteSpaces = "\u0009\u0020" ;
-export const FoundationBynaryStrictWhiteSpaces = FoundationASCIIStrictWhiteSpaces+"\u0085\u00A0" ;
-export const FoundationASCIIWhiteSpaces = FoundationASCIIStrictWhiteSpaces+FoundationNewLines ;
-export const FoundationBinaryWhiteSpaces = FoundationBynaryStrictWhiteSpaces+FoundationNewLines ;
-export const FoundationStrictWhiteSpaces = FoundationBynaryStrictWhiteSpaces+_otherWhiteSpaces ;
-export const FoundationWhiteSpaces = FoundationBinaryWhiteSpaces+_otherWhiteSpaces ;
+
+export const FoundationASCIINewLines = "\u000a\u000c\u000d" ;
+export const FoundationASCIIStrictWhiteSpaces = "\u0009\u000b\u0020" ;
+export const FoundationASCIIWhiteSpaces = FoundationASCIIStrictWhiteSpaces+FoundationASCIINewLines ;
+
+export const FoundationBinaryNewLines = FoundationASCIINewLines+"\u0085" ;
+export const FoundationBynaryStrictWhiteSpaces = FoundationASCIIStrictWhiteSpaces+"\u00A0" ;
+export const FoundationBinaryWhiteSpaces = FoundationBynaryStrictWhiteSpaces+FoundationBinaryNewLines ;
+
+export const FoundationNewLines = FoundationBinaryNewLines+"\u2028\u2029" ;
+export const FoundationStrictWhiteSpaces = FoundationBynaryStrictWhiteSpaces + "\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u202F\u205F\u3000\uFEFF" ;
+export const FoundationWhiteSpaces = FoundationStrictWhiteSpaces+FoundationNewLines ;
+
 export const FoundationASCIIConversion:StringDictionary = {
 
     /* 00A0 */
@@ -948,10 +956,10 @@ export const FoundationFindAllWhitespacesRegex = new RegExp(`[${FoundationWhiteS
 export const FoundationLeftTrimRegex = new RegExp(`^[${FoundationWhiteSpaces}]+`) ;
 export const FoundationRightTrimRegex = new RegExp(`[${FoundationWhiteSpaces}]+$`) ;
 
-export const FoundationNewLinesSplitRegex = new RegExp(`[${FoundationNewLines}]`) ;
-
 export const FoundationWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationWhiteSpaces) ;
 export const FoundationWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationWhiteSpaces) ;
+export const FoundationNewLineNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationNewLines) ;
+export const FoundationNewLineStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationNewLines) ;
 export const FoundationStricWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationStrictWhiteSpaces) ;
 export const FoundationStrictWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationStrictWhiteSpaces) ;
 
@@ -980,46 +988,42 @@ function _whiteSpaceAsStringSet(reference:string):Set<string> {
     return ret ;
 }
 
-export const FoundationStringEncodings:{ [k in StringEncoding]: NormativeStringEncoding } = {
-    'ascii':        'ascii',
-    'ASCII':        'ascii',
-    'bin':          'latin1',
-    'BIN':          'latin1',
-    'binary':       'latin1', 
-    'BINARY':       'latin1', 
-    'latin1':       'latin1', 
-    'LATIN1':       'latin1', 
-    'iso-latin1':   'latin1',
-    'ISO-LATIN1':   'latin1',
-    'isolatin1':    'latin1',
-    'ISOLATIN1':    'latin1',
-    'utf8':         'utf8', 
-    'utf-8':        'utf8', 
-    'UTF8':         'utf8', 
-    'UTF-8':        'utf8', 
-    'utf16':        'utf16le', 
-    'utf-16':       'utf16le', 
-    'UTF16':        'utf16le', 
-    'UTF-16':       'utf16le', 
-    "ucs2":         'utf16le',
-    "ucs-2":        'utf16le', 
-    'UCS2':         'utf16le', 
-    'UCS-2':        'utf16le',
-    'utf16le':      'utf16le',
-    'unicode':      'utf16le',
-    'UNICODE':      'utf16le',
-    'utf-16le':     'utf16le', 
-    'UTF-16LE':     'utf16le', 
-    'UTF16LE' :     'utf16le',
-    'base64':       'base64',
-    'BASE64':       'base64',
-    'base64url':    'base64url',
-    'BASE64URL':    'base64url',
-    'hex':          'hex',
-    'HEX':          'hex', 
-    'hexa':         'hex', 
-    'HEXA':         'hex'
-} ;
+
+export const FoundationEncodingsAliases:Array<{ name:NormativeStringEncoding, aliases:StringEncoding[]}> = [
+    { name: 'ascii', aliases:['ASCII'] },
+    { name: 'latin1', aliases:[
+        'bin', 'BIN', 'binary', 'BINARY',
+        'LATIN1', 'latin-1', 'LATIN-1', 'latin_1', 'LATIN_1',
+        'iso-latin1', 'ISO-LATIN1', 'isolatin1', 'ISOLATIN1', 'ISOLatin1',
+        'iso-8859-1', 'ISO-8859-1', '8859-1', 'ISO_8859-1', "ISO8859-1",
+        'iso-ir-100',
+        '819', 'cp819', 'CP819', 'IBM819',
+        'l1',
+        'csISOLatin1',
+        'ansicpg819', '\\ansicpg819'        
+    ]},
+    { name: 'utf8', aliases:[ 'UTF8', 'utf-8', 'UTF-8', 'utf_8', 'UTF_8']},
+    { name: 'utf16le', aliases:[
+        'UTF16', 'utf16', 'utf-16', 'utf_16', 'UTF-16', 'UTF_16',
+        'ucs2', 'ucs-2', 'ucs_2', 'UCS2', 'UCS-2', 'UCS_2',
+        'unicode', 'UNICODE',
+        'utf-16le', 'UTF-16LE', 'utf_16le', 'UTF_16LE', 'UTF16LE'        
+    ]},
+    { name: 'base64', aliases: ['BASE64'] },
+    { name: 'base64url', aliases:[ 'BASE64URL', 'base64-url', 'BASE64-URL', 'base64_url', 'BASE64_URL']},
+    { name: 'hex', aliases: [ 'HEX', 'hexa', 'HEXA', 'hexadecimal', 'HEXADECIMAL']}
+]
+
+function _foundationStringEncodings(definitions:Array<{ name:NormativeStringEncoding, aliases:StringEncoding[]}> ):Map<StringEncoding, NormativeStringEncoding> {
+    let ret = new Map<StringEncoding, NormativeStringEncoding> ;
+    definitions.forEach( d => {
+        ret.set(d.name, d.name) ;
+        d.aliases.forEach(a => { ret.set(a, d.name) ; })
+    }) ;
+    return ret ;
+}
+
+export const FoundationStringEncodingsMap = _foundationStringEncodings(FoundationEncodingsAliases) ;
 
 
 export const FoundationHTMLEncoding:string[] = [
@@ -1057,3 +1061,10 @@ export const FoundationHTMLEncoding:string[] = [
     /* F8 */ 	"&oslash;", "&ugrave;", "&uacute;", "&ucirc;", "&uuml;", "&yacute;", "&thorn;", "&yuml;"
  ] ;
 
+ export const FoundationHTMLStructureEncoding = [...FoundationHTMLEncoding] ;
+ FoundationHTMLStructureEncoding[0x22] = '"' ;
+ FoundationHTMLStructureEncoding[0x26] = '&' ;
+ FoundationHTMLStructureEncoding[0x3c] = '<' ;
+ FoundationHTMLStructureEncoding[0x3e] = '>' ;
+
+ 

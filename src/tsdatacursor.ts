@@ -1,7 +1,8 @@
 import { endianness } from "os"
 import { $isunsigned, $ok } from "./commons";
 import { TSData, TSDataOptions } from "./tsdata";
-import { Nullable } from "./types";
+import { TSError } from "./tserrors";
+import { Nullable, TSDataLike } from "./types";
 
 export type TSEndianness = 'BE' | 'LE' ;
 
@@ -15,7 +16,7 @@ export class TSDataCursor extends TSData
     protected _cursor:number = 0 ;
     protected _endianness:TSEndianness ;
 
-    constructor (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts:TSDataCursorOptions={}) {
+    constructor (source?:Nullable<number|TSDataLike>, opts:TSDataCursorOptions={}) {
         super(source, {
             dontCopySourceBuffer:opts.dontCopySourceBuffer,
             fillWithZeros:opts.fillWithZeros,
@@ -31,7 +32,9 @@ export class TSDataCursor extends TSData
 
     public get cursor() { return this._cursor ; }
     public set cursor(n:number) {
-        if (!$isunsigned(n)) { throw `TSData.cursor = ${n} is not valid.` ; }
+        if (!$isunsigned(n)) { 
+            throw new TSError(`TSData.cursor = ${n} is not valid.`, { cursor:this, location:n}) ; 
+        }
         if (n > this._len) { this.length = n ; }
         this._cursor = n ;
     }
@@ -45,14 +48,14 @@ export class TSDataCursor extends TSData
     public readFloat(offset?:number): number            { return this._read(offset, 4, this.bigEndian ? Buffer.prototype.readFloatBE:Buffer.prototype.readFloatLE) ; }
     public readDouble(offset?:number): number           { return this._read(offset, 8, this.bigEndian ? Buffer.prototype.readDoubleBE:Buffer.prototype.readDoubleLE) ; }
 
-    public writeBigInt64(value:bigint, offset?:number)  { this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeBigInt64BE:Buffer.prototype.writeBigInt64LE) ; }
-    public writeBigUInt64(value:bigint, offset?:number) { this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeBigUInt64BE:Buffer.prototype.writeBigUInt64LE) ; }
-    public writeUInt16(value: number, offset?: number)  { this._write(value, offset, 2, this.bigEndian ? Buffer.prototype.writeUInt16BE:Buffer.prototype.writeUInt16LE) ; }   
-    public writeUInt32(value: number, offset?: number)  { this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeUInt32BE:Buffer.prototype.writeUInt32LE) ; }   
-    public writeInt16(value: number, offset?: number)   { this._write(value, offset, 2, this.bigEndian ? Buffer.prototype.writeInt16BE:Buffer.prototype.writeInt16LE) ; }
-    public writeInt32(value: number, offset?: number)   { this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeInt32BE:Buffer.prototype.writeInt32LE) ; }
-    public writeFloat(value: number, offset?: number)   { this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeFloatBE:Buffer.prototype.writeFloatLE) ; }
-    public writeDouble(value: number, offset?: number)  { this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeDoubleBE:Buffer.prototype.writeDoubleLE) ; }
+    public writeBigInt64(value:bigint, offset?:number):TSDataCursor  { return this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeBigInt64BE:Buffer.prototype.writeBigInt64LE) ; }
+    public writeBigUInt64(value:bigint, offset?:number):TSDataCursor { return this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeBigUInt64BE:Buffer.prototype.writeBigUInt64LE) ; }
+    public writeUInt16(value: number, offset?: number):TSDataCursor  { return this._write(value, offset, 2, this.bigEndian ? Buffer.prototype.writeUInt16BE:Buffer.prototype.writeUInt16LE) ; }   
+    public writeUInt32(value: number, offset?: number):TSDataCursor  { return this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeUInt32BE:Buffer.prototype.writeUInt32LE) ; }   
+    public writeInt16(value: number, offset?: number):TSDataCursor   { return this._write(value, offset, 2, this.bigEndian ? Buffer.prototype.writeInt16BE:Buffer.prototype.writeInt16LE) ; }
+    public writeInt32(value: number, offset?: number):TSDataCursor   { return this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeInt32BE:Buffer.prototype.writeInt32LE) ; }
+    public writeFloat(value: number, offset?: number):TSDataCursor   { return this._write(value, offset, 4, this.bigEndian ? Buffer.prototype.writeFloatBE:Buffer.prototype.writeFloatLE) ; }
+    public writeDouble(value: number, offset?: number):TSDataCursor  { return this._write(value, offset, 8, this.bigEndian ? Buffer.prototype.writeDoubleBE:Buffer.prototype.writeDoubleLE) ; }
 
 
     protected _read<T>(offset:number = this._cursor, size:number, bufferReadFn:(offset?:number)=>T):T {
@@ -61,13 +64,14 @@ export class TSDataCursor extends TSData
         return v ;
     }
 
-    protected _write<T>(value:T, offset:number = this._cursor, size:number, bufferWriteFn:(value:T, offset?:number)=>void) {
+    protected _write<T>(value:T, offset:number = this._cursor, size:number, bufferWriteFn:(value:T, offset?:number)=>void):TSDataCursor {
         super._write(value, offset, size, bufferWriteFn) ;
         this._cursor = offset + size ;
+        return this ;
     }
 }
 
 export interface TSDataCursorConstructor {
-    new (source?:Nullable<TSData|Buffer|ArrayBuffer|Uint8Array|number>, opts?:TSDataCursorOptions): TSDataCursor;
+    new (source?:Nullable<number|TSDataLike>, opts?:TSDataCursorOptions): TSDataCursor;
 }
 

@@ -1,13 +1,15 @@
 import { $isint, $isunsigned, $ok } from "./commons";
+import { TSLeafInspect } from "./tsobject";
 import { Resp } from "./tsrequest";
 import { AnyDictionary, Nullable } from "./types";
-
-export class TSUniqueError extends Error {
+import { $inbrowser } from "./utils";
+export class TSUniqueError extends Error implements TSLeafInspect {
 	private static __timeoutInstance:TSUniqueError ;
 	private static __genericInstance:TSUniqueError ;
 
 	private constructor(message: string) {
 		super(message);
+        this.name = message ;
 	}
 
 	public static genericError() : TSUniqueError {
@@ -24,12 +26,14 @@ export class TSUniqueError extends Error {
 		return this.__timeoutInstance ;
 	}
 
+    leafInspect():string { return this.name ; }
+
 }
 export class TSError extends Error {
-    public readonly infos:AnyDictionary|undefined ;
-    public constructor(message:string, infos?:AnyDictionary) {
+    public readonly info:AnyDictionary|undefined ;
+    public constructor(message:string, info?:AnyDictionary) {
         super(message) ;
-        this.infos = infos ;
+        this.info = info ;
     }
 
     public static assertIntParam(v:Nullable<number>, fn:string, param:string) {
@@ -39,6 +43,12 @@ export class TSError extends Error {
                 param:param,
                 value:v
             }) ;    
+        }
+    }
+
+    public static assertNotInBrowser(fn:string) {
+        if ($inbrowser()) { 
+            throw new TSError(`unavailable ${fn}() ${fn.includes('.')?'method':'function'} in browser`, { functionName:fn}) ; 
         }
     }
 
@@ -52,6 +62,7 @@ export class TSError extends Error {
         }
     }
 
+    public entries(): [string, any][] { return Object.entries({ name:this.name, message:this.message, info:this.info}) ; }
 
 }
 
@@ -74,8 +85,11 @@ export function $subclassReponsabililty(instance:object, method:Function):any {
 
 export class TSHttpError extends TSError {
     public readonly status:Resp ;
-    public constructor(message:string, status:Resp, infos?:AnyDictionary) {
-        super(message, infos) ;
+    public constructor(message:string, status:Resp, info?:AnyDictionary) {
+        super(message, info) ;
         this.status = status ;
     }
+
+    public entries(): [string, any][] { return Object.entries({ name:this.name, status:this.status, message:this.message, info:this.info}) ; }
+
 }

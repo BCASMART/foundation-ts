@@ -1,12 +1,13 @@
 import { $equal } from "./compare";
-import { FoundationStringEncodings, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
 import { $icast } from "./number";
+import { TSError } from "./tserrors";
 
 export function $defined(o:any):boolean 
 { return o !== undefined && typeof o !== 'undefined' }
@@ -30,19 +31,19 @@ export function $iswhitespace(s: Nullable<string|number>) : boolean
 { return $isstring(s) ? FoundationWhiteSpacesStringCodeSet.has(s as string) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s as number) : false) ; }
 
 export function $isnumber(o:any) : boolean
-{ return o !== null && o !== undefined && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
+{ return $ok(o) && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
 
 export function $isint(o:any) : boolean
-{ return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
+{ return $ok(o) && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
 
 export function $isunsigned(o:any, maximum:number=UINT_MAX) : boolean
-{ return o !== null && o !== undefined && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
+{ return $ok(o) && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
 
 export function $isbool(o:any) : boolean
-{ return o !== null && o !== undefined && typeof o === 'boolean' ; }
+{ return $ok(o) && typeof o === 'boolean' ; }
 
 export function $isobject(o:any) : boolean
-{ return o !== null && o !== undefined && typeof o === 'object' ; }
+{ return $ok(o) && typeof o === 'object' ; }
 
 export function $objectcount(o:any) : number 
 { return $isobject(o) ? $keys(o).length : 0 ; }
@@ -76,10 +77,7 @@ export function $intornull(n:Nullable<string|number>) : int | null
 }
 
 export function $int(n:Nullable<string|number>, defaultValue:int=<int>0) : int
-{
-	n = $intornull(n) ;
-	return $ok(n) ? <int>n : defaultValue ;
-}
+{ return $value($intornull(n), defaultValue) ; }
 
 export function $email(s:Nullable<string>) : email | null
 {
@@ -149,10 +147,7 @@ export function $unsignedornull(n:Nullable<string|number>) : uint | null
 }
 
 export function $unsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
-{
-	const n = $unsignedornull(v) ;
-	return $ok(n) ? n as uint : defaultValue ;
-}
+{ return $value($unsignedornull(v), defaultValue) ; }
 
 export function $toint(v:Nullable<string|number>, defaultValue:int=<int>0) : int
 {
@@ -178,16 +173,27 @@ export function $strings(v: Nullable<string[] | string>) : string[]
 
 export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 
-export function $capacityForCount(count:uint):uint
-{ return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; }
+export function $capacityForCount(count:number):uint
+{
+    count = count <= 0 ? 0 : Math.ceil(count) ;
+    return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; 
+}
 
 export function $count<T=any>(a: Nullable<ArrayLike<T>>) : number
 { return $ok(a) ? (<ArrayLike<T>>a).length : 0 ; }
 
-export function $length(s: Nullable<string | Uint8Array | TSData>) : number
-{ return $ok(s) ? (<string|Uint8Array|TSData>s).length : 0 ; }
+export function $length(s: Nullable<string | Bytes | TSData>) : number
+{ return $ok(s) ? (<string|Bytes|TSData>s).length : 0 ; }
 
-export function $lengthin(s: Nullable<string | Uint8Array | TSData>, min:number=0, max:number=INT_MAX) : boolean
+export function $lse<T>(s:Nullable<string | Bytes | TSData | ArrayLike<T>>, start?:Nullable<number>, end?:Nullable<number>) : [uint, uint, uint, uint] {
+    if (!$ok(s)) { return [0, 0, 0, 0] as [uint, uint, uint, uint];}
+    const len = s!.length
+    start = $tounsigned(start);
+    end = Math.min($tounsigned(end, len as uint), len) ;
+    return [len, start, end, Math.max(end-start, 0)] as [uint, uint, uint, uint] ;
+}
+
+export function $lengthin(s: Nullable<string | Bytes | TSData>, min:number=0, max:number=INT_MAX) : boolean
 { const l = $length(s) ; return l >= min && l <= max ; }
 
 export function $jsonobj(v:any): any
@@ -282,8 +288,7 @@ export function $json(v:any, replacer: (number | string)[] | null = null, space:
 // unknown encoding returns utf8
 export function $encoding(e:Nullable<StringEncoding>):NormativeStringEncoding {
     if ($length(e) === 0 || e === 'utf8') { return 'utf8' ; }
-    e = FoundationStringEncodings[e!] ;
-    return e ? e : 'utf8' ;
+    return $value(FoundationStringEncodingsMap.get(e!), 'utf8') ;
 }
 
 // ===== private functions ===================================
@@ -310,7 +315,10 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
         opts.filter = $isfunction(opts.filter) ? opts.filter! : (v:T[keyof T]) => $ok(v) && typeof v !== 'function' ? v : undefined ; 
         
         for (let p of opts.properties) {
-            if (!$isstring(p)) { throw `${fn}() needs to have valid string properties` ; }
+            if (!$isstring(p)) { 
+                throw new TSError(`${fn}() needs to have valid string properties`, 
+                { function:fn, source:source, destination:destination, options:opts}) ; 
+            }
             const v = opts.filter(source[p]) ; 
             if ($defined(v)) {
                 if (fusion_arrays && $isarray(v) && $isarray(destination[p])) { 

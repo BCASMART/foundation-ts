@@ -1,13 +1,14 @@
-import { AnyDictionary, Nullable } from './types';
+import { AnyDictionary, Nullable, TSDataLike } from './types';
 import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned } from './commons';
-import { TSUniqueError } from './tserrors';
+import { TSError, TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
 import { $ftrim } from './strings';
 
 // TODO: for now, we use axios, but as good as axios is, it comes with a lot of
 // dependancies and in near future, we will upgrade this class to be autonomous
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
-import { $encodeBase64 } from './data';
+import { $arrayBufferFromBytes, $encodeBase64 } from './data';
+import { TSData } from './tsdata';
 
 
 export function $basicauth(login:string, pwd:string) : string
@@ -176,7 +177,9 @@ export class TSRequest {
 		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
 		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
 
-        if ($ok(opts.timeout) && opts.timeout! < 0) { throw 'new TSRequest() timeout should be positive'}
+        if ($ok(opts.timeout) && opts.timeout! < 0) { 
+            throw new TSError('TSRequest.constructor(): if set, timeout option should be positive', { baseURL:baseURL, options:opts}) ; 
+        }
 
 		const commonTimeout = $tounsigned(opts.timeout) ;
 		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
@@ -206,7 +209,7 @@ export class TSRequest {
 		method?:Verb, 
 		responseType?:RespType, 
 		statuses:number[] = [200], 
-		body?:Nullable<object|Buffer|ArrayBuffer>, 
+		body?:Nullable<object|TSDataLike>, 
 		suplHeaders?:RequestHeaders,
 		timeout?:number
 	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
@@ -219,7 +222,7 @@ export class TSRequest {
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
-		body:Nullable<object|Buffer|ArrayBuffer>=null, 
+		body:Nullable<object|TSDataLike>=null, 
 		suplHeaders:RequestHeaders={},
 		timeout?:number
 	) : Promise<TSResponse> 
@@ -238,9 +241,23 @@ export class TSRequest {
 		else if ($length(this.basicAuth)) {
 			config.headers['Authorization'] = this.basicAuth ;
 		}
-		if ($ok(body)) { config.data = body } ;
+
+		if ($ok(body)) {
+            if (body instanceof TSData) { config.data = (body as TSData).mutableBuffer ; } 
+            else if (body instanceof Uint8Array) { config.data = $arrayBufferFromBytes(body as Uint8Array) ; }
+            else { config.data = body ; } 
+        } ;
 		
-        if ($ok(timeout) && timeout! < 0) { throw 'TSRequest.req() timeout should be positive'}
+        if ($ok(timeout) && timeout! < 0) { 
+            throw new TSError('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
+                relativeURL:relativeURL, 
+                method:method, 
+                responseType:responseType, 
+                body:body,
+                suplHeaders:suplHeaders,
+                timeout:timeout
+            }) ; 
+        }
 
 		timeout = $tounsigned(timeout) ;
 		if (!timeout) { timeout = this.defaultTimeOut ; }

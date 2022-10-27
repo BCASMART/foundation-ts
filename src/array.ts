@@ -1,7 +1,22 @@
 import { $count, $defined, $isnumber, $isstring, $ok } from "./commons";
 import { $compare } from "./compare";
+import { TSFusionEnumeration } from "./tsfusionnode";
 import { Ascending, Comparison, Descending, Nullable } from "./types";
 
+
+export function $mapset<T, R = T>(values: Nullable<Iterable<T>>, callback:(value: T, index: number) => Nullable<R>): Set<R> {
+    if (!$ok(callback)) { callback = function(v:any, _:number){ return v as R ; } ; }
+    const ret = new Set<R>() ;
+    if ($ok(values)) {
+        let index = 0 ;
+        for (let v of values!) {
+            const mv = callback!(v, index) ;
+            if ($ok(mv)) { ret.add(mv!) ; }
+            index ++ ;
+        }
+    }
+    return ret ;
+}
 
 /*
     This is a map function where callback returns as null or undefined are
@@ -57,16 +72,19 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
 }
 
 declare global {
-    export interface Array<T> {
-        first: () => T | undefined;
-        last: () => T | undefined;
-        min: () => T | undefined;
-        max: () => T | undefined;
-        sum: () => number | undefined;
-        average: (opts?: $averageOptions) => number | undefined;
-        filteredMap: <R = T>(callback: (value: T, index: number) => Nullable<R>) => R[];
+    export interface Array<T> extends TSFusionEnumeration {
+        first: (this:T[]) => T | undefined;
+        last: (this:T[]) => T | undefined;
+        min: (this:T[]) => T | undefined;
+        max: (this:T[]) => T | undefined;
+        sum: (this:T[]) => number | undefined;
+        average: (this:T[], opts?: $averageOptions) => number | undefined;
+        filteredMap: <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => R[];
+        filteredSet: <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => Set<R>;
     }
 }
+
+Array.prototype.fusionEnumeration = function fusionEnumeration():any[] { return this as any[] ; }
 
 if (!('first' in Array.prototype)) {
     Array.prototype.first = function first<T>(this: T[]): T | undefined { return $first(this); }
@@ -89,10 +107,9 @@ if (!('average' in Array.prototype)) {
 if (!('filteredMap' in Array.prototype)) {
     Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): R[] { return $map(this, callback); }
 }
-if (!('min' in Array.prototype)) {
-    Array.prototype.first = function first<T>(this: T[]): T | undefined { return $first(this); }
+if (!('filteredSet' in Array.prototype)) {
+    Array.prototype.filteredSet = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): Set<R> { return $mapset(this, callback); }
 }
-
 
 // ================================== private functions ==============================
 function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number, number|undefined] {

@@ -1,6 +1,6 @@
-import { $isarray, $isobject, $isstring, $ok } from "./commons";
+import { $count, $isarray, $isobject, $isstring, $ok } from "./commons";
 import { TSDate } from "./tsdate";
-import { Comparison, Same, Ascending, Descending, Nullable} from "./types";
+import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
 
 export function $numcompare(a:number, b:number):Comparison {
     if (isNaN(a) || isNaN(b)) { return undefined ; }
@@ -8,9 +8,7 @@ export function $numcompare(a:number, b:number):Comparison {
     return a < b ? Ascending : Descending ;
 }
 
-export function $datecompare(
-    a:Nullable<number|string|Date|TSDate>, 
-    b:Nullable<number|string|Date|TSDate>) : Comparison 
+export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>) : Comparison 
 {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	if (a === b) { return Same ; }
@@ -21,7 +19,7 @@ export function $datecompare(
     return a.compare(b) ;
 }
 
-export function $uint8ArrayCompare(a:Nullable<Uint8Array>, b:Nullable<Uint8Array>):Comparison {
+export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	if (a === b) { return Same ; }
     const na = a!.length, nb = b!.length ;
@@ -55,16 +53,14 @@ export function $compare(a:any, b:any):Comparison {
     }
 	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
-	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $uint8ArrayCompare(a, b) ; }
+	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytescompare(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-        return $uint8ArrayCompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
+        return $bytescompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
     }
     return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
 }
 
-
-
-export function $uint8ArrayEqual(a:Nullable<Uint8Array>, b:Nullable<Uint8Array>):boolean {
+export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
 	if (a === b) { return true ; }
 	if (!$ok(a) || !$ok(b)) return false ;
     const n = a!.length ;
@@ -93,9 +89,7 @@ export function $equal(a:any, b:any):boolean {
     if ($isobject(a) && ('isEqual' in a)) { return a.isEqual(b) ; }	
 	if ($isobject(b) && ('isEqual' in b)) { return b.isEqual(a) ; }
 
-	if (a instanceof Set && b instanceof Set) {
-		return a.size === b.size && [...a.keys()].every(e => b.has(e)) ;
-	}
+	if (a instanceof Set && b instanceof Set) { return $setequal(a, b) ; }
 	if (a instanceof Map && b instanceof Map) {
 		const ak = a.keys() ;
 		const bk = b.keys() ;
@@ -106,9 +100,9 @@ export function $equal(a:any, b:any):boolean {
 		return true ;
 	}
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
-	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $uint8ArrayEqual(a, b) ; }
+	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytesequal(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-        return $uint8ArrayEqual(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
+        return $bytesequal(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
 	}
 
 	if (Object.getPrototypeOf(a) === Object.prototype && Object.getPrototypeOf(b) === Object.prototype) {
@@ -121,4 +115,26 @@ export function $equal(a:any, b:any):boolean {
 		return true ;
 	}
 	return false ; 
+}
+
+export function $setequal(sa:Nullable<Set<any>>, sb:Nullable<Set<any>>):boolean {
+    if (sa === sb) { return true ; }
+    return $ok(sa) && $ok(sb) && sa!.size === sb!.size && [...sa!.keys()].every(e => sb!.has(e)) ;
+}
+
+export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|Set<any>>):boolean {
+    if (sa === sb) { return true ; }
+	if (!$ok(sa) || !$ok(sb)) { return false ; }
+
+    let a:Set<any>|undefined = undefined ;
+    let b:Set<any>|undefined = undefined ;
+    let na = -1 ;
+    let nb = -2 ;
+
+    if ($isarray(sa)) { na = $count(sa as any[]) ; a = new Set<any>(sa as any[]) ; }
+    else if (sa instanceof Set) { na = sa.size ; a = sa ; }
+    if ($isarray(sb)) { nb = $count(sb as any[]) ; b = new Set(sb as any[]) ; }
+    else if (sb instanceof Set) { nb = sb.size ; b = sb ; }
+    
+    return na === nb && $setequal(a, b) ;
 }

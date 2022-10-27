@@ -1,7 +1,7 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
 import { $defined, $isunsigned, $keys, $length, $ok, $string } from "./commons";
-import { TSHttpError } from "./tserrors";
+import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { AnyDictionary, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm } from "./utils";
@@ -68,7 +68,7 @@ export interface TSServerOptions extends TSStaticWebSiteOptions {
     host?:string,
     port?:uint16,
     webSites?:StringDictionary, // [starting path] => folders
-    logInfos?:boolean 
+    logInfo?:boolean 
 } 
 export class TSServer {
     public readonly host:string ;
@@ -80,7 +80,7 @@ export class TSServer {
     private _endPoints:TSParametricEndPoints[] ;
     private _sites:TSStaticWebsite[] ;
     private _logger:TSServerLogger ;
-    private _logInfos:boolean ;
+    private _logInfo:boolean ;
 
     // =================== static methods =======================
     public static async start(endPoints:TSEndPointsDictionary, opts:TSServerOptions) {
@@ -108,13 +108,15 @@ export class TSServer {
     private constructor(endPoints:TSEndPointsDictionary, opts:TSServerOptions = {}) {
 
         this._logger = $ok(opts.logger) ? opts.logger! : _internalLogger ;
-        this._logInfos = !!opts.logInfos ;
+        this._logInfo = !!opts.logInfo ;
 
         // ========= first construct the static websites architecture (only if we're not inside a browser )==========
         this._sites = [] ;
         if ($ok(opts.webSites)) {
             const keys = $keys(opts.webSites!) ;
-            if ($inbrowser() && keys.length) { throw 'TSServer cannot handle static websides inside a browser' ; }
+            if ($inbrowser() && keys.length) { 
+                throw new TSError('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
+            }
             keys.forEach(u => {
                 this._sites.push(new TSStaticWebsite(u as string, opts.webSites![u], {
                     logger:this._logger,
@@ -135,7 +137,12 @@ export class TSServer {
         }) ;
 
         if ($ok(opts.port)) {
-            if (!$isunsigned(opts.port, UINT16_MAX)) { throw `Bad HTTP server port ${opts.port}.` ; } 
+            if (!$isunsigned(opts.port, UINT16_MAX)) { 
+                throw new TSError(`TSServer.constructor(): Bad HTTP server port ${opts.port}.`, {
+                    endPoints:endPoints,
+                    options:opts
+                }) ;
+            } 
             this.port = opts.port!;
         }
         else { this.port = 3000 ; }
@@ -188,14 +195,14 @@ export class TSServer {
                         message:req,
                         query:{} // the final query will be calculated after
                     }, res) ; 
-                    if (this._logInfos) { await this._logger(this, req, TSServerLogType.Log, `did handle resource '${url.pathname}'.`) ; }
+                    if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle resource '${url.pathname}'.`) ; }
                     return ;
                 }
                 else if (method === Verb.Get) {
                     for (let s of this._sites) {
                         const [b, type] = s.getStaticResource(url.pathname) ;
                         if ($ok(b)) {
-                            if (this._logInfos) { await this._logger(this, req, TSServerLogType.Log, `did handle static resource '${url.pathname}'.`) ; }
+                            if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle static resource '${url.pathname}'.`) ; }
                             res.setHeader('Content-Type', type)
                             res.writeHead(Resp.OK);
                             res.end(b!) ;
@@ -214,7 +221,7 @@ export class TSServer {
                 let ret:AnyDictionary = {} ;
                 ret.status = $isunsigned(e?.status) && Object.values(Resp).includes(e!.status!) ? e!.status! : Resp.InternalError ;
                 ret.error = (e as Error).message ; if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; } ;
-                if ($ok(e.infos)) { ret.infos = e.infos ; }
+                if ($ok(e.info)) { ret.info = e.info ; }
                 await this._logger(this, req, TSServerLogType.Warning, `${ret.status} - ${ret.error}`)
                 res.writeHead(ret.status, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(ret)) ;

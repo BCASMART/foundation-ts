@@ -1,5 +1,7 @@
 import { $jsonobj, $length, $ok, $string } from "./commons";
 import { $compare, $equal} from "./compare"
+import { TSError } from "./tserrors";
+import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSClone, TSCollection, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
@@ -30,7 +32,7 @@ export interface TSListToStringOptions<T> {
 	printer?:(data:T) => Nullable<string>
 }
 
-export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>, Iterable<T> {
+export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration, TSClone<TSList<T>>, Iterable<T> {
 	private _f: TSListNode<T> | null = null ;
 	private _l: TSListNode<T> | null = null ;
 	private _n: number = 0 ;
@@ -43,7 +45,9 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
 	public insert(data:T, before?:TSListNode<T>):TSListNode<T> {
 		const node = new TSListNode(data) ;
 		if (!this._f) {
-			if ($ok(before)) throw 'Try to insert before a non existing node' ;
+			if ($ok(before)) { 
+                throw new TSError('TSList.insert(): Try to insert data before a suposely existing node in an empty list', { data:data, before:before }) ;
+            }
 			this._f = this._l = node ;
 			this._n = 1 ;
 		}
@@ -54,8 +58,10 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
 			node.prev = null ;
 			this._n ++ ;
 		}
-		/* warning, we dont verify the node appartenance here */
-		else {
+		else if (!$ok(this.searchNode((node: TSListNode<T>) => node === before))) {
+            throw new TSError('TSList.insert(): Try to insert data before a non existing node', { data:data, before:before }) ;
+        }
+        else {
 			const prev = before!.prev! ;
 			prev.next = node ;
 			node.prev = prev ;
@@ -133,15 +139,19 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
         }} ;
     }
 
-	public search(callback: (data: T) => boolean): TSListNode<T> | null {
+	public searchNode(callback: (node: TSListNode<T>) => boolean): TSListNode<T> | null {
 		if (this._f) {
 			const findMe = (node: TSListNode<T>): TSListNode<T> | null => {
-				if (callback(node.data)) { return node ; }
+				if (callback(node)) { return node ; }
 				return node.next ? findMe(node.next) : null ;
 			} ;
 			return findMe(this._f) ;
 		}
 		return null ;
+	}
+
+    public search(callback: (data: T) => boolean): TSListNode<T> | null {
+        return this.searchNode((node: TSListNode<T>) => callback(node.data)) ;
 	}
 
 	// ============ TSClone conformance =============== 
@@ -217,6 +227,9 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSClone<TSList<T>>,
 		}
 		return array ;
 	}
+
+    // ============ TSFusionEnumeration conformance =============== 
+    public fusionEnumeration(): any[] { return this.toArray() ; }
 
     // ============ TSCollection conformance =============== 
     public getItems():T[] { return this.toArray() ; }

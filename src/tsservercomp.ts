@@ -4,7 +4,7 @@ import { Nullable, StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
 import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
-import { TSHttpError } from "./tserrors";
+import { TSError, TSHttpError } from "./tserrors";
 
 import { TSEndPoint, TSEndPoints, TSEndPointParameter, TSParameterDictionary, TSServerLogger, TSParametricTokenType, TSParametricToken, TSEndPointManager, TSQueryItem, TSServerRequest, TSQueryDictionary, TSQueryValue } from "./tsserver";
 import { TSDate } from "./tsdate";
@@ -30,8 +30,13 @@ export class TSStaticWebsite {
     private _opts:TSStaticWebSiteOptions ;
 
     constructor(uri:string, folder:string, opts:TSStaticWebSiteOptions) {
-        if (!$length(uri)) { throw `Static website url not defined for folder '${folder}'` ; }
-        if (!$isdirectory(folder)) { throw `website ${uri} root folder ${folder} was not found.` ; }
+        const errorOptions = { uri:uri, folder:folder, options:opts} ;
+        if (!$length(uri)) { 
+            throw new TSError(`TSStaticWebsite.constructor(): url not defined for folder '${folder}'`, errorOptions) ; 
+        }
+        if (!$isdirectory(folder)) { 
+            throw new TSError(`TSStaticWebsite.constructor(): website ${uri} root folder ${folder} was not found on disk.`, errorOptions) ;
+        }
   
         this.uri = uri.toLowerCase() ;
         this.folder = folder ;
@@ -41,7 +46,9 @@ export class TSStaticWebsite {
         this._cacheMemory = 0 ;
         this._blacklisted = new Set<string>() ;
 
-        if (!$ok(this._opts.logger))                { throw 'You must specify a logger to a new TSStaticWebsite' ; }
+        if (!$ok(this._opts.logger)) { 
+            throw new TSError('TSStaticWebsite.constructor(): You must specify a logger to a new TSStaticWebsite', errorOptions) ; 
+        }
         if (!$objectcount(this._opts.managedTypes)) { this._opts.managedTypes = { ... TSStaticWebsite.__TSServerStandardsTypes } ; }
         if (!$ok(this._opts.maxCacheSize))          { this._opts.maxCacheSize = 128 * 1024 * 1024 as uint32 ; }
         if (!$ok(this._opts.maxCachedFiles))        { this._opts.maxCachedFiles = 10000 as uint32 ; }
@@ -160,27 +167,37 @@ export class TSParametricEndPoints {
     }
 
     constructor (path:string, ep:TSEndPoints|TSEndPoint|TSEndPointManager, caseInsensitive:boolean=false) {
+        const errorOptions = { path:path, endPoints:ep, options:{ caseSensitive:!caseInsensitive }} ;
+
         path = $ftrim(path) ;
         const len = path.length ;
         if ($isfunction(ep)) { ep = { GET: { manager:ep } as TSEndPoint } as TSEndPoints ; }
         else if ('manager' in ep) { ep = { GET:ep as TSEndPoint} as TSEndPoints ; }
-        if (len < 2) { throw `End points path '${path}' is too short`; }
+        if (len < 2) { 
+            throw new TSError(`TSParametricEndPoints.constructor(): end points path '${path}' is too short`, errorOptions) ; 
+        }
 
         const methods = $keys(ep as TSEndPoints) ;
-        if (methods.length === 0) { throw `End points path '${path}' has no method defined.` ; }
+        if (methods.length === 0) { 
+            throw new TSError(`TSParametricEndPoints.constructor() : end points path '${path}' has no method defined.`, errorOptions) ; 
+        }
 
         this.endPoints = {} ;
         methods.forEach(m => {
             if (!$ok(TSParametricEndPoints.validRequestMethod(m))) {
-                throw `End points path '${path}' did define invalid '${m}' request method.`
+                throw new TSError(`TSParametricEndPoints.constructor() : end points path '${path}' did define invalid '${m}' request method.`, errorOptions) ; 
             }
             const v:TSEndPoint|TSEndPointManager = (ep as TSEndPoints)[m]! ;
             let def = $isfunction(v) ? { manager: v as TSEndPointManager} : v as TSEndPoint ;
             let newQuery:TSParametricQueryDefinition = {} ;
             $keys(def.query).forEach(name => {
                 const n = $ftrim($string(name)) ;
-                if (!n.length) { throw `End points ${m} '${path}' did define an unamed query variable.` ; }
-                else if (n !== n.ascii()) { throw `End points ${m} '${path}' did define an invalid '${name}' query variable.` ; }
+                if (!n.length) { 
+                    throw new TSError(`TSParametricEndPoints.constructor(): end points path [${m}]'${path}' did define an unamed query variable.`, errorOptions) ; 
+                }
+                else if (n !== n.ascii()) { 
+                    throw new TSError(`TSParametricEndPoints.constructor(): end points path [${m}]'${path}' did define an an invalid ${name} variable.`, errorOptions) ; 
+                }
                 const q0 = def.query![name] ;
                 const q = $isstring(q0) ? { type:q0 as TSParametricTokenType } : q0 as TSQueryItem ;
                 newQuery[n.toLowerCase()] = q ;
@@ -208,13 +225,16 @@ export class TSParametricEndPoints {
             //$logterm(`state = ${state}, char = "${c}"`) ;
             switch (state) {
                 case State.Start:
-                    if (c !== '/') { throw `End points path '${path}' is not absolute.` ; }
+                    if (c !== '/') { 
+                        throw new TSError(`TSParametricEndPoints.constructor(): end points path '${path}' is not absolute.`, { position:i, ...errorOptions}) ; 
+                    }
                     state = State.Standard ;
                     break ;
                 case State.Standard:
                     switch (c) {
                         case '{': state = State.Bracket ; constructUri = false ; break ;
-                        case '}': throw `Misplaced '}' character in path '${path}'.` ;
+                        case '}': 
+                            throw new TSError(`TSParametricEndPoints.constructor(): Misplaced '}' character in path '${path}'.`, { position:i, ...errorOptions}) ; 
                         case '/':
                             if (constructUri) { this.uri += c ; } else { regString += '\\/' ; }
                             this.depth++ ;
@@ -223,7 +243,11 @@ export class TSParametricEndPoints {
                             if (constructUri) { this.uri += c ; } else { regString += '\\'+c ; }
                             break ;
                         case '^': case '\\': case '[': case ']': case '`': case '|':
-                            throw `Found forbidden character '${c}' in path '${path}'.` ;
+                            throw new TSError(`TSParametricEndPoints.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in path '${path}'.`, { 
+                                position:i, 
+                                character:c, 
+                                ...errorOptions
+                            }) ; 
                         default:
                             if (constructUri) { this.uri += caseInsensitive ? c.toLowerCase() : c ; }
                             else { regString += caseInsensitive ? c.toLowerCase() : c ; } 
@@ -232,9 +256,15 @@ export class TSParametricEndPoints {
                     break ;
                 case State.Bracket:
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
-                        currentToken = c ; state = State.Token ; break ; 
+                        currentToken = c ; 
+                        state = State.Token ; 
+                        break ; 
                     }
-                    throw `Found forbidden first character '${c}' in parametric token in path '${path}'.` ;
+                    throw new TSError(`TSParametricEndPoints.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
+                        position:i, 
+                        character:c, 
+                        ...errorOptions
+                    }) ; 
                 case State.Token:
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c === '-' || c === '_' || c === '.') {
                         currentToken += c ; break ;
@@ -254,7 +284,11 @@ export class TSParametricEndPoints {
                         state = State.Standard ;
                         break ;
                     }
-                    throw `Found forbidden character '${c}' in parametric token in path '${path}'.` ;
+                    throw new TSError(`TSParametricEndPoints.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
+                        position:i, 
+                        character:c, 
+                        ...errorOptions
+                    }) ; 
                 case State.TokenType:
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
                         currentType += c.toLowerCase() ;
@@ -269,13 +303,22 @@ export class TSParametricEndPoints {
                             state = State.Standard ;
                             break ;    
                         }
-                        throw `Found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.` ;
+                        throw new TSError(`TSParametricEndPoints.constructor(): found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.`, { 
+                            position:i, 
+                            character:c, 
+                            ...errorOptions
+                        }) ; 
                     }
-                    throw `Found forbidden first character '${c}' in parametric type of token '${currentToken}' in path '${path}'.` ;
+
+                    throw new TSError(`TSParametricEndPoints.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric type of token '${currentToken}' in path '${path}'.`, { 
+                        position:i, 
+                        character:c, 
+                        ...errorOptions
+                    }) ; 
             }
         }
         if (state !== State.Standard) { 
-            throw `Malformed parametric path '${path}'.` ; 
+            throw new TSError(`TSParametricEndPoints.constructor(): malformed parametric path '${path}'.`, errorOptions) ; 
         }
         this._regex = regString.length === 0 ? null : (caseInsensitive?new RegExp('^'+regString+'$', 'i') : new RegExp('^'+regString+'$')) ; 
         this._tlen = this.tokens.length ;
@@ -292,7 +335,7 @@ export class TSParametricEndPoints {
            }) ; 
         }
         if ($ok(ep!.query)) { _calculateQuery(req, ep!.query!) ; }
-        await ep!.manager(req, res) ; // QUESTION: this method may also throw, so get the stack in the infos ?
+        await ep!.manager(req, res) ; // QUESTION: this method may also throw, so get the stack in the info ?
     }
 
     // can return an empty string dictionary which means that our path is not parametric

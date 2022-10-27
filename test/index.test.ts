@@ -3,6 +3,7 @@ import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
 import { compareGroups } from './compare.test';
 import { fsGroups } from './fs.test';
+import { fusionGroups } from './fusion.test';
 import { numberGroups } from './number.test';
 import { stringGroups } from './strings.test';
 import { colorGroups } from './tscolor.test';
@@ -44,6 +45,7 @@ tester.addGroups(geometryGroups,    "geometry") ;
 tester.addGroups(qualifierGroups,   "qualifiers") ;
 tester.addGroups(errorsGroups,      "errors") ;
 tester.addGroups(fsGroups) ;  // directly named 'fs' in definition
+tester.addGroups(fusionGroups,      "fusion") ;
 
 let args = process.argv.slice(2);
 const dumper = args.length === 1 && args.first() === '-list' ;
@@ -57,9 +59,9 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "defaults", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
-        "fs"]) ;
+        "fs", "fusion"]) ;
     group.unary("Testing tests list", async (t) => {
-        t.expect0(tester.names.length).toBe(19) ;
+        t.expect0(tester.names.length).toBe(20) ;
         t.expect1(setA).toBe(setB) ;
     }) ;
     if (args.length > 0 && !dumper) {

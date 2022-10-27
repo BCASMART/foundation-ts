@@ -104,14 +104,28 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
     }) ;
 
     group.unary("Testing function $lines(s)", async(t) => {
-        const str = `  Testing \n\tsplit ${FoundationNewLines}function\u000B` ;
-        const res = ["  Testing ", "\tsplit ", "", "", "", "function", ""] ;
+        const str = `  Testing \n\tsplit ${FoundationNewLines}function` ;
+        const fnla:string[] = [] ;
+        for (let i = 0 ; i < FoundationNewLines.length - 1 ; i++) { fnla.push("") ; }
+        const res = ["  Testing ", "\tsplit ", ...fnla, "function"] ;
+
         t.expect0($lines(str)).toBe(res) ;
         t.expect1(str.lines()).toBe(res) ;
-        t.expect2(FoundationNewLines.lines()).toBe(["", "", "", "", ""]) ;
+        t.expect2(FoundationNewLines.lines()).toBe(["", ...fnla, ""]) ;
         t.expect3("".lines()).toBe([""]) ;
         t.expect4($lines(undefined)).toBe([]) ;
         t.expect5($lines(null)).toBe([]) ;
+        t.expect6($lines('A\u000d\u000d\u000aB\u000a\u000d')).toBe(["A", "", "B", "", ""]) ;
+        t.expect7($lines('A\u000d\u000a\u000d\u000d\u000aB\u000a\u000d')).toBe(      ["A", "", "", "B", "", ""]) ;
+        t.expect8($lines('A\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a')).toBe(["A", "", "", "B", "", ""]) ;
+        t.expect9($lines('A\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d')).toBe(["A", "", "", "B", "", "", ""]) ;
+        t.expectA($lines('A\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028')).toBe(["A", "", "", "B", "", "", "", ""]) ;
+        t.expectB($lines('A\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C')).toBe(["A", "", "", "B", "", "", "", "C"]) ;
+        t.expectC($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C')).toBe(["", "", "", "B", "", "", "", "C"]) ;
+        t.expectD($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u000a')).toBe(["", "", "", "B", "", "", "", "C", ""]) ;
+        t.expectE($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u0085')).toBe(["", "", "", "B", "", "", "", "C", ""]) ;
+        t.expectF($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u000d')).toBe(      ["", "", "", "B", "", "", "", "C", ""]) ;
+        t.expectG($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u000d\u000a')).toBe(["", "", "", "B", "", "", "", "C", ""]) ;
     }) ;
 
 }) ;

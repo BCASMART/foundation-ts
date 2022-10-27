@@ -1,3 +1,5 @@
+import { TSData } from "./tsdata";
+
 export type Opaque<V> = V & { readonly __opq__: unique symbol };
 export type Nullable<V> = V | null | undefined;
 
@@ -52,12 +54,14 @@ export type GUID    = UUID ; // just an alias
 export type NormativeStringEncoding = 'ascii' | 'latin1' | 'utf8' | 'utf16le' | 'base64' | 'base64url' | 'hex' ;
 export type StringEncoding = NormativeStringEncoding | 
                             'ASCII' |
-                            'bin' | 'BIN' | 'binary' | 'BINARY' | 'LATIN1' | 'iso-latin1' | 'ISO-LATIN1' | 'isolatin1' | 'ISOLATIN1' |
-                            'utf-8' | 'UTF8' | 'UTF-8' | 
-                            'unicode' | 'UNICODE' | 'utf16' | 'utf-16' | 'UTF16' | 'UTF-16' | "ucs2" | "ucs-2" | 'UCS2' | 'UCS-2' | 'utf-16le' | 'UTF-16LE' | 'UTF16LE' |
-                            'BASE64' | 'BASE64URL' |
-                            'HEX' | 'hexa' | 'HEXA' ;
+                            'bin' | 'BIN' | 'binary' | 'BINARY' | 'LATIN1' | 'iso-latin1' | 'ISO-LATIN1' | 'isolatin1' | 'ISOLATIN1' | 'latin-1' | 'LATIN-1' | 'latin_1' | 'LATIN_1' | 'ISOLatin1' | 'ISO-8859-1' | 'iso-8859-1' | '8859-1' | 'ISO_8859-1' | 'iso-ir-100' | '819' | 'cp819' | 'CP819' | 'IBM819' | 'l1' | 'csISOLatin1' | 'ansicpg819' | '\\ansicpg819' | "ISO8859-1" |
+                            'utf-8' | 'UTF8' | 'UTF-8' | 'utf_8' | 'UTF_8' | 
+                            'unicode' | 'UNICODE' | 'utf16' | 'utf-16' | 'utf_16' | 'UTF16' | 'UTF-16' | 'UTF_16' | "ucs2" | "ucs-2" | 'ucs_2' | 'UCS2' | 'UCS-2' | 'UCS_2' | 'utf-16le' | 'UTF-16LE' | 'utf_16le' | 'UTF_16LE' | 'UTF16LE' |
+                            'BASE64' | 'BASE64URL' | 'base64-url' | 'BASE64-URL' | 'base64_url' |  'BASE64_URL' |
+                            'HEX' | 'hexa' | 'HEXA' | 'hexadecimal' | 'HEXADECIMAL' ;
 
+export type Bytes = uint8[]|Uint8Array|Buffer ;
+export type TSDataLike = Bytes|ArrayBuffer|TSData ;
 
 export const uuidRegex:RegExp  = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i ;
 export const emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;

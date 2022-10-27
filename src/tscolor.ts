@@ -1,6 +1,7 @@
 import { $defined, $isnumber, $isstring, $isunsigned, $ok, $string, $keys, $length, $tounsigned } from "./commons";
 import { $equal, $numcompare } from "./compare";
 import { $ftrim } from "./strings";
+import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
 
@@ -99,7 +100,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
                 return color ;
             }
         }
-        throw 'TSColor.rgb() : Bad parameters' ;
+        throw new TSError('TSColor.rgb() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static rgbcomponents(r:number, g:number, b:number, opacity?:number) {
@@ -111,7 +112,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             opacity = _component(opacity) ;
             return TSColor.rgb((r*255) | 0, (g*255) | 0, (b*255) | 0, (opacity*255) | 0) ;
         }
-        throw 'TSColor.rgbcomponents() : Bad parameters' ;
+        throw new TSError('TSColor.rgbcomponents() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
     
     public static cmyk(C:number,M:number,Y:number,K:number, opacity?:number) {
@@ -124,7 +125,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             opacity = _component(opacity) ;
             return new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
         }
-        throw 'TSColor.cmyk() : Bad parameters' ;
+        throw new TSError('TSColor.cmyk() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static grayscale(whiteIntensity:number, opacity?:number) {
@@ -133,7 +134,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             whiteIntensity = _component(whiteIntensity) ;
             return new TSColor(TSColorSpace.Grayscale, [0,0,0,1-whiteIntensity], opacity) ;
         }
-        throw 'TSColor.grayscale() : Bad parameters' ;
+        throw new TSError('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     /*
@@ -264,7 +265,9 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 	public isPale(): boolean { return this.luminance() > 0.6; }
 
     public toAlpha(newAlpha:uint8):TSColor {
-        if (!$isunsigned(newAlpha, 0xFF)) { throw 'Bad new alpha parameter' ; }
+        if (!$isunsigned(newAlpha, 0xFF)) {
+            throw new TSError(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;
+        }
         if (this.colorSpace !== TSColorSpace.RGB) { return this.toOpacity(newAlpha / 255.0) ; }
         if (newAlpha === this._alpha) { return this ; } 
         const [R,G,B] = this.rgb() ;

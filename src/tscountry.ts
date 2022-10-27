@@ -46,15 +46,15 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public readonly currency: currency;
     public readonly locales:Locales;
     
-    private constructor(infos:CountryInfos, locales:Locales) {
-        this.alpha2Code = infos.alpha2Code ;
-        this.alpha3Code = infos.alpha3Code ;
-        this.names = infos.names ;
-        this.domains = infos.domains ;
-        this.EEC = infos.EEC ;
-        this.spokenLanguages = infos.spokenLanguages ;
-        this.dialCode = infos.dialCode ;
-        this.currency = infos.currency ;
+    private constructor(info:CountryInfo, locales:Locales) {
+        this.alpha2Code = info.alpha2Code ;
+        this.alpha3Code = info.alpha3Code ;
+        this.names = info.names ;
+        this.domains = info.domains ;
+        this.EEC = info.EEC ;
+        this.spokenLanguages = info.spokenLanguages ;
+        this.dialCode = info.dialCode ;
+        this.currency = info.currency ;
         this.locales = {... locales} ; // we take a copy here
     }
 
@@ -62,15 +62,15 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         if (!$ok(TSCountry.__countriesMap)) {
             TSCountry.__countriesMap = new Map<string, TSCountry>() ;
             TSCountry.__countries = [] ;
-            (countriesList as CountryInfos[]).forEach( infos => {
-                let loc = $ok(infos.localeLanguage) ? localesMap.get(infos.localeLanguage!) : TSCountry.__EULocale ;
+            (countriesList as CountryInfo[]).forEach( info => {
+                let loc = $ok(info.localeLanguage) ? localesMap.get(info.localeLanguage!) : TSCountry.__EULocale ;
                 if (!$ok(loc)) { loc = TSCountry.__EULocale ; }
-                const c = new TSCountry(infos, loc!) ;
-                c.locales.startingWeekDay = infos.startingWeekDay ;
+                const c = new TSCountry(info, loc!) ;
+                c.locales.startingWeekDay = info.startingWeekDay ;
                 TSCountry.__countries.push(c) ;
                 TSCountry.__countriesMap.set(c.alpha2Code, c).set(c.alpha3Code, c) ;
                 managedLanguages.forEach(l => TSCountry.__countriesMap.set($ascii(c.names[l]!.toUpperCase()), c)) ;
-                infos.aliases?.forEach(a => TSCountry.__countriesMap.set($ascii(a.toUpperCase()), c))
+                info.aliases?.forEach(a => TSCountry.__countriesMap.set($ascii(a.toUpperCase()), c))
             }) ;
         }
     }
@@ -124,7 +124,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
 
 }
 
-interface CountryInfos {
+interface CountryInfo {
     names:StringTranslation;
     localeLanguage?:language; // language used for the locale. if not set 
                               // we use a kind of standard "european-english" 

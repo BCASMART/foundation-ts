@@ -3,6 +3,7 @@ import { TSRange } from "./tsrange";
 import { AnyDictionary, Ascending, Descending, Nullable, Same } from "./types";
 import { $compare, $equal } from "./compare";
 import { $iscollection, TSCollection } from "./tsobject";
+import { TSError } from "./tserrors";
 
 
 export type QualifierOperator  =  'AND' | 'OR' | 'NOT' | 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE' | 'LIKE' | 'IN' | 'NIN' | 'OK' | 'KO' ;
@@ -57,23 +58,23 @@ export class TSQualifier<T> {
     public static LIKE<T>(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T> { return new this<T>('LIKE', [_split(key), value]) ; }
 
 	public static IN<T>(key:KeyPath<T>, values:QualifierOperand[]):TSQualifier<T> {
-        if (values.length === 0) { throw 'TSQualifier.IN(): Allways false condition with empty values' ; }
+        if (values.length === 0) { throw new TSError('TSQualifier.IN(): Allways returns false with empty values', { key:key, values:values}) ; }
 		return values.length === 1 ? this.EQ<T>(key, values[0]) : new this<T>('IN', [_split(key), values])
     }
 
     public static NIN<T>(key:KeyPath<T>, values:QualifierOperand[]):TSQualifier<T> {
-        if (values.length === 0) { throw 'TSQualifier.NIN(): Allways true condition with empty values' ; }
+        if (values.length === 0) { throw new TSError('TSQualifier.NIN(): Allways returns true with empty values', { key:key, values:values}) ; }
 		return values.length === 1 ? this.NEQ<T>(key, values[0]) : new this<T>('NIN', [_split(key), values])
     }
 
     public static INCLUDES<T>(key1:KeyPath<T>, key2:KeyPath<T>, value:QualifierOperand):TSQualifier<T> {
-        if (!$ok(value)) throw 'TSQualifier.INCLUDING(): should have a not null and not undefined comparison value' ;
+        if (!$ok(value)) { throw new TSError('TSQualifier.INCLUDING(): should have a not null and not undefined comparison value', { key1:key1, key2:key2, value:value}) ; }
         return this.AND<T>([this.LTE<T>(key1, value), this.GT<T>(key2, value)]) ;
     }
 
 	public static INCLUDED<T>(key:KeyPath<T>, value1:QualifierOperand, value2:QualifierOperand, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION):TSQualifier<T> {
 		let target = this.intersectionQualifiers<T>(value1, value2, key, key, strict, canUnspecify) ;
-		if (!target.length) throw 'TSQualifier.INCLUDED(): Bad values.' ;
+		if (!target.length) { throw new TSError('TSQualifier.INCLUDED(): Bad parameters.', { parameters:Array.from(arguments)}) ; }
 		return target.length === 1 ? target[0] : this.AND<T>(target) ;
 	}
 
@@ -85,14 +86,18 @@ export class TSQualifier<T> {
     public static INRANGE<T>(key:KeyPath<T>, range:TSRange|number[]):TSQualifier<T> { 
         if (!(range instanceof TSRange)) { range = new TSRange(range) ; }
         if (!range.isValid || range.isEmpty) {
-            throw 'TSQualifier.prototype.addRange(): trying to add an empty or invalid range value' ;
+            throw new TSError('TSQualifier.prototype.addRange(): trying to add an empty or invalid range value', { key:key, range:range}) ;
         }
         return range.length === 1 ? this.EQ(key, range.location) : this.AND<T>([this.GTE(key, range.location), this.LT(key, range.maxRange)]) ;
 	}
 
 	public static intersectionQualifiers<T>(A:QualifierOperand, B:QualifierOperand, C:KeyPath<T>, D:KeyPath<T>, strict:boolean, canUnspecify:boolean):Array<TSQualifier<T>> {
 		let target:TSQualifier<T>[] = [] ;
-		if (!$ok(A) && !$ok(B)) throw 'TSQualifier._addintersectionQuals() must at least have a research millestone' ;
+		if (!$ok(A) && !$ok(B)) {
+            throw new TSError('TSQualifier.intersectionQualifiers() must at least have one research millestone', 
+            { A:A, B:B, C:C, D:D, strict:strict, canUnspecify:canUnspecify}
+            ) ;
+        }
 		const gt:QualifierOperator = strict ? 'GT' : 'GTE' ;
 		const lt:QualifierOperator = strict ? 'LT' : 'LTE' ;
 
@@ -169,52 +174,52 @@ export class TSQualifier<T> {
 
     public inverse():TSQualifier<T> { return (this.constructor as any).NOT(this) as TSQualifier<T> ; }
 
-    public validateValue(v:T, validateValueForCondition?:(v:T, cond:AnyDictionary) => boolean):boolean {
+    public validateValue(value:T, validateValueForCondition?:(v:T, cond:AnyDictionary) => boolean):boolean {
         let vals ;
         let op ;
 
         switch (this.operator) {
             case 'AND':
                 for (let cond of this._operands) {
-                    if (cond instanceof TSQualifier) { if (!cond.validateValue(v)) return false ; }
-                    else if ($ok(validateValueForCondition)) { if (!validateValueForCondition!(v, cond)) return false ; }
+                    if (cond instanceof TSQualifier) { if (!cond.validateValue(value)) return false ; }
+                    else if ($ok(validateValueForCondition)) { if (!validateValueForCondition!(value, cond)) return false ; }
                     else {
-                        throw 'need a validateValueForCondition() callback to interpret a specific AND condition'
+                        throw new TSError('need a validateValueForCondition() callback to interpret a specific AND condition', { value:value, condition:validateValueForCondition }) ;
                     }
                 }
                 return true ;
             case 'OR': 
                 for (let cond of this._operands) {
-                    if (cond instanceof TSQualifier) { if (cond.validateValue(v)) return true ; }
-                    else if ($ok(validateValueForCondition)) { if (validateValueForCondition!(v, cond)) return true ; }
+                    if (cond instanceof TSQualifier) { if (cond.validateValue(value)) return true ; }
+                    else if ($ok(validateValueForCondition)) { if (validateValueForCondition!(value, cond)) return true ; }
                     else {
-                        throw 'need a validateValueForCondition() callback to interpret a specific OR condition'
+                        throw new TSError('need a validateValueForCondition() callback to interpret a specific OR condition', { value:value, condition:validateValueForCondition }) ;
                     }
                 }
                 return false ;
             case 'NOT':
                 const cond = this._operands[0] ;
-                if (cond instanceof TSQualifier) { return !cond.validateValue(v) ; }
-                else if ($ok(validateValueForCondition)) { return !validateValueForCondition!(v, cond) ; }
-                throw 'need a validateValueForCondition() callback to interpret a specific NOT condition'
+                if (cond instanceof TSQualifier) { return !cond.validateValue(value) ; }
+                else if ($ok(validateValueForCondition)) { return !validateValueForCondition!(value, cond) ; }
+                throw new TSError('need a validateValueForCondition() callback to interpret a specific NOT condition', { value:value, condition:validateValueForCondition }) ;
             case 'OK':
-                return _valuesForKeyPath(v, this._operands[0]).length > 0 ;
+                return _valuesForKeyPath(value, this._operands[0]).length > 0 ;
             case 'KO':
-                return _valuesForKeyPath(v, this._operands[0]).length === 0 ;
+                return _valuesForKeyPath(value, this._operands[0]).length === 0 ;
             case 'EQ':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { if ($equal(v, op)) return true ; } ; return false ;
             case 'NEQ':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { if (!$equal(v, op)) return true ; } ; return false ;
             case 'LT': 
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { if ($compare(v, op) === Ascending) return true ; } ; return false ;
             case 'LTE':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) {
                     const comp = $compare(v, op) ;
@@ -222,11 +227,11 @@ export class TSQualifier<T> {
                 }
                 return false ;
             case 'GT':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { if ($compare(v, op) === Descending) return true ; } ; return false ;
             case 'GTE':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) {
                     const comp = $compare(v, op) ;
@@ -234,16 +239,16 @@ export class TSQualifier<T> {
                 }
                 return false ;
             case 'LIKE':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { if ($sqllike(v, op)) return true ; } ; return false ;
             case 'IN':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { for (let e of op) { if ($equal(e,v)) return true ; } } ;
                 return false ;
             case 'NIN':
-                vals = _valuesForKeyPath(v, this._operands[0]) ;
+                vals = _valuesForKeyPath(value, this._operands[0]) ;
                 op = this._operands[1] ;
                 for (let v of vals) { for (let e of op) { if ($equal(e,v)) return false ; } } ;                
                 return true ;
@@ -267,12 +272,14 @@ export class TSQualifier<T> {
 
     private _assertAndOr(method:string) {
         if (this.operator !== 'OR' && this.operator !== 'AND') {
-            throw `TSQualifier.prototype.${method}(): trying to add condition on ${this.operator} qualifier` ;
+            throw new TSError(`TSQualifier.${method}(): trying to add condition on ${this.operator} qualifier`, {
+                
+            }) ;
         }
     }
 }
 
-export function $valuesForKeyPath<T>(v:any, path:KeyPath<T>) { return $ok(v) ? _valuesForKeyPath(v, _split(path)) : v ; }
+export function $valuesForKeyPath<T>(v:any, path:KeyPath<T>):Nullable<any[]> { return $ok(v) ? _valuesForKeyPath(v, _split(path)) : v ; }
 
 function _split<T>(key:KeyPath<T>):string[] { return (key as string).split('.') ;}
 

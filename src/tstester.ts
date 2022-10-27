@@ -1,5 +1,5 @@
 import { $count, $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
-import { $compare, $equal } from "./compare";
+import { $compare, $equal, $unorderedEqual } from "./compare";
 import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
 import { $inspect, $logterm, $term, $writeterm } from "./utils";
 
@@ -53,7 +53,7 @@ export class TSTester {
             for (let g of this.groups) {
                 await g.prepare() ; 
                 $writeterm(`&e${i.fpad4()} `) ; 
-                g.dumpGroupInfos() ;
+                g.dumpGroupInfo() ;
                 $logterm('') ;
                 i++ ;
             }
@@ -161,7 +161,7 @@ export class TSTestGroup extends TSGenericTest {
     public log(format:string, ...args:any[])
     { super.log('  '+format, args) ; }
 
-    public dumpGroupInfos() {
+    public dumpGroupInfo() {
         const n = this._unaries.length ;
         if (n > 0) {
             const silent = this.silent ? 'silent ' : '' ;
@@ -341,6 +341,9 @@ export class TSExpectAgent {
     public toBeADate():boolean          { return !$isdate(this._value)      ? this._elogfail('<a date>')         : this._step?.pass() ; }
     public toBeAFunction():boolean      { return !$isfunction(this._value)  ? this._elogfail('<a function>')     : this._step?.pass() ; }
 
+    public toBeUnordered(aValue:Set<any>|Array<any>)
+    { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._step.pass() ; }
+
     public eq(aValue:any):boolean       { return this.toBe(aValue) ; }
     public neq(aValue:any):boolean      { return this.notToBe(aValue) ; }
 
@@ -352,7 +355,7 @@ export class TSExpectAgent {
     private _compfail(aValue:any, op:string):boolean {
         if (!this._step.silent) {
             const start = this._writeMessage() ;
-            $logterm(`&adid expect value:&O&w${$inspect(this._value)}&0`) ;
+            $logterm(`&adid expect value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ;
             $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ;
         } 
         return this._step?.fail() ;
@@ -361,8 +364,8 @@ export class TSExpectAgent {
     private _elogfail(aValue:any):boolean {
         if (!this._step.silent) {
             const start = this._writeMessage() ;
-            $logterm(`&edid expect value:&E&b${$inspect(aValue)}&0`) ;
-            $logterm(`${start}&adid get as value:&O&w${$inspect(this._value)}&0`) ; 
+            $logterm(`&edid expect value:&E&b${$inspect(aValue).replace(/&/g, '&&')}&0`) ;
+            $logterm(`${start}&adid get as value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ; 
         }
         return this._step?.fail() ;
     }
@@ -370,7 +373,7 @@ export class TSExpectAgent {
     private _nelogfail(aValue:any):boolean {
         if (!this._step.silent) {
             this._writeMessage() ;
-            $logterm(`&adid not expect  :&O&w${$inspect(aValue)}&0`) ; 
+            $logterm(`&adid not expect  :&O&w${$inspect(aValue).replace(/&/g, '&&')}&0`) ; 
         }
         return this._step?.fail() ;
     }
