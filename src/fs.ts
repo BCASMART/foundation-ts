@@ -37,9 +37,10 @@ import { $uuid } from './crypto';
 import { $inbrowser, $logterm } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { Nullable, StringEncoding } from './types';
+import { Nullable, StringEncoding, TSDataLike } from './types';
 import { $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
+import { $bufferFromArrayBuffer } from './data';
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
@@ -223,19 +224,23 @@ export function $filename(s:Nullable<string>, internalImplementation:boolean=fal
     return basename(s!) ; 
 }
 
-export function $loadJSON(src:Nullable<string|Buffer>) : any | null
+export function $loadJSON(source:Nullable<string|TSDataLike>) : any | null
 {
-    TSError.assertNotInBrowser('$loadJSON') ;
+    const pathParameter = $isstring(source) ;
+    if (pathParameter) { TSError.assertNotInBrowser('$loadJSON') ; }
 	let ret = null ;
+    const src = source instanceof ArrayBuffer ? $bufferFromArrayBuffer(source) : source ;
     if ($length(src)) {
-        let loadedString = src instanceof Buffer ? src.toString('utf8') : $readString(src, 'utf8') ;
+        const charset = TSCharset.utf8Charset() ;
+        let loadedString = pathParameter ? $readString(src as string, charset) : charset.stringFromData(source as TSDataLike) ;
         if ($length(loadedString)) {
             try {
                 ret = JSON.parse(<string>loadedString) ;
                 ret = $ok(ret) ? ret : null ;
             }
             catch (e) {
-                $logterm(`Impossible to parse JSON file ${src}`) ;
+                if (pathParameter) { $logterm(`&R&w Impossible to parse JSON file &P ${src} &0`) ; }
+                else { $logterm(`&R&w Impossible to parse &P ${src!.length} bytes &R given JSON buffer &0`) ; }
                 ret = null ;			
             }
         }    

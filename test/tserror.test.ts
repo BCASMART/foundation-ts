@@ -6,6 +6,7 @@ import { AnyDictionary } from '../src/types';
 
 class A {
     constructor(public identifier:string) {}
+    // @ts-ignore
     method(a:any):string {
         return $subclassReponsabililty(this, this.method) ;
     }

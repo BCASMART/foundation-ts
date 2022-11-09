@@ -9,6 +9,7 @@ import { $ftrim } from './strings';
 import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 import { $arrayBufferFromBytes, $encodeBase64 } from './data';
 import { TSData } from './tsdata';
+import { $map } from './array';
 
 
 export function $basicauth(login:string, pwd:string) : string
@@ -173,7 +174,7 @@ export class TSRequest {
 
     public constructor(baseURL:string='', opts:TSRequestOptions = {}) {
         this.baseURL = baseURL ;
-        this.commonHeaders= $ok(opts?.headers) ? opts.headers! : {} ;
+        this.commonHeaders= $ok(opts?.headers) ? _standardHeaders(opts.headers!) : {} ;
 		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
 		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
 
@@ -231,7 +232,7 @@ export class TSRequest {
 			url:relativeURL,
 			method:method,
 			responseType:responseType,
-			headers: {... this.commonHeaders, ... suplHeaders},
+			headers: {... this.commonHeaders, ... _standardHeaders(suplHeaders)},
             validateStatus: () => true
 		} ;
 
@@ -293,4 +294,13 @@ export class TSRequest {
 		}
 		return { status:status, response:ret, headers:headers}  ;
 	}
+}
+
+function _standardHeaders(headers:Nullable<RequestHeaders>):RequestHeaders {
+    const entries = $ok(headers) ? Object.entries(headers!) : [] ;
+    const ret:RequestHeaders = {} ;
+    for (let [key, value] of entries) {
+        ret[key.capitalize()] = $isarray(value) ? $map(value as string[], i => `${i}`) : `${value}` ;
+    }
+    return ret ;
 }

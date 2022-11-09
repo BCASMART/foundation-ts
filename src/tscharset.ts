@@ -108,6 +108,7 @@ export abstract class TSCharset {
         return $bytesFromBytes(this.stringToBytes(source, sourceStart, sourceEnd)) ;
     }
 
+    // @ts-ignore
     public dataFromString(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
         return new TSData(this.bufferFromString(source), { dontCopySourceBuffer:true }) ;
     }

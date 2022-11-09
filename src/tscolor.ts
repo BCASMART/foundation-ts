@@ -1,5 +1,6 @@
 import { $defined, $isnumber, $isstring, $isunsigned, $ok, $string, $keys, $length, $tounsigned } from "./commons";
 import { $equal, $numcompare } from "./compare";
+import { $round } from "./number";
 import { $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
@@ -220,7 +221,21 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
     // GRAY color space
     public get gray():number    { return this.grayComponent() ; }
-    
+
+    // other accessors
+    public get luminosity():number {
+        // formula from https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
+        const [r,g,b] = this.rgbComponents() ;
+		return 0.21 * r + 0.72 * g + 0.07 * b ;
+    }
+
+    public get luminance(): number {
+        const [r,g,b] = this.rgbComponents() ;
+		return 0.3 * r + 0.59 * g + 0.11 * b ;
+    }
+
+    public get isPale(): boolean { return this.luminance > 0.6; }
+
     // ================== other methods ===========================
 
     public hsl():[number, number, number] {
@@ -229,40 +244,29 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         const s = l - Math.min(r, g, b);
         const h = s ? (l === r ? (g - b) / s : (l === g ? 2 + (b - r) / s : 4 + (r - g) / s)) : 0 ;
         return [
-            Math.round(60 * (h < 0 ? h + 6 : h)),
-            Math.round(100 * (s ? (l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s))) : 0)),
-            Math.round((100 * (2 * l - s)) / 2),
+            $round(60 * (h < 0 ? h + 6 : h)),
+            $round(100 * (s ? (l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s))) : 0)),
+            $round((100 * (2 * l - s)) / 2),
         ];
     }
 
     public hsb():[number, number, number] { 
         const [r,g,b] = this.rgbComponents() ;
         if (r === g && g === b) {
-            return [0, 0, Math.round(r*100)]
+            return [0, 0, $round(r*100)]
         }
         const v = Math.max(r, g, b) ;
         const n = v - Math.min(r, g, b) ;
         const h = n === 0 ? 0 : n && v === r ? (g - b) / n : v === g ? 2 + (b - r) / n : 4 + (r - g) / n;
         return [
-            Math.round(60 * (h < 0 ? h + 6 : h)), 
-            Math.round(v && (n / v) * 100), 
-            Math.round(v * 100)
+            $round(60 * (h < 0 ? h + 6 : h)), 
+            $round(v && (n / v) * 100), 
+            $round(v * 100)
         ] ;     
     }
 
 
-    public luminosity():number {
-        // formula from https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
-        const [r,g,b] = this.rgbComponents() ;
-		return 0.21 * r + 0.72 * g + 0.07 * b ;
-    }
 
-    public luminance(): number {
-        const [r,g,b] = this.rgbComponents() ;
-		return 0.3 * r + 0.59 * g + 0.11 * b ;
-    }
-
-	public isPale(): boolean { return this.luminance() > 0.6; }
 
     public toAlpha(newAlpha:uint8):TSColor {
         if (!$isunsigned(newAlpha, 0xFF)) {
@@ -299,7 +303,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if (this.colorSpace === TSColorSpace.Grayscale) { return this ; }
         return TSColor.grayscale(mode === TSToGrayScaleMode.Brightess ? 
                                  this.grayComponent() : 
-                                 (mode === TSToGrayScaleMode.Luminosity ? this.luminosity() : this.luminance())) ;
+                                 (mode === TSToGrayScaleMode.Luminosity ? this.luminosity : this.luminance)) ;
     }
 
     public lighterColor(): TSColor { return this._modifiedColorsColor(1, _cmykLighter, _rgbLighter) ; }
@@ -308,7 +312,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public lightestColor(): TSColor { return this._modifiedColorsColor(2, _cmykLighter, _rgbLighter) ; }
     public darkestColor(): TSColor { return this._modifiedColorsColor(2, _cmykDarker, _rgbDarker) ; }
 
-	public matchingColor(): TSColor { return this.isPale() ? this.darkestColor() : this.lightestColor(); }
+	public matchingColor(): TSColor { return this.isPale ? this.darkestColor() : this.lightestColor(); }
 
 	public toNumber(): number {
         const [R,G,B] = this.rgb() ;
@@ -343,6 +347,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         }
     }
 
+    // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }
@@ -359,7 +364,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
     public compare(other:any): Comparison {
         return this === other ? Same : 
-            (other instanceof TSColor ? $numcompare(this.luminance(), other.luminance()) : undefined) ;
+            (other instanceof TSColor ? $numcompare(this.luminance, other.luminance) : undefined) ;
     }
 
 	public toString(opts: TSColorToStringOptions = {}): string {

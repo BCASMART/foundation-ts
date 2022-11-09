@@ -63,10 +63,10 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
                 if (!$timeisvalid(arguments[3], arguments[4], arguments[5])) { 
                     throw new TSError(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:Array.from(arguments)}) ; 
                 }
-                this._timestamp = $timestamp(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]) ;
+                this._timestamp = _insetTimeStamp($timestamp(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5])) ;
             }
             else {
-                this._timestamp = $timestamp(arguments[0], arguments[1], arguments[2], 0, 0, 0) ;
+                this._timestamp = _insetTimeStamp($timestamp(arguments[0], arguments[1], arguments[2], 0, 0, 0)) ;
             }
         }
         else if (n === 2) { 
@@ -75,8 +75,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
             if ($isnumber(t)) { 
-                t = $toint(t) ; // we trash all info after the second
-                this._timestamp = Math.min(Math.max(-TSSecsFrom00010101To20010101, t), TSMaxTimeStamp) ;
+                this._timestamp = $insettimestamp(t) ; // we trash the seconds here by making ts an integer
 			}
             else if (t instanceof TSDate) {
                 this._timestamp = t.timestamp;
@@ -102,7 +101,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 				if (!$ok(comps)) { 
                     throw new TSError(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
                 }
-				this._timestamp = $components2timestamp(<TSDateComp>comps) ;
+				this._timestamp = _insetTimeStamp($components2timestamp(<TSDateComp>comps)) ;
 			}
         }
     }
@@ -284,6 +283,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     // ============ TSLeafInspect conformance =============== 
     public leafInspect(): string { return this.toISOString() ; }
     
+    // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }
@@ -393,12 +393,17 @@ export function $weekOfYear(ts:number, offset:number = 0) : number {
     return week ;
 }
 
+export function $insettimestamp(ts:number) { return _insetTimeStamp($toint(ts)) ; }
+
 /***************************************************************************************************************
  * PRIVATE FUNCTIONS AND CONSTANTS
  ***************************************************************************************************************/
 
  const TSDaysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] ;
  const TSDaysInPreviousMonth = [0, 0, 0, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337] ;
+
+ function _insetTimeStamp(ts:number)
+{ return Math.min(Math.max(-TSSecsFrom00010101To20010101, ts), TSMaxTimeStamp) ; }
 
 function _lastDayOfMonth(year:number, month:number) : number { 
 	return (month === 2 && $isleap(year)) ? 29 : TSDaysInMonth[month]; 

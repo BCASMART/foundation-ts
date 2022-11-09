@@ -1,8 +1,39 @@
-import { $fpad, $meters, $octets, $unit } from "../src/number";
+import { $fpad, $meters, $octets, $round, $unit } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UINT32_MAX, UINT_MAX } from "../src/types";
 
 export const numberGroups = TSTest.group("Commons number functions", async (group) => {
+    group.unary("verifying $round function", async(t) => {
+        const n = 1/7 ;
+        const p = -n ;
+        t.expect0($round(0.5)).toBe(1) ;
+        t.expect1($round(-0.5)).toBe(-1) ;
+        t.expect2($round(1.005,2)).toBe(1.01) ;
+        t.expect3($round(-1.005,2)).toBe(-1.01) ;
+        t.expect4($round(2.175,2)).toBe(2.18) ;
+        t.expect5($round(-2.175,2)).toBe(-2.18) ;
+        t.expect6($round(5.015,2)).toBe(5.02) ;
+        t.expect7($round(-5.015,2)).toBe(-5.02) ;
+        t.expect8(n.round()).toBe(0) ;
+        t.expect9(p.round()).toBe(0) ;
+        t.expectA(n.round(1)).toBe(0.1) ;
+        t.expectB(p.round(1)).toBe(-0.1) ;
+        t.expectC(n.round(2)).toBe(0.14) ;
+        t.expectD(p.round(2)).toBe(-0.14) ;
+        t.expectE(n.round(3)).toBe(0.143) ;
+        t.expectF(p.round(3)).toBe(-0.143) ;
+        t.expectG(n.round(4)).toBe(0.1429) ;
+        t.expectH(p.round(4)).toBe(-0.1429) ;
+        t.expectI(n.round(5)).toBe(0.14286) ;
+        t.expectJ(p.round(5)).toBe(-0.14286) ;
+        t.expectK(n.round(6)).toBe(0.142857) ;
+        t.expectL(p.round(6)).toBe(-0.142857) ;
+        t.expectM(n.round(7)).toBe(0.1428571) ;
+        t.expectN(p.round(7)).toBe(-0.1428571) ;
+        t.expectX(NaN.round(7)).toBeNaN() ;
+        t.expectY(Number.NEGATIVE_INFINITY.round(7)).toBe(Number.NEGATIVE_INFINITY) ;
+        t.expectZ(Number.POSITIVE_INFINITY.round(7)).toBe(Number.POSITIVE_INFINITY) ;
+    }) ;
     group.unary("verifying $fpad() functions", async(t) => {
         const n = 12 ;
         t.expect0($fpad(1,5)).toBe('00001') ;
@@ -65,7 +96,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect2($unit(323.256, { unit:'l', unitName:'liters' })).toBe("323.26 liters") ;
         t.expect3($unit(3231.256, { unit:'l' })).toBe("3.23 kl") ;
         t.expect4($unit(3231.256, { unit:'l', maximalUnit:0 })).toBe("3231.26 l") ;
-        t.expect5(volume.unit({ unit:'l', minimalUnit:0, decimals:3 })).toBe("0.002 l") ;
+        t.expect5(volume.unit({ unit:'l', minimalUnit:0, decimalPlaces:3 })).toBe("0.002 l") ;
         t.expect6(volume.unit({ unit:'l', minimalUnit:0 })).toBe("0.00 l") ;
         t.expect7($unit(volume/10, { unit:'l' })).toBe("230.00 µl") ;
         t.expect8($unit(volume/10, { unit:'l', minimalUnit:-1 })).toBe("0.23 ml") ;

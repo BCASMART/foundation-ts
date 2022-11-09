@@ -1,15 +1,16 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $defined, $isunsigned, $keys, $length, $ok, $string } from "./commons";
+import { $defined, $isunsigned, $keys, $length, $objectcount, $ok, $string, $value } from "./commons";
 import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { AnyDictionary, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
+import { AnyDictionary, Nullable, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm } from "./utils";
 
 import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "./tsservercomp";
 import { TSDate } from "./tsdate";
 import { TSColor } from "./tscolor";
 import { $ftrim } from "./strings";
+import { $isabsolutepath } from "./fs";
 
 /**
  * This is a minimal singleton HTTP server class provided for testing
@@ -67,25 +68,32 @@ export type TSQueryDefinition = TSDictionary<TSParametricTokenType|TSQueryItem> 
 export interface TSServerOptions extends TSStaticWebSiteOptions {
     host?:string,
     port?:uint16,
+    rootPath?:string, // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:StringDictionary, // [starting path] => folders
     logInfo?:boolean 
 } 
 export class TSServer {
     public readonly host:string ;
     public readonly port:number ;
-
+    public readonly rootPath:string = '' ;
     private static __server:TSServer|undefined = undefined ;
 
     private _httpServer:Server|undefined ;
     private _endPoints:TSParametricEndPoints[] ;
-    private _sites:TSStaticWebsite[] ;
+    private _sites:TSStaticWebsite[] ; 
     private _logger:TSServerLogger ;
     private _logInfo:boolean ;
 
     // =================== static methods =======================
-    public static async start(endPoints:TSEndPointsDictionary, opts:TSServerOptions) {
+    public static async start(endPoints:Nullable<TSEndPointsDictionary>, opts?:Nullable<TSServerOptions>) {
+        if ($objectcount(endPoints) === 0 && $objectcount(opts?.webSites) === 0) {
+            throw new TSError('TSServer must at least serve one static website or one end point', { 
+                endPoints:endPoints, 
+                options:opts 
+            }) ; 
+        }
         if (!TSServer.__server) {
-            TSServer.__server = new TSServer(endPoints, opts) ;
+            TSServer.__server = new TSServer($value(endPoints, {}), $value(opts, {})) ;
             await TSServer.__server._start() ;
         }
     }
@@ -109,6 +117,9 @@ export class TSServer {
 
         this._logger = $ok(opts.logger) ? opts.logger! : _internalLogger ;
         this._logInfo = !!opts.logInfo ;
+
+        const rp = $ftrim(opts.rootPath) ;
+        if (rp.length > 1 && $isabsolutepath(rp)) { this.rootPath = rp ; }
 
         // ========= first construct the static websites architecture (only if we're not inside a browser )==========
         this._sites = [] ;
@@ -170,10 +181,13 @@ export class TSServer {
 
                 // validating url
                 if (!$length(url.pathname) || url.pathname === '/') {
-                    throw new TSHttpError('Root path is not Accessible', Resp.Forbidden, {
-                        method:req.method,
-                        path:'/'
-                    }) ;
+                    if (this.rootPath.length) { url.pathname = this.rootPath ; }
+                    else {
+                        throw new TSHttpError('Root path is not Accessible', Resp.Forbidden, {
+                            method:req.method,
+                            path:'/'
+                        }) ;    
+                    }
                 }
 
                 let pep:TSParametricEndPoints|undefined = undefined ;
@@ -229,14 +243,18 @@ export class TSServer {
 
         }) ;        
         this._httpServer.listen(this.port, async ()=>{
-            await this._logger(this, undefined, TSServerLogType.Log, `running on port ${this.port} '${this.host}' ...`) ;
+            if (this._logInfo) {
+                await this._logger(this, undefined, TSServerLogType.Log, `running on port ${this.port} '${this.host}' ...`) ;
+            }
         }) ;
     }
     
     private async _clearCaches() { for (let s of this._sites) { await s.clearCaches() ; }}
 
     private async _stop():Promise<Error|undefined> { 
-        await this._logger(this, undefined, TSServerLogType.Log, `server is exiting...`) ;
+        if (this._logInfo) {
+            await this._logger(this, undefined, TSServerLogType.Log, `server is exiting...`) ;
+        }
         if ($ok(this._httpServer)) {
             const ret = await _internalStopServer(this._httpServer!) ;
             if ($ok(ret)) {

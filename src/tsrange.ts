@@ -176,6 +176,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
     // ============ TSLeafInspect conformance =============== 
     public leafInspect(): string { return `[${this.location}, ${this.length}]` ; }
 
+    // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }

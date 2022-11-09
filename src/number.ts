@@ -9,6 +9,11 @@ export function $icast(v:number):number {
     return v >= 0 ? (v! <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v! >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ;
 }
 
+export function $round(v:number, decimalPlaces:number = 0):number {
+    var p = Math.pow(10, $toint(decimalPlaces));
+    return Math.round((v * p) * (1 + Number.EPSILON)) / p ;
+}
+
 export function $fpad2(v: number, failedChar?:string) : string { return $fpad(v,2, failedChar) ; }
 export function $fpad3(v: number, failedChar?:string) : string { return $fpad(v,3, failedChar) ; }
 export function $fpad4(v: number, failedChar?:string) : string { return $fpad(v,4, failedChar) ; }
@@ -22,7 +27,7 @@ export interface $unitOptions {
     unit?:string ;
     minimalUnit?: number ;
     maximalUnit?: number ;
-    decimals?:number ;
+    decimalPlaces?:number ;
     ignoreZeroDecimals?:boolean ;
     ignoreMinimalUnitDecimals?:boolean ;
 }
@@ -39,7 +44,7 @@ export function $unit(n: Nullable<number>, opts:$unitOptions = {}) {
     const unitName = sn.length ? sn : (su.length ? su : 'm') ;
     const minU = $ok(opts.minimalUnit) ? Math.min(0, Math.max(-8, opts.minimalUnit!)) : -8 ;
     const maxU = $ok(opts.maximalUnit) ? Math.min(8, Math.max(0, opts.maximalUnit!)) : 8 ;
-    let   dm = $isunsigned(opts.decimals) ? opts.decimals as number : 2 ;
+    let   dm = $isunsigned(opts.decimalPlaces) ? opts.decimalPlaces as number : 2 ;
     if (v === 0) {
         if (dm === 0 || opts.ignoreZeroDecimals || (minU === 0 && opts.ignoreMinimalUnitDecimals)) { return '0 ' + unitName ; }
         return '0.'.padEnd(2+dm, '0') + ' ' + unitName ;
@@ -50,9 +55,9 @@ export function $unit(n: Nullable<number>, opts:$unitOptions = {}) {
     return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?unitName:unit) ;
 }
 
-export function $octets(n: Nullable<number>, decimals:number = 2) {
+export function $octets(n: Nullable<number>, decimalPlaces:number = 2) {
     return $unit(n, { 
-        decimals:decimals, 
+        decimalPlaces:decimalPlaces, 
         unit:'o', 
         unitName:'octets', 
         minimalUnit:0, 
@@ -61,8 +66,8 @@ export function $octets(n: Nullable<number>, decimals:number = 2) {
     }) ;
 }
 
-export function $meters(n: Nullable<number>, decimals:number = 2) {
-    return $unit(n, { decimals:decimals})
+export function $meters(n: Nullable<number>, decimalPlaces:number = 2) {
+    return $unit(n, { decimalPlaces:decimalPlaces})
 }
 
 const FoundationHexaChars = '0123456789ABCDEF' ;
@@ -71,8 +76,9 @@ const FoundationHexaLowerChars = '0123456789abcdef' ;
 declare global {
     export interface Number {
         unit:   (this:number, opts?:$unitOptions) => string ;
-        meters: (this:number, decimals?:number) => string ;
-        octets: (this:number, decimals?:number) => string ;
+        round:  (this:number, decimalPlaces?:number) => number ;
+        meters: (this:number, decimalPlaces?:number) => string ;
+        octets: (this:number, decimalPlaces?:number) => string ;
         fpad:   (this:number, pad:number, failedChar?:string) => string ;
         fpad2:  (this:number, failedChar?:string) => string ;
         fpad3:  (this:number, failedChar?:string) => string ;
@@ -87,7 +93,9 @@ declare global {
         isStrictWhiteSpace:(this:number) => boolean ;
     }
 }
-
+if (!('round' in Number.prototype)) {
+    Number.prototype.round = function round(this:number, decimalPlaces?:number) { return $round(this, decimalPlaces) ; }
+}
 if (!('fpad' in Number.prototype)) {
     Number.prototype.toHex2 = function toHex2(this:number, toLowerCase:boolean = false) {
         const n = this.toUnsigned() ;
@@ -105,8 +113,8 @@ if (!('fpad' in Number.prototype)) {
         return r[(n>>28) & 0xF]+r[(n>>24) & 0xF]+r[(n>>20) & 0xF]+r[(n >> 16) & 0xF]+r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
     }
     Number.prototype.unit = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
-    Number.prototype.meters = function meters(this:number, decimals?:number) { return $meters(this, decimals) ; }
-    Number.prototype.octets = function octets(this:number, decimals?:number) { return $octets(this, decimals) ; }
+    Number.prototype.meters = function meters(this:number, decimalPlaces?:number) { return $meters(this, decimalPlaces) ; }
+    Number.prototype.octets = function octets(this:number, decimalPlaces?:number) { return $octets(this, decimalPlaces) ; }
     Number.prototype.fpad  = function fpad(this:number, pad:number, failedChar?:string) { return $fpad(this, pad, failedChar) ; }
     Number.prototype.fpad2 = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
     Number.prototype.fpad3 = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }

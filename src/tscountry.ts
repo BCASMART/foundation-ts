@@ -118,6 +118,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     // ============ TSLeafInspect conformance =============== 
     public leafInspect(): string { return `<${this.label.capitalize()} (${this.alpha2Code})>`; }
 
+    // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }

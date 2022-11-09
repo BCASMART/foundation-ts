@@ -1,3 +1,4 @@
+import { $round } from '../src/number';
 import { TSColor, TSColorSpace } from '../src/tscolor';
 import { TSTest } from '../src/tstester';
 import { uint8 } from '../src/types';
@@ -98,4 +99,19 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect0(yaRGB2).toBe(yaRGB1) ;
     }) ;
 
+    group.unary('luminosity and luminance', async(t) => {
+        const decimals = 2 ;
+        const luminance = $round(0.15 + 0.295 + 0.055, decimals) ;
+        const luminosity = $round(0.105 + 0.36 + 0.035, decimals) ;
+
+        t.expect0(realGray.isPale).toBeFalsy() ;
+        t.expect1(rgbGray.isPale).toBeFalsy() ;
+        t.expect2(cmykGray.isPale).toBeFalsy() ;
+        t.expect3(realGray.luminance.round(decimals)).toBe(luminance) ;
+        t.expect4(rgbGray.luminance.round(decimals)).toBe(luminance) ;
+        t.expect5(cmykGray.luminance.round(decimals)).toBe(luminance) ;
+        t.expect6(realGray.luminosity.round(decimals)).toBe(luminosity) ;
+        t.expect7(rgbGray.luminosity.round(decimals)).toBe(luminosity) ;
+        t.expect8(cmykGray.luminosity.round(decimals)).toBe(luminosity) ;
+    }) ;
 }) ;

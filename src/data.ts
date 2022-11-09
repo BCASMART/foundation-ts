@@ -9,7 +9,9 @@ export function $bufferFromArrayBuffer(a: ArrayBuffer): Buffer {
 export function $bytesFromBytes(source:Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): uint8[]
 {
     const [sourceLen, start, end,] = $lse(source, sourceStart, sourceEnd) ;    
-    if ((source instanceof Array<uint8>) && start === 0 && end === sourceLen) { return source ; }
+    if ((source instanceof Array<uint8>)) { 
+        return start === 0 && end === sourceLen ? source : source.slice(start, end) ;
+    }
     const ret:uint8[] = [] ;
     for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i] as uint8 ; }
     return ret ;
@@ -140,8 +142,12 @@ export function $dataAspect(
 }
 
 declare global {
+    export interface String {
+        toBase64: (this: string) => string;
+    }
     export interface Uint8Array {
         leafInspect: (this: Uint8Array) => string;
+        toBase64: (this: Uint8Array) => string;
     }
     export interface Uint16Array {
         leafInspect: (this: Uint16Array) => string;
@@ -151,6 +157,7 @@ declare global {
     }
     export interface ArrayBuffer {
         leafInspect: (this: any) => string;
+        toBase64: (this: any) => string;
     }
 }
 
@@ -163,4 +170,10 @@ if (!('leafInspect' in Uint8Array.prototype)) {
         const buf = $bufferFromArrayBuffer(this);
         return 'ArrayBuffer { [Uint8Contents]: <' + $dataAspect(buf, { prefix: '', suffix: '', separator: '', showLength: false, name: '', transformFn: (n) => n.toHex2(true) }) + '>, byteLength: ' + buf.length + ' }';
     }
+}
+
+if (!('toBase64' in Uint8Array.prototype)) {
+    String.prototype.toBase64 = function toBase64(this: string): string { return $encodeBase64(this); }
+    Uint8Array.prototype.toBase64 = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
+    ArrayBuffer.prototype.toBase64 = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }
 }

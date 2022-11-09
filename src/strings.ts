@@ -45,7 +45,7 @@ export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = fa
         let last = 0;
         let i = 0;
         const [CR, LF, FF, NEL, LS, PS] = [0x000D, 0x000A, 0x000C, 0x0085, 0x02028, 0x02029] ;
-        const isOtherLineSeparator = useOnlyASCIISeparators ? (c:number) => false : (c:number) => c === LS || c === PS || c === NEL || c === FF ;
+        const isOtherLineSeparator = useOnlyASCIISeparators ? (_:number) => false : (c:number) => c === LS || c === PS || c === NEL || c === FF ;
 
         while (i < len) {
             const c = s!.charCodeAt(i);

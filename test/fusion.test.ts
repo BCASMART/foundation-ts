@@ -51,6 +51,7 @@ class PI {
 
 }
 
+// @ts-ignore
 function richTextName(data:any, rootData:any, localContext:TSDictionary, context:TSDictionary, systemContext:TSDictionary):string {
     if (data instanceof PI) {
         return context.nameColor+data.title().capitalize()+' '+data.firstName.capitalize()+' '+context.lastNameColor+data.lastName.toLocaleUpperCase()+"&0" ;
@@ -58,6 +59,7 @@ function richTextName(data:any, rootData:any, localContext:TSDictionary, context
     return context.nameColor+data.title.capitalize()+' '+data.firstName.capitalize()+' '+context.lastNameColor+data.lastName.toLocaleUpperCase()+"&0" ;
 }
 
+// @ts-ignore
 function htmlName(data:any, rootData:any, localContext:TSDictionary, context:TSDictionary, systemContext:TSDictionary):string {
     if (data instanceof PI) {
         return data.title().capitalize()+' '+data.firstName.capitalize()+' '+data.lastName.toLocaleUpperCase() ;

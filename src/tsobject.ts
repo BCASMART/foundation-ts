@@ -6,7 +6,7 @@ export type TSConstructor<T = unknown> = new (...args: any[]) => T;
 
 export interface TSObject {
 	toString(): string ;
-	toJSON(): any
+	toJSON(): any ;
 	toArray(): any[] ;
 	isEqual(other:any): boolean ;
     compare(other:any): Comparison ;

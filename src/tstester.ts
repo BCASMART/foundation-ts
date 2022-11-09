@@ -7,7 +7,7 @@ export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
 export type testFN = (t:TSGenericTest) => Promise<void> ;
 
-const noopTest:testFN = async (t:TSGenericTest):Promise<void> => {}
+const noopTest:testFN = async (_:TSGenericTest):Promise<void> => {}
 
 export interface TSTesterOptions {
     focusNames?:string[] ;

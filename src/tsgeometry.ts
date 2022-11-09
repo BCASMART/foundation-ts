@@ -390,6 +390,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
     // ============ TSLeafInspect conformance =============== 
     public leafInspect(): string { return this.toString() ; }
 
+    // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }

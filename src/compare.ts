@@ -138,3 +138,5 @@ export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|S
     
     return na === nb && $setequal(a, b) ;
 }
+
+// TODO: ean psilon equal or a near equal function
