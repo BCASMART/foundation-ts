@@ -110,89 +110,52 @@ export class HTMLContent extends String {
 
 declare global {
     export interface String {
-        toHTML: (this: string) => string;
-        toHTMLContent:(this: string) => HTMLContent ;
-        ascii: (this: string) => string;
-        firstCap: (this: string) => string;
-        capitalize: (this: string) => string;
-        normalizeSpaces: (this: string) => string;
-        ftrim: (this: string) => string;
-        ltrim: (this: string) => string;
-        rtrim: (this: string) => string;
-        isDate: (this: string) => boolean;
-        isEmail: (this: string) => boolean;
-        isUrl: (this: string) => boolean;
-        isUUID: (this: string) => boolean;
-        lines: (this: string, useOnlyASCIISeparators?:boolean) => string[];
-        toInt: (this: string, defaultValue?: int) => int;
-        toUnsigned: (this: string, defaultValue?: uint) => uint;
-        isNewLine: (this: string,) => boolean;
-        isWhiteSpace: (this: string) => boolean;
+        ascii:              (this: string) => string;
+        capitalize:         (this: string) => string;
+        firstCap:           (this: string) => string;
+        ftrim:              (this: string) => string;
+        isDate:             (this: string) => boolean;
+        isEmail:            (this: string) => boolean;
+        isNewLine:          (this: string) => boolean;
         isStrictWhiteSpace: (this: string) => boolean;
+        isUrl:              (this: string) => boolean;
+        isUUID:             (this: string) => boolean;
+        isWhiteSpace:       (this: string) => boolean;
+        lines:              (this: string, useOnlyASCIISeparators?:boolean) => string[];
+        ltrim:              (this: string) => string;
+        normalizeSpaces:    (this: string) => string;
+        rtrim:              (this: string) => string;
+        toHTML:             (this: string) => string;
+        toHTMLContent:      (this: string) => HTMLContent ;
+        toInt:              (this: string, defaultValue?: int) => int;
+        toUnsigned:         (this: string, defaultValue?: uint) => uint;
     }
     export interface HTMLContent {
-        toHTML: (this: any) => string;
+        toHTML:             (this: any) => string;
     }
 
 }
+String.prototype.ascii              = function ascii(this: string): string { return $ascii(this); } ;
+String.prototype.capitalize         = function capitalize(this: string): string { return $capitalize(this); } ;
+String.prototype.firstCap           = function firstCap(this: string): string { return $firstcap(this); } ;
+String.prototype.ftrim              = function ftrim(this: string): string { return $ftrim(this); } ;
+String.prototype.isDate             = function isDate(this: string): boolean { return $ok($isodate(this)); } ;
+String.prototype.isEmail            = function isEmail(this: string): boolean { return $ok($email(this)); } ;
+String.prototype.isNewLine          = function isNewLine(this: string) { return FoundationNewLineStringCodeSet.has(this) }
+String.prototype.isStrictWhiteSpace = function isStrictWhiteSpace(this: string) { return FoundationStrictWhiteSpacesStringCodeSet.has(this); }
+String.prototype.isUrl              = function isUrl(this: string): boolean { return $ok($url(this)); }
+String.prototype.isUUID             = function isUUID(this: string): boolean { return $ok($UUID(this)); }
+String.prototype.isWhiteSpace       = function isWhiteSpace(this: string) { return FoundationWhiteSpacesStringCodeSet.has(this); }
+String.prototype.lines              = function lines(this: string, useOnlyASCIISeparators?:boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
+String.prototype.ltrim              = function ltrim(this: string): string { return $ltrim(this); }
+String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): string { return $normspaces(this); }
+String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
+String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
+String.prototype.toHTMLContent      = function toHTMLContent(this:string) { return new HTMLContent(this) ; }
+String.prototype.toInt              = function toInt(this: string, defaultValue?: int) { return $toint(this, defaultValue); }
+String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint) { return $tounsigned(this, defaultValue); }
 
-if (!('isWhiteSpace' in String.prototype)) {
-    String.prototype.isWhiteSpace = function isNewLine(this: string) { return FoundationWhiteSpacesStringCodeSet.has(this); }
-    String.prototype.isStrictWhiteSpace = function isNewLine(this: string) { return FoundationStrictWhiteSpacesStringCodeSet.has(this); }
-    String.prototype.isNewLine = function isNewLine(this: string) { return FoundationNewLineStringCodeSet.has(this) }
-}
-if (!('ascii' in String.prototype)) {
-    String.prototype.ascii = function ascii(this: string): string { return $ascii(this); }
-}
-
-
-if (!('toHTMLContent' in String.prototype)) {
-    String.prototype.toHTMLContent = function toHTMLContent(this:string) { return new HTMLContent(this) ; }
-}
-if (!('toHTML' in String.prototype)) {
-    String.prototype.toHTML = function toHTML(this: any): string { return $HTML(this); }
-}
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
-
-if (!('firstCap' in String.prototype)) {
-    String.prototype.firstCap = function firstCap(this: string): string { return $firstcap(this); }
-}
-if (!('capitalize' in String.prototype)) {
-    String.prototype.capitalize = function capitalize(this: string): string { return $capitalize(this); }
-}
-if (!('normalizeSpaces' in String.prototype)) {
-    String.prototype.normalizeSpaces = function normalizeSpaces(this: string): string { return $normspaces(this); }
-}
-if (!('ftrim' in String.prototype)) {
-    String.prototype.ftrim = function ftrim(this: string): string { return $ftrim(this); }
-}
-if (!('ltrim' in String.prototype)) {
-    String.prototype.ltrim = function ltrim(this: string): string { return $ltrim(this); }
-}
-if (!('rtrim' in String.prototype)) {
-    String.prototype.rtrim = function rtrim(this: string): string { return $rtrim(this); }
-}
-if (!('isDate' in String.prototype)) {
-    String.prototype.isDate = function isDate(this: string): boolean { return $ok($isodate(this)); }
-}
-if (!('isEmail' in String.prototype)) {
-    String.prototype.isEmail = function isEmail(this: string): boolean { return $ok($email(this)); }
-}
-if (!('isUrl' in String.prototype)) {
-    String.prototype.isUrl = function isUrl(this: string): boolean { return $ok($url(this)); }
-}
-if (!('isUUID' in String.prototype)) {
-    String.prototype.isUUID = function isUUID(this: string): boolean { return $ok($UUID(this)); }
-}
-if (!('lines' in String.prototype)) {
-    String.prototype.lines = function lines(this: string, useOnlyASCIISeparators?:boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
-}
-if (!('toInt' in String.prototype)) {
-    String.prototype.toInt = function toInt(this: string, defaultValue?: int) { return $toint(this, defaultValue); }
-}
-if (!('toUnsigned' in String.prototype)) {
-    String.prototype.toUnsigned = function toUnsigned(this: string, defaultValue?: uint) { return $tounsigned(this, defaultValue); }
-}
 
 // ================================== private functions ==============================
 

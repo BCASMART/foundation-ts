@@ -237,10 +237,10 @@ export class TSRequest {
 		} ;
 
 		if ($length(this.token)) {
-			config.headers['Authorization'] = this.token ;
+			config.headers!['Authorization'] = this.token! ;
 		}
 		else if ($length(this.basicAuth)) {
-			config.headers['Authorization'] = this.basicAuth ;
+			config.headers!['Authorization'] = this.basicAuth! ;
 		}
 
 		if ($ok(body)) {

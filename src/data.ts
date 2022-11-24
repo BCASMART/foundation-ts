@@ -143,11 +143,11 @@ export function $dataAspect(
 
 declare global {
     export interface String {
-        toBase64: (this: string) => string;
+        toBase64:    (this: string) => string;
     }
     export interface Uint8Array {
         leafInspect: (this: Uint8Array) => string;
-        toBase64: (this: Uint8Array) => string;
+        toBase64:    (this: Uint8Array) => string;
     }
     export interface Uint16Array {
         leafInspect: (this: Uint16Array) => string;
@@ -157,23 +157,18 @@ declare global {
     }
     export interface ArrayBuffer {
         leafInspect: (this: any) => string;
-        toBase64: (this: any) => string;
+        toBase64:    (this: any) => string;
     }
 }
 
-if (!('leafInspect' in Uint8Array.prototype)) {
-    Buffer.prototype.leafInspect = function leafInspect(this: Uint8Array): string { return '<' + $dataAspect(this, { prefix: '', suffix: '', separator: '', showLength: false, transformFn: (n) => n.toHex2() }) + '>'; }
-    Uint8Array.prototype.leafInspect = function leafInspect(this: Uint8Array): string { return $dataAspect(this); }
-    Uint16Array.prototype.leafInspect = function leafInspect(this: Uint16Array): string { return $dataAspect(this); }
-    Uint32Array.prototype.leafInspect = function leafInspect(this: Uint32Array): string { return $dataAspect(this); }
-    ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
-        const buf = $bufferFromArrayBuffer(this);
-        return 'ArrayBuffer { [Uint8Contents]: <' + $dataAspect(buf, { prefix: '', suffix: '', separator: '', showLength: false, name: '', transformFn: (n) => n.toHex2(true) }) + '>, byteLength: ' + buf.length + ' }';
-    }
+Buffer.prototype.leafInspect      = function leafInspect(this: Uint8Array): string { return '<' + $dataAspect(this, { prefix: '', suffix: '', separator: '', showLength: false, transformFn: (n) => n.toHex2() }) + '>'; }
+Uint8Array.prototype.leafInspect  = function leafInspect(this: Uint8Array): string { return $dataAspect(this); }
+Uint16Array.prototype.leafInspect = function leafInspect(this: Uint16Array): string { return $dataAspect(this); }
+Uint32Array.prototype.leafInspect = function leafInspect(this: Uint32Array): string { return $dataAspect(this); }
+ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
+    const buf = $bufferFromArrayBuffer(this);
+    return 'ArrayBuffer { [Uint8Contents]: <' + $dataAspect(buf, { prefix: '', suffix: '', separator: '', showLength: false, name: '', transformFn: (n) => n.toHex2(true) }) + '>, byteLength: ' + buf.length + ' }';
 }
-
-if (!('toBase64' in Uint8Array.prototype)) {
-    String.prototype.toBase64 = function toBase64(this: string): string { return $encodeBase64(this); }
-    Uint8Array.prototype.toBase64 = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
-    ArrayBuffer.prototype.toBase64 = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }
-}
+String.prototype.toBase64         = function toBase64(this: string): string { return $encodeBase64(this); }
+Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
+ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }

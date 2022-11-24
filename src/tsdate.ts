@@ -304,10 +304,7 @@ declare global {
         leafInspect: (this:Date) => string ;
     }
 }
-
-if (!('leafInspect' in Date.prototype)) {
-    Date.prototype.leafInspect = Date.prototype.toISOString ;
-}
+Date.prototype.leafInspect = Date.prototype.toISOString ;
 
 
 /***************************************************************************************************************

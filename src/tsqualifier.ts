@@ -315,21 +315,16 @@ declare global {
     }
 }
 
-if (!('sqlLike' in String.prototype)) {
-    // we mimic SQL Like operator here
-    String.prototype.sqlLike = function sqlLike(this:string, like:string) { 
-        if (!$ok(like)) { return false ; }
-        like = like!.replace(new RegExp("([\\.\\\\\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}\\=\\!\\<\\>\\|\\:\\-])", "g"), "\\$1");
-        like = like.replace(/%/g, '.*').replace(/_/g, '.');
-        return RegExp('^' + like + '$', 'gi').test(this);
-    }
+
+String.prototype.sqlLike = function sqlLike(this:string, like:string) { 
+    if (!$ok(like)) { return false ; }
+    like = like!.replace(new RegExp("([\\.\\\\\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}\\=\\!\\<\\>\\|\\:\\-])", "g"), "\\$1");
+    like = like.replace(/%/g, '.*').replace(/_/g, '.');
+    return RegExp('^' + like + '$', 'gi').test(this);
 }
+Array.prototype.filterWithQualifier = function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
 
 export function $sqllike(a:any, b:string) {
     if (!$ok(a)) return false ;
     return $isstring(a) ? a.sqlLike(b) : `${a}`.sqlLike(b) ; // if a as no specific toString() method, this will return inconsistent result
-}
-
-if (!('filterWithQualifier' in Array.prototype)) {
-    Array.prototype.filterWithQualifier = function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
 }

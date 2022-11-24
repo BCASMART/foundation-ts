@@ -1,4 +1,4 @@
-import { $count, $defined, $isnumber, $isstring, $ok } from "./commons";
+import { $count, $defined, $isnumber, $ok } from "./commons";
 import { $compare } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { Ascending, Comparison, Descending, Nullable } from "./types";
@@ -73,43 +73,26 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
 
 declare global {
     export interface Array<T> extends TSFusionEnumeration {
-        first: (this:T[]) => T | undefined;
-        last: (this:T[]) => T | undefined;
-        min: (this:T[]) => T | undefined;
-        max: (this:T[]) => T | undefined;
-        sum: (this:T[]) => number | undefined;
-        average: (this:T[], opts?: $averageOptions) => number | undefined;
-        filteredMap: <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => R[];
-        filteredSet: <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => Set<R>;
+        average:        (this:T[], opts?: $averageOptions) => number | undefined;
+        filteredMap:    <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => R[];
+        filteredSet:    <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => Set<R>;
+        first:          (this:T[]) => T | undefined;
+        last:           (this:T[]) => T | undefined;
+        max:            (this:T[]) => T | undefined;
+        min:            (this:T[]) => T | undefined;
+        sum:            (this:T[]) => number | undefined;
     }
 }
 
-Array.prototype.fusionEnumeration = function fusionEnumeration():any[] { return this as any[] ; }
-
-if (!('first' in Array.prototype)) {
-    Array.prototype.first = function first<T>(this: T[]): T | undefined { return $first(this); }
-}
-if (!('last' in Array.prototype)) {
-    Array.prototype.last = function first<T>(this: T[]): T | undefined { return $last(this); }
-}
-if (!('min' in Array.prototype)) {
-    Array.prototype.min = function min<T>(this: T[]): T | undefined { return $min(this); }
-}
-if (!('max' in Array.prototype)) {
-    Array.prototype.max = function max<T>(this: T[]): T | undefined { return $max(this); }
-}
-if (!('sum' in Array.prototype)) {
-    Array.prototype.sum = function sum<T>(this: T[]): number | undefined { return $sum(this); }
-}
-if (!('average' in Array.prototype)) {
-    Array.prototype.average = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); }
-}
-if (!('filteredMap' in Array.prototype)) {
-    Array.prototype.filteredMap = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): R[] { return $map(this, callback); }
-}
-if (!('filteredSet' in Array.prototype)) {
-    Array.prototype.filteredSet = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): Set<R> { return $mapset(this, callback); }
-}
+Array.prototype.average             = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); } ;
+Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): R[] { return $map(this, callback); } ;
+Array.prototype.filteredSet         = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): Set<R> { return $mapset(this, callback); } ;
+Array.prototype.first               = function first<T>(this: T[]): T | undefined { return $first(this); } ;
+Array.prototype.fusionEnumeration   = function fusionEnumeration():any[] { return this as any[] ; } ;
+Array.prototype.last                = function first<T>(this: T[]): T | undefined { return $last(this); } ;
+Array.prototype.max                 = function max<T>(this: T[]): T | undefined { return $max(this); } ;
+Array.prototype.min                 = function min<T>(this: T[]): T | undefined { return $min(this); } ;
+Array.prototype.sum                 = function sum<T>(this: T[]): number | undefined { return $sum(this); } ;
 
 // ================================== private functions ==============================
 function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number, number|undefined] {
@@ -127,8 +110,8 @@ function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number,
                     if ($defined(sum)) {
                         let n = undefined ;
                         if ($isnumber(v)) { n = v ;}
-                        else if ($isstring(v)) { n = Number(v) ; }
-                        else if ('toNumber' in v!) { n = (v as any).toNumber() } 
+                        else if (typeof v === 'string') { n = Number(v) ; }
+                        else if (typeof v === 'object' && 'toNumber' in v!) { n = (v as any).toNumber() } 
                         if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
                         else { sum += n ; }
                     }
