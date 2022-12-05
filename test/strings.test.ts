@@ -1,4 +1,4 @@
-import { $ascii, $capitalize, $firstcap, $ftrim, $lines, $ltrim, $normspaces, $rtrim, $trim } from "../src/strings";
+import { $ascii, $capitalize, $firstcap, $ftrim, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $trim } from "../src/strings";
 import { FoundationNewLines, FoundationWhiteSpaces } from "../src/string_tables";
 import { TSTest } from "../src/tstester";
 
@@ -16,7 +16,20 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect7($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).toBe('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
         t.expect7('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú'.ascii()).toBe('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
     }) ;
-
+    group.unary("Testing $left() and $right() functions", async(t) => {
+        t.expect1($left(S1)).toBe('T') ;
+        t.expect2(S1.left()).toBe('T') ;
+        t.expect3($right(S1)).toBe('n') ;
+        t.expect4(S1.right()).toBe('n') ;
+        t.expect5($left(S1, 16)).toBe('Texte accentué a') ;
+        t.expect6(S1.left(16)).toBe('Texte accentué a') ;
+        t.expect7($right(S1, 16)).toBe("ça et c'est shön") ;
+        t.expect8(S1.right(16)).toBe("ça et c'est shön") ;
+        t.expect9($left(S1, 160)).toBe(S1) ;
+        t.expectA(S1.left(160)).toBe(S1) ;
+        t.expectB($right(S1, 160)).toBe(S1) ;
+        t.expectC(S1.right(160)).toBe(S1) ;
+    }) ;
     group.unary("Testing trim functions", async(t) => {
         const w = "TEST ME, I'M A CENTRAL\u0009PHRASE" ;
         const a = FoundationWhiteSpaces+w+FoundationWhiteSpaces ;

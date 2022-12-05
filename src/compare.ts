@@ -13,11 +13,14 @@ export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<n
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	if (a === b) { return Same ; }
 
-    /* TODO: WE SHOULD BE PERMITED NOT TO CAST a or b in new TSDate() */
-    if (!(a instanceof TSDate)) { a = new TSDate(a as unknown as string /* this is wrong  */) ;}
-    if (!(b instanceof TSDate)) { b = new TSDate(b as unknown as string /* this is wrong  */) ;}
+    if (a instanceof Date && b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) ; }
+
+    // TODO: do we need to make a direct numcompare on number args ?
+    if (!(a instanceof TSDate)) { a = new TSDate(a as string /* correct cast should be number | string */) ;}
+    if (!(b instanceof TSDate)) { b = new TSDate(b as string /* correct cast should be number | string  */) ;}
     return a.compare(b) ;
 }
+
 
 export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }

@@ -1,4 +1,5 @@
 import { $ok } from "../src/commons";
+import { $timeBetweenDates } from '../src/date'
 import { 
     TSDate, 
     TSSecsFrom19700101To20010101, 
@@ -9,7 +10,8 @@ import {
     $dayOfWeekFromTimestamp,
     TSDay,
     $timestampWithoutTime,
-    TSMaxTimeStamp
+    TSMaxTimeStamp,
+    TSWeek
 } from "../src/tsdate";
 import { TSDateForm } from "../src/tsdatecomp";
 import { Ascending, Descending, Same } from "../src/types";
@@ -168,14 +170,38 @@ export const dateGroups = [
         group.unary('d.dayOfWeek(offset = 1)', async (t) => { t.expect(D.dayOfWeek(1)).toBe(1) ; });
         group.unary('d.lastDayOfMonth()', async (t) => { t.expect(D.lastDayOfMonth()).toBe(31) ; });
     
-        group.unary('d.dateByAdding(1,2,3,4,5,6)', async (t) => {
-            t.expect(D.dateByAdding(1,2,3,4,5,6).toString(full)).toBe('1946/07/12-03:06:06') ;
+        group.unary('d.dateByAdding(1,2,3,4,5,6) / $timeBetweenDates()', async (t) => {
+            const R = D.dateByAdding(1,2,3,4,5,6) ;
+            t.expect0(R.toString(full)).toBe('1946/07/12-03:06:06') ;
+            const T = R.timeSinceDate(D) ;
+            t.expect1($timeBetweenDates(D, R)).toBe(T) ;
+            t.expect2($timeBetweenDates(R, D)).toBe(-T) ;
+            // we don't test full differences on both Date objects because we may have one hour diff due to improbable time saving 
+            // t.expect3($timeBetweenDates(R.toDate(), D.toDate())).toBe(-T) ;
+            t.expect4($timeBetweenDates(R, D.toDate())).toBe(-T) ;
+            t.expect5($timeBetweenDates(R.toDate(), D)).toBe(-T) ;
+            // IDEM
+            // t.expect6(R.toDate().timeSinceDate(D.toDate())).toBe(T) ;
         });
-        group.unary('d.dateByAddingWeeks(3)', async (t) => {
-            t.expect(D.dateByAddingWeeks(3).toString(full)).toBe('1945/05/29-23:01:00') ;
+        group.unary('d.dateByAddingWeeks(3) / $timeBetweenDates()', async (t) => {
+            const R = D.dateByAddingWeeks(3) ;
+            const T = 3 * TSWeek ;
+            t.expect0(R.toString(full)).toBe('1945/05/29-23:01:00') ;
+            t.expect1(R.timeSinceDate(D)).toBe(T) ;
+            t.expect2($timeBetweenDates(R.toDate(), D.toDate())).toBe(-T) ;
+            t.expect3($timeBetweenDates(R, D.toDate())).toBe(-T) ;
+            t.expect4($timeBetweenDates(R.toDate(), D)).toBe(-T) ;
+            t.expect5(R.toDate().timeSinceDate(D.toDate())).toBe(T) ;
         });
-        group.unary('d.dateByAddingTime(31:59:13)', async (t) => {
-            t.expect(D.dateByAddingTime(31*TSHour+59*TSMinute+13).toString(full)).toBe('1945/05/10-07:00:13') ;
+        group.unary('d.dateByAddingTime(31:59:13) / $timeBetweenDates()', async (t) => {
+            const T = 31*TSHour+59*TSMinute+13 ;
+            const R = D.dateByAddingTime(T) ;
+            t.expect0(R.toString(full)).toBe('1945/05/10-07:00:13') ;
+            t.expect1(R.timeSinceDate(D)).toBe(T) ;
+            t.expect2($timeBetweenDates(R.toDate(), D.toDate())).toBe(-T) ;
+            t.expect3($timeBetweenDates(R, D.toDate())).toBe(-T) ;
+            t.expect4($timeBetweenDates(R.toDate(), D)).toBe(-T) ;
+            t.expect5(R.toDate().timeSinceDate(D.toDate())).toBe(T) ;
         });
         group.unary('d.firstDateOfYear()', async (t) => { 
             t.expect(D.firstDateOfYear().toString(full)).toBe("1945/01/01-00:00:00") ; 

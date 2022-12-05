@@ -1,4 +1,4 @@
-import { $email, $isodate, $length, $ok, $toint, $tounsigned, $url, $UUID } from "./commons";
+import { $email, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID } from "./commons";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { int, Nullable, uint } from "./types";
 
@@ -26,6 +26,18 @@ export function $rtrim(s: Nullable<string>): string { return $length(s) ? (s as 
 export function $ftrim(s: Nullable<string>): string { return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : ''; }
 
 export { $ftrim as $trim }
+
+export function $left(source: Nullable<string>, leftPart?:Nullable<number>): string {
+    const l = $length(source) ;
+    let n = $unsigned(leftPart) ; if (!n) (n = 1 as uint)
+    return l > 0 ? (n >= l ? source! : source!.slice(0, n)) : '' ;
+}
+
+export function $right(source: Nullable<string>, rightPart?:Nullable<number>): string {
+    const l = $length(source) ;
+    let n = $unsigned(rightPart) ; if (!n) (n = 1 as uint)
+    return l > 0 ? (n >= l ? source! : source!.slice(l-n, l)) : '' ;
+}
 
 /*
  * this function now tries to interpret LF (\n), other unicode line and paragraph separator and CR+LF as lines separators
@@ -114,6 +126,7 @@ declare global {
         capitalize:         (this: string) => string;
         firstCap:           (this: string) => string;
         ftrim:              (this: string) => string;
+        left:               (this:string, leftPart?:Nullable<number>) => string;
         isDate:             (this: string) => boolean;
         isEmail:            (this: string) => boolean;
         isNewLine:          (this: string) => boolean;
@@ -124,6 +137,7 @@ declare global {
         lines:              (this: string, useOnlyASCIISeparators?:boolean) => string[];
         ltrim:              (this: string) => string;
         normalizeSpaces:    (this: string) => string;
+        right:              (this:string, rightPart?:Nullable<number>) => string;
         rtrim:              (this: string) => string;
         toHTML:             (this: string) => string;
         toHTMLContent:      (this: string) => HTMLContent ;
@@ -141,19 +155,21 @@ String.prototype.firstCap           = function firstCap(this: string): string { 
 String.prototype.ftrim              = function ftrim(this: string): string { return $ftrim(this); } ;
 String.prototype.isDate             = function isDate(this: string): boolean { return $ok($isodate(this)); } ;
 String.prototype.isEmail            = function isEmail(this: string): boolean { return $ok($email(this)); } ;
-String.prototype.isNewLine          = function isNewLine(this: string) { return FoundationNewLineStringCodeSet.has(this) }
-String.prototype.isStrictWhiteSpace = function isStrictWhiteSpace(this: string) { return FoundationStrictWhiteSpacesStringCodeSet.has(this); }
+String.prototype.isNewLine          = function isNewLine(this: string): boolean { return FoundationNewLineStringCodeSet.has(this) }
+String.prototype.isStrictWhiteSpace = function isStrictWhiteSpace(this: string): boolean { return FoundationStrictWhiteSpacesStringCodeSet.has(this); }
 String.prototype.isUrl              = function isUrl(this: string): boolean { return $ok($url(this)); }
 String.prototype.isUUID             = function isUUID(this: string): boolean { return $ok($UUID(this)); }
-String.prototype.isWhiteSpace       = function isWhiteSpace(this: string) { return FoundationWhiteSpacesStringCodeSet.has(this); }
+String.prototype.isWhiteSpace       = function isWhiteSpace(this: string): boolean { return FoundationWhiteSpacesStringCodeSet.has(this); }
+String.prototype.left               = function left(this: string, leftPart?:Nullable<number>): string { return $left(this, leftPart) ; }
 String.prototype.lines              = function lines(this: string, useOnlyASCIISeparators?:boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
 String.prototype.ltrim              = function ltrim(this: string): string { return $ltrim(this); }
 String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): string { return $normspaces(this); }
+String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
 String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
 String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
-String.prototype.toHTMLContent      = function toHTMLContent(this:string) { return new HTMLContent(this) ; }
-String.prototype.toInt              = function toInt(this: string, defaultValue?: int) { return $toint(this, defaultValue); }
-String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint) { return $tounsigned(this, defaultValue); }
+String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
+String.prototype.toInt              = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }
+String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint): uint { return $tounsigned(this, defaultValue); }
 
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
 

@@ -299,13 +299,6 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     }
 
 }
-declare global {
-    export interface Date {
-        leafInspect: (this:Date) => string ;
-    }
-}
-Date.prototype.leafInspect = Date.prototype.toISOString ;
-
 
 /***************************************************************************************************************
  * PUBLIC FUNCTIONS AND CONSTANTS
@@ -315,7 +308,6 @@ export const TSMinute	= 60 ;
 export const TSHour 	= 3600 ;
 export const TSDay 	    = 86400 ;
 export const TSWeek 	= 604800 ;
-
 
 export const TSDaysFrom00000229To20010101 = 730792 ;
 export const TSDaysFrom00010101To20010101 = 730485 ;
