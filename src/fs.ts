@@ -45,6 +45,8 @@ import { $bufferFromArrayBuffer } from './data';
 const isWindows = process.platform === "win32";
 const windowsAbsolutePathRegex = /^(([a-zA-Z]:|\\)\\).*/
 
+const PathSplitRegex = /[\\\/]/ ;
+
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
@@ -175,7 +177,7 @@ export function $path(first:string|boolean, ...paths:string[]): string {
             for (let i = 1 ; i < n ; i++) {
                 const p = paths[i] ;
                 if (p.length > 0) {
-                    for (let s of p.split(sepa)) { _addComponent(comps, s) ; }
+                    for (let s of p.split(PathSplitRegex)) { _addComponent(comps, s) ; }
                 }
             }
             if (comps.length) {
@@ -480,14 +482,14 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
 }
 
 function _isAbsolutePath(s:string, windowsPath:boolean = false) {
-    return $length(s) ? (windowsPath ? windowsAbsolutePathRegex.test(s!) : s!.startsWith('/')) : false ;
+    return $length(s) ? (windowsPath ? windowsAbsolutePathRegex.test(s!) : s!.startsWith('/') || s.startsWith('\\')) : false ;
 }
 
 function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
 {
     const absolute = _isAbsolutePath(s, windowsPath) ;
     const sepa = windowsPath ? '\\' : '/' ;
-    const components = s.split(sepa) ;
+    const components = s.split(PathSplitRegex) ;
     if (windowsPath && absolute) {
         return s.startsWith(sepa+sepa) ?
             [true, sepa+sepa+components[2] + sepa, sepa, components.slice(3)] : // format \\server\path
