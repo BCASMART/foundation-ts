@@ -44,6 +44,7 @@ import { $bufferFromArrayBuffer } from './data';
 
 const isWindows = process.platform === "win32";
 const windowsAbsolutePathRegex = /^(([a-zA-Z]:|\\)\\).*/
+const pseudoWindowsAbsolutePathRegex = /^(([a-zA-Z]:|\/)\/).*/
 
 const PathSplitRegex = /[\\\/]/ ;
 
@@ -482,7 +483,11 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
 }
 
 function _isAbsolutePath(s:string, windowsPath:boolean = false) {
-    return $length(s) ? (windowsPath ? windowsAbsolutePathRegex.test(s!) : s!.startsWith('/') || s.startsWith('\\')) : false ;
+    return $length(s) 
+                ? ( windowsPath 
+                    ? windowsAbsolutePathRegex.test(s!) || pseudoWindowsAbsolutePathRegex.test(s!) 
+                    : s!.startsWith('/') || s.startsWith('\\')
+                ) : false ;
 }
 
 function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
