@@ -145,7 +145,7 @@ export function $uniquefile(src?:Nullable<string>, e:Nullable<string>=undefined,
 
 export function $isabsolutepath(src?:Nullable<string>, internalImplementation:boolean=false) : boolean {
     const browser = $inbrowser() ;
-    return $length(src) ? (internalImplementation || browser ? _isAbsolutePath(src!, !browser && isWindows) : isAbsolute(src!)) : false ;
+    return $length(src) > 0 ? (internalImplementation || browser ? _isAbsolutePath(src!, !browser && isWindows) : isAbsolute(src!)) : false ;
 }
 
 export function $normalizepath(src?:Nullable<string>, internalImplementation:boolean=false) : string {
@@ -482,12 +482,10 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
 	return ret ;
 }
 
-function _isAbsolutePath(s:string, windowsPath:boolean = false) {
-    return $length(s) 
-                ? ( windowsPath 
-                    ? windowsAbsolutePathRegex.test(s!) || pseudoWindowsAbsolutePathRegex.test(s!) 
-                    : s!.startsWith('/') || s.startsWith('\\')
-                ) : false ;
+function _isAbsolutePath(s:string, windowsPath:boolean = false):boolean {
+    return $length(s) > 0 && (s!.startsWith('/') || s.startsWith('\\') || (
+        windowsPath && (windowsAbsolutePathRegex.test(s!) || pseudoWindowsAbsolutePathRegex.test(s!))
+    )) ;
 }
 
 function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
