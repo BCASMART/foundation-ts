@@ -1,7 +1,7 @@
 import { $count, $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal, $unorderedEqual } from "./compare";
 import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
-import { $inspect, $logterm, $term, $writeterm } from "./utils";
+import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
@@ -69,6 +69,7 @@ export class TSTester {
             await this.dumpGroupsList(opts.clearScreen) ;
             return ;
         }
+        const start = $mark() ;
         this.log(`${opts.clearScreen?'&Z':''}&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
         let expectations = 0 ;
         let expectationsFailed = 0 ;
@@ -94,7 +95,7 @@ export class TSTester {
             expectationsFailed += groupFailed ;
             if (groupFailed === 0) { if (g.silent) { silent ++ ; } else { passed++ ; } } else { failed++ ; }
         }
-        this.log(`&y${expectations.toString().padStart(4)}&0&e test${expectations === 1 ? 'was' : 's were'} executed.&0`) ;
+        this.log(`&y${expectations.toString().padStart(4)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
         if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
         if (silent > 0) { this.log(`&g${silent.toString().padStart(4)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
         if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
@@ -175,6 +176,7 @@ export class TSTestGroup extends TSGenericTest {
     public async run():Promise<[number, number]> {
         let expectations = 0 ;
         let expectationFailed = 0 ;
+        const start = $mark() ;
 
         if (!this.silent) { this.log(`&u- Running group tests &U&k ${this.desc} &0`) ; }
         let unaries = this._unaries.filter(u => u.focused) ;
@@ -188,7 +190,7 @@ export class TSTestGroup extends TSGenericTest {
         if (this.silent && expectationFailed > 0) {
             this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
         }
-        if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0\n`) ; }
+        if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y in ${$ellapsed(start)}\n`) ; }
         return [expectations, expectationFailed] ;
     }
 }

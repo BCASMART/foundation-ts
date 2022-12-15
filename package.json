@@ -1,6 +1,6 @@
 {
   "name": "foundation-ts",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
@@ -8,7 +8,7 @@
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
     "browser": "npm run clean && npm run build && browserify dist/index.js -o browser/foundationts.js",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
-    "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && cp -R test/main tdist/test && node --async-stack-traces --experimental-modules tdist/test/index.test.js",
+    "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && cp -R test/main tdist/test && cp -R test/cert tdist/test && node --async-stack-traces --experimental-modules tdist/test/index.test.js",
     "browsertest": "npm run test && browserify tdist/test/index.test.js -o tdist/browser.test.js && cp test/index.test.html tdist/index.html && open tdist/index.html"
   },
   "main": "index.js",

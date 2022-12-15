@@ -1,4 +1,5 @@
 import { TSTester } from '../src/tstester'
+import { $inbrowser } from '../src/utils';
 import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
 import { compareGroups } from './compare.test';
@@ -75,4 +76,9 @@ tester.addGroup("Testing tester system itself", async (group) => {
     }
 }) ;
 
-tester.run({focusNames:args, clearScreen:!dumper, listTests:dumper}) ;
+(async () => {
+    const process = $inbrowser() ? undefined : require('process') ;
+    await tester.run({focusNames:args, clearScreen:!dumper, listTests:dumper}) ;
+    process?.exit() ;
+})();
+

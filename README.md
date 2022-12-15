@@ -29,7 +29,7 @@ Foundation-ts also define several classes to deal with common data :
 * `TSRect` : a class managing rectangles with division, unions, inclusion and intersection methods
 * `TSUniqueError` / `TSError` / `TSHTTPError` : simple Error subclasses managing singleton errors, errors with info and errors with HTTP status
 * `TSRequest`: a generic class to be subclassed to easily write API client classes (internally using Axios)
-* `TSServer` : a simple HTTP class server working as a singleton, very easy to set up and work with for your tests without any other dependency
+* `TSServer` : a simple HTTP(/S) class server working as a singleton, very easy to set up and work with for your tests without any other dependency
 * `TSQualifier` : a full object-oriented generic SQL-like qualifier constructor with strong typing you may want to use for 1) filter an array 2) subclassing to output specific SQL or ORM requests 3) use complex intersection / inclusion patterns
 * `TSTester`: a class allowing you to simply write your own tests (just as we did for foundation-ts) in a simple manner with async functions in the same environment your code will be used.
 * `TSDefaults` : a singleton class made to hold standard and your defaults in your app

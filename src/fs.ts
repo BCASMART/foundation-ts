@@ -42,6 +42,10 @@ import { $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $bufferFromArrayBuffer } from './data';
 
+const isWindows = process.platform === "win32";
+const windowsAbsolutePathRegex = /^(([a-zA-Z]:|\\)\\).*/
+
+
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
     TSError.assertNotInBrowser('$stats') ;
@@ -137,7 +141,8 @@ export function $uniquefile(src?:Nullable<string>, e:Nullable<string>=undefined,
 }
 
 export function $isabsolutepath(src?:Nullable<string>, internalImplementation:boolean=false) : boolean {
-    return $length(src) ? (internalImplementation || $inbrowser() ? src!.startsWith('/') : isAbsolute(src!)): false ;
+    const browser = $inbrowser() ;
+    return $length(src) ? (internalImplementation || browser ? _isAbsolutePath(src!, !browser && isWindows) : isAbsolute(src!)) : false ;
 }
 
 export function $normalizepath(src?:Nullable<string>, internalImplementation:boolean=false) : string {
@@ -145,38 +150,47 @@ export function $normalizepath(src?:Nullable<string>, internalImplementation:boo
     return internalImplementation || $inbrowser() ? $path(true, src!) : normalize(src!) ;
 }
 
+
 export function $path(first:string|boolean, ...paths:string[]): string {
+    const browser = $inbrowser() ;
+    
     function _internalPath(...paths:string[]):string {
-        if (paths.length > 0) {
-            const isAbsolute = $isabsolutepath(paths[0], true) ;
-            let comps:string[] = [] ;
-            for (let p of paths) {
-                if (p.length > 0) {
-                    for (let s of p.split('/')) {
-                        if (s === '..') {
-                            if (comps.length > 0) {
-                                if (comps[comps.length - 1] != '..') { comps.pop() ; }
-                                else { comps.push('..') ; }
-                            }
-                            else if (!isAbsolute) { comps.push('..') ; }
-                        } 
-                        else if (s.length > 0 && s !== '.') { comps.push(s) ; }
+        const n = paths.length ;
+        if (n > 0) {
+            const [isAbsolute, prefix, sepa, firstComponents] = _internalPathComponents(paths[0], !browser && isWindows)
+            const comps:string[] = []
+
+            function _addComponent(comps:string[], s:string) {
+                if (s === '..') {
+                    if (comps.length > 0) {
+                        if (comps[comps.length - 1] != '..') { comps.pop() ; }
+                        else { comps.push('..') ; }
                     }
+                    else if (!isAbsolute) { comps.push('..') ; }
+                } 
+                else if (s.length > 0 && s !== '.') { comps.push(s) ; }
+            }
+            
+            for (let p of firstComponents) { _addComponent(comps, p) ; }
+            for (let i = 1 ; i < n ; i++) {
+                const p = paths[i] ;
+                if (p.length > 0) {
+                    for (let s of p.split(sepa)) { _addComponent(comps, s) ; }
                 }
             }
             if (comps.length) {
-                const s = comps.join('/') ;
-                return isAbsolute ? '/' + s : s ;
+                const s = comps.join(sepa) ;
+                return isAbsolute ? prefix + s : s ;
             }
-            else if (isAbsolute) { return '/' ; }
+            else if (isAbsolute) { return prefix ; }
         }
         return '' ;
     }
 
     if (!$isstring(first)) {
-        return (first as boolean) || $inbrowser() ? _internalPath(...paths) : join(...paths) ;
+        return (first as boolean) || browser ? _internalPath(...paths) : join(...paths) ;
     }
-    return $inbrowser() ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
+    return browser ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
 }
 
 export function $ext(s:Nullable<string>, internalImplementation:boolean=false):string 
@@ -209,17 +223,26 @@ export function $newext(s:Nullable<string>, e:Nullable<string>=undefined, intern
 
 export function $dir(s:Nullable<string>, internalImplementation:boolean=false):string { 
     if (!$length(s)) { return '' ; } 
-    if (internalImplementation || $inbrowser()) {
-        const p = s!.lastIndexOf('/') ;
-        return p === 0 ? '/' : (p > 0 ? s!.slice(0,p) : '.') ;
+    const browser = $inbrowser() ;
+    if (internalImplementation || browser) {
+        const [isAbsolute, prefix, sepa, comps] = _internalPathComponents(s!, !browser && isWindows) ;
+        const n = comps.length ;
+        if (n > 1) {
+            const s = comps.slice(0, n - 1).join(sepa) ;
+            return isAbsolute ? prefix + s : s ;
+        }
+        return isAbsolute ? prefix : '.' ; 
     }
     return dirname(s!) ; 
 }
+
 export function $filename(s:Nullable<string>, internalImplementation:boolean=false):string { 
     if (!$length(s)) { return '' ; } 
-    if (internalImplementation || $inbrowser()) {
-        const p = s!.lastIndexOf('/') ;
-        return p >= 0 ? s!.slice(p+1) : s! ;
+    const browser = $inbrowser() ;
+    if (internalImplementation || browser) {
+        const [,,,comps] = _internalPathComponents(s!, !browser && isWindows) ;
+        const ret = comps!.last() ;
+        return $ok(ret) ? ret! : ''
     }
     return basename(s!) ; 
 }
@@ -454,4 +477,21 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
     }
     catch { ret = false ; }    
 	return ret ;
+}
+
+function _isAbsolutePath(s:string, windowsPath:boolean = false) {
+    return $length(s) ? (windowsPath ? windowsAbsolutePathRegex.test(s!) : s!.startsWith('/')) : false ;
+}
+
+function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
+{
+    const absolute = _isAbsolutePath(s, windowsPath) ;
+    const sepa = windowsPath ? '\\' : '/' ;
+    const components = s.split(sepa) ;
+    if (windowsPath && absolute) {
+        return s.startsWith(sepa+sepa) ?
+            [true, sepa+sepa+components[2] + sepa, sepa, components.slice(3)] : // format \\server\path
+            [true, components[0]+sepa, sepa, components.slice(1)] ; // format \toto or c:\toto. if \toto, we have components[0] === ''
+    }
+    return [absolute, sepa, sepa, absolute ? components.slice(1) : components] ;
 }

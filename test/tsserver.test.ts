@@ -1,14 +1,17 @@
 import { ServerResponse } from "http";
+import { Agent } from "https";
+import axios from "axios";
 
-import { TSEndPointsDictionary, TSServer, TSServerOptions, TSServerRequest } from "../src/tsserver";
+import { TSEndPointsDictionary, TSServer, TSServerOptions, TSServerRequest, TSServerStartStatus } from "../src/tsserver";
 import { TSParametricEndPoints } from "../src/tsservercomp";
-import { $keys, $string } from "../src/commons";
+import { $keys, $length, $string } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
 import { $path, $readBuffer } from "../src/fs";
 import { uint16 } from "../src/types";
 import { $inbrowser } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
+import { TSError } from "../src/tserrors";
 
 export const serverGroups = [
     TSTest.group("Testing TSServer API definitions", async (group) => {
@@ -105,21 +108,28 @@ export const serverGroups = [
 
 if (!$inbrowser()) {
     serverGroups.push(TSTest.group("Testing TSServer API definitions", async (group) => {
+        const localDirectory = $path(__dirname, 'main') ;
+        const content = $readBuffer($path(localDirectory, 'index.html')) ;
+        const port = 8327 as uint16 ;
+        const options:TSServerOptions = {
+            port:port,
+            logInfo:false,
+            webSites:{ '/':localDirectory }
+        } ;
+        
+        group.unary('Testing unparametrized server launch', async(t) => {
+            const e = await TSServer.start({}) ;
+            t.expect(e instanceof TSError).toBeTruthy() ;
+        }) ;
+
         group.unary('Testing simple web page service', async (t) => {
-            const localDirectory = $path(__dirname, 'main') ;
-            const port = 8327 as uint16 ;
-            const options:TSServerOptions = {
-                port:port,
-                logInfo:false,
-                webSites:{ '/':localDirectory }
-            } ;
+            t.register('options', options) ;            
 
-            t.register('options', options) ;
-            
-            TSServer.start(null, options) ;
-
-            const content = $readBuffer($path(localDirectory, 'index.html')) ;
             if (t.expect0(content).toBeDefined() && t.expect1(content!.length).gt(0)) {
+                const startStatus = await TSServer.start(null, options) ;
+                t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
+                t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
+
                 const client = new TSRequest(`http://localhost:8327/`) ;
                 const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
                 if (t.expectA(status).toBe(Resp.OK)) {
@@ -128,7 +138,38 @@ if (!$inbrowser()) {
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;    
             }
-        })
+        }) ;
+        group.unary('Testing same page in HTTP/S', async (t) => {
+
+            /**
+             * warning: this code directly put on axios defaults
+             * allows us to ignore self signed certificate error
+             * during axios request. Should be removed when axios
+             * will be removed from foundation-ts
+             */
+            axios.defaults.httpsAgent = new Agent({
+                rejectUnauthorized: false,
+            }) ;
+            /**
+             * we didn't want to add node forge in our modules, so we did generate
+             * an autosigned certificate with openssl and use it for our tests. 
+             */
+            const cert = $readBuffer($path(__dirname, 'cert', 'cert.pem')) ;
+            const key = $readBuffer($path(__dirname, 'cert', 'key.pem')) ;
+            if (t.expect0($length(cert)).gt(0) && t.expect1($length(key)).gt(0)) {
+                const opts = {...options, certificate:cert, key:key, port:9654 }
+                const startStatus = await TSServer.start(null, opts as TSServerOptions) ;
+                t.expect2(startStatus).toBe(TSServerStartStatus.HTTPS) ;
+                t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
+                const client = new TSRequest(`https://localhost:9654/`) ;
+                const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
+                if (t.expectA(status).toBe(Resp.OK)) {
+                    t.expectB(ret).toBe(content) ;
+                }
+                const stopped = await TSServer.stop() ;
+                t.expectZ(stopped).toBeUndefined() ;    
+            }
+        }) ;
     })) ;
 }
 

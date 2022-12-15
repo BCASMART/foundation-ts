@@ -1,5 +1,8 @@
+import { performance } from 'perf_hooks';
 import { inspect } from "util";
+
 import { $count, $defined, $isarray, $isfunction, $isstring, $length, $ok, $unsigned } from "./commons";
+import { $unit } from './number';
 import { $HTML, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
 
@@ -13,6 +16,18 @@ export function $inbrowser():boolean {
         ($inbrowser as any).flag = inb ;
     }
     return ($inbrowser as any).flag ;
+}
+
+export function $mark():number { return performance.now()/1000.0 ; }
+export function $ellapsed(previousMark:number):string { 
+    return $unit($mark() - previousMark, {
+        unitName:"second",
+        unit:"s",
+        decimalPlaces:3,
+        minimalUnit:-2,
+        ignoreZeroDecimals:true,
+        ignoreMinimalUnitDecimals:true
+    }) ;
 }
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
