@@ -44,9 +44,6 @@ import { $bufferFromArrayBuffer } from './data';
 
 const isWindows = process.platform === "win32";
 const windowsAbsolutePathRegex = /^(([a-zA-Z]:|\\)\\).*/
-const pseudoWindowsAbsolutePathRegex = /^(([a-zA-Z]:|\/)\/).*/
-
-const PathSplitRegex = /[\\\/]/ ;
 
 
 // if $stats() returns null it means that the path does not exist.
@@ -178,7 +175,7 @@ export function $path(first:string|boolean, ...paths:string[]): string {
             for (let i = 1 ; i < n ; i++) {
                 const p = paths[i] ;
                 if (p.length > 0) {
-                    for (let s of p.split(PathSplitRegex)) { _addComponent(comps, s) ; }
+                    for (let s of p.split(sepa)) { _addComponent(comps, s) ; }
                 }
             }
             if (comps.length) {
@@ -199,9 +196,13 @@ export function $path(first:string|boolean, ...paths:string[]): string {
 export function $ext(s:Nullable<string>, internalImplementation:boolean=false):string 
 { 
     if ($length(s)) { 
-        if (internalImplementation || $inbrowser()) {
-            const p = s!.lastIndexOf('.') ;
-            return p >= 0 ? s!.slice(p+1) : '' ;
+        const browser = $inbrowser() ;
+        if (internalImplementation || browser) {
+            const [,,,comps] = _internalPathComponents(s!, !browser && isWindows) ;
+            if (!comps.length) { return '' ; }
+            const search = comps.last()! ;
+            const p = search.lastIndexOf('.') ;
+            return p >= 0 ? search.slice(p+1) : '' ;
         }
         else {
             const e = extname(s!) ;
@@ -483,16 +484,17 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
 }
 
 function _isAbsolutePath(s:string, windowsPath:boolean = false):boolean {
-    return $length(s) > 0 && (s!.startsWith('/') || s.startsWith('\\') || (
-        windowsPath && (windowsAbsolutePathRegex.test(s!) || pseudoWindowsAbsolutePathRegex.test(s!))
-    )) ;
+    return $length(s) > 0 && (
+        (windowsPath && (s!.startsWith('\\') || windowsAbsolutePathRegex.test(s!))) ||
+        (!windowsPath && s!.startsWith('/'))
+    ) ;
 }
 
 function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
 {
     const absolute = _isAbsolutePath(s, windowsPath) ;
     const sepa = windowsPath ? '\\' : '/' ;
-    const components = s.split(PathSplitRegex) ;
+    const components = s.split(sepa) ;
     if (windowsPath && absolute) {
         return s.startsWith(sepa+sepa) ?
             [true, sepa+sepa+components[2] + sepa, sepa, components.slice(3)] : // format \\server\path
