@@ -1,8 +1,8 @@
-import { $length } from "../src/commons";
-import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isexecutable, $isfile, $isreadable, $iswritable, $newext, $normalizepath, $path, $readString, $withoutext, $writeString } from "../src/fs";
+//import { $length } from "../src/commons";
+//import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isexecutable, $isfile, $isreadable, $iswritable, $newext, $normalizepath, $path, $readString, $withoutext, $writeString } from "../src/fs";
+import { $isabsolutepath } from '../src/fs';
 import { TSTest } from '../src/tstester';
 import { $inbrowser } from "../src/utils";
-
 
 
 export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
@@ -10,7 +10,7 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
 
     const LocalPathSplitRegex = /[\\\/]/ ;
     function _lfs(p:string):string { return p.split(LocalPathSplitRegex).join(isWindows?'\\':'/') ; }
-    function _rfs(p:string):string { return p.split(LocalPathSplitRegex).join(isWindows?'/':'\\') ; }
+    //function _rfs(p:string):string { return p.split(LocalPathSplitRegex).join(isWindows?'/':'\\') ; }
     function _ufs(p:string):string { return p.split(LocalPathSplitRegex).join('/') ; }
     function _wfs(p:string):string { return p.split(LocalPathSplitRegex).join('\\') ; }
 
@@ -19,9 +19,10 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     const AW = _wfs(A) ;
     const AWDD = 'Z:' + AW ;
     const AWSD = '\\\\MyServer'+ AW ;
-
     const AA = A.slice(1) ;
     const AAW = AW.slice(1) ;
+
+    /*
 
     const AM1  = '/Users\\durand/Developer/foundation-ts/files' ;
     const AM2  = '\\Users/durand/Developer/foundation-ts/files' ;
@@ -50,6 +51,10 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
     const H1 = $path(true, AA, '../../../../../../../tutu/../tata/./toto') ;
 
 
+
+
+    */
+
     group.unary('$isabsolutepath() function', async(t) => {
         t.expect1($isabsolutepath(A)).toBeTruthy() ;
         t.expect2($isabsolutepath(AA)).toBeFalsy() ;
@@ -71,7 +76,7 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
         t.expectC($isabsolutepath(AWDD, true)).toBe(isWindows) ;
         t.expectD($isabsolutepath(AWSD, true)).toBe(isWindows) ;        
     }) ;
-
+/*
     group.unary('$path() function', async (t) => {
         t.expect1(B).toBe(_lfs('/Users/durand/Developer/foundation-ts/files/toto/tutu.pdf')) ;
         t.expect2(C).toBe(_lfs('/Users/durand/Developer/foundation-ts/tutu/titi/tata')) ;
@@ -305,5 +310,6 @@ export const fsGroups = TSTest.group("Testing fs functions", async (group) => {
             t.expectE($isexecutable(file)).toBeFalsy() ;
         }) ;    
     }
+    */
 
 }, { name:'fs' }) ;

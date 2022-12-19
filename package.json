@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist tdist browser/*.js",
+    "fsbase": "npm run clean && tsc --project tsconfig.test.json && node tdist/test/build_standard_paths.js",
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
     "browser": "npm run clean && npm run build && browserify dist/index.js -o browser/foundationts.js",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
