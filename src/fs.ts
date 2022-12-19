@@ -146,7 +146,7 @@ export function $isabsolutepath(src?:Nullable<string>, internalImplementation:bo
 }
 
 export function $normalizepath(src?:Nullable<string>, internalImplementation:boolean=false) : string {
-    if (!$length(src)) { return '' ; }
+    if (!$length(src)) { return '.' ; }
     return internalImplementation || $inbrowser() ? $path(true, src!) : normalize(src!) ;
 }
 
@@ -202,7 +202,7 @@ export function $ext(s:Nullable<string>, internalImplementation:boolean=false):s
             if (!comps.length) { return '' ; }
             const search = comps.last()! ;
             const p = search.lastIndexOf('.') ;
-            return p >= 0 ? search.slice(p+1) : '' ;
+            return p > 0 ? search.slice(p+1) : '' ;
         }
         else {
             const e = extname(s!) ;
@@ -225,15 +225,16 @@ export function $newext(s:Nullable<string>, e:Nullable<string>=undefined, intern
     return $length(e) ? `${b}.${e}` : b ;
 }
 
-export function $dir(s:Nullable<string>, internalImplementation:boolean=false):string { 
-    if (!$length(s)) { return '' ; } 
+export function $dir(s:Nullable<string>, internalImplementation:boolean=false):string {
+    const len = $length(s) ; 
+    if (!len) { return '.' ; } 
     const browser = $inbrowser() ;
     if (internalImplementation || browser) {
         const [isAbsolute, prefix, sepa, comps] = _internalPathComponents(s!, !browser && isWindows) ;
         const n = comps.length ;
         if (n > 1) {
-            const s = comps.slice(0, n - 1).join(sepa) ;
-            return isAbsolute ? prefix + s : s ;
+            const ret = comps.slice(0, n - 1).join(sepa) ;
+            return isAbsolute ? prefix + (ret === '' ? sepa : ret) : ret ;
         }
         return isAbsolute ? prefix : '.' ; 
     }
@@ -497,8 +498,13 @@ function _internalPathComponents(s:string, windowsPath:boolean = false):[absolut
     const components = s.split(sepa) ;
     if (windowsPath && absolute) {
         return s.startsWith(sepa+sepa) ?
-            [true, sepa+sepa+components[2] + sepa, sepa, components.slice(3)] : // format \\server\path
-            [true, components[0]+sepa, sepa, components.slice(1)] ; // format \toto or c:\toto. if \toto, we have components[0] === ''
+            [true, sepa+sepa+components[2] + sepa, sepa, _popEnding(s, components.slice(3))] : // format \\server\path
+            [true, components[0]+sepa, sepa, _popEnding(s, components.slice(1))] ; // format \toto or c:\toto. if \toto, we have components[0] === ''
     }
-    return [absolute, sepa, sepa, absolute ? components.slice(1) : components] ;
+    return [absolute, sepa, sepa, _popEnding(s, absolute ? components.slice(1) : components)] ;
+}
+
+function _popEnding(_:string, comps:string[]):string[] {
+    while (comps.last() === '') { comps.pop() ; }
+    return comps ;
 }

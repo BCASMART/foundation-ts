@@ -45,7 +45,7 @@ tester.addGroups(colorGroups,       "colors") ;
 tester.addGroups(geometryGroups,    "geometry") ;
 tester.addGroups(qualifierGroups,   "qualifiers") ;
 tester.addGroups(errorsGroups,      "errors") ;
-tester.addGroups(fsGroups) ;  // directly named 'fs' in definition
+tester.addGroups(fsGroups,          "fs") ;
 tester.addGroups(fusionGroups,      "fusion") ;
 
 let args = process.argv.slice(2);
