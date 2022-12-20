@@ -9,7 +9,8 @@ Each function in TSFoundation begins with a $ character, facilitating their reco
 Finally, it also provides functions to:
 
 - compare and equal things (functions like `$equal()` and `$compare()`)
-- manipulate paths (even inside browsers) and files
+- manipulate paths (even inside browsers) and files. Paths functions have specific implementations
+  for running in browsers and on unix systems. On Windows, Node.js implementation is always used.
 - some light crypto methods (only for non-really robust usage)
 - logging things on terminal with full rich-text capabilities using function `$logterm()` with '&' escape char (e.g. `"&R&w DONE &0"` means you will write DONE in white on a red background (&0 if for reseting the colors as normal)
 - logging within a specific div (identified by its `'ftsconsole'` id) in your navigator with the same function

@@ -8,6 +8,7 @@ export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
 export type testFN = (t:TSGenericTest) => Promise<void> ;
 
 const noopTest:testFN = async (_:TSGenericTest):Promise<void> => {}
+const PADN = 5 ;
 
 export interface TSTesterOptions {
     focusNames?:string[] ;
@@ -95,15 +96,15 @@ export class TSTester {
             expectationsFailed += groupFailed ;
             if (groupFailed === 0) { if (g.silent) { silent ++ ; } else { passed++ ; } } else { failed++ ; }
         }
-        this.log(`&y${expectations.toString().padStart(4)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
-        if (passed > 0) { this.log(`&g${passed.toString().padStart(4)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
-        if (silent > 0) { this.log(`&g${silent.toString().padStart(4)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
-        if (failed > 0) { this.log(`&r${failed.toString().padStart(4)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
+        this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
+        if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
+        if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
+        if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
         if ((passed > 0 || silent > 0) && !failed) {
             this.log('&G&w  ALL TESTS PASSED  &0') ;
         }
         else if (expectationsFailed > 0) {
-            this.log(`&R&w${expectationsFailed.toString().padStart(4)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
+            this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
         }
     }
 }
