@@ -1,8 +1,6 @@
-//import { $length } from "../src/commons";
-//import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isexecutable, $isfile, $isreadable, $iswritable, $newext, $normalizepath, $path, $readString, $withoutext, $writeString } from "../src/fs";
 import { join } from 'path';
 import { $defined, $length, $ok } from '../src/commons';
-import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isexecutable, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeString } from '../src/fs';
+import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeString } from '../src/fs';
 import { TSTest, TSTestGroup } from '../src/tstester';
 import { Nullable } from '../src/types';
 import { $inbrowser, $logterm } from "../src/utils";
@@ -63,36 +61,38 @@ export const fsGroups = [
             }) ;
         }) ;
     }),
-    TSTest.group("Testing foundation-ts simple paths functions", async (group) => {
-        fsTestDatabase().paths.forEach(def => { 
-            group.unary(`fnts "${def.path}"`, async (t) => {
-                t.expectA($isabsolutepath(def.path, true)).toBe(def.absolute) ;
-                t.expectD($dir(def.path, true)).toBe(def.dirname) ;
-                t.expectE(_ext(def.path, true)).toBe(def.extname) ;
-                t.expectF($filename(def.path, true)).toBe(def.filename) ;
-                t.expectN($normalizepath(def.path)).toBe(def.normalized) ;
-            }) ;
-        }) ;
-    }),
     TSTest.group("Testing $path(standard) function", async (group) => {
         fsTestDatabase().joins.forEach(j => {
             group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
                 t.expect($path(j.source, j.complement)).toBe(j.join) ;
             }) ;
         }) ;
-    }),
-    TSTest.group("Testing $path(foundation-ts) function", async (group) => {
-        fsTestDatabase().joins.forEach(j => {
-            group.unary(`fdts "${j.source}"+"${j.complement}"`, async (t) => {
-                t.expect($path(true, j.source, j.complement)).toBe(j.join) ;
-            }) ;
-        }) ;
     })
 ] ;
 
-addOutsideBrowserTestGroup(fsGroups) ;
+constructOptionalFSGroups(fsGroups) ;
 
-function addOutsideBrowserTestGroup(groups:TSTestGroup[]) {
+function constructOptionalFSGroups(groups:TSTestGroup[]) {
+    if (!isWindows()) {
+        groups.push(TSTest.group("Testing foundation-ts simple paths functions", async (group) => {
+            fsTestDatabase().paths.forEach(def => { 
+                group.unary(`fnts "${def.path}"`, async (t) => {
+                    t.expectA($isabsolutepath(def.path, true)).toBe(def.absolute) ;
+                    t.expectD($dir(def.path, true)).toBe(def.dirname) ;
+                    t.expectE(_ext(def.path, true)).toBe(def.extname) ;
+                    t.expectF($filename(def.path, true)).toBe(def.filename) ;
+                    t.expectN($normalizepath(def.path)).toBe(def.normalized) ;
+                }) ;
+            }) ;
+        })) ;
+        groups.push(TSTest.group("Testing $path(foundation-ts) function", async (group) => {
+            fsTestDatabase().joins.forEach(j => {
+                group.unary(`fdts "${j.source}"+"${j.complement}"`, async (t) => {
+                    t.expect($path(true, j.source, j.complement)).toBe(j.join) ;
+                }) ;
+            }) ;
+        })) ;
+    }
     if (!$inbrowser()) {
         groups.push(TSTest.group("Other backend FS functions", async (group) => {
             group.unary('testing $createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
@@ -119,13 +119,11 @@ function addOutsideBrowserTestGroup(groups:TSTestGroup[]) {
                 t.expectB($readString(prec3)).toBe(str2) ;
                 t.expectC($isreadable(file)).toBeTruthy() ;
                 t.expectD($iswritable(file)).toBeTruthy() ;
-                t.expectE($isexecutable(file)).toBeFalsy() ;
             }) ;    
     
         })) ;
     }
 }
-
 
 /*
     OLD FS TESTS

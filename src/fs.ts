@@ -42,9 +42,11 @@ import { $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $bufferFromArrayBuffer } from './data';
 
+/**
+ * WARNING: paths functions internalImplementation does not exist on Windows,
+ * so, passing internalImplementation boolean as not effect at all
+ */
 const isWindows = process.platform === "win32";
-const windowsAbsolutePathRegex = /^(([a-zA-Z]:|\\)\\).*/
-
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {
@@ -142,12 +144,12 @@ export function $uniquefile(src?:Nullable<string>, e:Nullable<string>=undefined,
 
 export function $isabsolutepath(src?:Nullable<string>, internalImplementation:boolean=false) : boolean {
     const browser = $inbrowser() ;
-    return $length(src) > 0 ? (internalImplementation || browser ? _isAbsolutePath(src!, !browser && isWindows) : isAbsolute(src!)) : false ;
+    return $length(src) > 0 ? (!isWindows && (internalImplementation || browser) ? src!.startsWith('/') : isAbsolute(src!)) : false ;
 }
 
 export function $normalizepath(src?:Nullable<string>, internalImplementation:boolean=false) : string {
     if (!$length(src)) { return '.' ; }
-    return internalImplementation || $inbrowser() ? $path(true, src!) : normalize(src!) ;
+    return !isWindows && (internalImplementation || $inbrowser()) ? $path(true, src!) : normalize(src!) ;
 }
 
 
@@ -157,7 +159,8 @@ export function $path(first:string|boolean, ...paths:string[]): string {
     function _internalPath(...paths:string[]):string {
         const n = paths.length ;
         if (n > 0) {
-            const [isAbsolute, prefix, sepa, firstComponents] = _internalPathComponents(paths[0], !browser && isWindows)
+            const firstComponents = paths[0].split('/') ;
+            const isAbsolute = paths[0].startsWith('/') ;
             const comps:string[] = []
 
             function _addComponent(comps:string[], s:string) {
@@ -175,34 +178,31 @@ export function $path(first:string|boolean, ...paths:string[]): string {
             for (let i = 1 ; i < n ; i++) {
                 const p = paths[i] ;
                 if (p.length > 0) {
-                    for (let s of p.split(sepa)) { _addComponent(comps, s) ; }
+                    for (let s of p.split('/')) { _addComponent(comps, s) ; }
                 }
             }
             if (comps.length) {
-                const s = comps.join(sepa) ;
-                return isAbsolute ? prefix + s : s ;
+                const s = comps.join('/') ;
+                return isAbsolute ? '/' + s : s ;
             }
-            else if (isAbsolute) { return prefix ; }
+            else if (isAbsolute) { return '/' ; }
         }
         return '' ;
     }
 
     if (!$isstring(first)) {
-        return (first as boolean) || browser ? _internalPath(...paths) : join(...paths) ;
+        return (!isWindows && (first as boolean) || browser) ? _internalPath(...paths) : join(...paths) ;
     }
-    return browser ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
+    return !isWindows && browser ? _internalPath(first as string, ...paths) : join(first as string, ...paths)
 }
 
 export function $ext(s:Nullable<string>, internalImplementation:boolean=false):string 
 { 
     if ($length(s)) { 
-        const browser = $inbrowser() ;
-        if (internalImplementation || browser) {
-            const [,,,comps] = _internalPathComponents(s!, !browser && isWindows) ;
-            if (!comps.length) { return '' ; }
-            const search = comps.last()! ;
-            const p = search.lastIndexOf('.') ;
-            return p > 0 ? search.slice(p+1) : '' ;
+        if (!isWindows && (internalImplementation || $inbrowser())) {
+            const slash = s!.lastIndexOf('/') ;
+            const dot = s!.lastIndexOf('.') ;
+            return dot > slash + 1 ? s!.slice(dot+1) : '' ;
         }
         else {
             const e = extname(s!) ;
@@ -225,29 +225,43 @@ export function $newext(s:Nullable<string>, e:Nullable<string>=undefined, intern
     return $length(e) ? `${b}.${e}` : b ;
 }
 
-export function $dir(s:Nullable<string>, internalImplementation:boolean=false):string {
-    const len = $length(s) ; 
+export function $dir(source:Nullable<string>, internalImplementation:boolean=false):string {
+    let len = $length(source) ; 
     if (!len) { return '.' ; } 
-    const browser = $inbrowser() ;
-    if (internalImplementation || browser) {
-        const [isAbsolute, prefix, sepa, comps] = _internalPathComponents(s!, !browser && isWindows) ;
-        const n = comps.length ;
-        if (n > 1) {
-            const ret = comps.slice(0, n - 1).join(sepa) ;
-            return isAbsolute ? prefix + (ret === '' ? sepa : ret) : ret ;
+    let s = source! ;
+
+    if (!isWindows && (internalImplementation || $inbrowser())) {
+        let start = 0 ;
+        while (start < len && s.charAt(start) === '/') { start++ }
+        if (start === len) { return '/' ; } else if (len === 1 ) { return '.' ; }
+
+        let end = len - 1 ;
+        while (end > start && s.charAt(end) === '/') { end -- } ; 
+        end ++ ;
+        if (start === 0 && end === len) {
+            const slash = s.lastIndexOf('/') ;
+            return slash > 0 ? s.slice(0, slash) : '.' ;
         }
-        return isAbsolute ? prefix : '.' ; 
+        else {
+            const t = s.slice(start, end) ;
+            const slash = t.lastIndexOf('/') ;
+            return slash > 0 ? s.slice(0, start)+t.slice(0, slash) : (start > 0 ? s.slice(0, start) : '.') ;
+        }
     }
     return dirname(s!) ; 
 }
 
 export function $filename(s:Nullable<string>, internalImplementation:boolean=false):string { 
-    if (!$length(s)) { return '' ; } 
-    const browser = $inbrowser() ;
-    if (internalImplementation || browser) {
-        const [,,,comps] = _internalPathComponents(s!, !browser && isWindows) ;
-        const ret = comps!.last() ;
-        return $ok(ret) ? ret! : ''
+    let len = $length(s) ; 
+    if (!len) { return '' ; } 
+    if (!isWindows && (internalImplementation || $inbrowser())) {
+        let end = len - 1 ;
+        while (end >= 0 && s!.charAt(end) === '/') { end -- } ; 
+        end ++ ;
+        if (end === 0) { return '' ; }
+        else if (end < len) { s = s!.slice(0, end) ; }
+        const slash = s!.lastIndexOf('/') ;
+        return slash >= 0 ? s!.slice(slash+1) : s! ;
     }
     return basename(s!) ; 
 }
@@ -284,14 +298,15 @@ export function $readString(src:Nullable<string>, encoding?:Nullable<StringEncod
 }
 
 export interface BasicWriteOptions {
-    attomically?:boolean,
-    removePrecedentVersion?:boolean
+    attomically?:Nullable<boolean> ;
+    removePrecedentVersion?:Nullable<boolean> ;
+    mode?:Nullable<number> ;
 }
 
 export interface $writeStringOptions extends BasicWriteOptions {
     encoding?:Nullable<StringEncoding|TSCharset>,
-    stringStart?:number,
-    stringEnd?:number
+    stringStart?:Nullable<number>,
+    stringEnd?:Nullable<number>
 }
 
 export function $writeString(src:Nullable<string>, str:string, opts:$writeStringOptions = {}):boolean {
@@ -325,6 +340,7 @@ export function $readData(src:Nullable<string>) : TSData|null
     const buf = $readBuffer(src) ;
     return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer:true }) : null ;
 }
+
 export interface $writeBufferOptions extends BasicWriteOptions {
     byteStart?:number,
     byteEnd?:number
@@ -343,10 +359,11 @@ export function $fullWriteBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBu
 	let done = false ;
     let precedent:string|null = null ;
 
-    let start = $ok(opts.byteStart) ? opts.byteStart : 0 ;
-    let end   = $ok(opts.byteEnd) ? opts.byteEnd : buf.byteLength ; 
+    let start = $ok(opts.byteStart) ? opts.byteStart! : 0 ;
+    let end   = $ok(opts.byteEnd) ? opts.byteEnd! : buf.byteLength ; 
+    let mode  = $ok(opts.mode) ? opts.mode! : 0o666 ;
 
-    if ($length(src) && $isunsigned(start) && $isunsigned(end)) {
+    if ($length(src) && $isunsigned(start) && $isunsigned(end) && $isunsigned(mode)) {
         const pathToWrite = opts.attomically ? $uniquefile(src) : src! ;
         end = Math.min(end!, buf.byteLength) ;
         start = Math.min(start!, end) ;
@@ -358,7 +375,7 @@ export function $fullWriteBuffer(src:Nullable<string>, buf:TSData|NodeJS.ArrayBu
         if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage ; }
 	
 		try {
-            const fd = openSync(pathToWrite, 'w', 0o666) ;
+            const fd = openSync(pathToWrite, 'w', mode) ;
             const MAX_TRY = 3 ;
             try {
                 let retries = 0 ;
@@ -482,29 +499,4 @@ function _safeCheckPermissions(src:Nullable<string>, permissions:number):boolean
     }
     catch { ret = false ; }    
 	return ret ;
-}
-
-function _isAbsolutePath(s:string, windowsPath:boolean = false):boolean {
-    return $length(s) > 0 && (
-        (windowsPath && (s!.startsWith('\\') || windowsAbsolutePathRegex.test(s!))) ||
-        (!windowsPath && s!.startsWith('/'))
-    ) ;
-}
-
-function _internalPathComponents(s:string, windowsPath:boolean = false):[absolute:boolean, prefix:string, separator:string, components:string[]]
-{
-    const absolute = _isAbsolutePath(s, windowsPath) ;
-    const sepa = windowsPath ? '\\' : '/' ;
-    const components = s.split(sepa) ;
-    if (windowsPath && absolute) {
-        return s.startsWith(sepa+sepa) ?
-            [true, sepa+sepa+components[2] + sepa, sepa, _popEnding(s, components.slice(3))] : // format \\server\path
-            [true, components[0]+sepa, sepa, _popEnding(s, components.slice(1))] ; // format \toto or c:\toto. if \toto, we have components[0] === ''
-    }
-    return [absolute, sepa, sepa, _popEnding(s, absolute ? components.slice(1) : components)] ;
-}
-
-function _popEnding(_:string, comps:string[]):string[] {
-    while (comps.last() === '') { comps.pop() ; }
-    return comps ;
 }

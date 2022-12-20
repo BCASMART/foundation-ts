@@ -43,21 +43,58 @@ const paths = [
     "//server",
     "//server/",
     "//server/.doc",
-    "//server/mountpoint",
-    "//server/mountpoint/",
-    "//server/mountpoint/.doc",
-    "//server/mountpoint/file.pdf",
-    "//server/mountpoint/folder",
-    "//server/mountpoint/folder/",
-    "//server/mountpoint/folder/file.pdf",
-    "//server/mountpoint/folder/folder2", 
-    "//server/mountpoint/folder/folder2/", 
-    "//server/mountpoint/folder/folder2/file.pdf", 
-    "//server/mountpoint/folder/folder2/.doc", 
+    "//server/volume",
+    "//server/volume/",
+    "//server/volume/.doc",
+    "//server/volume/file.pdf",
+    "//server/volume/folder",
+    "//server/volume/folder/",
+    "//server/volume/folder/file.pdf",
+    "//server/volume/folder/folder2", 
+    "//server/volume/folder/folder2/", 
+    "//server/volume/folder/folder2/file.pdf", 
+    "//server/volume/folder/folder2/.doc", 
     "///",
     "/Users/Durand/Developer/foundation-ts/files",
     "C:/Users/Durand/Developer/foundation-ts/files",
     "//LocalServer/SharedVolume/Users/Durand/Developer/foundation-ts/files",
+] ;
+
+const mixedPaths = [
+    "/folder/folder2\\",
+    "/folder\\folder2",
+    "/folder\\folder2/",
+    "/folder\\folder2\\",
+    "\\folder/folder2",
+    "\\folder/folder2/",
+    "\\folder/folder2\\",
+    "\\folder\\folder2/",
+    "C:/folder/folder2\\",
+    "C:/folder\\folder2",
+    "C:/folder\\folder2/",
+    "C:/folder\\folder2\\",
+    "C:\\folder/folder2",
+    "C:\\folder/folder2/",
+    "C:\\folder/folder2\\",
+    "C:\\folder\\folder2/",
+    "//server/volume/folder/folder2\\",
+    "//server/volume/folder\\folder2",
+    "//server/volume/folder\\folder2/",
+    "//server/volume/folder\\folder2\\",
+    "//server/volume\\folder\\folder2",
+    "//server/volume\\folder\\folder2\\",
+    "//server\\volume\\folder\\folder2",
+    "//server\\volume\\folder\\folder2\\",
+    "/\\server\\volume\\folder\\folder2",
+    "/\\server\\volume\\folder\\folder2\\",
+    "\\\\server\\volume\\folder\\folder2/",
+    "\\\\server\\volume\\folder/folder2/",
+    "\\\\server\\volume\\folder/folder2",
+    "\\\\server\\volume/folder/folder2/",
+    "\\\\server\\volume/folder/folder2",
+    "\\\\server/volume/folder/folder2/",
+    "\\\\server/volume/folder/folder2",
+    "\\/server/volume/folder/folder2"
 ] ;
 
 const relatives = [
@@ -76,7 +113,7 @@ const relatives = [
     "../../../../../../tutu/../tata",
     "../../../../../../tutu/../tata/./toto",
     "../../../../../../tutu/../tata/./toto",
-    "../../../../../../tutu/../tata/./toto",
+    "../ ../../../../../tutu/../tata/./toto",
     "../../../../../../tutu/../tata/./toto",
     "../../../../../../../tutu/../tata/./toto",
     "../../../../../../../tutu/../tata/./toto",
@@ -102,15 +139,25 @@ export function TSPrintPathsFunctions() {
 
     paths.forEach(p => {
         printPathOperation(output.paths,p) ;
-        printPathOperation(output.paths,_w(p)) ;
-    })
+        const wp = _w(p) ;
+        if (wp !== p) {
+            printPathOperation(output.paths,wp) ;
+        }
+    }) ;
+    mixedPaths.forEach( p => printPathOperation(output.paths, p)) ;
+    
     paths.forEach(p => {
         printJoins(output.joins, p, relatives)
-        printJoins(output.joins, _w(p), relatives)
+        const wp = _w(p) ;
+        if (wp !== p) {
+            printJoins(output.joins, wp, relatives) ;
+        }
     }) ;
+    mixedPaths.forEach(p => printJoins(output.joins, p, relatives)) ;
 
     let f = join(__dirname, `paths-${process.platform}.json`) ;
     console.log(`writing file ${f}...`)
+    
     try {
         writeFileSync(f, JSON.stringify(output, undefined, 2), 'utf-8') ;
         console.log(`done`) ;    
