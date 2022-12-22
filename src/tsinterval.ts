@@ -25,6 +25,7 @@ export class TSInterval extends TSCouple<Nullable<TSDate>, Nullable<TSDate>> imp
         }
         return false ;
 	}
+    
     public get isValid():boolean { return $ok(this.first) ; }
 	public get isEmpty():boolean { return $ok(this.first) && $ok(this.second) && this.start.timestamp === this.end.timestamp ; }
 

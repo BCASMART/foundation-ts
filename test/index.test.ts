@@ -1,3 +1,9 @@
+import { TSData } from '../src/tsdata';
+import { TSDate } from '../src/tsdate';
+import { TSInterval } from '../src/tsinterval';
+import { TSList } from '../src/tslist';
+import { TSEmptyRange, TSRange } from '../src/tsrange';
+import { TSRangeSet } from '../src/tsrangeset';
 import { TSTester } from '../src/tstester'
 import { $inbrowser } from '../src/utils';
 import { arrayGroups } from './array.test';
@@ -61,10 +67,41 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
         "fs", "fusion"]) ;
+    const date = new TSDate() ;
+    
     group.unary("Testing tests list", async (t) => {
         t.expect0(tester.names.length).toBe(20) ;
         t.expect1(setA).toBe(setB) ;
     }) ;
+    
+    group.unary("Testing toBeEmpty()", async (t) => {
+        t.expect0([]).toBeEmpty() ;
+        t.expect1(new Set()).toBeEmpty() ;
+        t.expect2(new Map()).toBeEmpty() ;
+        t.expect3(Buffer.from('')).toBeEmpty() ;
+        t.expect4('').toBeEmpty() ;
+        t.expect5(new TSData()).toBeEmpty() ;
+        t.expect6(new TSList()).toBeEmpty() ;
+        t.expect7(TSEmptyRange()).toBeEmpty() ;
+        t.expect8(new TSRangeSet()).toBeEmpty() ;
+        t.expect9(new TSInterval(date, date)).toBeEmpty() ;
+    }) ;
+
+    group.unary("Testing toBeNotEmpty()", async (t) => {
+        t.expect0(["eee"]).toBeNotEmpty() ;
+        t.expect1(new Set([1])).toBeNotEmpty() ;
+        t.expect2(new Map([['key', 1]])).toBeNotEmpty() ;
+        t.expect3(Buffer.from('$$$')).toBeNotEmpty() ;
+        t.expect5(TSData.fromString('$$')).toBeNotEmpty() ;
+        t.expect6(new TSList([1, 2])).toBeNotEmpty() ;
+        t.expect7(new TSRange([1,1])).toBeNotEmpty() ;
+        t.expect8(new TSRangeSet(1)).toBeNotEmpty() ;
+        t.expect9(new TSInterval(date, date.dateByAddingHours(1))).toBeNotEmpty() ;
+        t.expectA(new TSInterval(date, null)).toBeNotEmpty() ;
+        t.expectB(new TSInterval(null, date)).toBeNotEmpty() ;
+    }) ;
+
+
     if (args.length > 0 && !dumper) {
         group.focused = true ;
         group.silent = true ;

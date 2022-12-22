@@ -74,6 +74,9 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		return TSBadRange() ;
 	}
 
+    public get isValid():boolean { return this.range.isValid ; }
+	public get isEmpty():boolean { return this.range.isEmpty ; }
+
 	public get location():number { return $ok(super.first) ? super.first!.data.location : NaN ; }
 	public get maxRange():number { return $ok(super.first) ? super.last!.data.maxRange : NaN ; }
 

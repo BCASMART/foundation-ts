@@ -8,6 +8,8 @@ import { TSError } from "./tserrors";
 export interface Interval {
 	range:TSRange ;
 	hasSignificantRange:boolean ;
+    isValid:boolean ;
+    isEmpty:boolean ;
 }
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;

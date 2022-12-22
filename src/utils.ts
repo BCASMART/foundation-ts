@@ -216,7 +216,7 @@ function _interpretEnvLine(env:StringDictionary, line:string, index:number, refe
                 break ;
             case State.Unicode:
                 const hexa = c.hexaValue() ;
-                if (hexa < 0) { return badchar(line, p, `\\U[${us}]`) ; }
+                if (hexa < 0) { return badchar(line, p, `\\u[${us}]`) ; }
                 uc = (uc << 4) | hexa ;
                 us ++ ;
                 if (us === 4) {

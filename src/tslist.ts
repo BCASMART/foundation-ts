@@ -1,4 +1,4 @@
-import { $jsonobj, $length, $ok, $string } from "./commons";
+import { $defined, $jsonobj, $length, $ok, $string } from "./commons";
 import { $compare, $equal} from "./compare"
 import { TSError } from "./tserrors";
 import { TSFusionEnumeration } from "./tsfusionnode";
@@ -41,6 +41,12 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 	get count():number { return this._n ; }
 	get first():TSListNode<T> | null { return this._f ;}
 	get last():TSListNode<T> | null { return this._l ;}
+
+    public constructor(list?:Iterable<T>) {
+        if ($defined(list)) {
+            for (let object of list!) { this.add(object) ; }
+        }
+    }
 
 	public insert(data:T, before?:TSListNode<T>):TSListNode<T> {
 		const node = new TSListNode(data) ;

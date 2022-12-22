@@ -1,7 +1,12 @@
 import { $count, $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal, $unorderedEqual } from "./compare";
+import { TSData } from "./tsdata";
+import { TSRange } from "./tsrange";
+import { TSRangeSet } from "./tsrangeset";
+import { TSInterval } from './tsinterval'
 import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
 import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
+import { TSList } from "./tslist";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
@@ -343,6 +348,36 @@ export class TSExpectAgent {
     public toBeArray():boolean          { return !$isarray(this._value)     ? this._elogfail('<an array>')       : this._step?.pass() ; }
     public toBeADate():boolean          { return !$isdate(this._value)      ? this._elogfail('<a date>')         : this._step?.pass() ; }
     public toBeAFunction():boolean      { return !$isfunction(this._value)  ? this._elogfail('<a function>')     : this._step?.pass() ; }
+
+    public toBeEmpty():boolean {
+        if (this._value instanceof Set) { return this._value.size > 0       ? this._elogfail('<an empty Set>')   : this._step?.pass() ; }
+        if (this._value instanceof Map) { return this._value.size > 0       ? this._elogfail('<an empty Map>')   : this._step?.pass() ; }
+        if ($isarray(this._value))      { return $count(this._value) > 0    ? this._elogfail('<an empty Array>') : this._step?.pass() ; }
+        if ($isstring(this._value))     { return $length(this._value) > 0   ? this._elogfail('<an empty String>'): this._step?.pass() ; }
+        if (this._value instanceof Uint8Array || this._value instanceof TSData) {
+            return $length(this._value) > 0 ? this._elogfail('<an empty buffer>'): this._step?.pass() ;
+        }
+        if (this._value instanceof TSList) { return this._value.count > 0     ? this._elogfail('<an empty List>')   : this._step?.pass() ; }
+        if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
+            return !this._value.isEmpty ? this._elogfail('<an empty interval>'): this._step?.pass()
+        }
+        return this._elogfail('<not a container>')
+    }
+
+    public toBeNotEmpty():boolean {
+        if (this._value instanceof Set) { return this._value.size === 0     ? this._elogfail('<a significant Set>')   : this._step?.pass() ; }
+        if (this._value instanceof Map) { return this._value.size === 0     ? this._elogfail('<a significant Map>')   : this._step?.pass() ; }
+        if ($isarray(this._value))      { return $count(this._value) === 0  ? this._elogfail('<a significant Array>') : this._step?.pass() ; }
+        if ($isstring(this._value))     { return $length(this._value) === 0 ? this._elogfail('<a significant String>'): this._step?.pass() ; }
+        if (this._value instanceof Uint8Array || this._value instanceof TSData) {
+            return $length(this._value) === 0 ? this._elogfail('<a significant buffer>'): this._step?.pass() ;
+        }
+        if (this._value instanceof TSList) { return this._value.count === 0     ? this._elogfail('<a significant List>')   : this._step?.pass() ; }
+        if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
+            return this._value.isEmpty ? this._elogfail('<a significant interval>'): this._step?.pass()
+        }
+        return this._elogfail('<not a container>')
+    }
 
     public toBeUnordered(aValue:Set<any>|Array<any>)
     { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._step.pass() ; }
