@@ -79,6 +79,7 @@ declare global {
         fpad2:              (this:number, failedChar?:string) => string ;
         fpad3:              (this:number, failedChar?:string) => string ;
         fpad4:              (this:number, failedChar?:string) => string ;
+        hexaValue:          (this:number) => number ; // returns -1 is the number representing an unicode character is not an hexadecimal one
         isNewLine:          (this:number) => boolean ;
         isWhiteSpace:       (this:number) => boolean ;
         isStrictWhiteSpace: (this:number) => boolean ;
@@ -98,6 +99,12 @@ Number.prototype.fpad               = function fpad(this:number, pad:number, fai
 Number.prototype.fpad2              = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
 Number.prototype.fpad3              = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }
 Number.prototype.fpad4              = function fpad(this:number, failedChar?:string) { return $fpad(this, 4, failedChar) ; }
+Number.prototype.hexaValue          = function hexaValue(this:number):number {
+    if (this >= 48 && this < 58)  { return this - 48 ; }
+    if (this >= 65 && this < 71)  { return this - 55 ; }
+    if (this >= 97 && this < 103) { return this - 87 ; }
+    return -1 ;
+}
 Number.prototype.isNewLine          = function isNewLine(this:number) { return FoundationNewLineNumberCodeSet.has(this) ; }
 Number.prototype.isWhiteSpace       = function isWhiteSpace(this:number) { return FoundationWhiteSpacesNumberCodeSet.has(this) ; }
 Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number) { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; }

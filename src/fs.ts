@@ -29,8 +29,12 @@ import {
 	extname,
 	join,
     isAbsolute,
-    normalize 
+    normalize, 
+    resolve
 } from 'path' ;
+
+import { homedir } from 'os';
+
 import { $isstring, $isunsigned, $length, $ok } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
@@ -152,6 +156,19 @@ export function $normalizepath(src?:Nullable<string>, internalImplementation:boo
     return !isWindows && (internalImplementation || $inbrowser()) ? $path(true, src!) : normalize(src!) ;
 }
 
+export function $absolute(src:Nullable<string>, internalImplementation:boolean=false):string {
+    TSError.assertNotInBrowser('$absolute') ;
+    if (!$length(src)) { return $currentdirectory() ; }
+    if ($isabsolutepath(src)) { return src! ; }
+    if (src!.startsWith('~')) { return $path(internalImplementation, homedir(), src!.slice(1)) ; }
+    return $path(internalImplementation, $currentdirectory(), src!) ;
+
+}
+
+export function $currentdirectory():string {
+    TSError.assertNotInBrowser('$currentdirectory') ;
+    return resolve(process.cwd()) ;
+}
 
 export function $path(first:string|boolean, ...paths:string[]): string {
     const browser = $inbrowser() ;
