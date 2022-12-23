@@ -322,7 +322,6 @@ export class TSExpectAgent {
 
     public toBe(aValue:any):boolean     { return !$equal(aValue, this._value) ? this._elogfail(aValue) : this._step?.pass() ; }
     public notToBe(aValue:any):boolean  { return $equal(aValue, this._value)  ? this._nelogfail(aValue) : this._step?.pass() ; }
-
     public toBeTruthy():boolean         { return !this._value           ? this._elogfail(true)       : this._step?.pass() ; }
     public toBeFalsy():boolean          { return !!this._value          ? this._elogfail(false)      : this._step?.pass() ; }
     public toBeUndefined():boolean      { return $defined(this._value)  ? this._elogfail(undefined)  : this._step?.pass() ; }
@@ -359,9 +358,9 @@ export class TSExpectAgent {
         }
         if (this._value instanceof TSList) { return this._value.count > 0     ? this._elogfail('<an empty List>')   : this._step?.pass() ; }
         if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
-            return !this._value.isEmpty ? this._elogfail('<an empty interval>'): this._step?.pass()
+            return !this._value.isEmpty ? this._elogfail('<an empty interval>'): this._step?.pass() ;
         }
-        return this._elogfail('<not a container>')
+        return $ok(this._value) ? this._elogfail('<not a container>') : this._step?.pass() ;
     }
 
     public toBeNotEmpty():boolean {
@@ -374,9 +373,9 @@ export class TSExpectAgent {
         }
         if (this._value instanceof TSList) { return this._value.count === 0     ? this._elogfail('<a significant List>')   : this._step?.pass() ; }
         if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
-            return this._value.isEmpty ? this._elogfail('<a significant interval>'): this._step?.pass()
+            return this._value.isEmpty ? this._elogfail('<a significant interval>'): this._step?.pass() ;
         }
-        return this._elogfail('<not a container>')
+        return this._elogfail($ok(this._value) ? '<not a container>' : 'null or undefined value') ;
     }
 
     public toBeUnordered(aValue:Set<any>|Array<any>)
@@ -389,6 +388,20 @@ export class TSExpectAgent {
     public gte(aValue:any):boolean      { return $compare(aValue, this._value) === Descending ? this._compfail(aValue, '≥') : this._step?.pass() ; }
     public lt(aValue:any):boolean       { return $compare(aValue, this._value) !== Descending ? this._compfail(aValue, '<') : this._step?.pass() ; }
     public lte(aValue:any):boolean      { return $compare(aValue, this._value) === Ascending  ? this._compfail(aValue, '≤') : this._step?.pass() ; }
+
+    // simpler methods
+    public is = this.toBe ;
+    public isnot = this.notToBe ;
+    public OK = this.toBeOK ;
+    public KO = this.toBeNotOK ;
+    public def = this.toBeDefined ;
+    public undef = this.toBeUndefined ;
+    public notnull = this.toBeNotNull ;
+    public null = this.toBeNull ;
+    public empty = this.toBeEmpty ;
+    public filled = this.toBeNotEmpty ;
+    public true = this.toBeTruthy ;
+    public false = this.toBeFalsy ;
 
     private _compfail(aValue:any, op:string):boolean {
         if (!this._step.silent) {

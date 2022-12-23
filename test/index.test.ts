@@ -9,6 +9,7 @@ import { $inbrowser } from '../src/utils';
 import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
 import { compareGroups } from './compare.test';
+import { cryptoGroups } from './crypto.test';
 import { fsGroups } from './fs.test';
 import { fusionGroups } from './fusion.test';
 import { numberGroups } from './number.test';
@@ -37,6 +38,7 @@ tester.addGroups(numberGroups,      "numbers") ;
 tester.addGroups(arrayGroups,       "arrays") ;
 tester.addGroups(compareGroups,     "compare") ;
 tester.addGroups(countriesGroups,   "countries") ;
+tester.addGroups(cryptoGroups,      "crypto") ;
 tester.addGroups(dateGroups,        "dates") ;
 tester.addGroups(dateCompGroups,    "dates") ;
 tester.addGroups(defaultsGroups,    "defaults") ;
@@ -62,7 +64,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
     const setB = new Set([
         "commons", "strings", "numbers", "arrays", 
-        "compare", "countries", "dates", "dates", 
+        "compare", "countries", "crypto", "dates", 
         "defaults", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
@@ -70,35 +72,37 @@ tester.addGroup("Testing tester system itself", async (group) => {
     const date = new TSDate() ;
     
     group.unary("Testing tests list", async (t) => {
-        t.expect0(tester.names.length).toBe(20) ;
-        t.expect1(setA).toBe(setB) ;
+        t.expect0(tester.names.length).is(21) ;
+        t.expect1(setA).is(setB) ;
     }) ;
     
     group.unary("Testing toBeEmpty()", async (t) => {
-        t.expect0([]).toBeEmpty() ;
-        t.expect1(new Set()).toBeEmpty() ;
-        t.expect2(new Map()).toBeEmpty() ;
-        t.expect3(Buffer.from('')).toBeEmpty() ;
+        t.expect0([]).empty() ;
+        t.expect1(new Set()).empty() ;
+        t.expect2(new Map()).empty() ;
+        t.expect3(Buffer.from('')).empty() ;
         t.expect4('').toBeEmpty() ;
-        t.expect5(new TSData()).toBeEmpty() ;
-        t.expect6(new TSList()).toBeEmpty() ;
-        t.expect7(TSEmptyRange()).toBeEmpty() ;
-        t.expect8(new TSRangeSet()).toBeEmpty() ;
-        t.expect9(new TSInterval(date, date)).toBeEmpty() ;
+        t.expect5(new TSData()).empty() ;
+        t.expect6(new TSList()).empty() ;
+        t.expect7(TSEmptyRange()).empty() ;
+        t.expect8(new TSRangeSet()).empty() ;
+        t.expect9(new TSInterval(date, date)).empty() ;
+        t.expectA([]).toBeEmpty() ;
     }) ;
 
     group.unary("Testing toBeNotEmpty()", async (t) => {
-        t.expect0(["eee"]).toBeNotEmpty() ;
-        t.expect1(new Set([1])).toBeNotEmpty() ;
-        t.expect2(new Map([['key', 1]])).toBeNotEmpty() ;
-        t.expect3(Buffer.from('$$$')).toBeNotEmpty() ;
-        t.expect5(TSData.fromString('$$')).toBeNotEmpty() ;
-        t.expect6(new TSList([1, 2])).toBeNotEmpty() ;
-        t.expect7(new TSRange([1,1])).toBeNotEmpty() ;
-        t.expect8(new TSRangeSet(1)).toBeNotEmpty() ;
-        t.expect9(new TSInterval(date, date.dateByAddingHours(1))).toBeNotEmpty() ;
-        t.expectA(new TSInterval(date, null)).toBeNotEmpty() ;
-        t.expectB(new TSInterval(null, date)).toBeNotEmpty() ;
+        t.expect0(["eee"]).filled() ;
+        t.expect1(new Set([1])).filled() ;
+        t.expect2(new Map([['key', 1]])).filled() ;
+        t.expect3(Buffer.from('$$$')).filled() ;
+        t.expect5(TSData.fromString('$$')).filled() ;
+        t.expect6(new TSList([1, 2])).filled() ;
+        t.expect7(new TSRange([1,1])).filled() ;
+        t.expect8(new TSRangeSet(1)).filled() ;
+        t.expect9(new TSInterval(date, date.dateByAddingHours(1))).filled() ;
+        t.expectA(new TSInterval(date, null)).filled() ;
+        t.expectB(new TSInterval(null, date)).filled() ;
+        t.expectC(["eee"]).toBeNotEmpty() ;
     }) ;
 
 
@@ -107,7 +111,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
         group.silent = true ;
         for (let a of args) {
             group.unary(`Testing ${a} restrictive test parameter`, async (t) => {
-                t.expect(tester.containsName(a)).toBeTruthy() ;
+                t.expect(tester.containsName(a)).true() ;
             }, {focus:true}) ;    
         }
     }

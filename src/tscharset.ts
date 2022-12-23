@@ -203,7 +203,8 @@ interface CharsetDefinition  {
 
 function _systemEncoding():string {
     if ($inbrowser()) { return document.characterSet ; }
-    switch (process.platform) {
+    const p = typeof process === "object" ? process?.platform : 'linux' ;
+    switch (p) {
         case 'darwin': return 'MacRoman' ;
         case 'win32': case 'cygwin': return 'ANSI' ;
         default: return 'latin1'

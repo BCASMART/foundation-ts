@@ -16,14 +16,14 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
     const T = new TSDate(1966, 4, 13, 12, 5, 22);
 
     group.unary("verifying $datecompare(a,b)", async(t) => {
-        t.expect1($datecompare(S, D)).toBe(Same);
-        t.expect2($datecompare(S, T)).toBe(Same);
-        t.expect3($datecompare(T, D)).toBe(Same);
-        t.expect4($datecompare(S, null)).toBeUndefined();
-        t.expect5($datecompare(null, null)).toBeUndefined();
-        t.expect6($datecompare(null, D)).toBeUndefined();
-        t.expect7($datecompare(A, D)).toBe(Descending);
-        t.expect8($datecompare(T, A)).toBe(Ascending);
+        t.expect1($datecompare(S, D)).is(Same);
+        t.expect2($datecompare(S, T)).is(Same);
+        t.expect3($datecompare(T, D)).is(Same);
+        t.expect4($datecompare(S, null)).undef();
+        t.expect5($datecompare(null, null)).undef();
+        t.expect6($datecompare(null, D)).undef();
+        t.expect7($datecompare(A, D)).is(Descending);
+        t.expect8($datecompare(T, A)).is(Ascending);
     }) ;
 
     group.unary("verifying $compare(a,b)", async(t) => {
@@ -51,18 +51,18 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
     }) ;
 
     group.unary("verifying $equal(a,b)", async(t) => {
-        t.expectA($equal(1, 1)).toBeTruthy();
+        t.expectA($equal(1, 1)).true();
         t.expectB($equal(1, 2)).toBeFalsy();
         t.expectC($equal(0, NaN)).toBeFalsy();
         t.expectD($equal(NaN, NaN)).toBeFalsy();
         t.expectE($equal(NaN, 0)).toBeFalsy();
-        t.expectF($equal(S1, S1)).toBeTruthy();
-        t.expectG($equal(B1, B1)).toBeTruthy();
+        t.expectF($equal(S1, S1)).true();
+        t.expectG($equal(B1, B1)).true();
         t.expectH($equal(B1, B2)).toBeFalsy();
         t.expectI($equal(['A', 'B'], [])).toBeFalsy();
         t.expectJ($equal(['A', 'B'], ['A', 'BBB'])).toBeFalsy();
-        t.expectK($equal(['A', 727], ['A', 727])).toBeTruthy();
-        t.expectL($equal([T, D], [D, T])).toBeTruthy();
+        t.expectK($equal(['A', 727], ['A', 727])).true();
+        t.expectL($equal([T, D], [D, T])).true();
     }) ;
 
     group.unary("verifying $numcompare(a,b)", async(t) => {

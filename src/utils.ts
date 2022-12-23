@@ -51,6 +51,9 @@ export interface $configOptions {
 
 export function $config(path?:Nullable<string>, opts?:Nullable<$configOptions>):StringDictionary|null {
     TSError.assertNotInBrowser('$config') ;
+    if (!$ok(process?.env)) {
+        throw new TSError('$config(): process.env is not defined', { path:path, options:opts}) ;
+    }
     const debug = !!opts?.debug ;
     path = $absolute($length(path) > 0 ? path! : '.env') ;
 

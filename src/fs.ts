@@ -50,7 +50,7 @@ import { $bufferFromArrayBuffer } from './data';
  * WARNING: paths functions internalImplementation does not exist on Windows,
  * so, passing internalImplementation boolean as not effect at all
  */
-const isWindows = process.platform === "win32";
+const isWindows = typeof process === "object" && process.platform === "win32";
 
 // if $stats() returns null it means that the path does not exist.
 export function $stats(src:Nullable<string>):Nullable<Stats> {

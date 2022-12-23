@@ -1,6 +1,7 @@
 import { $isfunction, $isstring, $lse, $ok } from "./commons";
 import { TSCharset } from "./tscharset";
-import { Bytes, Nullable, uint8 } from "./types";
+import { TSData } from "./tsdata";
+import { Bytes, Nullable, TSDataLike, uint8 } from "./types";
 
 export function $bufferFromArrayBuffer(a: ArrayBuffer): Buffer {
     return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a);
@@ -41,6 +42,17 @@ export function $uint8ArrayFromBytes(source:Bytes, sourceStart?: Nullable<number
     const ret = new Uint8Array(len);
     for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i]; }
     return ret ;
+}
+
+export function $uint8ArrayFromDataLike(source:TSDataLike, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): Uint8Array
+{
+    if (source instanceof ArrayBuffer) { 
+        return $uint8ArrayFromBytes($bufferFromArrayBuffer(source), sourceStart, sourceEnd) ;
+    }
+    if (source instanceof TSData) {
+        return source.toUint8Array(sourceStart, sourceEnd) ;
+    }
+    return $uint8ArrayFromBytes(source as Bytes, sourceStart, sourceEnd) ;
 }
 
 export function $arrayBufferFromBytes(source: Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): ArrayBuffer {

@@ -194,7 +194,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             endingMark:']=',
             separator:'='
         }) ;
-        t.expect4(template4).toBeNotOK() ;
+        t.expect4(template4).KO() ;
 
         const template5 = TSFusionTemplate.fromString(s, {
             debugParsing:false, 

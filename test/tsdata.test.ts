@@ -51,7 +51,7 @@ export const dataGroups = [
         group.unary('verifying TSData.indexof() and .lastIndexOf()', async(t) => {
             const partial = D.clone() ;
             const D8 =  TSData.fromString('01234567') ;
-            if (t.expectY(D8).toBeOK()) {
+            if (t.expectY(D8).OK()) {
                 const P0 = Buffer.from('67') ;
                 const P1 = Buffer.from('678') ;
                 const P2 = Buffer.from('89') ;
@@ -84,7 +84,7 @@ export const dataGroups = [
                 t.expectN(B.lastIndexOf(P0)).toBe(6) ;
 
                 const base = TSData.fromString('1234512345') ;
-                if (t.expectZ(base).toBeOK()) {
+                if (t.expectZ(base).OK()) {
                     base!.length = 8 ;
                     t.expectO(base!.indexOf(P3)).toBe(2) ;
                     t.expectP(base!.indexOf(P3,2)).toBe(2) ;
@@ -108,7 +108,7 @@ export const dataGroups = [
             const WSS = TSData.fromString(b+FoundationBynaryStrictWhiteSpaces) ;
             const NL1 = TSData.fromString(b+FoundationBinaryNewLines) ;
 
-            if (t.expect0(WSS).toBeOK() && t.expect1(NL1).toBeOK()) {
+            if (t.expect0(WSS).OK() && t.expect1(NL1).OK()) {
                 const WS = new TSData(Buffer.from(b+FoundationBinaryWhiteSpaces, "binary")) ;
                 const NL0 = new TSData(Buffer.from(b+FoundationBinaryNewLines, "binary")) ;
                 const NL2 = NL0.clone() ;

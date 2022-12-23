@@ -4,8 +4,7 @@ import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types
 
 export function $numcompare(a:number, b:number):Comparison {
     if (isNaN(a) || isNaN(b)) { return undefined ; }
-    if (a === b) { return Same ; }
-    return a < b ? Ascending : Descending ;
+    return a === b ? Same : (a < b ? Ascending : Descending) ;
 }
 
 export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>) : Comparison 
@@ -142,4 +141,4 @@ export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|S
     return na === nb && $setequal(a, b) ;
 }
 
-// TODO: ean psilon equal or a near equal function
+// TODO: an epsilon equal or a near equal function
