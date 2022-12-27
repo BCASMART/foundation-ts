@@ -1,12 +1,13 @@
 import { $isobject, $isstring, $length, $ok, $valueornull } from "./commons";
-import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation } from "./types";
-import { $dir, $filename, $isdirectory } from "./fs";
+import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation } from "./types";
+import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
-import { $inbrowser } from "./utils";
+import { $env, $inbrowser, $logterm } from "./utils";
 import { $ascii, $ftrim } from "./strings";
 import { TSError } from "./tserrors";
+import { TSCharset } from "./tscharset";
 
 export interface Locales {
     names:StringTranslation;
@@ -24,12 +25,18 @@ export interface Locales {
     partialTimeFormat:string;
     ampm:string[];
 }
+export interface DefaultsConfigurationOptions {
+    encoding?:Nullable<StringEncoding|TSCharset> ;
+    debug?:Nullable<boolean>
+    underscoreMax?:Nullable<number> ;
+    variableMax?:Nullable<number> ;
+}
 
 export type StringTranslations = { [key in Languages]?:StringDictionary } ;
 
 export class TSDefaults {
 	private static __instance: TSDefaults ;
-	private static __subfolders:string[] = ['utils', 'tests', 'dist'] ;
+
     /**
      * LOCALES (mostly date/time locales) are set in 7 common EEC languages
      * - english (en)
@@ -46,10 +53,10 @@ export class TSDefaults {
      */
     private static __locales = localesList as Locales[] ;
 
-	public defaultPath ;
-    public tmpDirectory = $inbrowser() ? '' : os.tmpdir() ;
-    public defaultLanguage:language = Languages.fr ;
-    public defaultCurrency:currency = Currencies.EUR ;
+    private _defaultLanguage:language = Languages.fr ;
+    private _defaultCurrency:currency = Currencies.EUR ;
+    private _tmpDirectory:string = $inbrowser() ? '' : os.tmpdir() ;
+
     private _values:AnyDictionary = {} ;
     private _localizations:StringTranslations = {} ;
     private _countriesMap:Map<string, country> ;
@@ -58,18 +65,7 @@ export class TSDefaults {
     private _managedLocalesMap:Map<string, Locales> ;
     private _managedLanguages:language[] ;
 
-    private constructor() {
-
-        this.defaultPath = __dirname ;
-
-        if (!$inbrowser()) {
-            for (let sf in TSDefaults.__subfolders) {
-                if ($filename(this.defaultPath) === sf) {
-                    this.defaultPath = $dir(this.defaultPath) ;
-                }
-            }    
-        }
-        
+    private constructor() {        
         this._countriesMap = new Map<string,country>() ;
         Object.keys(Countries).forEach(e => this._countriesMap.set(e, e as country)) ;
         this._languagesMap = new Map<string,language>() ;
@@ -83,7 +79,7 @@ export class TSDefaults {
             managedLocales.set(loc.language, loc) ;
             this._managedLanguages.forEach(l => managedLocales.set($ascii(loc.names[l]!.toLowerCase()), loc)) ;
         }) ;
-
+        
         this._managedLocalesMap = managedLocales ;
         TSCountry.loadCountries(managedLocales, this._managedLanguages) ;
 	}
@@ -167,30 +163,32 @@ export class TSDefaults {
         return this._managedLocalesMap.get(this.defaultLanguage)! ;
     }
 	
-	public static setSubfolders(folders:string[]) {
-		this.__subfolders = folders ;
-	}
-
+    public get defaultLanguage() { return this._defaultLanguage ; }
     public setDefaultLanguage(l:language):language {
         if ($ok(this._managedLocalesMap.get(l))) {
-            this.defaultLanguage = l ;
+            this._defaultLanguage = l ;
         }
-        return this.defaultLanguage ;
+        return this._defaultLanguage ;
     }
 
+    public get defaultCurrency() { return this._defaultCurrency ; }
     public setDefaultCurrency(c:currency):currency {
         if ($ok(this._currenciesMap.get(c))) {
-            this.defaultCurrency = c ;
+            this._defaultCurrency = c ;
         }
-        return this.defaultCurrency ;
+        return this._defaultCurrency ;
     }
     
+    public get tmpDirectory() {
+        TSError.assertNotInBrowser('TSDefaults.setTmpDirectory') ;
+        return this._tmpDirectory ;
+    }
     public setTmpDirectory(path:string) {
-        if (!$inbrowser()) {
-            if ($isdirectory(path)) {
-                this.tmpDirectory = path ;
-            }    
-        }
+        TSError.assertNotInBrowser('TSDefaults.setTmpDirectory') ;
+        if (!$isdirectory(path)) {
+            throw new TSError('TSDefaults.setTmpDirectory(): bad path parameter', { path: path }) ;
+        }    
+        this._tmpDirectory = path ;
     }
 
     // these 3 methods permits using software to store global values on unique Defaults instance
@@ -204,7 +202,29 @@ export class TSDefaults {
             }
         }
     }
-    public getValue(key:string):any { return this._values[key] ; }
+
+    public getValue(key:string):any { 
+        const v = this._values[key] ;
+        if ($ok(v)) { return v }
+        return !$inbrowser() && $isobject(process) && $isobject(process.env) ? process.env[key] : undefined ; 
+    }
+
+    public configure(path?:Nullable<string>, opts?:Nullable<DefaultsConfigurationOptions>) {
+        TSError.assertNotInBrowser('TSDefaults.configure') ;
+        if (!$isobject(process) || !$isobject(process!.env)) {
+            throw new TSError('TSDefaults.configure(): process.env is not defined', { path:path, options:opts}) ;
+        }
+        const debug = !!opts?.debug ;
+        path = $absolute($length(path) > 0 ? path! : '.env') ;
+    
+        const buffer = $readBuffer(path) ;
+        if (!$ok(buffer)) { 
+            if (debug) { $logterm(`&R&w TSDefaults.configure(): impossible to read environment file '${path}'  &0`) ; }
+        }
+        else if (!$ok($env(buffer, { merge:process.env as StringDictionary, ...opts }))) {
+            if (debug) { $logterm(`&R&w TSDefaults.configure(): impossible to interpret environment file '${path}'  &0`) ; }
+        }
+    }
 
     public static defaults(): TSDefaults {
 		if (!this.__instance) {
@@ -212,18 +232,20 @@ export class TSDefaults {
 		}
 		return this.__instance ;
 	}
+
 }
-export function $localpath() { return TSDefaults.defaults().defaultPath; }
-export function $tmp() { return TSDefaults.defaults().tmpDirectory ; }
+
+export function $tmp():string { return TSDefaults.defaults().tmpDirectory ; }
 export function $locales(locale?:Nullable<language|country|TSCountry>):Locales { return TSDefaults.defaults().locales(locale) ; }
-export function $country(s:Nullable<string>) : country | null { return TSDefaults.defaults().country(s) ; }
-export function $language(s?:Nullable<TSCountry|string>) : language | null { return TSDefaults.defaults().language(s) ; }
-export function $currency(s?:Nullable<TSCountry|string>) : currency | null { return TSDefaults.defaults().currency(s) ; }
+export function $country(s:Nullable<string>):country | null { return TSDefaults.defaults().country(s) ; }
+export function $language(s?:Nullable<TSCountry|string>):language | null { return TSDefaults.defaults().language(s) ; }
+export function $currency(s?:Nullable<TSCountry|string>):currency | null { return TSDefaults.defaults().currency(s) ; }
+export function $config(path?:Nullable<string>, opts?:Nullable<DefaultsConfigurationOptions>) { TSDefaults.defaults().configure(path, opts) ; }
 
 // to get default language, tou call $language() with no parameters or TSDefaults.defaults().defaultLanguage 
 
 // function to manage your own global defaults.
 // warning: all of this defaults are stored in memory
 export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
-export function $setdefault(key:string, value:any=undefined) { return TSDefaults.defaults().setValue(key, value) ; }
-export function $removedefault(key:string) { return TSDefaults.defaults().setValue(key, undefined) ; }
+export function $setdefault(key:string, value:any=undefined) { TSDefaults.defaults().setValue(key, value) ; }
+export function $removedefault(key:string) { TSDefaults.defaults().setValue(key, undefined) ; }

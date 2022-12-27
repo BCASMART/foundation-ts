@@ -25,7 +25,7 @@ export enum HashMethod {
     SHA256 = 'SHA256',
     SHA384 = 'SHA384',
     SHA512 = 'SHA512'
-}
+} ;
 
 export interface $encryptOptions {
     encoding?: Nullable<StringEncoding | TSCharset>; // default charset is binary
@@ -34,10 +34,11 @@ export interface $encryptOptions {
 export function $encrypt(ssource: string | TSDataLike, skey: string | TSDataLike | crypto.KeyObject, opts?: Nullable<$encryptOptions>): string | null {
     const [charset, key] = _charsetAndKey(skey, opts);
     if (!charset) { return null; }
+    
     const source = $isstring(ssource) ? charset!.uint8ArrayFromString(ssource as string) : $uint8ArrayFromDataLike(ssource as TSDataLike);
     if (!$length(source)) { return null; }
 
-    let returnValue;
+    let returnValue = null ;
     try {
         let iv = crypto.randomBytes(16);
         let cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
@@ -85,7 +86,7 @@ export function $decrypt(source: string, skey: string | TSDataLike | crypto.KeyO
     const [charset, key] = _charsetAndKey(skey, opts);
     if (!charset) { return null; }
 
-    let returnValue;
+    let returnValue = null ;
     try {
         let iv = Buffer.from(source.slice(0, 32), 'hex');
         let encryptedText = Buffer.from(source.slice(32), 'hex');
@@ -196,11 +197,16 @@ export function $password(len: number, opts: PasswordOptions = { hasLowercase: t
 declare global {
     export interface Uint8Array {
         crc32: (this: any) => uint32;
+        hash:  (this: any, method?: Nullable<HashMethod>) => string|null;
     }
     export interface ArrayBuffer {
         crc32: (this: any) => uint32;
+        hash:  (this: any, method?: Nullable<HashMethod>) => string|null;
     }
 }
 
-Uint8Array.prototype.crc32  = function crc32(this: any): uint32 { return $crc32(this) ; }
-ArrayBuffer.prototype.crc32 = function crc32(this: any): uint32 { return $crc32(this) ; }
+Uint8Array.prototype.crc32   = function crc32(this: any): uint32 { return $crc32(this) ; }
+Uint8Array.prototype.hash    = function hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; }
+ArrayBuffer.prototype.crc32  = function crc32(this: any): uint32 { return $crc32(this) ; }
+ArrayBuffer.prototype.hash   = function hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; }
+

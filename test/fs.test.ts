@@ -1,10 +1,10 @@
-import { join } from 'path';
 import { $defined, $length, $ok } from '../src/commons';
-import { $createDirectory, $dir, $ext, $filename, $fullWriteString, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeString } from '../src/fs';
+import { $absolute, $createDirectory, $currentdirectory, $dir, $ext, $filename, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeString } from '../src/fs';
 import { TSTest, TSTestGroup } from '../src/tstester';
 import { Nullable } from '../src/types';
 import { $inbrowser, $logterm } from "../src/utils";
-
+import { sep } from 'path';
+import { $hash, $hashfile } from '../src/crypto';
 interface FSTestPath {
     path: string ;
     absolute: boolean ;
@@ -25,22 +25,41 @@ interface FSTestDB {
 }
 let isWindowsOS:boolean|undefined = undefined ;
 let fsTestDB:FSTestDB|undefined = undefined ;
+let posixTestDB:FSTestDB|undefined = undefined ;
+
+/**
+ * WARNING: paths functions internalImplementation does not work on Windows,
+ * because it conforms to posix. So, don't test internal implementation on Windows
+ */
 
 function isWindows():boolean {
     if (!$defined(isWindowsOS)) { isWindowsOS = !$inbrowser() && process?.platform === "win32" ; }
     return isWindowsOS! ;
 }
 
-function fsTestDatabase():FSTestDB {
+function commonTestDatabase():FSTestDB {
     if (!$defined(fsTestDB)) {
-        const fileName = join(__dirname, isWindows() ? 'paths-windows.json' : 'paths-standard.json') ;
-        fsTestDB = $loadJSON(fileName) ;
-        if (!$ok(fsTestDB)) {
-            $logterm(`&R  &wUnable to load file JSON test file ${fileName}  &0`) ;
-            throw `Unable to load file JSON test file ${fileName}` ;
-        }
+        fsTestDB = fsTestDatabase() ;
     }
     return fsTestDB as FSTestDB ;
+}
+
+function posixTestDatabase():FSTestDB {
+    if (!$defined(posixTestDB)) {
+        posixTestDB = fsTestDatabase(true) ;
+    }
+    return posixTestDB as FSTestDB ;
+
+}
+
+function fsTestDatabase(forcePosix:boolean = false):FSTestDB {
+    const fileName = $absolute($path('test', `paths-${isWindows() && !forcePosix ? "windows" : "standard"}.json`)) ;
+    const db = $loadJSON(fileName) ;
+    if (!$ok(db)) {
+        $logterm(`&R  &wUnable to load file JSON test file ${fileName}  &0`) ;
+        throw `Unable to load file JSON test file ${fileName}` ;
+    }
+    return db as FSTestDB ;
 }
 
 function _ext(s:Nullable<string>, internal:boolean = false):string 
@@ -50,8 +69,8 @@ function _ext(s:Nullable<string>, internal:boolean = false):string
 }
 
 export const fsGroups = [
-    TSTest.group("Testing standard simple paths functions", async (group) => {
-        fsTestDatabase().paths.forEach(def => { 
+    TSTest.group("Standard $dir(), $filename(), $ext(), $isabsolute(), $normalizepath() functions", async (group) => {
+        commonTestDatabase().paths.forEach(def => { 
             group.unary(`stnd path "${def.path}"`, async (t) => {
                 t.expectA($isabsolutepath(def.path)).is(def.absolute) ;
                 t.expectD($dir(def.path)).is(def.dirname) ;
@@ -61,10 +80,28 @@ export const fsGroups = [
             }) ;
         }) ;
     }),
-    TSTest.group("Testing $path(standard) function", async (group) => {
-        fsTestDatabase().joins.forEach(j => {
+    TSTest.group("foundation-ts $dir(), $filename(), $ext(), $isabsolute(), $normalizepath() functions", async (group) => {
+        posixTestDatabase().paths.forEach(def => { 
+            group.unary(`stnd path "${def.path}"`, async (t) => {
+                t.expectA($isabsolutepath(def.path,true)).is(def.absolute) ;
+                t.expectD($dir(def.path, true)).is(def.dirname) ;
+                t.expectE(_ext(def.path, true)).is(def.extname) ;
+                t.expectF($filename(def.path, true)).is(def.filename) ;
+                t.expectN($normalizepath(def.path, true)).is(def.normalized) ;
+            }) ;
+        }) ;
+    }),
+    TSTest.group("standard $path() function", async (group) => {
+        commonTestDatabase().joins.forEach(j => {
             group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
                 t.expect($path(j.source, j.complement)).is(j.join) ;
+            }) ;
+        }) ;
+    }),
+    TSTest.group("foundation-ts $path() function", async (group) => {
+        posixTestDatabase().joins.forEach(j => {
+            group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
+                t.expect($path(true, j.source, j.complement)).is(j.join) ;
             }) ;
         }) ;
     })
@@ -73,30 +110,40 @@ export const fsGroups = [
 constructOptionalFSGroups(fsGroups) ;
 
 function constructOptionalFSGroups(groups:TSTestGroup[]) {
-    if (!isWindows()) {
-        groups.push(TSTest.group("Testing foundation-ts simple paths functions", async (group) => {
-            fsTestDatabase().paths.forEach(def => { 
-                group.unary(`fnts "${def.path}"`, async (t) => {
-                    t.expectA($isabsolutepath(def.path, true)).is(def.absolute) ;
-                    t.expectD($dir(def.path, true)).is(def.dirname) ;
-                    t.expectE(_ext(def.path, true)).is(def.extname) ;
-                    t.expectF($filename(def.path, true)).is(def.filename) ;
-                    t.expectN($normalizepath(def.path)).is(def.normalized) ;
-                }) ;
-            }) ;
-        })) ;
-        groups.push(TSTest.group("Testing $path(foundation-ts) function", async (group) => {
-            fsTestDatabase().joins.forEach(j => {
-                group.unary(`fdts "${j.source}"+"${j.complement}"`, async (t) => {
-                    t.expect($path(true, j.source, j.complement)).is(j.join) ;
-                }) ;
-            }) ;
-        })) ;
-    }
     if (!$inbrowser()) {
         groups.push(TSTest.group("Other backend FS functions", async (group) => {
+            const curdir = $currentdirectory() ;
+            const homedir = $homedirectory() ;
+
+            group.unary('$isabsolute() and $absolute() functions', async (t) => {
+                t.register('curdir', curdir) ;
+                t.register('homedir', homedir) ;
+                t.expect0($isabsolute(curdir)).OK() ;
+                t.expect1($isabsolute(homedir)).OK() ;
+                t.expect2($absolute('~')).is(homedir) ;
+                t.expect3($absolute('')).is(curdir) ;
+                t.expect4($absolute('.')).is(curdir) ;
+                t.expect5($absolute(`${sep}toto`)).is(`${sep}toto`) ;
+                t.expect6($absolute(`.${sep}toto`)).is($path(curdir, 'toto')) ;
+                t.expect7($absolute(`~${sep}`)).is(homedir) ;
+                t.expect8($absolute(`~${sep}toto`)).is($path(homedir, 'toto')) ;
+                t.expect9($absolute(`${sep}`)).is(`${sep}`) ;
+                t.expectA($isabsolute('')).false() ;
+                t.expectB($isabsolute('.')).false() ;
+                t.expectC($isabsolute('~')).false() ;
+                t.expectD($isabsolute(`${sep}`)).true() ;
+                t.expectE($isabsolute(`${sep}toto`)).true() ;
+                t.expectF($absolute('toto')).is($path(curdir, 'toto')) ;
+                t.expectG($absolute('./toto')).is($path(curdir, 'toto')) ;
+                t.expectH($absolute('~/')).is(homedir) ;
+                t.expectI($absolute('~/toto')).is($path(homedir, 'toto')) ;
+                t.expectJ($absolute(`toto${sep}tata${sep}tutu`)).is($path(curdir, 'toto', 'tata', 'tutu')) ;
+                t.expectK($absolute(`toto${sep}tata/tutu`)).is($path(curdir, 'toto', 'tata', 'tutu')) ;
+                t.expectL($absolute('toto/tata/tutu')).is($path(curdir, 'toto', 'tata', 'tutu')) ;
+                t.expectM($absolute('toto/tata/tutu/')).is($path(curdir, 'toto', 'tata', 'tutu')+sep) ;
+            }) ;
             group.unary('testing $createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
-                const folder = $path($dir(__dirname), 'output') ;
+                const folder = $absolute($path('tdist', 'output')) ;
                 t.register("Folder", folder) ;
                 t.expect0($createDirectory(folder)).true() ;
                 t.expect1($isdirectory(folder)).true() ;
@@ -113,12 +160,15 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
         
                 const str3 = str2 + ' 2' ;
                 const [wres3, prec3] = $fullWriteString(file,  str3, { attomically:true }) ;
+                const memhash = $hash(str3) ;
+                const hash = await $hashfile(file) ;
                 t.expect8(wres3).true() ;
                 t.expect9($length(prec3)).gt(0) ;
                 t.expectA($readString(file)).is(str3) ;
                 t.expectB($readString(prec3)).is(str2) ;
                 t.expectC($isreadable(file)).true() ;
                 t.expectD($iswritable(file)).true() ;
+                t.expectE(hash).is(memhash) ;
             }) ;    
     
         })) ;

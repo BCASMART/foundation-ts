@@ -5,10 +5,9 @@ import { $count, $defined, $isarray, $isfunction, $isstring, $length, $ok, $unsi
 import { $unit } from './number';
 import { $HTML, $lines, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
-import { $charset, TSCharset } from './tscharset';
-import { Nullable, StringDictionary, StringEncoding, TSDataLike, uint, unichar } from './types';
-import { $absolute, $readBuffer } from './fs';
-import { TSError } from './tserrors';
+import { $charset } from './tscharset';
+import { Nullable, StringDictionary, TSDataLike, uint, unichar } from './types';
+import { DefaultsConfigurationOptions } from './tsdefaults';
 
 export const $noop = () => {} ;
 
@@ -42,30 +41,7 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 	]).finally(() => clearTimeout(timer)) ;
 }
 
-export interface $configOptions {
-    encoding?:Nullable<StringEncoding|TSCharset> ;
-    debug?:Nullable<boolean>
-    underscoreMax?:Nullable<number> ;
-    variableMax?:Nullable<number> ;
-}
-
-export function $config(path?:Nullable<string>, opts?:Nullable<$configOptions>):StringDictionary|null {
-    TSError.assertNotInBrowser('$config') ;
-    if (!$ok(process?.env)) {
-        throw new TSError('$config(): process.env is not defined', { path:path, options:opts}) ;
-    }
-    const debug = !!opts?.debug ;
-    path = $absolute($length(path) > 0 ? path! : '.env') ;
-
-    const buffer = $readBuffer(path) ;
-    if (!$ok(buffer)) { 
-        if (debug) { $logterm(`&R&w $config(): impossible to read environment file '${path}'  &0`) ; }
-        return null ; 
-    }
-    return $env(buffer, { merge:process.env as StringDictionary, ...opts }) ;
-}
-
-export interface $envOptions extends $configOptions  {
+export interface $envOptions extends DefaultsConfigurationOptions  {
     merge?:Nullable<StringDictionary> ;     // environment to be merged with interpreted variables.
                                             // if merge is process.env, new values are overwriting process.env
     reference?:Nullable<StringDictionary> ; // reference can be process.env
@@ -99,7 +75,7 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOpti
 function _interpretEnvLine(env:StringDictionary, line:string, index:number, reference:StringDictionary, underscoreMax:uint, variableMax:uint, debug:boolean):[string, string] {
     const len = line.length ;
     let p = 0 ;
-
+    
     while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // space at start of line
     if (p === len || line.charAt(p) === '#') { return ['void', ''] ; } // empty line or line with only commentaries
 
@@ -107,12 +83,13 @@ function _interpretEnvLine(env:StringDictionary, line:string, index:number, refe
         p += 6 ; 
         let ws = 0 ;
         while (p < len && isspace(line.charCodeAt(p))) { p ++ ; ws++ } // space after export
+        
         if (p === len || line.charAt(p) === '#') {
             if (debug) { $logterm(`&R&w $env(): line #${index} only contains 'export' keyword  &0`) ; }
             return ['', ''] ;
         }        
-        if (!ws) {
-            if (debug) { $logterm(`&R&w $env(): line #${index} 'export' keyword must be followed by space(s)  &0`) ; }
+        else if (!ws) {
+            if (debug) { $logterm(`&R&w $env(): line #${index} 'export' keyword must be followed at least one space character  &0`) ; }
             return ['', ''] ;
         }
     }

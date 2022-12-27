@@ -1,5 +1,5 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
-import { $crc32 } from "./crypto";
+import { $crc32, $hash, HashMethod } from "./crypto";
 import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bytesFromBytes } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
@@ -308,8 +308,9 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public readDoubleBE(offset?:number): number     { return this._read(offset, 8, Buffer.prototype.readDoubleBE) ; }
 
     public toBase64():string { return $encodeBase64(this.mutableBuffer) ; }
+    public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
     public crc32():uint32 { return $crc32(this) ; }
-    
+
     // ============ TSObject conformance =============== 
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string {
         return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ;

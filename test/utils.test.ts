@@ -164,7 +164,6 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         t.expectQ($env(_b('a=1   hello'))).toBe({"a":'1   hello'}) ;
 
         if (!$inbrowser()) {
-            // process.env manipulation tests
             const env = process.env as StringDictionary ;
             const PATH = `${env.PATH}` ;
             const result = $env('NEWPATH=${PATH};/usr/src\nBB="${A}B"', { merge:env, reference:{ A:"B"}, ...debug }) ;

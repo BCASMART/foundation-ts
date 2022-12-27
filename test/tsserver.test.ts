@@ -7,7 +7,7 @@ import { TSParametricEndPoints } from "../src/tsservercomp";
 import { $keys, $length, $string } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
-import { $path, $readBuffer } from "../src/fs";
+import { $absolute, $path, $readBuffer } from "../src/fs";
 import { uint16 } from "../src/types";
 import { $inbrowser } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
@@ -108,7 +108,7 @@ export const serverGroups = [
 
 if (!$inbrowser()) {
     serverGroups.push(TSTest.group("Testing TSServer API definitions", async (group) => {
-        const localDirectory = $path(__dirname, 'main') ;
+        const localDirectory = $absolute('test/main') ;
         const content = $readBuffer($path(localDirectory, 'index.html')) ;
         const port = 8327 as uint16 ;
         const options:TSServerOptions = {
@@ -124,8 +124,8 @@ if (!$inbrowser()) {
 
         group.unary('Testing simple web page service', async (t) => {
             t.register('options', options) ;            
-
-            if (t.expect0(content).toBeDefined() && t.expect1(content!.length).gt(0)) {
+            t.register('localDirectory', localDirectory) ;
+            if (t.expect0(content).OK() && t.expect1(content!.length).gt(0)) {
                 const startStatus = await TSServer.start(null, options) ;
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
                 t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
@@ -154,11 +154,12 @@ if (!$inbrowser()) {
              * we didn't want to add node forge in our modules, so we did generate
              * an autosigned certificate with openssl and use it for our tests. 
              */
-            const cert = $readBuffer($path(__dirname, 'cert', 'cert.pem')) ;
-            const key = $readBuffer($path(__dirname, 'cert', 'key.pem')) ;
+            const cert = $readBuffer($absolute('test/cert/cert.pem')) ;
+            const key = $readBuffer($absolute('test/cert/key.pem')) ;
             if (t.expect0($length(cert)).gt(0) && t.expect1($length(key)).gt(0)) {
                 const opts = {...options, certificate:cert, key:key, port:9654 }
                 const startStatus = await TSServer.start(null, opts as TSServerOptions) ;
+                t.register('options', opts) ;            
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTPS) ;
                 t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
                 const client = new TSRequest(`https://localhost:9654/`) ;
