@@ -225,6 +225,11 @@ export function $normalizepath(src?: Nullable<string>, internalImplementation: b
     return normalize(src!);
 }
 
+export function $fromposix(src?:Nullable<string>):string {
+    if (!$length(src)) { return '' ; }
+    return sep === '\\' ? src!.split('/').join(sep) : src! ;
+}
+
 /**
  * There's no usage of internalImplementation boolean in $absolute()
  * because this cannot works if we are on a browser
@@ -236,14 +241,10 @@ export function $normalizepath(src?: Nullable<string>, internalImplementation: b
 export function $absolute(src: Nullable<string>): string {
     TSError.assertNotInBrowser('$absolute') ;
 
-    function _norm(p:string):string {
-        return p.length > 0 && sep === '\\' ? p.split('/').join(sep) : p ;
-    }
-    
     if (!$length(src) || src === '.') { return $currentdirectory(); }
     if ($isabsolutepath(src)) { return src!; }
-    if (src!.startsWith('~')) { return $path($homedirectory(), _norm(src!.slice(1))); }
-    return $path($currentdirectory(), _norm(src!));
+    if (src!.startsWith('~')) { return $path($homedirectory(), $fromposix(src!.slice(1))); }
+    return $path($currentdirectory(), $fromposix(src));
 }
 
 export function $homedirectory(): string {
