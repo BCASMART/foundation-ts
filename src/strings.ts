@@ -126,7 +126,7 @@ declare global {
         capitalize:         (this: string) => string;
         firstCap:           (this: string) => string;
         ftrim:              (this: string) => string;
-        left:               (this:string, leftPart?:Nullable<number>) => string;
+        left:               (this: string, leftPart?:Nullable<number>) => string;
         isDate:             (this: string) => boolean;
         isEmail:            (this: string) => boolean;
         isNewLine:          (this: string) => boolean;
@@ -137,8 +137,9 @@ declare global {
         lines:              (this: string, useOnlyASCIISeparators?:boolean) => string[];
         ltrim:              (this: string) => string;
         normalizeSpaces:    (this: string) => string;
-        right:              (this:string, rightPart?:Nullable<number>) => string;
+        right:              (this: string, rightPart?:Nullable<number>) => string;
         rtrim:              (this: string) => string;
+        singular:           (this: string) => boolean ;
         toHTML:             (this: string) => string;
         toHTMLContent:      (this: string) => HTMLContent ;
         toInt:              (this: string, defaultValue?: int) => int;
@@ -166,6 +167,7 @@ String.prototype.ltrim              = function ltrim(this: string): string { ret
 String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): string { return $normspaces(this); }
 String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
 String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
+String.prototype.singular           = function singular(this:string) { return this.toUnsigned() === 1 ; }
 String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
 String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
 String.prototype.toInt              = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }

@@ -1,11 +1,26 @@
+import { TSTester } from '../src/tstester'
+
+let args = process.argv.slice(2) ;
+
+let i = args.indexOf('-stopit') ;
+if (i >= 0) {
+    TSTester.globalOptions.stopOnFirstFail = true ;
+    args.splice(i, 1) ;
+}
+
+i = args.indexOf('-silent') ;
+if (i >= 0) {
+    TSTester.globalOptions.silent = true ;
+    args.splice(i, 1) ;
+}
+
 import { TSData } from '../src/tsdata';
 import { TSDate } from '../src/tsdate';
 import { TSInterval } from '../src/tsinterval';
 import { TSList } from '../src/tslist';
 import { TSEmptyRange, TSRange } from '../src/tsrange';
 import { TSRangeSet } from '../src/tsrangeset';
-import { TSTester } from '../src/tstester'
-import { $inbrowser } from '../src/utils';
+import { $inbrowser, $logterm } from '../src/utils';
 import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
 import { compareGroups } from './compare.test';
@@ -30,6 +45,7 @@ import { requestGroups } from './tsrequest.test';
 import { serverGroups } from './tsserver.test';
 import { utilsGroups } from './utils.test';
 
+const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
 
 tester.addGroups(commonsGroups,     "commons") ;
@@ -56,9 +72,6 @@ tester.addGroups(errorsGroups,      "errors") ;
 tester.addGroups(fsGroups,          "fs") ;
 tester.addGroups(fusionGroups,      "fusion") ;
 
-let args = process.argv.slice(2);
-const dumper = args.length === 1 && args.first() === '-list' ;
-
 
 tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
@@ -68,11 +81,11 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "defaults", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
-        "fs", "fusion"]) ;
+        "fs", "fusion", "internals"]) ;
     const date = new TSDate() ;
     
     group.unary("Testing tests list", async (t) => {
-        t.expect0(tester.names.length).is(21) ;
+        t.expect0(tester.names.length).is(22) ;
         t.expect1(setA).is(setB) ;
     }) ;
     
@@ -105,7 +118,6 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expectC(["eee"]).toBeNotEmpty() ;
     }) ;
 
-
     if (args.length > 0 && !dumper) {
         group.focused = true ;
         group.silent = true ;
@@ -115,11 +127,18 @@ tester.addGroup("Testing tester system itself", async (group) => {
             }, {focus:true}) ;    
         }
     }
-}) ;
+}, "internals") ;
 
 (async () => {
     const process = $inbrowser() ? undefined : require('process') ;
-    await tester.run({focusNames:args, clearScreen:!dumper, listTests:dumper}) ;
+    await tester.run({
+        focusNames:args, 
+        clearScreen:!dumper, 
+        listTests:dumper, 
+        stopItCallback:async (t) => { 
+            if (!TSTester.globalOptions.silent) { $logterm(`&0&o** ${t.desc} STOPPED **&0`) ; } 
+        }
+    }) ;
     process?.exit() ;
 })();
 

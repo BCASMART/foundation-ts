@@ -109,4 +109,21 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectF($unit(0,{ unit:'l', minimalUnit:0, ignoreMinimalUnitDecimals:true })).toBe("0 l") ;
     }) ;
 
+    group.unary("Other methods", async(t) => {
+        const n = 1 ;
+        const s = 13 ;
+        const p = 32 ;
+        const f = 0.9 ;
+        t.expect0(n.singular()).true() ;
+        t.expect1(s.isNewLine()).true() ;
+        t.expect2(n.isNewLine()).false() ;
+        t.expect3(s.isWhiteSpace()).true() ;
+        t.expect4(s.isStrictWhiteSpace()).false() ;
+        t.expect5(p.isWhiteSpace()).true() ;
+        t.expect6(p.isStrictWhiteSpace()).true() ;
+        t.expect7(n.isWhiteSpace()).false() ;
+        t.expect8(n.isStrictWhiteSpace()).false() ;
+        t.expect9(f.singular()).false() ;
+    }) ;
+
 }) ;

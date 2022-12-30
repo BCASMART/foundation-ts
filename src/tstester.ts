@@ -15,16 +15,28 @@ export type testFN = (t:TSGenericTest) => Promise<void> ;
 const noopTest:testFN = async (_:TSGenericTest):Promise<void> => {}
 const PADN = 5 ;
 
+export interface TSTesterGlobalOptions {
+    stopOnFirstFail?:boolean ;
+    silent?:boolean ;
+}
+
 export interface TSTesterOptions {
     focusNames?:string[] ;
     clearScreen?:boolean ;
     listTests?:boolean ;
+    stopItCallback?:(tester:TSTester) => Promise<void>
 }
 
 export class TSTester {
-    groups:TSTestGroup[] = [] ;
+    public static globalOptions:TSTesterGlobalOptions = {} ;
+
+    public groups:TSTestGroup[] = [] ;
     public _names:Set<string> ;
     public desc:string ;
+
+    public static group(s:string, f:groupFN, opts?:TSGenericTestOptions) {
+        return new TSTestGroup(s, f, { ...TSTester.globalOptions, ...opts }) ;
+    }
 
     public constructor(s:string) {
         this._names = new Set<string>() ;
@@ -32,7 +44,7 @@ export class TSTester {
     }
     
     public addGroup(s:string, f:groupFN, name?:Nullable<string>, opts?:TSGenericTestOptions)
-    { this.addGroups([TSTest.group(s,f,opts)], name) ; }
+    { this.addGroups([TSTester.group(s,f, { ...TSTester.globalOptions, ...opts })], name) ; }
 
     public addGroups(grps:TSTestGroup|TSTestGroup[], name?:Nullable<string>) {
         const hasName = $length(name) > 0 ;
@@ -89,35 +101,51 @@ export class TSTester {
         let groups = this.groups.filter(g => g.focused) ;
         const n = $count(groups) ;
         if (n > 0) {
-            this.log(`&0&O&rTest will be restricted to ${n} groups out of ${this.groups.length}&0`) ;
+            this.log(`&0&O&r Test will be restricted to ${n} groups out of ${this.groups.length} &0`) ;
+            groups.forEach(g => {
+                this.log(`&o - ${g.name} &0`) ;
+            }) ;
         }
         else { groups = this.groups ; }
 
         let passed = 0, failed = 0, silent = 0 ;
+        let stopit = false ;
         // second phase, we run the tests
         for (let g of groups) {
-            const [groupExpected, groupFailed] = await g.run() ;
+            let groupExpected, groupFailed ;
+            
+            [groupExpected, groupFailed, stopit] = await g.run() ;
+            if (stopit) { break ; }
+
             expectations += groupExpected ;
             expectationsFailed += groupFailed ;
             if (groupFailed === 0) { if (g.silent) { silent ++ ; } else { passed++ ; } } else { failed++ ; }
         }
-        this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
-        if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
-        if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
-        if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
-        if ((passed > 0 || silent > 0) && !failed) {
-            this.log('&G&w  ALL TESTS PASSED  &0') ;
+        
+        if (stopit) {
+            this.log('&R&w  TESTS DID STOP ON FIRST TEST FAILED  &0') ;
+            if ($isfunction(opts.stopItCallback)) { opts!.stopItCallback!(this) ; }
         }
-        else if (expectationsFailed > 0) {
-            this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
+        else {
+            this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
+            if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
+            if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
+            if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
+            if ((passed > 0 || silent > 0) && !failed) {
+                this.log('&G&w  ALL TESTS PASSED  &0') ;
+            }
+            else if (expectationsFailed > 0) {
+                this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
+            }
         }
     }
 }
 
-export interface TSGenericTestOptions {
+export { TSTester as TSTest }
+
+export interface TSGenericTestOptions extends TSTesterGlobalOptions {
     focus?:boolean ;
     focusGroup?:boolean ;
-    silent?:boolean ;
     name?:string ;
 }
 
@@ -127,23 +155,21 @@ export class TSGenericTest {
     public name:string|undefined = undefined ;
     public focused:boolean = false ;
     public silent:boolean = false ;
-
+    public stopOnFirstFail:boolean = false ;
+    
     protected constructor(s:string, f:testFN, opts?:TSGenericTestOptions) {
         this.desc = s ;
         this.fn = f ;
         if (opts?.focus) { this.focused = true ; }
         if (opts?.silent) { this.silent = true ; }
+        if (opts?.stopOnFirstFail) { this.stopOnFirstFail = true ; }
+
         if ($length(opts?.name) > 0) { this.name = opts!.name! ; }
     }
 
-    public async run():Promise<[number, number]> { return [0,0] ; }
+    public async run():Promise<[number, number, boolean]> { return [0,0, false] ; }
     public log(format:string, ...args:any[]) { $logterm(format, args) ; }
 
-}
-export class TSTest extends TSGenericTest {
-    public static group(s:string, f:groupFN, opts?:TSGenericTestOptions) {
-        return new TSTestGroup(s, f, opts) ;
-    }
 }
 
 export class TSTestGroup extends TSGenericTest {
@@ -156,6 +182,7 @@ export class TSTestGroup extends TSGenericTest {
     public unary(s:string, f:unaryFN, opts:TSGenericTestOptions = {})
     {
         if (this.silent) { opts.silent = true ; } 
+        if (this.stopOnFirstFail) { opts.stopOnFirstFail = true ; }
         this._unaries.push(new TSUnaryTest(this, s, f, opts)) ; 
     }
     
@@ -179,34 +206,41 @@ export class TSTestGroup extends TSGenericTest {
         }
     }
 
-    public async run():Promise<[number, number]> {
+    public async run():Promise<[number, number, boolean]> {
         let expectations = 0 ;
         let expectationFailed = 0 ;
         const start = $mark() ;
-
-        if (!this.silent) { this.log(`&u- Running group tests &U&k ${this.desc} &0`) ; }
+        let stopit = false ;
+        
+        if (!this.silent) { this.log(`&u- Running ${this.silent?"silent ":""}group tests &U&k ${this.desc} &0`) ; }
         let unaries = this._unaries.filter(u => u.focused) ;
         if (unaries.length === 0) { unaries = this._unaries ; }
 
         for (let u of unaries) {
-            const [unaryExpected, unaryFailed] = await u.run() ;
+            let unaryExpected, unaryFailed ;
+            [unaryExpected, unaryFailed, stopit] = await u.run() ;
             expectationFailed += unaryFailed ;
             expectations += unaryExpected ;
+            if (stopit) { break ; }
         }
-        if (this.silent && expectationFailed > 0) {
-            this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
+        
+        if (!stopit) {
+            if (this.silent && expectationFailed > 0) {
+                this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
+            }
+            if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y in ${$ellapsed(start)}\n`) ; }
         }
-        if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y in ${$ellapsed(start)}\n`) ; }
-        return [expectations, expectationFailed] ;
+
+        return [expectations, expectationFailed, stopit] ;
     }
 }
 
 export class TSTestDescriptor extends TSGenericTest {
     public constructor(s:string) { super($term(s), noopTest) ; }
     public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
-    public async run():Promise<[number, number]> {
+    public async run():Promise<[number, number, boolean]> {
         $logterm(`&x     ➤ logging &y${this.desc} &0`) ;
-        return [0,0] ; 
+        return [0,0, false] ; 
     }
 
 }
@@ -225,11 +259,14 @@ export class TSUnaryTest extends TSGenericTest {
 
     public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
 
-    public async run():Promise<[number, number]> {
+    public async run():Promise<[number, number, boolean]> {
         this._passed = 0 ;
         this._failed = 0 ;
+
         if (!this.silent) { $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ; }
+
         await this.fn(this) ;
+
         if (!this.silent) {
             if (this._failed > 0) { 
                 $writeterm('\n     ') ; 
@@ -242,7 +279,8 @@ export class TSUnaryTest extends TSGenericTest {
         else if (this._failed > 0) {
             $logterm(`&x     ➤ &ldid execute test &B&w ${this.desc} &0&R&w ${this._failed} KO &0`) ;
         }
-        return [this._expected, this._failed] ;
+
+        return [this._expected, this._failed, this.stopOnFirstFail && this._failed > 0] ;
     }
     
     public register(name:string, value:any)
@@ -404,28 +442,22 @@ export class TSExpectAgent {
     public false = this.toBeFalsy ;
 
     private _compfail(aValue:any, op:string):boolean {
-        if (!this._step.silent) {
-            const start = this._writeMessage() ;
-            $logterm(`&adid expect value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ;
-            $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ;
-        } 
+        const start = this._writeMessage() ;
+        $logterm(`&adid expect value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ;
+        $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ;
         return this._step?.fail() ;
     }
 
     private _elogfail(aValue:any):boolean {
-        if (!this._step.silent) {
-            const start = this._writeMessage() ;
-            $logterm(`&edid expect value:&E&b${$inspect(aValue).replace(/&/g, '&&')}&0`) ;
-            $logterm(`${start}&adid get as value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ; 
-        }
+        const start = this._writeMessage() ;
+        $logterm(`&edid expect value:&E&b${$inspect(aValue).replace(/&/g, '&&')}&0`) ;
+        $logterm(`${start}&adid get as value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ; 
         return this._step?.fail() ;
     }
 
     private _nelogfail(aValue:any):boolean {
-        if (!this._step.silent) {
-            this._writeMessage() ;
-            $logterm(`&adid not expect  :&O&w${$inspect(aValue).replace(/&/g, '&&')}&0`) ; 
-        }
+        this._writeMessage() ;
+        $logterm(`&adid not expect  :&O&w${$inspect(aValue).replace(/&/g, '&&')}&0`) ; 
         return this._step?.fail() ;
     }
 

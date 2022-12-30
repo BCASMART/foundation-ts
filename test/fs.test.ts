@@ -69,7 +69,21 @@ function _ext(s:Nullable<string>, internal:boolean = false):string
 }
 
 export const fsGroups = [
-    TSTest.group("Standard $dir(), $filename(), $ext(), $isabsolute(), $normalizepath() functions", async (group) => {
+    TSTest.group("standard $path() function", async (group) => {
+        commonTestDatabase().joins.forEach(j => {
+            group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
+                t.expect($path(j.source, j.complement)).is(j.join) ;
+            }, { silent: true }) ;
+        }) ;
+    }),
+    TSTest.group("foundation-ts $path() function", async (group) => {
+        posixTestDatabase().joins.forEach(j => {
+            group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
+                t.expect($path(true, j.source, j.complement)).is(j.join) ;
+            }, { silent: true }) ;
+        }) ;
+    }),
+    TSTest.group("standard other paths functions", async (group) => {
         commonTestDatabase().paths.forEach(def => { 
             group.unary(`stnd path "${def.path}"`, async (t) => {
                 t.expectA($isabsolutepath(def.path)).is(def.absolute) ;
@@ -77,10 +91,10 @@ export const fsGroups = [
                 t.expectE(_ext(def.path)).is(def.extname) ;
                 t.expectF($filename(def.path)).is(def.filename) ;
                 t.expectN($normalizepath(def.path)).is(def.normalized) ;
-            }) ;
+            }, { silent: true }) ;
         }) ;
     }),
-    TSTest.group("foundation-ts $dir(), $filename(), $ext(), $isabsolute(), $normalizepath() functions", async (group) => {
+    TSTest.group("foundation-ts other paths functions", async (group) => {
         posixTestDatabase().paths.forEach(def => { 
             group.unary(`stnd path "${def.path}"`, async (t) => {
                 t.expectA($isabsolutepath(def.path,true)).is(def.absolute) ;
@@ -88,21 +102,7 @@ export const fsGroups = [
                 t.expectE(_ext(def.path, true)).is(def.extname) ;
                 t.expectF($filename(def.path, true)).is(def.filename) ;
                 t.expectN($normalizepath(def.path, true)).is(def.normalized) ;
-            }) ;
-        }) ;
-    }),
-    TSTest.group("standard $path() function", async (group) => {
-        commonTestDatabase().joins.forEach(j => {
-            group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
-                t.expect($path(j.source, j.complement)).is(j.join) ;
-            }) ;
-        }) ;
-    }),
-    TSTest.group("foundation-ts $path() function", async (group) => {
-        posixTestDatabase().joins.forEach(j => {
-            group.unary(`stnd "${j.source}"+"${j.complement}"`, async (t) => {
-                t.expect($path(true, j.source, j.complement)).is(j.join) ;
-            }) ;
+            }, { silent: true }) ;
         }) ;
     })
 ] ;

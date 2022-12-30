@@ -86,6 +86,7 @@ declare global {
         meters:             (this:number, decimalPlaces?:number) => string ;
         octets:             (this:number, decimalPlaces?:number) => string ;
         round:              (this:number, decimalPlaces?:number) => number ;
+        singular:           (this:number) => boolean ;
         toHex2:             (this:number, toLowerCase?:boolean) => string ;
         toHex4:             (this:number, toLowerCase?:boolean) => string ;
         toHex8:             (this:number, toLowerCase?:boolean) => string ;
@@ -111,6 +112,7 @@ Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number) { retur
 Number.prototype.meters             = function meters(this:number, decimalPlaces?:number) { return $meters(this, decimalPlaces) ; }
 Number.prototype.octets             = function octets(this:number, decimalPlaces?:number) { return $octets(this, decimalPlaces) ; }
 Number.prototype.round              = function round(this:number, decimalPlaces?:number) { return $round(this, decimalPlaces) ; }
+Number.prototype.singular           = function singular(this:number) { return this === 1 ; }
 Number.prototype.toHex2             = function toHex2(this:number, toLowerCase:boolean = false) {
     const n = this.toUnsigned() ;
     const r = toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;

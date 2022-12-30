@@ -141,6 +141,20 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectG($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u000d\u000a')).toBe(["", "", "", "B", "", "", "", "C", ""]) ;
     }) ;
 
+    group.unary("Other methods", async(t) => {
+        t.expect0("1".singular()).true() ;
+        t.expect1("\r".isNewLine()).true() ;
+        t.expect2("1".isNewLine()).false() ;
+        t.expect3("\r".isWhiteSpace()).true() ;
+        t.expect4("\r".isStrictWhiteSpace()).false() ;
+        t.expect5(" ".isWhiteSpace()).true() ;
+        t.expect6(" ".isStrictWhiteSpace()).true() ;
+        t.expect7("1".isWhiteSpace()).false() ;
+        t.expect8("1".isStrictWhiteSpace()).false() ;
+        t.expect9("0.9".singular()).false() ;
+        t.expectA("1.0".singular()).true() ;
+    }) ;
+
 }) ;
 
 
