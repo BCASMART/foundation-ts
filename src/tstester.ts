@@ -7,6 +7,7 @@ import { TSInterval } from './tsinterval'
 import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
 import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
 import { TSList } from "./tslist";
+import { $left } from "./strings";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
@@ -245,7 +246,8 @@ export class TSTestDescriptor extends TSGenericTest {
 
 }
 export class TSUnaryTest extends TSGenericTest {
-    public _group:TSTestGroup ;
+    public readonly group:TSTestGroup ;
+
     private _failed:number = 0 ;
     private _passed:number = 0 ;
     private _expected:number = 0 ;
@@ -253,10 +255,11 @@ export class TSUnaryTest extends TSGenericTest {
 
     public constructor(g:TSTestGroup, s:string, f:unaryFN, opts?:TSGenericTestOptions) {
         super(s, f as testFN, opts) ;
-        this._group = g ;
+        this.group = g ;
         if (opts?.focusGroup) { g.focused = true ; }
     }
 
+    public description(str:string) { this.group.description(str) ; }
     public log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
 
     public async run():Promise<[number, number, boolean]> {
@@ -299,10 +302,12 @@ export class TSUnaryTest extends TSGenericTest {
         }
     }
 
-    public expect(v:any,msg?:string):TSExpectAgent {
+    public expect(v:any,msg?:Nullable<string>):TSExpectAgent {
         this._expected ++ ;
-        if (!$length(msg)) { msg = this._expected.toString().padStart(4) ; }
-        return new TSExpectAgent(this, v, msg) ;
+        const len = $length(msg) ;
+        if (!len) { msg = this._expected.toString().padStart(4) ; }
+        else if (len > 6) { msg = $left(msg, 6) ; }
+        return new TSExpectAgent(this, v, msg!.toLowerCase()) ;
     }
 
     // this could be considered as useless but eventually, I find it very usefull and literrate 

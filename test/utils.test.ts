@@ -118,12 +118,11 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
     else {
         group.description("Utils functions test is running in node.js");
         group.description("==========================================");
-        //group.description($insp(tree)) ;
-        //group.description("==========================================");
 
         // we don't run this test in browser mode because $insp() and $inspect() are the same in this context
         group.unary("Testing $insp() function", async (t) => {
             t.expect($insp(tree).normalizeSpaces()).toBe(inspect(tree, false, 10).normalizeSpaces());
+            t.description("-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.");
         });
     }
 
