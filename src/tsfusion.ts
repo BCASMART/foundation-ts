@@ -1,8 +1,9 @@
-import { $capacityForCount, $isnumber, $isobject, $isstring, $length, $ok } from "./commons";
+import { $capacityForCount, $defined, $isnumber, $isobject, $isstring, $length, $ok } from "./commons";
 import { $equal } from "./compare";
 import { $bufferFromArrayBuffer } from "./data";
 import { $charset, TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
+import { TSDate } from "./tsdate";
 import { TSError } from "./tserrors";
 import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from "./tsfusionnode";
 import { Bytes, NormativeStringEncoding, Nullable, StringEncoding, TSDataLike, TSDictionary, uint, uint8 } from "./types";
@@ -40,8 +41,8 @@ export interface TSDataTemplateOptions extends TSFusionTemplateOptions {
     encoding?:StringEncoding|TSCharset ;
 }
 
-const [LF,   CR,   TAB,  SPACE, EXCLAMATION_MARK, DOUBLE_QUOTE, SHARP, DOLLAR, QUOTE, ASTERISK, PLUS, MINUS, DOT,  SLASH, ZERO, NINE, COLON, LT,   EQ,   GT,   QUESTION_MARK, AT,   A,    Z,    UNDERSCORE] = 
-      [0x0a, 0x0d, 0x09, 0x20,  0x21,             0x22,         0x23,  0x24,   0x27,  0x2A,     0x2B, 0x2D,  0x2E, 0x2F,  0x30, 0x39, 0x3A,  0x3C, 0x3D, 0x3E, 0x3F,          0x40, 0x41, 0x5A, 0x5F] as uint8[] ;
+const [TAB,  LF,   BS,   FF,   CR,   SPACE, EXCLAMATION_MARK, DOUBLE_QUOTE, SHARP, DOLLAR, QUOTE, LPAR, RPAR, ASTERISK, PLUS, COMMA, MINUS, DOT,  SLASH, ZERO, NINE, COLON, LT,   EQ,   GT,   QUESTION_MARK, AT,   A,    Uu,   Z,    BACKSLASH, UNDERSCORE, bu,   fu,   nu,   ru,   tu,   uu    ] = 
+      [0x09, 0x0a, 0x0B, 0x0C, 0x0D, 0x20,  0x21,             0x22,         0x23,  0x24,   0x27,  0x28, 0x29, 0x2A,     0x2B, 0x2C,  0x2D,  0x2E, 0x2F,  0x30, 0x39, 0x3A,  0x3C, 0x3D, 0x3E, 0x3F,          0x40, 0x41, 0x55, 0x5A, 0x5C,      0x5F,       0x62, 0x66, 0x6E, 0x72, 0x74, 0x75  ] as uint8[] ;
 
 const FUSION_SPECIAL_CHARS = [SHARP, QUESTION_MARK, EXCLAMATION_MARK, DOLLAR, AT, UNDERSCORE, ASTERISK, PLUS, DOT] ;
 
@@ -59,7 +60,11 @@ TSFusionContextTypes[ASTERISK]      = TSFusionContextType.Procedure ;
 TSFusionContextTypes[DOT]           = TSFusionContextType.Local ;
 
 const TSFusionForbiddenEncodings:NormativeStringEncoding[] = ['utf16le', 'base64', 'base64url', 'hex'] ;
-
+interface TSFusionConstant {
+    name:uint8[] ; 
+    value:any ;
+    len:number ; 
+}
 export abstract class TSFusionTemplate {
     source:TSData ;
     startingMark:number[] ;
@@ -79,6 +84,8 @@ export abstract class TSFusionTemplate {
 
     public abstract pushFusionData(data:Bytes):void ;
     public abstract pushFusionValue(value:NonNullable<any>):void ;
+
+    public parameterCharset():TSCharset { return TSCharset.utf8Charset() ; }
     
     public static fromData(source:TSDataLike, encoding?:Nullable<StringEncoding|TSCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null
     { return TSDataTemplate.fromData(source, encoding, opts) ; }
@@ -96,6 +103,19 @@ export abstract class TSFusionTemplate {
         const debug = !!opts.debugParsing ;
         const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : (src instanceof TSData ? src.mutableBuffer : src) ; 
 
+        // four our simple automatcode to be working properly, 
+        // constants must be at least 2 character long
+        // and have different first characters
+        const constants:Array<TSFusionConstant> = [
+            { name:_ascii2data('FUTURE'),    value:TSDate.future(), len:6 },
+            { name:_ascii2data('NaN'),       value:NaN,             len:3 },
+            { name:_ascii2data('PAST'),      value:TSDate.past(),   len:4 },
+            { name:_ascii2data('true'),      value:true,            len:4 },
+            { name:_ascii2data('false'),     value:false,           len:4 },
+            { name:_ascii2data('null'),      value:null,            len:4 },
+            { name:_ascii2data('undefined'), value:undefined,       len:9 }
+        ] ;
+
         if (debug) {
             $logterm(`&0\n&Y&k ${this.constructor.name} parsing in debug mode &0`) ;
             $logterm(`&0&x - &w starting mark&x:        '&o${_data2ascii(sm)}&x'&0`)
@@ -112,15 +132,22 @@ export abstract class TSFusionTemplate {
         const smlen = sm.length ;
         const sepalen = sepa.length ;
         const emlen = em.length ;
+        const paramCharset = this.parameterCharset() ;
         
         function upper(c:uint8):uint8 { return (c & 0xdf) as uint8 ; }
 
         function isVariableSpace(c:uint8) { return c === TAB || c === SPACE ; }
+        function isVariableNum(c:uint8) { return c >= ZERO && c <= NINE ; }
         function variableCharacterRole(c:uint8):TSCharRole {
             if (c === DOT) { return TSCharRole.UnsignificantStarterChar ; }
             if ((upper(c) >= A && upper(c) <= Z)) { return TSCharRole.StarterChar ; }
-            if ((c >= ZERO && c <= NINE) || c === DOT || c === UNDERSCORE) { return TSCharRole.InternalChar ; }
+            if (isVariableNum(c) || c === DOT || c === UNDERSCORE) { return TSCharRole.InternalChar ; }
             return TSCharRole.ForbiddenChar ;
+        }
+
+        function find_constant(c:uint8):TSFusionConstant|undefined {
+            for (let cst of constants) { if (cst.name[0] === c) return cst ; }
+            return undefined ;
         }
 
         function store_variable(m:Map<string, Set<TSFusionContextType>>, cm:Map<TSFusionContextType, Set<string>>, variable:string, context:TSFusionContextType) {
@@ -166,6 +193,15 @@ export abstract class TSFusionTemplate {
             }
         }) ;
 
+        if (sm[0] === COMMA) {
+            throw new TSError('first character of starting mark cannot be a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+        }
+        if (em[0] === LPAR || em[0] === COMMA) {
+            throw new TSError('first character of ending mark cannot be a left parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+        }
+        if (sepa[0] === LPAR || sepa[0] === RPAR || sepa[0] === COMMA) {
+            throw new TSError('first character of separator cannot be a parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+        }
         if (sm[0] === em[0] || sm[0] === sepa[0] || em[0] === sepa[0]) {
             throw new TSError('first character of starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
@@ -180,9 +216,23 @@ export abstract class TSFusionTemplate {
             PostVariableSpace = 'post-var-space',
             DecodingClosingVariable = 'decoding-closing-var',
             DecodingSeparator = 'decoding-separator',
+            DecodingParameters = 'decoding-parameters',
+            NumberParameter = 'decoding-number-param',
+            ConstantParameter = 'decoding-constant-param',
+            StringParameter = 'decoding-string-param',
+            StringParamBackslash = 'decoding-string-param-backslash',
+            StringParamUnicode = 'decoding-string-param-unicode',
+            AfterParameter = 'decoding-after-param',
+            EndOfParameters = 'decoding-closing-params'
         } ;
         let state = State.Text ;
         let tokenPos = 0 ;
+        let variable:string = '' ;
+        let t:Nullable<TSFusionNodeType> ;
+        let parameters:Array<any> = [] ;
+        let currentParameter:any = undefined ;
+        let currentConstant:TSFusionConstant|undefined = undefined ;
+        let stringStarter = QUOTE ;
         let characterRole:TSCharRole ;
 
         const root = TSFusionTreeNode.root() ;
@@ -192,6 +242,7 @@ export abstract class TSFusionTemplate {
         let fusionContext = TSFusionContextType.Local ;
         let i = 0 ;
         let comp:number ;
+        let unicodeValue = 0 ;
 
         while (i < len) {
             const c = source[i] as uint8 ;
@@ -269,18 +320,25 @@ export abstract class TSFusionTemplate {
                     break ;
 
                 case State.DecodingVariable:
-                    const t = TSFusionNodeTypes[c] ;
+                    t = TSFusionNodeTypes[c] ;
                     if ($ok(t) || isVariableSpace(c)) {
-                        const variable = _data2ascii(source.slice(tokenPos,i)) ;
+                        variable = _data2ascii(source.slice(tokenPos,i)) ;
                         current = current.pushVariable(variable, $ok(t) ? t! : TSFusionNodeType.Variable, fusionContext) ;
                         store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
                         state = State.PostVariableSpace ;
                         fusionContext = TSFusionContextType.Local ;
                         tokenPos = 0 ;
                     }
+                    else if (c === LPAR) {
+                        variable = _data2ascii(source.slice(tokenPos,i)) ;
+                        state = State.DecodingParameters ;
+                        parameters = [] ;
+                        currentParameter = undefined ;
+                        tokenPos = 0 ;
+                    }
                     else if (c === em[0]) {
                         // here we cannot have the beginning of a separator because we are not in the kind of variable accepting a separator
-                        const variable = _data2ascii(source.slice(tokenPos,i)) ;
+                        variable = _data2ascii(source.slice(tokenPos,i)) ;
                         current = current.pushVariable(variable,  TSFusionNodeType.Variable, fusionContext) ;
                         store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
                         state = State.DecodingClosingVariable ; 
@@ -297,7 +355,188 @@ export abstract class TSFusionTemplate {
                         }) ;
                     }
                     break ;
-
+                case State.DecodingParameters:
+                    if (c === RPAR) {
+                        state = State.EndOfParameters ;
+                    }
+                    else if (c === COMMA) {
+                        parameters.push(currentParameter) ;
+                        currentParameter = undefined ;
+                    }
+                    else if (c === QUOTE || c === DOUBLE_QUOTE) {
+                        stringStarter = c ;
+                        currentParameter = new TSData() ;
+                        state = State.StringParameter ;
+                    }
+                    else if (isVariableNum(c) || c === MINUS || c === PLUS || c === DOT) {
+                        tokenPos = i ;
+                        state = State.NumberParameter ;
+                    }
+                    else {
+                        currentConstant = find_constant(c) ;
+                        if ($defined(currentConstant)) {
+                            tokenPos = 1 ;
+                            state = State.ConstantParameter ;
+                        }
+                        else if (!isVariableSpace(c)) {
+                            throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                                source:source,
+                                character:c,
+                                position:i,
+                                neededChars:[TAB, SPACE],
+                                state:state                                    
+                            }) ;
+                        }
+                    }
+                    break ;
+                case State.AfterParameter:
+                    if (c === RPAR) {
+                        parameters.push(currentParameter) ;
+                        state = State.EndOfParameters ;
+                    }
+                    else if (c === COMMA) {
+                        parameters.push(currentParameter) ;
+                        currentParameter = undefined ;
+                        state = State.DecodingParameters ;
+                    }
+                    else if (!isVariableSpace(c)) {
+                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                            source:source,
+                            character:c,
+                            position:i,
+                            neededChars:[TAB, SPACE],
+                            state:state                                    
+                        }) ;
+                    }
+                    break ;
+                case State.ConstantParameter:
+                    if (c === currentConstant!.name[tokenPos]) {
+                        tokenPos++ ;
+                        if (tokenPos === currentConstant!.len) {
+                            currentParameter = currentConstant!.value ;
+                            state = State.AfterParameter ;
+                        }
+                    }
+                    else {
+                        // ERROR: wrong constant character
+                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (wrong parameter constant).`, {
+                            source:source,
+                            character:c,
+                            position:i,
+                            neededChars:[currentConstant!.name[tokenPos]],
+                            state:state                                    
+                        }) ;
+                    }
+                    break ;
+                case State.NumberParameter:
+                    if (isVariableSpace(c) || c === RPAR || c === COMMA) {
+                        const num = Number(paramCharset?.stringFromData(source.slice(tokenPos, i))) ;
+                        currentParameter = $isnumber(num) ? num : 0 ;
+                        // QUESTION: shouldn't we throw if we have not a number here
+                        state = State.AfterParameter ;
+                        i-- ;
+                    }
+                    else if (!isVariableNum(c) && c !== DOT) {
+                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (parameter is not numeric).`, {
+                            source:source,
+                            character:c,
+                            position:i,
+                            neededChars:[ZERO, ZERO+1, ZERO+2, ZERO+3, ZERO+4, ZERO+5, ZERO+6, ZERO+7, ZERO+8, NINE],
+                            state:state                                    
+                        }) ;
+                    }
+                    break ;
+                case State.StringParameter:
+                    if (c === stringStarter) {
+                        currentParameter = currentParameter.toString(paramCharset) ;
+                        state = State.AfterParameter ;
+                    }
+                    else if (c === BACKSLASH) {
+                        state = State.StringParamBackslash ;
+                    }
+                    else {
+                        currentParameter.appendByte(c) ;
+                    }
+                    break ;
+                case State.StringParamBackslash:
+                    state = State.StringParameter ;
+                    switch (c) {
+                        case bu: currentParameter.appendByte(BS)  ; break ;
+                        case fu: currentParameter.appendByte(FF)  ; break ;
+                        case nu: currentParameter.appendByte(LF)  ; break ;
+                        case ru: currentParameter.appendByte(CR)  ; break ;
+                        case tu: currentParameter.appendByte(TAB) ; break ;
+                        case Uu: case uu:
+                            tokenPos = 0 ;
+                            unicodeValue = 0 ;
+                            state = State.StringParamUnicode ;
+                            break ;
+                        default:
+                            if (c >= SPACE && c <= 0x7F) { 
+                                // we are a visible ASCII character
+                                currentParameter.appendByte(c) ; 
+                            } else {
+                                const neededChars:uint8[] = [] ;
+                                for (let nc = 32 ; nc < 128 ; nc++) { neededChars.push(nc as uint8) ; }
+                                
+                                throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need to have an ASCII character after backslash in string parameter interpretation).`, { 
+                                    source:source,
+                                    character:c,
+                                    position:i,
+                                    neededChars:neededChars,
+                                    state:state                                    
+                                }) ;
+                            }
+                    }
+                    break ;
+                case State.StringParamUnicode:
+                    const hexa = c.hexaValue() ;
+                    if (hexa >= 0) {
+                        unicodeValue = (unicodeValue << 4) | hexa ;
+                        tokenPos++ ;
+                        if (tokenPos === 4) {
+                            const bytes = paramCharset.bytesFromString(String.fromCharCode(unicodeValue)) ;
+                            currentParameter.appendBytes(bytes) ;
+                            state = State.StringParameter ;
+                        }
+                    }
+                    else {
+                        throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need hexa character in string parameter unicode \\u sequence).`, { 
+                            source:source,
+                            character:c,
+                            position:i,
+                            state:state                                    
+                        }) ;
+                    }
+                    break ;
+                case State.EndOfParameters:
+                    t = TSFusionNodeTypes[c] ;
+                    if ($ok(t) || isVariableSpace(c)) {
+                        current = current.pushVariable(variable, $ok(t) ? t! : TSFusionNodeType.Variable, fusionContext, parameters) ;
+                        store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
+                        state = State.PostVariableSpace ;
+                        fusionContext = TSFusionContextType.Local ;
+                        tokenPos = 0 ;
+                    }
+                    else if (c === em[0]) {
+                        // here we cannot have the beginning of a separator because we are not in the kind of variable accepting a separator
+                        current = current.pushVariable(variable,  TSFusionNodeType.Variable, fusionContext, parameters) ;
+                        store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
+                        state = State.DecodingClosingVariable ; 
+                        fusionContext = TSFusionContextType.Local ;
+                        i -- ;
+                        tokenPos = 0 ;
+                    }
+                    else {
+                        // we should have a fusion node type or a space here
+                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                            source:source,
+                            character:c,
+                            position:i,
+                            state:state                                    
+                        }) ;
+                    }
+                    break ;
                 case State.PostVariableSpace:
                     if (c === em[0]) {
                         if (current.isContainerVariable) {
@@ -493,6 +732,9 @@ export class TSStringTemplate extends TSFusionTemplate {
     public pushFusionValue(value:NonNullable<any>):void
     { this._outputString += $isstring(value) ? value as string : ($isobject(value) && 'toString' in value ? value.toString() : `${value}`) ; }
 
+    public stringParameter(data: Bytes): string
+    { return TSStringTemplate.__stringCharset.stringFromData(data) ; }
+
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
         this._outputString = '' ;
         return this._treeRoot.fusion(this, data, globalContext, this._procedures, errors) ? this._outputString! : null ;
@@ -581,6 +823,7 @@ export class TSDataTemplate extends TSGenericDataTemplate {
     }
 
     public get charset():TSCharset { return this._charset! ; }
+    public parameterCharset():TSCharset { return this._charset ; }
 
     public pushFusionValue(value:NonNullable<any>):void {
         const s = $isstring(value) ? value as string : ($isobject(value) && 'toString' in value ? value.toString() : `${value}`) ;
@@ -633,11 +876,13 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):TSDat
     enum Element {
         Unknown          = '',
         Fusion           = 'FUSION',
-        EndFusion        = '/FUSION'
+        EndFusion        = '/FUSION',
+        Meta             = 'META'
     }
 
     const assign:{[key in Element]?:string[]} = {
         'FUSION':['TYPE', 'PATH', 'CONTEXT'],
+        'META':['CHARSET'],
         '/FUSION':[]
     } ;
     

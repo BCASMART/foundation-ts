@@ -157,7 +157,7 @@
             "pt": "Croácia",
             "nl": "Kroatië"        
         },
-        "currency": "HRK",
+        "currency": "EUR",
         "spokenLanguages": ["hr"],
         "domains": [".hr"],
         "dialCode": "+385", 

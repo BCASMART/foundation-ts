@@ -35,6 +35,7 @@ export class TSFusionTreeNode {
     type:TSFusionNodeType ;
     value?:string|Bytes  ;
     nodes?:TSFusionTreeNode[] ;
+    parameters?:any[] ;
     parent?:TSFusionTreeNode ;
     contextType:TSFusionContextType = TSFusionContextType.Local ;
     private _localContext:TSDictionary = {} ;
@@ -68,7 +69,7 @@ export class TSFusionTreeNode {
         }
     }
 
-    public pushVariable(name:string, type:TSFusionNodeType, contextType?:TSFusionContextType):TSFusionTreeNode {
+    public pushVariable(name:string, type:TSFusionNodeType, contextType:TSFusionContextType, parameters?:any[]):TSFusionTreeNode {
         if (this.type === TSFusionNodeType.Data) { throw new TSError('Impossible to add subnode to a text FusionTreeNode', { text:this.value} ) ; }
         if (!$length(name)) { throw new TSError (`Impossible to add an unamed fusion variable to ${this.label} variable.`)}
         if (type === TSFusionNodeType.Root || type === TSFusionNodeType.Data) {
@@ -77,6 +78,7 @@ export class TSFusionTreeNode {
         if (!$ok(this.nodes)) { this.nodes = [] ; }
         let node = new TSFusionTreeNode(type, name, this) ;
         if ($ok(contextType)) { node.contextType = contextType! ;}
+        if ($count(parameters)) { node.parameters = parameters ; }
         node._pathCache = name.split('.') ;
         this.nodes!.push(node) ;
         return node ;
@@ -179,9 +181,9 @@ export class TSFusionTreeNode {
                             break ;
                     }
                     // local fusion context is always predominant to local data if it exists
-                    v = _valueForKeyPath(target, node._pathCache, dataType, false, errors) ;
+                    v = _valueForKeyPath(target, node._pathCache, dataType, false, node.parameters, errors) ;
                     if (node.contextType === TSFusionContextType.Local && !$ok(v)) {
-                        v = _valueForKeyPath(stack, node._pathCache, 'target object', true, errors) ;
+                        v = _valueForKeyPath(stack, node._pathCache, 'target object', true, node.parameters, errors) ;
                     }
                 }
                 switch (node.type) {
@@ -211,7 +213,7 @@ export class TSFusionTreeNode {
     }
 }
 
-function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, unknownAsError:boolean, errors?:string[]):any 
+function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, unknownAsError:boolean, parameters:any[]|undefined, errors?:string[]):any 
 {
     const scount = stack.length ; 
     const kcount = keyPath.length ;
@@ -227,33 +229,40 @@ function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, u
         return undefined ; 
     }
     let v = stack[scount-i-1]
+    const pcount = $count(parameters) ;
 
     for ( ; i < kcount && $ok(v) ; i++) {
         const m = keyPath[i] ;
+        const shouldHandleParameters = pcount > 0 && i + 1 === kcount ;
+
         if (!m.length) { 
             errors?.push(`!ERROR!: key path '${keyPath.join('.')}' contains internal '..'.`) ;
             return undefined ; 
         }
-        if (m === 'self') { continue ; } // special keyword for referencing itself
+        if (!shouldHandleParameters && m === 'self') { continue ; } // special keyword for referencing itself
         if ($isobject(v) && !(m in v)) { 
             errors?.push(`${unknownAsError?'!ERROR!':'WARNING'}: unknown method or preperty '${m}' in ${dataType}.`) ;
             return undefined ; 
         }
         let res = v[m] ;
         if ($isfunction(res)) {
-            if (res.length > 0) { 
+            if (res.length > 0 && !shouldHandleParameters) { 
                 errors?.push(`!ERROR!: method ${m}() is not an sinple accessor in ${dataType}.`) ;
                 return undefined ; 
             }
             try {
-                v = res.call(v) ;
+                v = shouldHandleParameters ? res.apply(v, parameters) : res.call(v) ;
             }
             catch (e) {
                 errors?.push(`!ERROR!: method ${m}() execution did fail on ${dataType}`) ;
                 return undefined ;
             }
         }
-        else { v = res ; }    
+        else if (!shouldHandleParameters) { v = res ; }
+        else { 
+            errors?.push(`${unknownAsError?'!ERROR!':'WARNING'}: unknown method '${m}()' in ${dataType}.`) ;
+            return undefined ; 
+        }    
         if (typeof v === 'number' && isNaN(v)) { 
             errors?.push(`WARNING: key path '${keyPath.join('.')}' would return NaN which was transformed to null.`) ;
             return null ; 

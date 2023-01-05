@@ -4,6 +4,7 @@ import { TSDictionary } from "../src/types";
 import { TSData } from "../src/tsdata";
 import { $inspect } from "../src/utils";
 import { TSCharset } from "../src/tscharset";
+import { TSDate } from "../src/tsdate";
 
 class P {
     constructor(public title:string, public firstName:string, public lastName:string, public isMan?:boolean, public isWoman?:boolean) {}
@@ -125,6 +126,46 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             const res3 = template2?.fusionWithDataContext(p, glob, errors3) ;
             t.register('errors(3)', $inspect(errors3)) ;
             t.expect5(res3).toBe(r) ;
+        }
+
+    }) ;
+
+    group.unary("Simple vars replacement with parameters", async(t) => {
+        const D = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
+        const context = {
+            starter:"Nous sommes",
+            toto:{
+                date:D
+            }
+        } ;
+        const s = "{{starter}} le {{toto.date.toString('%A, %e %B %Y à %Hh%M')}}." ;
+        t.register('starter in context', 'starter' in context) ;
+        t.register('date in context', ('toto' in context) && ('date' in context.toto)) ;
+
+        const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
+        if (t.expect0(template).toBeOK()) {
+            let errors:string[] = [] ;
+            const res = template?.fusionWithDataContext(context, glob, errors) ;
+            t.register('errors', $inspect(errors)) ;
+            t.expect1(res).is("Nous sommes le mardi, 8 mai 1945 à 23h01.") ;
+        }
+
+        const sA = "Nous sommes le {{toto.date.dateByAdding(0,0,1,0,2)#:{{self.toString('%A, %e %B %Y à \\\"%Hh%M\\\"')}}}}." ;
+        const templateA = TSFusionTemplate.fromString(sA, { debugParsing:false }) ;
+        const expResA = "Nous sommes le mercredi, 9 mai 1945 à \"23h03\"." ; 
+        if (t.expectA(templateA).toBeOK()) {
+            let errors:string[] = [] ;
+            const resA = templateA?.fusionWithDataContext({ toto:{ date: D}}, glob, errors) ;
+            t.register('errors{A}', $inspect(errors)) ;
+            t.expectB(resA).is(expResA) ;
+        }
+        const sX = "Nous sommes le {{toto.date.dateByAdding(0,0,1,0,2,6)#:{{toString('%A, %e %B %Y \\U00e0 \\\"%Hh%M\\\"')}}}}." ;
+        const templateX = TSFusionTemplate.fromString(sX, { debugParsing:false }) ;
+        if (t.expectX(templateA).toBeOK()) {
+            let errors:string[] = [] ;
+            const resX = templateX?.fusionWithDataContext({ toto:{ date: D}}, glob, errors) ;
+            t.register('errors{X}', $inspect(errors)) ;
+            t.expectY(resX).is(expResA) ;
         }
 
     }) ;

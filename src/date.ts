@@ -22,7 +22,8 @@ declare global {
     export interface Date {
         leafInspect:   (this:Date) => string ;
         timeSinceDate: (this:Date, other:Date) => number ;
-
+        toDate:        (this:Date) => Date ;
+        toTSDate:      (this: Date) => TSDate|null ;
     }
 }
 Date.prototype.leafInspect = Date.prototype.toISOString ;
@@ -30,4 +31,5 @@ Date.prototype.leafInspect = Date.prototype.toISOString ;
 // returns time in seconds between two dates
 // WARNING: time between system Date objects takes TZ and DST into account 
 Date.prototype.timeSinceDate = function timeSinceDate(this:Date, other:Date):number { return (this.getTime() - other.getTime())/1000 ; }
-
+Date.prototype.toTSDate      = function toTSDate(this:Date):TSDate|null { return TSDate.fromDate(this) ; }
+Date.prototype.toDate        = function toDate(this:Date):Date { return this ; }

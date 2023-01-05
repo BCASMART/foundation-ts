@@ -1,5 +1,6 @@
-import { $email, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID } from "./commons";
+import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID } from "./commons";
 import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { TSDate } from "./tsdate";
 import { int, Nullable, uint } from "./types";
 
 // for now $ascii() does not mak any transliterations from
@@ -140,9 +141,11 @@ declare global {
         right:              (this: string, rightPart?:Nullable<number>) => string;
         rtrim:              (this: string) => string;
         singular:           (this: string) => boolean ;
+        toDate:             (this: string) => Date|null ;
         toHTML:             (this: string) => string;
         toHTMLContent:      (this: string) => HTMLContent ;
         toInt:              (this: string, defaultValue?: int) => int;
+        toTSDate:           (this: string) => TSDate|null ;
         toUnsigned:         (this: string, defaultValue?: uint) => uint;
     }
     export interface HTMLContent {
@@ -168,9 +171,11 @@ String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): st
 String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
 String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
 String.prototype.singular           = function singular(this:string) { return this.toUnsigned() === 1 ; }
+String.prototype.toDate             = function toDate(this:string):Date|null { return $isdate(this) ? new Date(this) : null ; }
 String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
 String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
 String.prototype.toInt              = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }
+String.prototype.toTSDate           = function toTSDate(this:string):TSDate|null { return TSDate.fromIsoString(this) ; }
 String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint): uint { return $tounsigned(this, defaultValue); }
 
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }

@@ -182,9 +182,6 @@ function _interpretEnvLine(env:StringDictionary, line:string, index:number, refe
                 state = State.Text ;
                 p0 = p + 1 ;
                 switch (c) {
-                    case DOUBLE_QUOTE: v += '"'  ; break ;
-                    case QUOTE:        v += "'"  ; break ;
-                    case BACKSLASH:    v += '\\' ; break ;
                     case b:            v += '\b' ; break ;
                     case f:            v += '\f' ; break ;
                     case n:            v += '\n' ; break ;

@@ -1,6 +1,7 @@
-import { $isunsigned, $length, $ok, $toint, $tounsigned } from "./commons";
+import { $isnumber, $isunsigned, $length, $ok, $toint, $tounsigned } from "./commons";
 import { $ftrim } from "./strings";
 import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
+import { TSDate } from "./tsdate";
 import { int, INT32_MIN, Nullable, uint, UINT32_MAX } from "./types";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
@@ -87,10 +88,12 @@ declare global {
         octets:             (this:number, decimalPlaces?:number) => string ;
         round:              (this:number, decimalPlaces?:number) => number ;
         singular:           (this:number) => boolean ;
+        toDate:             (this:number) => Date|null ;
         toHex2:             (this:number, toLowerCase?:boolean) => string ;
         toHex4:             (this:number, toLowerCase?:boolean) => string ;
         toHex8:             (this:number, toLowerCase?:boolean) => string ;
         toInt:              (this:number, defaultValue?:int) => int ;
+        toTSDate:           (this:number) => TSDate|null ;
         toUnsigned:         (this:number, defaultValue?:uint) => uint ;
         unit:               (this:number, opts?:$unitOptions) => string ;
     }
@@ -113,6 +116,7 @@ Number.prototype.meters             = function meters(this:number, decimalPlaces
 Number.prototype.octets             = function octets(this:number, decimalPlaces?:number) { return $octets(this, decimalPlaces) ; }
 Number.prototype.round              = function round(this:number, decimalPlaces?:number) { return $round(this, decimalPlaces) ; }
 Number.prototype.singular           = function singular(this:number) { return this === 1 ; }
+Number.prototype.toDate             = function toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; }
 Number.prototype.toHex2             = function toHex2(this:number, toLowerCase:boolean = false) {
     const n = this.toUnsigned() ;
     const r = toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
@@ -129,6 +133,7 @@ Number.prototype.toHex8             = function toHex8(this:number, toLowerCase:b
     return r[(n>>28) & 0xF]+r[(n>>24) & 0xF]+r[(n>>20) & 0xF]+r[(n >> 16) & 0xF]+r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
 Number.prototype.toInt              = function toInt(this:number, defaultValue?:int) { return $toint(this, defaultValue) ; }
+Number.prototype.toTSDate           = function toTSDate(this:number):TSDate|null { return TSDate.fromTimeStamp(this) ; }
 Number.prototype.toUnsigned         = function toUnsigned(this:number, defaultValue?:uint) { return $tounsigned(this, defaultValue) ; }
 Number.prototype.unit               = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
 

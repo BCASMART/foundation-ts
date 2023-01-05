@@ -125,9 +125,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         }) ;
     }
 
-    public static fromEpoch(timestamp:Nullable<number>) : TSDate | null {
-        if (!$ok(timestamp)) { return null ; }
-        return new TSDate((timestamp as number) - TSSecsFrom19700101To20010101) ;
+    public static fromEpoch(t:Nullable<number>) : TSDate | null {
+        return $isnumber(t) ? new TSDate(t! - TSSecsFrom19700101To20010101) : null ;
     }
 
     public static from(date:Nullable<number|string|Date>) : TSDate | null {
@@ -137,8 +136,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return this.fromIsoString(date as string) ;
     }
 
-    public static fromTimeStamp(d:Nullable<number>) : TSDate | null {
-        return $ok(d) ? new TSDate(d!) : null ;
+    public static fromTimeStamp(t:Nullable<number>) : TSDate | null {
+        return $isnumber(t) ? new TSDate(t!) : null ;
     }
 
     public static fromDate(d:Nullable<Date>) : TSDate | null {
@@ -174,6 +173,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
 	// ================= instance methods ========================
 	public clone():TSDate { return this ; } // no clone on immutable objects
+    public toTSDate = this.clone ;
 
     public get timestamp():number { return this._timestamp ; }
 
