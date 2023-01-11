@@ -78,14 +78,15 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
                 if ($ok(channels)) {
                     color = new TSColor(TSColorSpace.RGB, channels!, alpha) ;
                     TSColor._cacheRGBColor(color) ;
+                    return color ;
                 }
-                return color! ;  
             }
             else if ($isunsigned(arguments[0], UINT32_MAX)) {
                 const v = arguments[0] as number;
                 // by calling the static methods, the color will be cached.
                 return TSColor.rgb((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 0xff - ((v >> 24) & 0xff)) ;
-            }               
+            }
+            return TSColor.rgb(0,0,0) ; // bad single parameter => we return a black color               
         }
         else if (arguments.length === 3 || arguments.length === 4) {
             const R = arguments[0] ;
@@ -100,7 +101,9 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
                 TSColor._cacheRGBColor(color) ;
                 return color ;
             }
+            return TSColor.rgb(0,0,0) ; // bad 3/4 parameters => we return a black color               
         }
+        // only throws on arguments wrong count
         throw new TSError('TSColor.rgb() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 

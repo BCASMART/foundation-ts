@@ -1,5 +1,5 @@
-import { $isfunction, $isobject } from "./commons";
 import { Comparison } from "./types";
+import { $ismethod } from "./commons";
 
 
 export type TSConstructor<T = unknown> = new (...args: any[]) => T;
@@ -16,9 +16,7 @@ export interface TSCollection<T> {
     getItems: () => T[] ;
 }
 
-export function $iscollection(o:any) {
-    return $isobject(o) && $isfunction(o.getItems) ; 
-}
+export function $iscollection(o:any) { return $ismethod(o, 'getItems') ; }
 
 export interface TSClone<T> {
     clone(): T ;

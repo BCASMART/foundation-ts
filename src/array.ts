@@ -1,4 +1,4 @@
-import { $count, $defined, $isnumber, $ok } from "./commons";
+import { $count, $defined, $ismethod, $isnumber, $isstring, $ok } from "./commons";
 import { $compare } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { Ascending, Comparison, Descending, Nullable } from "./types";
@@ -110,8 +110,8 @@ function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number,
                     if ($defined(sum)) {
                         let n = undefined ;
                         if ($isnumber(v)) { n = v ;}
-                        else if (typeof v === 'string') { n = Number(v) ; }
-                        else if (typeof v === 'object' && 'toNumber' in v!) { n = (v as any).toNumber() } 
+                        else if ($isstring(v)) { n = Number(v) ; }
+                        else if ($ismethod(v, 'toNumber')) { n = (v as any).toNumber() } 
                         if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
                         else { sum += n ; }
                     }

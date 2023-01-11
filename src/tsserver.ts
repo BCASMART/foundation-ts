@@ -3,7 +3,7 @@ import * as https from "https"
 
 //import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $defined, $isunsigned, $keys, $length, $objectcount, $ok, $string, $unsigned, $value } from "./commons";
+import { $defined, $ismethod, $isunsigned, $keys, $length, $objectcount, $ok, $string, $unsigned, $value } from "./commons";
 import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { AnyDictionary, Nullable, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
@@ -434,7 +434,7 @@ export class TSServer {
 
             setTimeout(() => {
                 this._connections.forEach((_:ConnectionStatus, socket:Socket) => { 
-                    if ('destroy' in socket) { (socket as any).destroy() ; }
+                    if ($ismethod(socket, 'destroy')) { (socket as any).destroy() ; }
                     else { socket.end() ; } 
                 }) ;
                 this._connections.clear() ; 

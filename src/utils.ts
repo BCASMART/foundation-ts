@@ -1,7 +1,7 @@
 import { performance } from 'perf_hooks';
 import { inspect } from "util";
 
-import { $count, $defined, $isarray, $isfunction, $isstring, $length, $ok, $unsigned } from "./commons";
+import { $count, $defined, $isarray, $isfunction, $ismethod, $isproperty, $isstring, $length, $ok, $unsigned } from "./commons";
 import { $unit } from './number';
 import { $HTML, $lines, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
@@ -14,7 +14,7 @@ export const $noop = () => {} ;
 export function $inbrowser():boolean {
     if (!$defined(($inbrowser as any).flag)) {
         let inb = false ;
-        try { inb = $defined(navigator) || !$isfunction(process?.stdout?.write) ; }
+        try { inb = $defined(navigator) || !$isproperty(process, 'stdout') || !$ismethod(process?.stdout, 'write') ; }
         catch { inb = false ; }
         ($inbrowser as any).flag = inb ;
     }

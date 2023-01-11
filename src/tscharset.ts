@@ -1,5 +1,5 @@
 
-import { $count, $encoding, $isstring, $length, $lse, $ok, $toint, $value } from './commons';
+import { $count, $encoding, $isproperty, $isstring, $length, $lse, $ok, $toint, $value } from './commons';
 import { $bufferFromArrayBuffer, $bufferFromBytes, $bytesFromBytes, $uint8ArrayFromBytes } from './data';
 import { FoundationEncodingsAliases } from './string_tables';
 import TSCharsetDefinitions from './tscharsets.json' ;
@@ -203,7 +203,7 @@ interface CharsetDefinition  {
 
 function _systemEncoding():string {
     if ($inbrowser()) { return document.characterSet ; }
-    const p = typeof process === "object" ? process?.platform : 'linux' ;
+    const p = $isproperty(process, 'platform') ? process?.platform : 'linux' ;
     switch (p) {
         case 'darwin': return 'MacRoman' ;
         case 'win32': case 'cygwin': return 'ANSI' ;

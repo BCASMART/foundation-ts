@@ -134,22 +134,21 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         const D = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
         const context = {
             starter:"Nous sommes",
+            streamLen:3,
             toto:{
                 date:D
             }
         } ;
-        const s = "{{starter}} le {{toto.date.toString('%A, %e %B %Y à %Hh%M')}}." ;
-        t.register('starter in context', 'starter' in context) ;
-        t.register('date in context', ('toto' in context) && ('date' in context.toto)) ;
+        const s = "{{starter}} le {{toto.date.toString('%A, %e %B %Y à %Hh%M')}}. Le fil fait {{streamLen#:{{$meters(current,0)}}}}." ;
 
-        const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
+        const template = TSFusionTemplate.fromString(s, { debugParsing:false, addStandardGlobalFunctions:true }) ;
         if (t.expect0(template).toBeOK()) {
             let errors:string[] = [] ;
             const res = template?.fusionWithDataContext(context, glob, errors) ;
             t.register('errors', $inspect(errors)) ;
-            t.expect1(res).is("Nous sommes le mardi, 8 mai 1945 à 23h01.") ;
+            t.expect1(res).is("Nous sommes le mardi, 8 mai 1945 à 23h01. Le fil fait 3 m.") ;
         }
-
+        
         const sA = "Nous sommes le {{toto.date.dateByAdding(0,0,1,0,2)#:{{self.toString('%A, %e %B %Y à \\\"%Hh%M\\\"')}}}}." ;
         const templateA = TSFusionTemplate.fromString(sA, { debugParsing:false }) ;
         const expResA = "Nous sommes le mercredi, 9 mai 1945 à \"23h03\"." ; 
@@ -169,7 +168,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         }
 
     }) ;
-    
+
     group.unary("Replacements with enclosing contexts", async(t) => {
         const s = 'Cette lettre est adressée à {{.title}} {{@firstName}} {{.self.lastName}}{{collaborators.length?:\nCollaborators:\n{{.collaborators#:{{_position}} - {{title}} {{self.firstName}} {{.lastName}} [{{..test}}]{{_remaining?:,}}\n}}}}' ;
         const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
@@ -246,9 +245,9 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             const res = template5?.fusionWithDataContext(p, glob, errors) ;
             const truncatedResult = '&0Cette lettre est adressée à M. John Smith\nCollaborators:\n1 - ,\n2 - \n' ;
             t.expect6(res).toBe(truncatedResult) ;
-            if (!t.expect7(errors.length).toBe(9)) {
+            if (!t.expect7(errors.length).toBe(4)) {
                 const print = errors.map(s => s.includes('!ERROR!:') ? '&R&w ERROR &0&o'+s.slice(7)+'&0' : '&a'+s+'&0')
-                group.description('Errors and warnings from &0&pexpect6()&y:\n&o'+print.join('\n')) ;
+                group.description('Errors and warnings from &0&pexpect7()&y:\n&o'+print.join('\n')) ;
             }
         }
 

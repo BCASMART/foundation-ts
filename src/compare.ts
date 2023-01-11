@@ -1,4 +1,4 @@
-import { $count, $isarray, $isobject, $isstring, $ok } from "./commons";
+import { $count, $isarray, $ismethod, $isstring, $ok } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
 
@@ -59,7 +59,8 @@ export function $compare(a:any, b:any):Comparison {
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
         return $bytescompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
     }
-    return $isobject(a) && ('compare' in a) ? a.compare(b) : undefined ; 
+
+    return $ismethod(a, 'compare') ? a.compare(b) : undefined ;
 }
 
 export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
@@ -87,9 +88,9 @@ export function $equal(a:any, b:any):boolean {
         if (b instanceof Date) { b = new TSDate(b) ; }
         return a.isEqual(b) ;
     }
-    
-    if ($isobject(a) && ('isEqual' in a)) { return a.isEqual(b) ; }	
-	if ($isobject(b) && ('isEqual' in b)) { return b.isEqual(a) ; }
+
+    if ($ismethod(a, 'isEqual')) { return a.isEqual(b) ; }
+    if ($ismethod(b, 'isEqual')) { return b.isEqual(a) ; }
 
 	if (a instanceof Set && b instanceof Set) { return $setequal(a, b) ; }
 	if (a instanceof Map && b instanceof Map) {

@@ -1,4 +1,4 @@
-import { $count, $isarray, $isint, $isnumber, $isobject, $isunsigned, $json, $ok, $toint, $tounsigned } from "./commons";
+import { $count, $hasproperties, $isarray, $isint, $isnumber, $isunsigned, $json, $ok, $toint, $tounsigned } from "./commons";
 import { TSDate } from "./tsdate";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
@@ -201,16 +201,14 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 	public toArray():any[] { return [this] ; }
 }
 
-export function $israngeparams(loc:number, len:number) {
-    return $isint(loc) && $isunsigned(len) && $isint(loc + len) ;
-}
+export function $israngeparams(loc:number, len:number)
+{ return $isint(loc) && $isunsigned(len) && $isint(loc + len) ; }
 
-export function $israngearray(v:Nullable<number[]>):boolean {
-    return $count(v) === 2 && $israngeparams(v![0], v![1]) ;
-}
+export function $israngearray(v:Nullable<number[]>):boolean
+{ return $count(v) === 2 && $israngeparams(v![0], v![1]) ; }
 
-export function $comformsToInterval(v:any):boolean {
-    return $ok(v) && $isobject(v) && ('range' in (v as object)) && ('hasSignificantRange' in (v as object)) ;
-}
+const LocalIntervalProperties = ['range', 'hasSignificantRange', 'isValid', 'isEmpty'] ;
+export function $comformsToInterval(v:any):boolean
+{ return $hasproperties(v, LocalIntervalProperties) ; }
 
   

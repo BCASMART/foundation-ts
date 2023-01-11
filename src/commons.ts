@@ -25,22 +25,22 @@ export function $valueorundefine<T>(o:Nullable<T>):T|undefined
 { return $ok(o) ? o! : undefined ;}
 
 export function $isstring(o:any) : boolean
-{ return o !== null && o !== undefined && typeof o === 'string' ; }
+{ return typeof o === 'string' ; }
 
 export function $iswhitespace(s: Nullable<string|number>) : boolean
 { return $isstring(s) ? FoundationWhiteSpacesStringCodeSet.has(s as string) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s as number) : false) ; }
 
 export function $isnumber(o:any) : boolean
-{ return $ok(o) && typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
+{ return typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
 
 export function $isint(o:any) : boolean
-{ return $ok(o) && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
+{ return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
 
 export function $isunsigned(o:any, maximum:number=UINT_MAX) : boolean
-{ return $ok(o) && typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
+{ return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
 
 export function $isbool(o:any) : boolean
-{ return $ok(o) && typeof o === 'boolean' ; }
+{ return typeof o === 'boolean' ; }
 
 export function $isobject(o:any) : boolean
 { return $ok(o) && typeof o === 'object' ; }
@@ -52,7 +52,7 @@ export function $isarray(o:any) : boolean
 { return Array.isArray(o) ; }
 
 export function $isiterable(o:any) : boolean 
-{ return $isarray(o) || ($ok(o) && $isfunction(o[Symbol.iterator]))}
+{ return $isarray(o) || $ismethod(o, Symbol.iterator) ;}
 
 export function $isdate(o:any) : boolean
 { return (o instanceof Date || o instanceof TSDate || $isstring(o)) && $ok($isodate(o)) ; }
@@ -66,13 +66,25 @@ export function $isurl(o:any, opts?:$urlOptions) : boolean
 export function $isuuid(o:any) : boolean
 { return $isstring(o) && $ok($UUID(o)) ; }
 
-
 export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
+
+export function $isproperty(obj:any, prop:string):boolean
+{ return prop.length > 0 && $isobject(obj) && (prop in obj) ; }
+
+export function $ismethod(obj:any, meth:Nullable<string|symbol>):boolean
+{ return (typeof meth === 'symbol' || $length(meth) > 0) && $ok(obj) && $isfunction(obj![meth!]) ; }
+
+export function $hasproperties(obj:any, properties:Nullable<string[]>)
+{
+    if (!$isobject(obj) || !$count(properties)) { return false ; }
+    for (let p of properties!) { if (!p.length || !(p in obj)) return false ; }
+    return true ;
+}
 
 export function $intornull(n:Nullable<string|number>) : int | null
 {
 	if (!$ok(n)) { return null ; }
-	if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
+	if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
 	return $isint(n) ? <int>n : null ;
 }
 
@@ -142,7 +154,7 @@ export function $address(a:Nullable<Address>) : Address | null
 export function $unsignedornull(n:Nullable<string|number>) : uint | null
 {
 	if (!$ok(n)) { return null ; }
-	if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
+	if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
 	return $isunsigned(n) ? n as uint : null ;
 }
 
@@ -152,24 +164,43 @@ export function $unsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) 
 export function $toint(v:Nullable<string|number>, defaultValue:int=<int>0) : int
 {
     if (!$ok(v)) { return defaultValue ; }
-    if (typeof v === 'string') { v = parseInt(<string>v, 10) ; }
-    return isNaN(v!) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v!, INT_MAX))) as int ;
+    if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
+    return isNaN(v as number) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v as number, INT_MAX))) as int ;
 }
 
 export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
 {
     if (!$ok(v)) { return defaultValue ; }
-    if (typeof v === 'string') { v = parseInt(<string>v, 10) ; }
-    return isNaN(v!) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v!, UINT_MAX))) as uint ;
+    if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
+    return isNaN(v as number) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v as number, UINT_MAX))) as uint ;
 }
 
 export function $string(v:any) : string {
-	if (!$ok(v)) return '' ;
-	return typeof v === 'object' && 'toString' in v ? v.toString() : `${v}`;
+    if ($isstring(v)) { return v ; }
+    else if ($ismethod(v, 'toString')) { return v.toString() ; }
+    else { return $ok(v) ? `${v}` : '' ; }
 }
 
-export function $strings(v: Nullable<string[] | string>) : string[]
-{ return $ok(v) ? ($isarray(v) ? v as string[] : [v as string]) : [] ; }
+export function $array<T=any>(...values:T[]):T[] { return values ; }
+
+export function $strings(...values: Array<Nullable<string[] | string>>) : string[]
+{
+    // for now we try to avoid single parameter string[] or string copy
+    switch (values.length) {
+        case 0: 
+            return [] ;
+        case 1: 
+            return $isstring(values[0]) ? values as string[] : ($isarray(values[0]) ? values[0] as string[] : []) ;
+        default:{
+            const ret:string[] = [] ;
+            values.forEach(v => {
+                if ($isstring(v)) { ret.push(v as string) ; }
+                else if ($isarray(v)) { (v as string[]).forEach(s => ret.push(s))}
+            });
+            return ret ;        
+        }
+    }
+}
 
 export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 
@@ -198,18 +229,19 @@ export function $lengthin(s: Nullable<string | Bytes | TSData>, min:number=0, ma
 
 export function $jsonobj(v:any): any
 {
-	if (v === null || v === undefined) return v ;
 
-	const t = typeof v ;
-	switch(t) {
+    if (!$ok(v)) { return v ; }
+    if ($ismethod(v, 'toJSON')) { return v.toJSON() ; }
+
+	switch(typeof v) {
 		case 'object':
-			return 'toJSON' in v ? v.toJSON() : v ; 
 		case 'boolean':
 		case 'number':
 		case 'bigint':
 		case 'string':
 			return v ;
 		default:
+            // JSON.stringify() on symbol returns undefined, so keep it that way
 			return undefined ;
 	} 
 }

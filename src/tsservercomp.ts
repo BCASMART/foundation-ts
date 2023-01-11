@@ -2,7 +2,7 @@ import { ServerResponse } from "http";
 
 import { Nullable, StringDictionary, TSDictionary, uint32 } from "./types";
 import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
-import { $email, $intornull, $isfunction, $isstring, $keys, $length, $objectcount, $ok, $string, $unsignedornull, $UUID } from "./commons";
+import { $email, $intornull, $isfunction, $isproperty, $isstring, $keys, $length, $objectcount, $ok, $string, $unsignedornull, $UUID } from "./commons";
 import { Resp, Verb } from "./tsrequest";
 import { TSError, TSHttpError } from "./tserrors";
 
@@ -172,7 +172,7 @@ export class TSParametricEndPoints {
         path = $ftrim(path) ;
         const len = path.length ;
         if ($isfunction(ep)) { ep = { GET: { manager:ep } as TSEndPoint } as TSEndPoints ; }
-        else if ('manager' in ep) { ep = { GET:ep as TSEndPoint} as TSEndPoints ; }
+        else if ($isproperty(ep, 'manager')) { ep = { GET:ep as TSEndPoint} as TSEndPoints ; }
         if (len < 2) { 
             throw new TSError(`TSParametricEndPoints.constructor(): end points path '${path}' is too short`, errorOptions) ; 
         }

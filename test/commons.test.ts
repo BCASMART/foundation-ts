@@ -1,5 +1,5 @@
 
-import { $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isuuid, $keys, $ok, $toint, $tounsigned, $unsigned, $unsignedornull, $url } from "../src/commons";
+import { $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isemail, $isurl, $isuuid, $keys, $ok, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -20,7 +20,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     const DICT_C = {...DICT_B, c:null, b:undefined} ;
     const U = $uuid() ;
 
-    group.unary("verifying $ok()", async(t) => {
+    group.unary("$ok() function", async(t) => {
         t.expect0($ok(undefined)).false() ;
         t.expect1($ok(null)).false() ;
         t.expect2($ok(false)).true() ;
@@ -34,7 +34,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectA($ok(-Infinity)).true() ;
     }) ;
 
-    group.unary("verifying $defined()", async(t) => {
+    group.unary("$defined() function", async(t) => {
         t.expect0($defined(undefined)).false() ;
         t.expect1($defined(null)).true() ;
         t.expect2($defined(false)).true() ;
@@ -48,7 +48,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectA($defined(-Infinity)).true() ;
     }) ;
 
-    group.unary("verifying $intornull()", async(t) => {
+    group.unary("$intornull() function", async(t) => {
         t.expect1($intornull(null)).null();
         t.expect2($intornull(undefined)).null();
         t.expect3($intornull(NaN)).null();
@@ -69,7 +69,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectI($intornull('- 4 5c')).null();    
     }) ;
 
-    group.unary("verifying $unsignedornull()", async(t) => {
+    group.unary("$unsignedornull() function", async(t) => {
         t.expect1($unsignedornull(null)).null();
         t.expect2($unsignedornull(undefined)).null();
         t.expect3($unsignedornull(NaN)).is(null);
@@ -89,7 +89,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectF($unsignedornull('- 4 5c')).null();
     }) ;
 
-    group.unary("verifying $int()", async(t) => {
+    group.unary("$int() function", async(t) => {
         t.expect0($int(null)).is(0);
         t.expect1($int(undefined)).is(0);
         t.expect2($int(NaN)).is(0);
@@ -107,7 +107,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectE($int(INT_MIN)).is(INT_MIN);
     }) ;
 
-    group.unary("verifying $unsigned()", async(t) => {
+    group.unary("$unsigned() function", async(t) => {
         t.expect0($unsigned(null)).is(0);
         t.expect1($unsigned(undefined)).is(0);
         t.expect2($unsigned(NaN)).is(0);
@@ -123,7 +123,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectC($unsigned(1.6)).is(0);
     }) ;
 
-    group.unary("verifying $toint()", async(t) => {
+    group.unary("$toint() function", async(t) => {
         t.expect0($toint(null)).is(0);
         t.expect1($toint(undefined)).is(0);
         t.expect2($toint(NaN)).is(0);
@@ -145,7 +145,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectI($toint(-1.6)).is(-1);
     }) ;
 
-    group.unary("verifying $tounsigned()", async(t) => {
+    group.unary("$tounsigned() function", async(t) => {
         t.expect0($tounsigned(null)).is(0);
         t.expect1($tounsigned(undefined)).is(0);
         t.expect2($tounsigned(NaN)).is(0);
@@ -161,7 +161,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectC($tounsigned(1.6)).is(1);
     }) ;
 
-    group.unary("verifying $isdate(d)", async(t) => {
+    group.unary("$isdate(d) function", async(t) => {
         t.expect0($isdate(A)).true() ;
         t.expect1($isdate(S)).true() ;
         t.expect2($isdate(D)).true() ;
@@ -180,30 +180,32 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectC($isdate(FoundationWhiteSpaces+TD.toIsoString(TSDateForm.ISO8601C)+FoundationWhiteSpaces)).true() ;
         t.expectD($isdate(FoundationWhiteSpaces+TD.toIsoString(TSDateForm.ISO8601L)+FoundationWhiteSpaces)).true() ;
         
+        t.expectU($isdate(5)).false() ;
+        t.expectV($isdate({})).false() ;
         t.expectW($isdate(FoundationWhiteSpaces)).false() ;
         t.expectX($isdate("")).false() ;
         t.expectY($isdate(null)).false() ;
         t.expectZ($isdate(undefined)).false() ;
     }) ;
 
-    group.unary("verifying $keys(object)", async(t) => {
+    group.unary("$keys(object) function", async(t) => {
         t.expect1($keys(DICT)).is(['a', 'b', 'c']) ;
         t.expect2($keys(DICT_B)).is(['a', 'd', 'e', 'f', 'g', 'h']) ;
         t.expect3($keys(DICT_C)).is(['a', 'd', 'e', 'f', 'g', 'h', 'c', 'b']) ;
     }) ;
 
-    group.unary("verifying $dict(object, keys)", async(t) => {
+    group.unary("$dict(object, keys) function", async(t) => {
         t.expect1($dict(DICT, ['a', 'c'])).is(SUB) ;
         t.expect2($dict(DICT, ['a', 'c', 'd' as any])).is(SUB) ; // force TS to ignore 'd' because it knows this key is not in DICT
     }) ;
     
-    group.unary("verifying $includesdict(object, dict, keys)", async(t) => {
+    group.unary("$includesdict(object, dict, keys) function", async(t) => {
         t.expect1($includesdict(DICT, SUB)).true() ;
         t.expect2($includesdict(DICT, SUB, ['c'])).true() ;
         t.expect3($includesdict(DICT, SUB, ['a', 'd'])).true() ; // because 'd' key is absent on both dicts
     }) ;
     
-    group.unary("verifying $fusion(objectA, objectB)", async(t) => {
+    group.unary("$fusion(objectA, objectB) function", async(t) => {
         const [fusion1,] = $fusion(DICT, DICT_B) ; 
         t.expect1(fusion1).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
 
@@ -211,7 +213,18 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect2(fusion2).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
     }) ;
 
-    group.unary("verifying $url(s)", async(t) => {
+    group.unary("$isurl() and $url() function", async(t) => {
+        t.expect0($isurl('http://example.com')).true() ;
+        t.expect1($isurl('//example.com')).false() ;
+        t.expect2($isurl('//example.com', {acceptsProtocolRelativeUrl:true})).true() ;
+        t.expect3('example.com'.isUrl()).false() ;
+        t.expect4($isurl('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).true() ;
+        t.expect5($isurl(null)).false() ;
+        t.expect6($isurl(undefined)).false() ;
+        t.expect7($isurl('')).false() ;
+        t.expect8($isurl(5)).false() ;
+        t.expect9($isurl({})).false() ;
+
         t.expectA($url('http://example.com')).is('http://example.com') ;
         t.expectB($url('https://example.com')).is('https://example.com') ;
         t.expectC($url('//example.com', {acceptsProtocolRelativeUrl:true})).is('//example.com') ;
@@ -219,15 +232,14 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectE($url('//example')).is(null) ;
         t.expectF($url('/example.com')).null() ;
         t.expectG($url('/example')).null() ;
-        t.expectH('example.com'.isUrl()).false() ;
-        t.expectI($url('example')).null() ;
-        t.expectJ($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).null() ;
-        t.expectK($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).is('file://example.com') ;
-        t.expectL($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).is('ftp://example.com') ;
-        t.expectM($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com') ;
+        t.expectH($url('example')).null() ;
+        t.expectI($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).null() ;
+        t.expectJ($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).is('file://example.com') ;
+        t.expectK($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).is('ftp://example.com') ;
+        t.expectL($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com') ;
     }) ;
 
-    group.unary("verifying $email(s)", async(t) => {
+    group.unary("$isemail() and $email() functions", async(t) => {
         t.expect0($email('a@b.ca')).is('a@b.ca') ;
         t.expect1($email('A@B.CA')).is('a@b.ca') ;
         t.expect2($email('@b')).null() ;
@@ -235,17 +247,49 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect4($email('\"myEmail;toto\"@yahoo.fr')).is('\"myemail;toto\"@yahoo.fr') ;
         t.expect5($email('myEmailtoto@yah:oo.fr')).is('myemailtoto@yah:oo.fr') ;
         t.expect6($email('myEmailtoto@yahoo.c;om')).null() ;
-        t.expect7('\"myEmail;toto\"@yahoo.fr'.isEmail()).true() ;
+        t.expectA($isemail('a@b.ca')).true() ;
+        t.expectB($isemail('A@B.CA')).true() ;
+        t.expectC($isemail('@b')).false() ;
+        t.expectD($isemail('myEmail;toto@yahoo.fr')).false() ;
+        t.expectE('\"myEmail;toto\"@yahoo.fr'.isEmail()).true() ;
+        t.expectF($isemail('myEmailtoto@yah:oo.fr')).true() ;
+        t.expectG($isemail('myEmailtoto@yahoo.c;om')).false() ;
+        t.expectH($isemail(null)).false() ;
+        t.expectI($isemail(undefined)).false() ;
+        t.expectJ($isemail('')).false() ;
+        t.expectK($isemail(5)).false() ;
+        t.expectL($isemail({})).false() ;
     }) ;
 
-    group.unary("verifying $UUID(s)", async(t) => {
+    group.unary("$isuuid() and $UUID() functions", async(t) => {
         t.expect0(U.isUUID()).true() ;
         t.expect1($isuuid('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).true() ;
         t.expect2($isuuid('3C244E6D-A03E-4D45-A87C-B1E1F967B36')).false() ;
         t.expect3($isuuid('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).false() ;
+        t.expect4($isuuid(null)).false() ;
+        t.expect5($isuuid(undefined)).false() ;
+        t.expect6($isuuid('')).false() ;
+        t.expect7($isuuid(5)).false() ;
+        t.expect8($isuuid({})).false() ;
+        t.expectA($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).is('3C244E6D-A03E-4D45-A87C-B1E1F967B362') ;
+        t.expectB($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B36')).null() ;
+        t.expectC($UUID('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).null() ;
     }) ;
 
-    group.unary("Testing function $decodeBase64(s) && $encodeBase64()", async(t) => {
+    group.unary("$strings(...) function", async(t) => {
+        t.expect0($strings()).is([]) ;
+        t.expect1($strings(null)).is([]) ;
+        t.expect2($strings(undefined)).is([]) ;
+        t.expect3($strings("")).is(['']) ;
+        t.expect4($strings([""])).is(['']) ;
+        t.expect5($strings("44")).is(['44']) ;
+        t.expect6($strings(["44"])).is(['44']) ;
+        t.expect7($strings(null, '1', undefined, ["2"], null, ['3', '4'], '5', [], ['6'])).is(['1', '2', '3', '4', '5', '6']) ;
+        t.expect8($strings([])).is([]) ;
+        t.expect9($strings(null, [], undefined, null,[])).is([]) ;
+    }) ;
+
+    group.unary("functions $decodeBase64(s) and $encodeBase64()", async(t) => {
         const b64 = 'JVBERi0xLjQKJcKlwrEKCgoKMSAwIG9iagogIDw8IC9UeXBlIC9DYXRhbG9nCiAgICAgL1BhZ2VzIDIgMCBSCiAgPj4KZW5kb2JqCgoyIDAgb2JqCiAgPDwgL1R5cGUgL1BhZ2VzCiAgICAgL0tpZHMgWzMgMCBSXQogICAgIC9Db3VudCAxCiAgICAgL01lZGlhQm94IFswIDAgMzAwIDE0NF0KICA+PgplbmRvYmoKCjMgMCBvYmoKICA8PCAgL1R5cGUgL1BhZ2UKICAgICAgL1BhcmVudCAyIDAgUgogICAgICAvUmVzb3VyY2VzCiAgICAgICA8PCAvRm9udAogICAgICAgICAgIDw8IC9GMQogICAgICAgICAgICAgICA8PCAvVHlwZSAvRm9udAogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTEKICAgICAgICAgICAgICAgICAgL0Jhc2VGb250IC9UaW1lcy1Sb21hbgogICAgICAgICAgICAgICA+PgogICAgICAgICAgID4+CiAgICAgICA+PgogICAgICAvQ29udGVudHMgNCAwIFIKICA+PgplbmRvYmoKCjQgMCBvYmoKICA8PCAvTGVuZ3RoIDU1ID4+CnN0cmVhbQogIEJUCiAgICAvRjEgMTggVGYKICAgIDAgMCBUZAogICAgKEhlbGxvIFdvcmxkKSBUagogIEVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxOCAwMDAwMCBuIAowMDAwMDAwMDc3IDAwMDAwIG4gCjAwMDAwMDAxNzggMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAp0cmFpbGVyCiAgPDwgIC9Sb290IDEgMCBSCiAgICAgIC9TaXplIDUKICA+PgpzdGFydHhyZWYKNTY1CiUlRU9GCg==' ;
         const array = $decodeBase64(b64) ;
         t.expect0(array).is(Buffer.from(b64, 'base64')) ;

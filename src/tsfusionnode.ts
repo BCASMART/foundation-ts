@@ -1,12 +1,17 @@
-import { $count, $isfunction, $isobject, $length, $ok } from "./commons";
-import { $lines } from "./strings";
-import { TSDate } from "./tsdate";
-import { TSDefaults } from "./tsdefaults";
+import { $map } from "./array";
+import { $array, $count, $email, $int, $intornull, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isiterable, $ismethod, $isnumber, $isobject, $isodate, $isstring, $isunsigned, $isurl, $isuuid, $iswhitespace, $json, $jsonobj, $keys, $length, $lengthin, $objectcount, $ok, $string, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $value, $valueornull, $valueorundefine } from "./commons";
+import { $bytescompare, $bytesequal, $compare, $datecompare, $equal, $numcompare, $setequal, $unorderedEqual } from "./compare";
+import { $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromDataLike, $arrayBufferFromBytes, $decodeBase64, $encodeBase64 } from "./data"
+import { $timeBetweenDates } from "./date"
+import { $div, $fpad, $fpad2, $fpad3, $fpad4, $icast, $meters, $octets, $round } from "./number";
+import { $ascii, $capitalize, $firstcap, $HTML, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $trim } from "./strings";
+import { $dayisvalid, $dayOfWeekFromTimestamp, $dayOfYear, $hourFromTimestamp, $insettimestamp, $isleap, $minuteFromTimestamp, $secondFromTimestamp, $timeisvalid, $timestamp, $timestampWithoutTime, $weekOfYear, TSDate } from "./tsdate";
+import { TSDefaults, $tmp, $locales, $country, $language, $currency, $default } from "./tsdefaults";
 import { TSError } from "./tserrors";
 import { TSFusionProcedure, TSFusionTemplate } from "./tsfusion";
 import { $iscollection } from "./tsobject";
-import { Bytes, TSDictionary } from "./types";
-import { $inspect } from "./utils";
+import { Bytes, Nullable, TSDictionary } from "./types";
+import { $inbrowser, $insp, $inspect, $stack, $term, $termclean } from "./utils";
 
 export enum TSFusionContextType {
     Local = 'local',           // path aplying to local context
@@ -30,7 +35,13 @@ export enum TSFusionNodeType {
 export interface TSFusionEnumeration {
     fusionEnumeration():any[] ;
 }
-
+export interface TSFusionOptions {
+    globalContext?:Nullable<TSDictionary> ;
+    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ;
+    globalFunctions?:Nullable<TSDictionary<Function>> ;
+    errors?:Nullable<string[]> ;
+    addStandardGlobalFunctions?:Nullable<boolean> ;
+}
 export class TSFusionTreeNode {
     type:TSFusionNodeType ;
     value?:string|Bytes  ;
@@ -84,7 +95,7 @@ export class TSFusionTreeNode {
         return node ;
     }
 
-    public fusion(template:TSFusionTemplate, data:any, globalContext:TSDictionary, procedures:TSDictionary<TSFusionProcedure> = {}, errors?:string[]):boolean {
+    public fusion(template:TSFusionTemplate, data:any, options:TSFusionOptions = {}):boolean {
 
         if (this.type !== TSFusionNodeType.Root) { 
             throw new TSError('Impossible invoque fusion() method on non-root FusionNodeType', { label:this.label, type:this.type } ) ; 
@@ -92,6 +103,51 @@ export class TSFusionTreeNode {
         try {
             
             this._cleanLocalContexts() ;
+            const globalContext = $ok(options.globalContext) ? options.globalContext! : {} ;
+            
+            function _addGlobalFunctions(functions:Nullable<TSDictionary<Function>>) {
+                if ($ok(functions)) {
+                    for (let [name, fn] of Object.entries(functions!)) {
+                        if (!$ok(globalContext[name])) { globalContext[name] = fn ; }
+                    }    
+                }
+            }
+            
+            _addGlobalFunctions(options.globalFunctions) ;
+
+            if (options.addStandardGlobalFunctions) {
+                [
+                    $value, $valueornull, $valueorundefine, 
+                    $isstring, $iswhitespace, $isnumber, $isint, $isunsigned, $isbool, $isobject, $isarray, $isiterable, $isdate, $isemail, $isurl, $isuuid, $isfunction, 
+                    $int, $intornull, $email, $url, $UUID, $isodate, $unsignedornull, $unsigned, $toint, $tounsigned, $string, $array, $strings,
+                    $count, $length, $objectcount, $lengthin,
+                    $jsonobj, $json, $keys,
+                    $numcompare, $datecompare, $bytescompare, $compare, $bytesequal, $equal, $setequal, $unorderedEqual,
+                    $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromDataLike, $arrayBufferFromBytes, $decodeBase64, $encodeBase64,
+                    $timeBetweenDates,
+                    $div, $icast, $round, $fpad, $fpad2, $fpad3, $fpad4, $octets, $meters,
+                    $ascii, $trim, $rtrim, $ltrim, $left, $right, $lines, $firstcap, $capitalize, $normspaces, $HTML,
+                    $isleap, $dayisvalid, $timeisvalid, $timestamp, $secondFromTimestamp, $minuteFromTimestamp, $hourFromTimestamp, $timestampWithoutTime, $dayOfYear, $dayOfWeekFromTimestamp, $weekOfYear, $insettimestamp,
+                    $tmp, $locales, $country, $language, $currency, $default,
+                    $inspect, $insp, $term, $termclean, $stack
+                ].forEach( fn => {
+                    const name = fn.name.slice(1) ; // we remove the front $ sign
+                    if (!$ok(globalContext[name])) { globalContext[name] = fn ; }
+                }) ;
+
+                _addGlobalFunctions({
+                    'abs':  Math.abs,
+                    'sign': Math.sign,
+                    'max':  Math.max,
+                    'min':  Math.min,
+                    'cos':  Math.cos,
+                    'sin':  Math.sin,
+                    'tan':  Math.tan,
+                    'log':  Math.log,
+                    'exp':  Math.exp,
+                    'sqrt': Math.sqrt
+                }) ;
+            }
 
             const defaults =  TSDefaults.defaults() ;
             this._fusion(template, globalContext, [data], [this._localContext], {
@@ -104,19 +160,21 @@ export class TSFusionTreeNode {
                 index: 0,
                 position: 1,
                 remaining:0,
-                count: 1
+                count: 1,
+                browser: $inbrowser(),
+                log: (data:any):string => { options.errors?.push(`USERLOG:${data}`) ; return '' ; }
             },
-            procedures,
-            errors
+            $value(options.procedures, {}),
+            $ok(options.errors) ? options.errors! : undefined
             ) ;
             return true ;
         }
         catch (e) {
-            if ($ok(errors)) {
-                errors!.push('Fusion did encounter error:') ;
-                $lines($inspect(e)).forEach(l => errors?.push(l)) ;
-                errors!.push('STACK:') ;
-                $lines((e as Error).stack).forEach(l => errors?.push(l)) ;
+            if ($ok(options.errors)) {
+                options.errors!.push('Fusion did encounter error:') ;
+                $lines($inspect(e)).forEach(l => options.errors?.push(l)) ;
+                options.errors!.push('STACK:') ;
+                $lines((e as Error).stack).forEach(l => options.errors?.push(l)) ;
             }
         }
         return false ;
@@ -150,13 +208,14 @@ export class TSFusionTreeNode {
                                 v = undefined ;
                             }
                         }
-                        else if (debug) { errors?.push(`!ERROR!: Procedure ${node.value}() does not exist`) ; }
+                        else if (debug) { errors!.push(`!ERROR!: Procedure ${node.value}() does not exist`) ; }
                     }
-                    else if (debug) { errors?.push(`!ERROR!: Malformed procedure name ${node.value}() (undefined, empty or with '.' character in it)`) ; }
+                    else if (debug) { errors!.push(`!ERROR!: Malformed procedure name ${node.value}() (undefined, empty or with '.' character in it)`) ; }
                 }
                 else {
                     let target:any[] = [];
                     let dataType = 'unknown target' ;
+                    const hasRedefinedLocalItems = $objectcount(localStack.last()) > 0 ;
 
                     switch (node.contextType) {
                         case TSFusionContextType.Root: 
@@ -164,7 +223,7 @@ export class TSFusionTreeNode {
                             dataType = 'root'
                             break ;
                         case TSFusionContextType.Local:
-                            target = localStack ;
+                            target = hasRedefinedLocalItems ? localStack : stack ;
                             dataType = 'local context' ;
                             break ;
                         case TSFusionContextType.Global: 
@@ -181,9 +240,10 @@ export class TSFusionTreeNode {
                             break ;
                     }
                     // local fusion context is always predominant to local data if it exists
-                    v = _valueForKeyPath(target, node._pathCache, dataType, false, node.parameters, errors) ;
-                    if (node.contextType === TSFusionContextType.Local && !$ok(v)) {
-                        v = _valueForKeyPath(stack, node._pathCache, 'target object', true, node.parameters, errors) ;
+                    const parameters = $count(node.parameters) ? $map(node.parameters, p => p === template ? stack.last() : p) : undefined ;
+                    v = _valueForKeyPath(target, node._pathCache, dataType, false, parameters, errors) ;
+                    if (node.contextType === TSFusionContextType.Local && !$ok(v) && hasRedefinedLocalItems) {
+                        v = _valueForKeyPath(stack, node._pathCache, 'target object', true, parameters, errors) ;
                     }
                 }
                 switch (node.type) {
@@ -199,7 +259,7 @@ export class TSFusionTreeNode {
                         break ;
                     case TSFusionNodeType.Enumeration:
                         if ($ok(v)) {
-                            const a = $iscollection(v) ? v.getItems() : ('fusionEnumeration' in v ? v.fusionEnumeration() : [v]) ;
+                            const a = $iscollection(v) ? v.getItems() : ($ismethod(v, 'fusionEnumeration') ? v.fusionEnumeration() : [v]) ;
                             const acount = $length(a) ;
                             for (let j = 0 ; j < acount ; j++) {
                                 node._fusion(template, globalContext, [...stack, a[j]], [...localStack, a[j]._localContext], {...systemContext, count:acount, index:j, position:j+1, remaining:count-j-1}, procedures, errors) ;
@@ -212,7 +272,6 @@ export class TSFusionTreeNode {
         } 
     }
 }
-
 function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, unknownAsError:boolean, parameters:any[]|undefined, errors?:string[]):any 
 {
     const scount = stack.length ; 

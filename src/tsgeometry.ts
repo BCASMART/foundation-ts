@@ -1,4 +1,4 @@
-import { $isarray, $isnumber, $isobject, $isstring, $ok } from "./commons";
+import { $hasproperties, $isarray, $isnumber, $isstring, $ok } from "./commons";
 import { $numcompare } from "./compare";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
@@ -113,9 +113,9 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
                 break ;
             }
             case 2:
-                if ($isobject(arguments[0]) && ('x' in arguments[0]) && ('y' in arguments[0])) {
+                if ($comformsToPoint(arguments[0])) {
                     const size = $isstring(arguments[1]) ? TSDocumentFormats[arguments[1] as TSDocumentFormat] : arguments[1] as TSSize ;
-                    if ($isobject(size) && ('w' in size) && ('h' in size) && $isnumber(size.w) && $isnumber(size.h) && size.w >= 0 && size.h >= 0) {
+                    if ($conformsToSize(size) && $isnumber(size.w) && $isnumber(size.h) && size.w >= 0 && size.h >= 0) {
                         this.x = (arguments[0] as TSPoint).x ;
                         this.y = (arguments[0] as TSPoint).y ;
                         this.w = (size as TSSize).w ;
@@ -131,7 +131,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
                 break ;
             case 3:
                 if ($isnumber(arguments[0]) && $isnumber(arguments[1]) && 
-                    (($isobject(arguments[2]) && ('w' in arguments[2]) && ('h' in arguments[2])) || $isstring(arguments[2]))) {
+                    ($isstring(arguments[2]) || $conformsToSize(arguments[2]))) {
                     const size = $isstring(arguments[2]) ? TSDocumentFormats[arguments[2] as TSDocumentFormat] : arguments[2] as TSSize ;
                     if ($ok(size) && $isnumber(size.w) && $isnumber(size.h) && size.w >= 0 && size.h >= 0) {
                         this.x = arguments[0] as number ;
@@ -143,7 +143,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
                         throw new TSError('TSRect.constructor() : bad TSSize parameter', { arguments:Array.from(arguments)}) ;
                     }
                 }
-                else if ($isobject(arguments[0]) && ('x' in arguments[0]) && ('y' in arguments[0]) && 
+                else if ($comformsToPoint(arguments[0]) && 
                          $isnumber(arguments[1]) && $isnumber(arguments[2]) && arguments[1] >= 0 && arguments[2] >= 0) {
                     const origin = (arguments[0] as TSPoint) ;
                     if ($isnumber(origin.x) && $isnumber(origin.y)) {
@@ -204,7 +204,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
             }
             return false ;
         }
-        return $isobject(p) && ('x' in p!) && ('y' in p!) ? p!.x >= this.minX && p!.x <= this.maxX && p!.y >= this.minY && p!.y <= this.maxY : false ;
+        return $comformsToPoint(p) ? (p as TSPoint).x >= this.minX && (p as TSPoint).x <= this.maxX && (p as TSPoint).y >= this.minY && (p as TSPoint).y <= this.maxY : false ;
     }
 
     public containsPoint(p:Nullable<TSPoint|number[]>):boolean {
@@ -457,3 +457,11 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
 export const TSCM = TScm2Pixels(1) ;
 export const TSMM = TSmm2Pixels(1) ;
 export const TSIN = TSInches2Pixels(1) ;
+
+const LocalPointProperties = ['x', 'y'] ;
+export function $comformsToPoint(v:any):boolean
+{ return v instanceof TSRect || $hasproperties(v, LocalPointProperties) ; }
+
+const LocalSizeProperties = ['w', 'h'] ;
+export function $conformsToSize(v:any):boolean
+{ return v instanceof TSRect || $hasproperties(v, LocalSizeProperties) ; }

@@ -1,4 +1,4 @@
-import { $capacityForCount, $defined, $isnumber, $isobject, $isstring, $length, $ok } from "./commons";
+import { $capacityForCount, $defined, $ismethod, $isnumber, $length, $ok, $string } from "./commons";
 import { $equal } from "./compare";
 import { $bufferFromArrayBuffer } from "./data";
 import { $charset, TSCharset } from "./tscharset";
@@ -35,14 +35,16 @@ interface TSFusionTemplateOptions {
     separator?:string ;
     debugParsing?:boolean ;
     procedures?:TSDictionary<TSFusionProcedure> ;
+    globalFunctions?:TSDictionary<Function> ;
+    addStandardGlobalFunctions?:Nullable<boolean> ;
 }
 
 export interface TSDataTemplateOptions extends TSFusionTemplateOptions {
     encoding?:StringEncoding|TSCharset ;
 }
 
-const [TAB,  LF,   BS,   FF,   CR,   SPACE, EXCLAMATION_MARK, DOUBLE_QUOTE, SHARP, DOLLAR, QUOTE, LPAR, RPAR, ASTERISK, PLUS, COMMA, MINUS, DOT,  SLASH, ZERO, NINE, COLON, LT,   EQ,   GT,   QUESTION_MARK, AT,   A,    Uu,   Z,    BACKSLASH, UNDERSCORE, bu,   fu,   nu,   ru,   tu,   uu    ] = 
-      [0x09, 0x0a, 0x0B, 0x0C, 0x0D, 0x20,  0x21,             0x22,         0x23,  0x24,   0x27,  0x28, 0x29, 0x2A,     0x2B, 0x2C,  0x2D,  0x2E, 0x2F,  0x30, 0x39, 0x3A,  0x3C, 0x3D, 0x3E, 0x3F,          0x40, 0x41, 0x55, 0x5A, 0x5C,      0x5F,       0x62, 0x66, 0x6E, 0x72, 0x74, 0x75  ] as uint8[] ;
+const [TAB,  LF,   BS,   FF,   CR,   SPACE, EXCLAMATION_MARK, DOUBLE_QUOTE, SHARP, DOLLAR, QUOTE, LPAR, RPAR, ASTERISK, PLUS, COMMA, MINUS, DOT,  SLASH, ZERO, NINE, COLON, LT,   EQ,   GT,   QUESTION_MARK, AT,   A,    Uu,   Z,    BACKSLASH, UNDERSCORE, bu,   fu,   nu,   ru,   tu,   uu,   PIPE   ] = 
+      [0x09, 0x0a, 0x0B, 0x0C, 0x0D, 0x20,  0x21,             0x22,         0x23,  0x24,   0x27,  0x28, 0x29, 0x2A,     0x2B, 0x2C,  0x2D,  0x2E, 0x2F,  0x30, 0x39, 0x3A,  0x3C, 0x3D, 0x3E, 0x3F,          0x40, 0x41, 0x55, 0x5A, 0x5C,      0x5F,       0x62, 0x66, 0x6E, 0x72, 0x74, 0x75, 0x7C   ] as uint8[] ;
 
 const FUSION_SPECIAL_CHARS = [SHARP, QUESTION_MARK, EXCLAMATION_MARK, DOLLAR, AT, UNDERSCORE, ASTERISK, PLUS, DOT] ;
 
@@ -75,6 +77,8 @@ export abstract class TSFusionTemplate {
     
     protected _treeRoot:TSFusionTreeNode ;
     protected _procedures:TSDictionary<TSFusionProcedure> = {} ;
+    protected _globalFunctions:Nullable<TSDictionary<Function>> ;
+    protected _addStandardGlobalFunctions:boolean ;
     protected _variables = new Map<string, Set<TSFusionContextType>>() ;
     protected _contextsVariables = new Map<TSFusionContextType, Set<string>>() ;
     
@@ -110,9 +114,10 @@ export abstract class TSFusionTemplate {
             { name:_ascii2data('FUTURE'),    value:TSDate.future(), len:6 },
             { name:_ascii2data('NaN'),       value:NaN,             len:3 },
             { name:_ascii2data('PAST'),      value:TSDate.past(),   len:4 },
-            { name:_ascii2data('true'),      value:true,            len:4 },
+            { name:_ascii2data('current'),   value:this,            len:7 },
             { name:_ascii2data('false'),     value:false,           len:4 },
             { name:_ascii2data('null'),      value:null,            len:4 },
+            { name:_ascii2data('true'),      value:true,            len:4 },
             { name:_ascii2data('undefined'), value:undefined,       len:9 }
         ] ;
 
@@ -232,7 +237,7 @@ export abstract class TSFusionTemplate {
         let parameters:Array<any> = [] ;
         let currentParameter:any = undefined ;
         let currentConstant:TSFusionConstant|undefined = undefined ;
-        let stringStarter = QUOTE ;
+        let stringEnder = QUOTE ;
         let characterRole:TSCharRole ;
 
         const root = TSFusionTreeNode.root() ;
@@ -363,8 +368,10 @@ export abstract class TSFusionTemplate {
                         parameters.push(currentParameter) ;
                         currentParameter = undefined ;
                     }
-                    else if (c === QUOTE || c === DOUBLE_QUOTE) {
-                        stringStarter = c ;
+                    else if (c === QUOTE || c === DOUBLE_QUOTE || c === PIPE) {
+                        // PIPE DELIMITER IS USED FOR DESCRIBING JSON OBJECTS
+                        // AS PARAMETERS
+                        stringEnder = c ;
                         currentParameter = new TSData() ;
                         state = State.StringParameter ;
                     }
@@ -447,8 +454,19 @@ export abstract class TSFusionTemplate {
                     }
                     break ;
                 case State.StringParameter:
-                    if (c === stringStarter) {
+                    if (c === stringEnder) {
                         currentParameter = currentParameter.toString(paramCharset) ;
+                        if (stringEnder === PIPE) {
+                            try { currentParameter =  JSON.parse(<string>currentParameter) ; }
+                            catch (e) {
+                                throw new TSError(`Malformed JSON structure terminating at position ${i}. Impossible to parse. See 'parsingError' in complement infos.`, { 
+                                    source:source,
+                                    position:i,
+                                    state:state,
+                                    parsingError:e                                 
+                                }) ;
+                            }
+                        }
                         state = State.AfterParameter ;
                     }
                     else if (c === BACKSLASH) {
@@ -672,6 +690,8 @@ export abstract class TSFusionTemplate {
         this._treeRoot = root ;
         this._capacity = $capacityForCount(this.source.length * 1.25) ;
         if ($ok(opts.procedures)) { this._procedures = opts.procedures!  ; }
+        this._globalFunctions = opts.globalFunctions ;
+        this._addStandardGlobalFunctions = !!opts.addStandardGlobalFunctions ;
     }
 
     public get capacity():number { return this._capacity ; }
@@ -730,14 +750,20 @@ export class TSStringTemplate extends TSFusionTemplate {
     { this._outputString += TSStringTemplate.__stringCharset.stringFromData(data) ; }
 
     public pushFusionValue(value:NonNullable<any>):void
-    { this._outputString += $isstring(value) ? value as string : ($isobject(value) && 'toString' in value ? value.toString() : `${value}`) ; }
+    { this._outputString += $string(value) ; }
 
     public stringParameter(data: Bytes): string
     { return TSStringTemplate.__stringCharset.stringFromData(data) ; }
 
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
         this._outputString = '' ;
-        return this._treeRoot.fusion(this, data, globalContext, this._procedures, errors) ? this._outputString! : null ;
+        return this._treeRoot.fusion(this, data, { 
+            globalContext: globalContext, 
+            procedures: this._procedures, 
+            errors:errors, 
+            globalFunctions:this._globalFunctions, 
+            addStandardGlobalFunctions:this._addStandardGlobalFunctions
+        }) ? this._outputString! : null ;
     }
 
 }
@@ -750,7 +776,13 @@ export abstract class TSGenericDataTemplate extends TSFusionTemplate {
 
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):TSData|null {
         this._outputData = new TSData(this._capacity) ;
-        return this._treeRoot.fusion(this, data, globalContext, this._procedures, errors) ? this._outputData! : null ;
+        return this._treeRoot.fusion(this, data, { 
+            globalContext: globalContext, 
+            procedures: this._procedures, 
+            errors:errors, 
+            globalFunctions:this._globalFunctions,
+            addStandardGlobalFunctions:this._addStandardGlobalFunctions
+        }) ? this._outputData! : null ;
     }
 }
 
@@ -779,18 +811,11 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     }
 
     public pushFusionValue(value:NonNullable<any>):void {
-        let s:string|undefined = undefined ;
-        if ($ok(value)) {
-            if ($isstring(value)) { s = (value as string).toHTML() ; }
-            else if ($isnumber(value)) { s = ''+value ; }
-            else if ($isobject(value)) {
-                if ('toHTML' in value) { s = value.toHTML() }
-                else if ('toString' in value) { s = ((value.toString()) as string).toHTML() }
-                else { s = `${value}`.toHTML() ; }
-            }    
-            else { s = `${value}`.toHTML() ; }
-        }
-        if ($length(s)) { this._outputData?.appendBytes(_ascii2data(s!)) ; }
+        let s = "" ;
+        if ($ismethod(value, 'toHTML')) { s = value.toHTML() ; }
+        else if ($isnumber(value)) { s = ''+ value ; }
+        else { s = $string(value).toHTML() ; }
+        if (s.length) { this._outputData?.appendBytes(_ascii2data(s!)) ; }
     }
 }
 
@@ -826,8 +851,7 @@ export class TSDataTemplate extends TSGenericDataTemplate {
     public parameterCharset():TSCharset { return this._charset ; }
 
     public pushFusionValue(value:NonNullable<any>):void {
-        const s = $isstring(value) ? value as string : ($isobject(value) && 'toString' in value ? value.toString() : `${value}`) ;
-        this._outputData?.appendString(s, this._charset) ;
+        this._outputData?.appendString($string(value), this._charset) ;
     }
 }
 
