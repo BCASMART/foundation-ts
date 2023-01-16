@@ -1,10 +1,20 @@
-import { $count, $isarray, $ismethod, $isstring, $ok } from "./commons";
+import { $count, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
+import { $normspaces, $ascii } from "./strings";
+
+// ================== comparison functions =========================
 
 export function $numcompare(a:number, b:number):Comparison {
     if (isNaN(a) || isNaN(b)) { return undefined ; }
     return a === b ? Same : (a < b ? Ascending : Descending) ;
+}
+
+export function $numorder(a:number, b:number):NonNullable<Comparison> {
+	if (a === b) { return Same ; }
+    // we enforce a simple rule here. NaN is condidered as an undefined number
+    // and we supose that we have no number here, just like undefined or null
+    return isNaN(a) ? (isNaN(b) ? Same : Ascending) : (isNaN(b) ? Descending : $numcompare(a, b)!) ; 
 }
 
 export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>) : Comparison 
@@ -20,6 +30,8 @@ export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<n
     return a.compare(b) ;
 }
 
+export function $dateorder(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>):NonNullable<Comparison>
+{ return $ok(a) ? ($ok(b) ? $datecompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
 
 export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
@@ -33,6 +45,10 @@ export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     }
     return na === nb ? Same : (i < na ? Descending : Ascending) ;
 }
+
+export function $bytesorder(a:Nullable<Bytes>, b:Nullable<Bytes>):NonNullable<Comparison>
+{ return $ok(a) ? ($ok(b) ? $bytescompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
+
 
 export function $compare(a:any, b:any):Comparison {
 
@@ -63,6 +79,32 @@ export function $compare(a:any, b:any):Comparison {
     return $ismethod(a, 'compare') ? a.compare(b) : undefined ;
 }
 
+export function $order(a:any, b:any): NonNullable<Comparison>
+{ 
+	if (a === b) { return Same ; }
+    if (typeof a === 'number' && typeof b === 'number') { return $numorder(a, b) ; }
+    return $ok(a) ? ($ok(b) ? $compare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; 
+}
+
+
+export function $visualcompare(a:any, b:any):Comparison {
+    if (!$ok(a) || !$ok(b)) { return undefined ; }
+	if (a === b) { return Same ; }
+
+    if (!$isstring(a)) { a = $string(a) ; }
+    if (!$isstring(b)) { b = $string(b) ; }
+	if (a === b) { return Same ; }
+
+    a = $ascii($normspaces(a)).toUpperCase() ;
+    b = $ascii($normspaces(b)).toUpperCase() ;
+    return a > b ? Descending : (a < b ? Ascending : Same) ;
+}
+
+export function $visualorder(a:any, b:any):NonNullable<Comparison>
+{ return $ok(a) ? ($ok(b) ? $visualcompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
+
+// ================== equality functions =========================
+
 export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
 	if (a === b) { return true ; }
 	if (!$ok(a) || !$ok(b)) return false ;
@@ -71,6 +113,7 @@ export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
     for(let i = 0 ; i < n ; i++) { if (a![i] !== b![i]) return false ; }
     return true ;
 }
+
 
 export function $equal(a:any, b:any):boolean {
 	if (a === b) { return true ; }
@@ -140,6 +183,15 @@ export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|S
     else if (sb instanceof Set) { nb = sb.size ; b = sb ; }
     
     return na === nb && $setequal(a, b) ;
+}
+
+export function $visualequal(a:any, b:any):boolean {
+    if (a === b) { return true ; }
+    if (!$ok(a) || !$ok(b)) { return false ; }
+    if (!$isstring(a)) { a = $string(a) ; }
+    if (!$isstring(b)) { b = $string(b) ; }
+    if (a === b) { return true ; }
+	return $ascii($normspaces(a)).toUpperCase() === $ascii($normspaces(b)).toUpperCase() ;
 }
 
 // TODO: an epsilon equal or a near equal function

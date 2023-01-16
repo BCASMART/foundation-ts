@@ -46,13 +46,12 @@ export function $uint8ArrayFromBytes(source:Bytes, sourceStart?: Nullable<number
 
 export function $uint8ArrayFromDataLike(source:TSDataLike, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): Uint8Array
 {
-    if (source instanceof ArrayBuffer) { 
-        return $uint8ArrayFromBytes($bufferFromArrayBuffer(source), sourceStart, sourceEnd) ;
-    }
-    if (source instanceof TSData) {
-        return source.toUint8Array(sourceStart, sourceEnd) ;
-    }
-    return $uint8ArrayFromBytes(source as Bytes, sourceStart, sourceEnd) ;
+    return source instanceof ArrayBuffer ?
+            $uint8ArrayFromBytes($bufferFromArrayBuffer(source), sourceStart, sourceEnd) :
+            (source instanceof TSData ? 
+                source.toUint8Array(sourceStart, sourceEnd) :
+                $uint8ArrayFromBytes(source as Bytes, sourceStart, sourceEnd)
+            ) ;
 }
 
 export function $arrayBufferFromBytes(source: Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): ArrayBuffer {

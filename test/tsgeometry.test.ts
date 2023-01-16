@@ -12,7 +12,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
     const G = new TSRect(0, 0, TSmm2Pixels(210), TSmm2Pixels(297)) ;
     const H = new TSRect('a4') ;
 
-    group.unary("verifying TSRect creation", async(t) => {
+    group.unary("TSRect creation", async(t) => {
         t.expect0(A).toBe(B) ;
         t.expect1(A).toBe(C) ;
         t.expect2(A).toBe(D) ;
@@ -21,7 +21,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect5(G).toBe(H) ;
     }) ;
 
-    group.unary("verifying TSRect.closedPolygon()", async(t) => {
+    group.unary("TSRect.closedPolygon()", async(t) => {
         let p = A.closedPolygon() ;
         t.expect0(p[0]).toBe({x:10.5, y:20.5}) ;
         t.expect1(p[1]).toBe({x:14, y:20.5}) ;
@@ -37,7 +37,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectE(p[4]).toBe({x:10.5, y:20.5}) ;
     }) ;
 
-    group.unary("verifying TSRect.contains()", async(t) => {
+    group.unary("TSRect.contains()", async(t) => {
         t.expect0(B.contains({x:A.midX, y:A.midY})).toBeTruthy() ;
         t.expect1(B.contains([A.midX, A.midY])).toBeTruthy() ;
         t.expect2(B.contains([A.midX, NaN])).toBeFalsy() ;
@@ -53,12 +53,12 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectC(A.integralRect().contains(A)).toBeTruthy() ;
     }) ;
 
-    group.unary("verifying TSRect.integralRect()", async(t) => {
+    group.unary("TSRect.integralRect()", async(t) => {
         t.expect0(A.integralRect()).toBe(new TSRect(10,20,4,8))
         t.expect1(A.integralRect().integralRect()).toBe(new TSRect(10,20,4,8))
     }) ;
 
-    group.unary("verifying TSRect.intersection()", async(t) => {
+    group.unary("TSRect.intersection()", async(t) => {
         t.expect0(A.integralRect().intersection(A)).toBe(A) ;
         t.expect1(A.intersection(A.integralRect())).toBe(A) ;
         t.expect2(G.intersection(new TSRect(10,15,1000,2000))).toBe(new TSRect(10,15,G.width-10, G.height-15)) ;
@@ -71,7 +71,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect9(G.intersection([NaN,15,1000,2000])).toBe(new TSRect()) ;
     }) ;
 
-    group.unary("verifying TSRect.intersects()", async(t) => {
+    group.unary("TSRect.intersects()", async(t) => {
         t.expect0(A.integralRect().intersects(A)).toBeTruthy() ;
         t.expect1(A.intersects(A.integralRect())).toBeTruthy() ;
         t.expect2(A.intersects(new TSRect(10,15,1000,2000))).toBeTruthy() ;
@@ -82,7 +82,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect7(G.intersects([1000,1000,NaN,2000])).toBeFalsy() ;
     }) ;
 
-    group.unary("verifying TSRect.union()", async(t) => {
+    group.unary("TSRect.union()", async(t) => {
         t.expect0(A.integralRect().union(A)).toBe(A.integralRect()) ;
         t.expect1(A.union(A.integralRect())).toBe(A.integralRect()) ;
         t.expect2(G.union(new TSRect(10,15,1000,2000))).toBe(new TSRect(0,0,1010, 2015)) ;
@@ -99,7 +99,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectA(equality).toBeFalsy() ;
     }) ;
 
-    group.unary("verifying TSRect creation with formats", async(t) => {
+    group.unary("TSRect creation with formats", async(t) => {
         const formatKeys = $keys(TSDocumentFormats) ;
         for (let f of formatKeys) {
             const newRect = new TSRect(f) ;
@@ -107,7 +107,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         }
     }) ;
 
-    group.unary("verifying TSAssertFormat() function", async(t) => {
+    group.unary("TSAssertFormat() function", async(t) => {
         const mini = TSDocumentFormats['min'] ;
         const maxi = TSDocumentFormats['max'] ;
         const dflt = TSDocumentFormats['a4'] ;

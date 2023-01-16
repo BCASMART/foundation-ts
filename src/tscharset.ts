@@ -8,9 +8,8 @@ import { TSError } from './tserrors';
 import { Bytes, Nullable, StringEncoding, TSDataLike, UINT16_MAX, uint8 } from './types';
 import { $inbrowser } from './utils';
 
-export function $charset(value:Nullable<StringEncoding|TSCharset>, defaultCharset:TSCharset=TSCharset.utf8Charset()):TSCharset {
-    return $ok(value) ? ($isstring(value) ? TSCharset.encoding(value as StringEncoding) : value as TSCharset) : defaultCharset ;
-}
+export function $charset(value:Nullable<StringEncoding|TSCharset>, defaultCharset:TSCharset=TSCharset.utf8Charset()):TSCharset
+{ return $isstring(value) ? TSCharset.encoding(value as StringEncoding) : $value(value as Nullable<TSCharset>, defaultCharset) ; }
 
 enum TSCachedCharset {
     ASCII = 0,

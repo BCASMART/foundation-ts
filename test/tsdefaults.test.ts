@@ -5,7 +5,7 @@ import { TSTest } from '../src/tstester';
 
 export const defaultsGroups = [
     TSTest.group("Testing default countries codes", async (group) => {
-        group.unary('verifying $country(x)', async (t) => {
+        group.unary('$country() function', async (t) => {
             t.expect0($country(" France")).toBe(Countries.FR) ;
             t.expect1($country("fra")).toBe(Countries.FR) ;
             t.expect2($country("França")).toBe(Countries.FR) ;
@@ -25,14 +25,14 @@ export const defaultsGroups = [
     TSTest.group("Testing default languages", async (group) => {
         const D = TSDefaults.defaults() ;
 
-        group.unary('verifying default language', async (t) => {
+        group.unary('Default language get/set', async (t) => {
             t.expect0(D.defaultLanguage).toBe(Languages.fr) ;
             D.setDefaultLanguage(Languages.en) ;
             t.expect1($language()).toBe(Languages.en) ;
             D.setDefaultLanguage(Languages.fr) ;
         }) ;
     
-        group.unary('verifying $language(x)', async (t) => {
+        group.unary('$language() function', async (t) => {
             t.expect0($language('FRF')).toBeNull() ;
             t.expect1($language(' FR ')).toBe(Languages.fr) ;
             t.expect2($language('Français ')).toBe(Languages.fr) ;
@@ -44,13 +44,13 @@ export const defaultsGroups = [
     TSTest.group("Testing defaults currency", async (group) => {
         const D = TSDefaults.defaults() ;
 
-        group.unary('verifying default currency', async (t) => {
+        group.unary('Default currency get/set', async (t) => {
             t.expect0(D.defaultCurrency).toBe(Currencies.EUR) ;
             D.setDefaultCurrency(Currencies.GBP) ;
             t.expect1($currency()).toBe(Currencies.GBP) ;
         }) ;
     
-        group.unary('verifying $currency(x)', async (t) => {
+        group.unary('$currency() function', async (t) => {
             t.expect0($currency('FRF')).toBeNull() ;
             t.expect1($currency(' EUR ')).toBe(Currencies.EUR) ;
             t.expect2($currency('frankreich')).toBe(Currencies.EUR) ;

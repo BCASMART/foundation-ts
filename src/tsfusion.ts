@@ -88,8 +88,6 @@ export abstract class TSFusionTemplate {
 
     public abstract pushFusionData(data:Bytes):void ;
     public abstract pushFusionValue(value:NonNullable<any>):void ;
-
-    public parameterCharset():TSCharset { return TSCharset.utf8Charset() ; }
     
     public static fromData(source:TSDataLike, encoding?:Nullable<StringEncoding|TSCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null
     { return TSDataTemplate.fromData(source, encoding, opts) ; }
@@ -100,7 +98,7 @@ export abstract class TSFusionTemplate {
     public static fromString(source:string, opts?:TSFusionTemplateOptions):TSStringTemplate|null
     { return TSStringTemplate.fromString(source, opts) ; }
 
-    protected constructor(src:TSDataLike, opts:TSFusionTemplateOptions = {} ) {
+    protected constructor(src:TSDataLike, opts:TSFusionTemplateOptions = {}, paramCharset:TSCharset = TSCharset.utf8Charset() ) {
         const sm = _ascii2data($length(opts.startingMark) ? opts.startingMark! : TSFusionTemplate.DefaultStartingMark) ;
         const em = _ascii2data($length(opts.endingMark) ? opts.endingMark! : TSFusionTemplate.DefaultEndingMark) ;
         const sepa = _ascii2data($length(opts.separator) ? opts.separator! : TSFusionTemplate.DefaultSeparator) ;
@@ -137,7 +135,6 @@ export abstract class TSFusionTemplate {
         const smlen = sm.length ;
         const sepalen = sepa.length ;
         const emlen = em.length ;
-        const paramCharset = this.parameterCharset() ;
         
         function upper(c:uint8):uint8 { return (c & 0xdf) as uint8 ; }
 
@@ -744,16 +741,13 @@ export class TSStringTemplate extends TSFusionTemplate {
     }
 
     public constructor(source:string, options?:TSFusionTemplateOptions)
-    { super(TSStringTemplate.__stringCharset.dataFromString(source), options) ; }
+    { super(TSStringTemplate.__stringCharset.dataFromString(source), options, TSStringTemplate.__stringCharset) ; }
 
     public pushFusionData(data:Bytes):void
     { this._outputString += TSStringTemplate.__stringCharset.stringFromData(data) ; }
 
     public pushFusionValue(value:NonNullable<any>):void
     { this._outputString += $string(value) ; }
-
-    public stringParameter(data: Bytes): string
-    { return TSStringTemplate.__stringCharset.stringFromData(data) ; }
 
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
         this._outputString = '' ;
@@ -807,7 +801,8 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     public constructor(src:TSDataLike, opts?:TSFusionTemplateOptions)
     { 
         const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
-        super(_parseHTML(source, opts), opts) ; 
+        const [data, charset] = _parseHTML(source, opts) ;
+        super(data, opts, charset) ;
     }
 
     public pushFusionValue(value:NonNullable<any>):void {
@@ -843,12 +838,11 @@ export class TSDataTemplate extends TSGenericDataTemplate {
     }
 
     public constructor(source:TSDataLike, charset:TSCharset, opts?:TSFusionTemplateOptions) {
-        super(source, opts) ;
+        super(source, opts, charset) ;
         this._charset = charset ;
     }
 
     public get charset():TSCharset { return this._charset! ; }
-    public parameterCharset():TSCharset { return this._charset ; }
 
     public pushFusionValue(value:NonNullable<any>):void {
         this._outputData?.appendString($string(value), this._charset) ;
@@ -865,11 +859,13 @@ const ASCIICharset = TSCharset.asciiCharset() ;
 function _ascii2data(s:string) { return ASCIICharset.bytesFromString(s) ; }
 function _data2ascii(d:Bytes, start?:number, end?:number)  { return ASCIICharset.stringFromData(d, start, end) ; }
 
-function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):TSData {
+function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):[TSData, TSCharset] {
     const startingMark = $length(options?.startingMark) ? options!.startingMark! : TSFusionTemplate.DefaultStartingMark ;
     const endingMark   = $length(options?.endingMark)   ? options!.endingMark!   : TSFusionTemplate.DefaultEndingMark ;
     const separator    = $length(options?.separator)    ? options!.separator!    : TSFusionTemplate.DefaultSeparator ;
     const debug = options?.debugParsing ;
+    const standardCharset = TSCharset.utf8Charset() ;
+    let   currentCharset = standardCharset ;
     
     if (debug) {
         $logterm(`&0\n&P&w _parseHTML() is in debug mode &0`) ;
@@ -1008,10 +1004,10 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):TSDat
     function endElement() {
         switch (element) {
             case Element.Fusion:
-                let p = values['PATH'] ;
+                const p = values['PATH'] ;
                 if (!$length(p)) { back() ; return ; }
-                let c = contexts[_data2ascii(values['CONTEXT']).toUpperCase()] ;
-                let t = types[_data2ascii(values['TYPE']).toUpperCase()] ;
+                const c = contexts[_data2ascii(values['CONTEXT']).toUpperCase()] ;
+                const t = types[_data2ascii(values['TYPE']).toUpperCase()] ;
                 target.appendBytes(sm) ; // {{
                 target.appendBytes(c) ;  // '' or '@' or '$' or '/' or '*' or '+'
                 target.appendBytes(p) ;  // var itself
@@ -1024,6 +1020,17 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):TSDat
                 }
                 reset() ;
                 return ;
+            case Element.Meta:
+                const cset = values['CHARSET'] ;
+                if ($length(cset)) {
+                    const newCharset = TSCharset.charset(_data2ascii(cset)) ;
+                    if ($ok(newCharset) && newCharset !== standardCharset) {
+                        currentCharset = newCharset! ;
+                    }     
+                }
+                target.appendBytes(src, last, i) ;
+                target.appendByte(GT) ;
+                break ;
             case Element.EndFusion:
                 target.appendBytes(em) ;
                 reset() ;
@@ -1134,5 +1141,5 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):TSDat
         $logterm(`&0&j--STOP--&w: &rEOF&x, state:&p${state}&x, last:&p${last}&0`) ;
     }
 
-    return target ;
+    return [target, currentCharset] ;
 }

@@ -68,7 +68,7 @@ export const rangeGroups = [
             t.expect3(DR.compare(DRT)).toBeUndefined() ;
         }) ;    
     }),
-    TSTest.group("Testing TSRange operations", async (group) => {
+    TSTest.group("TSRange operations", async (group) => {
         group.unary(`range.isValid`, async (t) => {
             t.expect0(TSRange.make(NaN,0).isValid).toBeFalsy() ;
             t.expect1(TSRange.make(0,NaN).isValid).toBeFalsy() ;

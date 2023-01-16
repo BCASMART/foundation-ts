@@ -3,7 +3,7 @@ import { TSTest } from "../src/tstester";
 import { UINT32_MAX, UINT_MAX } from "../src/types";
 
 export const numberGroups = TSTest.group("Commons number functions", async (group) => {
-    group.unary("verifying $round function", async(t) => {
+    group.unary("$round() function", async(t) => {
         const n = 1/7 ;
         const p = -n ;
         t.expect0($round(0.5)).toBe(1) ;
@@ -34,7 +34,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectY(Number.NEGATIVE_INFINITY.round(7)).toBe(Number.NEGATIVE_INFINITY) ;
         t.expectZ(Number.POSITIVE_INFINITY.round(7)).toBe(Number.POSITIVE_INFINITY) ;
     }) ;
-    group.unary("verifying $fpad() functions", async(t) => {
+    group.unary("$fpad() functions", async(t) => {
         const n = 12 ;
         t.expect0($fpad(1,5)).toBe('00001') ;
         t.expect1($fpad(0,5)).toBe('00000') ;
@@ -61,7 +61,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectM(UINT32_MAX.fpad2('-')).toBe(UINT32_MAX.toString()) ;
     }) ;
 
-    group.unary("Testing $octets(v)", async(t) => {
+    group.unary("$octets() function", async(t) => {
         const s = 1324756810 ;
         t.expect0($octets(1324)).toBe("1.32 ko") ;
         t.expect1($octets(132475)).toBe("132.47 ko") ;
@@ -75,7 +75,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect9($octets(0)).toBe("0 octets") ;
     }) ;
 
-    group.unary("Testing $meters(v)", async(t) => {
+    group.unary("$meters() function", async(t) => {
         const v = 0.13 ;
         t.expect0($meters(0.13)).toBe("130.00 mm") ;
         t.expect1($meters(0.13, 0)).toBe("130 mm") ;
@@ -89,7 +89,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect9($meters(0, 1)).toBe("0.0 m") ;
     }) ;
 
-    group.unary("Testing $unit(v)", async(t) => {
+    group.unary("$unit() function", async(t) => {
         const volume = 0.0023 ;
         t.expect0($unit(volume, { unit:'l' })).toBe("2.30 ml") ;
         t.expect1(volume.unit({ unit:'l' })).toBe("2.30 ml") ;
@@ -109,7 +109,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectF($unit(0,{ unit:'l', minimalUnit:0, ignoreMinimalUnitDecimals:true })).toBe("0 l") ;
     }) ;
 
-    group.unary("Other methods", async(t) => {
+    group.unary("Other methods on numbers", async(t) => {
         const n = 1 ;
         const s = 13 ;
         const p = 32 ;

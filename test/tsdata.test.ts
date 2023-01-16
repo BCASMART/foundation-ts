@@ -31,7 +31,7 @@ export const dataGroups = [
         N.length = 10 ;
         Z.length = 0 ;
 
-        group.unary('verifying buffer creation, setData(), appendByte() and setting length', async (t) => {
+        group.unary('buffer creation, setData(), appendByte() and setting length', async (t) => {
             t.expect0(D.toString()).toBe(B.toString()) ;
             t.expect1(D).toBe(B) ;
             t.expect2(D1).toBe(B1) ;
@@ -41,14 +41,14 @@ export const dataGroups = [
             t.expect6(Z).toBe(Buffer.from('')) ;
         }) ;
 
-        group.unary('verifying TSData.slice()', async (t) => {
+        group.unary('TSData.slice()', async (t) => {
             t.expect0(D1.slice(0,10)).toBe(D) ;
             t.expect1(D1.slice(10)).toBe(SUP) ;
             t.expect2(D1.slice(100,100)).toBe(Buffer.from('')) ;
             t.expect3(D1.slice(10,100)).toBe(SUP) ;
         }) ;
 
-        group.unary('verifying TSData.indexof() and .lastIndexOf()', async(t) => {
+        group.unary('TSData.indexof() and TSData.lastIndexOf()', async(t) => {
             const partial = D.clone() ;
             const D8 =  TSData.fromString('01234567') ;
             if (t.expectY(D8).OK()) {
@@ -94,7 +94,7 @@ export const dataGroups = [
             }
         }) ;
 
-        group.unary('verifying TSData.compare()', async (t) => {
+        group.unary('TSData.compare()', async (t) => {
             t.expect0(N.compare(D)).toBe(Same) ;
             t.expect1(N).lt(D1) ;
             t.expect2(N).lte(D1) ;
@@ -104,7 +104,7 @@ export const dataGroups = [
             t.expect6(D).lte(N) ;
         }) ;
 
-        group.unary('verifying TSData.traillingFunctions()...', async (t) => {
+        group.unary('TSData.traillingFunctions()...', async (t) => {
             const WSS = TSData.fromString(b+FoundationBynaryStrictWhiteSpaces) ;
             const NL1 = TSData.fromString(b+FoundationBinaryNewLines) ;
 
@@ -133,7 +133,7 @@ export const dataGroups = [
             }
         }) ;
 
-        group.unary('verifying TSData.splice()', async (t) => {
+        group.unary('TSData.splice()', async (t) => {
             const s = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' ;
             const data = TSData.fromString('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ;
             const source = TSData.fromString('0123456789')
@@ -184,7 +184,7 @@ export const dataGroups = [
     }),
 
     TSTest.group("Testing data manipulations functions", async (group) => {
-        group.unary('Testing $bufferFromArrayBuffer() and $arrayBufferFromBytes()', async(t) => {
+        group.unary('$bufferFromArrayBuffer() and $arrayBufferFromBytes() functions', async(t) => {
             const a:Uint8Array = new Uint8Array([65,66,67,68]) ;
             const b = $bufferFromArrayBuffer(a) ;
             const c = Buffer.from("ABCD") ;

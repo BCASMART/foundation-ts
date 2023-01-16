@@ -188,24 +188,24 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectZ($isdate(undefined)).false() ;
     }) ;
 
-    group.unary("$keys(object) function", async(t) => {
+    group.unary("$keys() function", async(t) => {
         t.expect1($keys(DICT)).is(['a', 'b', 'c']) ;
         t.expect2($keys(DICT_B)).is(['a', 'd', 'e', 'f', 'g', 'h']) ;
         t.expect3($keys(DICT_C)).is(['a', 'd', 'e', 'f', 'g', 'h', 'c', 'b']) ;
     }) ;
 
-    group.unary("$dict(object, keys) function", async(t) => {
+    group.unary("$dict() function", async(t) => {
         t.expect1($dict(DICT, ['a', 'c'])).is(SUB) ;
         t.expect2($dict(DICT, ['a', 'c', 'd' as any])).is(SUB) ; // force TS to ignore 'd' because it knows this key is not in DICT
     }) ;
     
-    group.unary("$includesdict(object, dict, keys) function", async(t) => {
+    group.unary("$includesdict() function", async(t) => {
         t.expect1($includesdict(DICT, SUB)).true() ;
         t.expect2($includesdict(DICT, SUB, ['c'])).true() ;
         t.expect3($includesdict(DICT, SUB, ['a', 'd'])).true() ; // because 'd' key is absent on both dicts
     }) ;
     
-    group.unary("$fusion(objectA, objectB) function", async(t) => {
+    group.unary("$fusion() function", async(t) => {
         const [fusion1,] = $fusion(DICT, DICT_B) ; 
         t.expect1(fusion1).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
 
@@ -276,7 +276,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectC($UUID('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).null() ;
     }) ;
 
-    group.unary("$strings(...) function", async(t) => {
+    group.unary("$strings() function", async(t) => {
         t.expect0($strings()).is([]) ;
         t.expect1($strings(null)).is([]) ;
         t.expect2($strings(undefined)).is([]) ;
@@ -289,7 +289,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect9($strings(null, [], undefined, null,[])).is([]) ;
     }) ;
 
-    group.unary("functions $decodeBase64(s) and $encodeBase64()", async(t) => {
+    group.unary("$decodeBase64() and $encodeBase64() functions", async(t) => {
         const b64 = 'JVBERi0xLjQKJcKlwrEKCgoKMSAwIG9iagogIDw8IC9UeXBlIC9DYXRhbG9nCiAgICAgL1BhZ2VzIDIgMCBSCiAgPj4KZW5kb2JqCgoyIDAgb2JqCiAgPDwgL1R5cGUgL1BhZ2VzCiAgICAgL0tpZHMgWzMgMCBSXQogICAgIC9Db3VudCAxCiAgICAgL01lZGlhQm94IFswIDAgMzAwIDE0NF0KICA+PgplbmRvYmoKCjMgMCBvYmoKICA8PCAgL1R5cGUgL1BhZ2UKICAgICAgL1BhcmVudCAyIDAgUgogICAgICAvUmVzb3VyY2VzCiAgICAgICA8PCAvRm9udAogICAgICAgICAgIDw8IC9GMQogICAgICAgICAgICAgICA8PCAvVHlwZSAvRm9udAogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTEKICAgICAgICAgICAgICAgICAgL0Jhc2VGb250IC9UaW1lcy1Sb21hbgogICAgICAgICAgICAgICA+PgogICAgICAgICAgID4+CiAgICAgICA+PgogICAgICAvQ29udGVudHMgNCAwIFIKICA+PgplbmRvYmoKCjQgMCBvYmoKICA8PCAvTGVuZ3RoIDU1ID4+CnN0cmVhbQogIEJUCiAgICAvRjEgMTggVGYKICAgIDAgMCBUZAogICAgKEhlbGxvIFdvcmxkKSBUagogIEVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxOCAwMDAwMCBuIAowMDAwMDAwMDc3IDAwMDAwIG4gCjAwMDAwMDAxNzggMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAp0cmFpbGVyCiAgPDwgIC9Sb290IDEgMCBSCiAgICAgIC9TaXplIDUKICA+PgpzdGFydHhyZWYKNTY1CiUlRU9GCg==' ;
         const array = $decodeBase64(b64) ;
         t.expect0(array).is(Buffer.from(b64, 'base64')) ;

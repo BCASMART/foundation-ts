@@ -19,7 +19,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     const [H5,S5,B5] = realGray.hsb() ;
     const [H6,S6,B6] = rgbGray.hsb() ;
     
-    group.unary("verifying colors creation", async(t) => {
+    group.unary("TSColors creation", async(t) => {
         t.expect0(TSColor.rgb('ff0')).toBe(yellowRGB) ;
         t.expect1(TSColor.rgb('#ff0')).toBe(yellowRGB) ;
         t.expect2(TSColor.rgb('ffff00')).toBe(yellowRGB) ;
@@ -39,7 +39,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expectG(realGray.colorSpace).toBe(TSColorSpace.Grayscale) ;
     }) ;
 
-    group.unary("verifying colors similaryty", async(t) => {
+    group.unary("TSColors similaryty", async(t) => {
         t.expect0(yellowRGB.isSimilar(yellowRGB)).toBeTruthy() ;
         t.expect1(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy() ;
         t.expect2(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy() ;
@@ -55,7 +55,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expectC(realGray.isSimilar(rgbGray)).toBeTruthy() ;
     }) ;
 
-    group.unary("verifying colors conversion equality", async(t) => {
+    group.unary("TSColors conversion equality", async(t) => {
         t.expect0(yellowCMYK.toRGB()).toBe(yellowRGB) ;
         t.expect1(yellowRGB.toCMYK()).toBe(yellowCMYK) ;
         t.expect2(realGray.toCMYK()).toBe(cmykGray) ;
@@ -64,7 +64,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect5(rgbGray.toGrayscale()).toBe(realGray) ;
     }) ;
 
-    group.unary("verifying colors names", async(t) => {
+    group.unary("TSColors names", async(t) => {
         t.expect0(TSColor.rgb('red').name).toBe('red') ;
         t.expect1(TSColor.red.name).toBe('') ;
         t.expect2(TSColor.rgb('White').name).toBe('white') ;
@@ -82,7 +82,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expectE(TSColor.rgb("#7fffd4").name).toBe('aquamarine') ;
     }) ;
 
-    group.unary("verifying HSB/HSL components", async(t) => {
+    group.unary("TSColor HSB/HSL components", async(t) => {
         t.expect0([H1, S1, B1]).toBe([60,100,100]) ;
         t.expect1([H2, S2, L2]).toBe([60,100,50]) ;
         t.expect2([H3, S3, B3]).toBe([60,100,100]) ;
@@ -92,14 +92,14 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect6(realGray.gray).toBe(0.5) ;
         t.expect7(rgbGray.gray).toBe(0.5) ;
     }) ;
-    group.unary("verifying toAlpha(...) and toOpacity(...) methods", async(t) => {
+    group.unary("TSColor.toAlpha() and TSColor.toOpacity()", async(t) => {
         const yaRGB1 = yellowRGB.toAlpha(127 as uint8) ;
         const yaRGB2 = yellowRGB.toOpacity(0.5) ;
 
         t.expect0(yaRGB2).toBe(yaRGB1) ;
     }) ;
 
-    group.unary('luminosity and luminance', async(t) => {
+    group.unary('TSColor luminosity and luminance', async(t) => {
         const decimals = 2 ;
         const luminance = $round(0.15 + 0.295 + 0.055, decimals) ;
         const luminosity = $round(0.105 + 0.36 + 0.035, decimals) ;

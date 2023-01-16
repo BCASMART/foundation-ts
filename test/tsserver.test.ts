@@ -70,37 +70,37 @@ export const serverGroups = [
             }
             objects.push(ep);
         }
-        group.unary(`Testing api '/sessions/callBack'`, async (t) => {
+        group.unary(`api '/sessions/callBack'`, async (t) => {
             t.expect(objects[0]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid}/signature/{ssid}/updatestatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid}/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[1]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid/signature/{ssid}/updatestatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[2]).toBeUndefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid}}/signature/{ssid}/updatestatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid}}/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[3]).toBeUndefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[4]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/deleteStatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/deleteStatus'`, async (t) => {
             t.expect(objects[5]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, async (t) => {
+        group.unary(`api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[6]).toBeUndefined();
         });
-        group.unary(`Testing api '/v{vers}/session2/{sid}'`, async (t) => {
+        group.unary(`api '/v{vers}/session2/{sid}'`, async (t) => {
             t.expect(objects[7]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session2/{sid:date}'`, async (t) => {
+        group.unary(`api '/v{vers}/session2/{sid:date}'`, async (t) => {
             t.expect(objects[8]).toBeDefined();
         });
-        group.unary(`Testing api '/v{vers}/session2/{sid:identifier}'`, async (t) => {
+        group.unary(`api '/v{vers}/session2/{sid:identifier}'`, async (t) => {
             t.expect(objects[9]).toBeUndefined();
         });
-        group.unary(`Testing api '/v{vers}/session2/{sid:boolean}'`, async (t) => {
+        group.unary(`api '/v{vers}/session2/{sid:boolean}'`, async (t) => {
             t.expect(objects[10]).toBeDefined();
         });
     })
@@ -117,12 +117,12 @@ if (!$inbrowser()) {
             webSites:{ '/':localDirectory }
         } ;
         
-        group.unary('Testing unparametrized server launch', async(t) => {
+        group.unary('Unparametrized server launch', async(t) => {
             const e = await TSServer.start({}) ;
             t.expect(e instanceof TSError).toBeTruthy() ;
         }) ;
 
-        group.unary('Testing simple web page service', async (t) => {
+        group.unary('Simple web page service', async (t) => {
             t.register('options', options) ;            
             t.register('localDirectory', localDirectory) ;
             if (t.expect0(content).OK() && t.expect1(content!.length).gt(0)) {
@@ -139,7 +139,7 @@ if (!$inbrowser()) {
                 t.expectZ(stopped).toBeUndefined() ;    
             }
         }) ;
-        group.unary('Testing same page in HTTP/S', async (t) => {
+        group.unary('Same page in HTTP/S', async (t) => {
 
             /**
              * warning: this code directly put on axios defaults

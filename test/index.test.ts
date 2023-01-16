@@ -84,12 +84,12 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "fs", "fusion", "internals"]) ;
     const date = new TSDate() ;
     
-    group.unary("Testing tests list", async (t) => {
+    group.unary("tests list", async (t) => {
         t.expect0(tester.names.length).is(22) ;
         t.expect1(setA).is(setB) ;
     }) ;
     
-    group.unary("Testing toBeEmpty()", async (t) => {
+    group.unary("t.expect(...).toBeEmpty()", async (t) => {
         t.expect0([]).empty() ;
         t.expect1(new Set()).empty() ;
         t.expect2(new Map()).empty() ;
@@ -103,7 +103,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expectA([]).toBeEmpty() ;
     }) ;
 
-    group.unary("Testing toBeNotEmpty()", async (t) => {
+    group.unary("t.expect(...).toBeNotEmpty()", async (t) => {
         t.expect0(["eee"]).filled() ;
         t.expect1(new Set([1])).filled() ;
         t.expect2(new Map([['key', 1]])).filled() ;

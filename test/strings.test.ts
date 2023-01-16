@@ -6,7 +6,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
     const S1 = "Texte accentué avec ça et c'est shön";
     const S2 = "Texte accentue avec ca et c'est shon";
 
-    group.unary("verifying $ascii(s)", async(t) => {
+    group.unary("$ascii() function", async(t) => {
         t.expect1($ascii(S1)).toBe(S2) ;
         t.expect2($ascii(S1)).toBe(S2.ascii()) ;
         t.expect3($ascii('@&é"\'(§è!çà)-#1234567890°_•ë“‘{¶«¡Çø}—´„”’[å»ÛÁØ]–')).toBe('@&e"\'(e!ca)-#1234567890_.e"\'{"!Co}-""\'[a"UAO]-');
@@ -16,7 +16,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect7($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).toBe('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
         t.expect7('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú'.ascii()).toBe('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
     }) ;
-    group.unary("Testing $left() and $right() functions", async(t) => {
+    group.unary("$left() and $right() functions", async(t) => {
         t.expect1($left(S1)).toBe('T') ;
         t.expect2(S1.left()).toBe('T') ;
         t.expect3($right(S1)).toBe('n') ;
@@ -30,7 +30,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectB($right(S1, 160)).toBe(S1) ;
         t.expectC(S1.right(160)).toBe(S1) ;
     }) ;
-    group.unary("Testing trim functions", async(t) => {
+    group.unary("$trim(), $rtrim(), $ltrim() functions", async(t) => {
         const w = "TEST ME, I'M A CENTRAL\u0009PHRASE" ;
         const a = FoundationWhiteSpaces+w+FoundationWhiteSpaces ;
         t.expect0($rtrim(a)).toBe(FoundationWhiteSpaces+w) ;
@@ -54,7 +54,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectI(a.ltrim()).toBe(w+FoundationWhiteSpaces) ;
     }) ;
 
-    group.unary("Testing function $normspaces(v)", async(t) => {
+    group.unary("$normspaces() function", async(t) => {
         const str = FoundationWhiteSpaces+"I'm "+FoundationWhiteSpaces+"a super"+FoundationWhiteSpaces+" function"+FoundationWhiteSpaces ;
         t.expect0($normspaces(str)).toBe("I'm a super function") ;
         t.expect1($normspaces("")).toBe("") ;
@@ -63,7 +63,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect4(str.normalizeSpaces()).toBe("I'm a super function") ;
     }) ;
 
-    group.unary("Testing x.isWhiteSpace() methods", async(t) => {
+    group.unary("string.isWhiteSpace() method", async(t) => {
         const n = FoundationWhiteSpaces.length ;
         for (let i = 0 ; i < n ; i++) {
             t.expect(FoundationWhiteSpaces.charAt(i).isWhiteSpace(),'Sws'+i).toBeTruthy() ;
@@ -82,7 +82,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectF('\n'.isStrictWhiteSpace()).toBeFalsy() ;
     }) ;
 
-    group.unary("Testing x.isNewLine() methods", async(t) => {
+    group.unary("string.isNewLine() method", async(t) => {
         const NLS = FoundationNewLines ;
         const n = NLS.length ;
         for (let i = 0 ; i < n ; i++) {
@@ -104,7 +104,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectE('\t'.isNewLine()).toBeFalsy() ;
     }) ;
 
-    group.unary("Testing functions $firstcap(v) && $capitalize(v)", async(t) => {
+    group.unary("$firstcap() && $capitalize() functions", async(t) => {
         const str = " , jean-françois is my !!friend. yes!" ;
         t.expect0($firstcap(str)).toBe(" , Jean-françois is my !!friend. yes!") ;
         t.expect1($capitalize(str)).toBe(" , Jean-François Is My !!Friend. Yes!") ;
@@ -116,7 +116,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect7(str.capitalize()).toBe(" , Jean-François Is My !!Friend. Yes!") ;
     }) ;
 
-    group.unary("Testing function $lines(s)", async(t) => {
+    group.unary("$lines() function", async(t) => {
         const str = `  Testing \n\tsplit ${FoundationNewLines}function` ;
         const fnla:string[] = [] ;
         for (let i = 0 ; i < FoundationNewLines.length - 1 ; i++) { fnla.push("") ; }
@@ -141,7 +141,7 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expectG($lines('\u000d\u000a\u000d\u000d\u000aB\u000a\u000d\u000a\u000d\u2028C\u000d\u000a')).toBe(["", "", "", "B", "", "", "", "C", ""]) ;
     }) ;
 
-    group.unary("Other methods", async(t) => {
+    group.unary("Other methods on strings", async(t) => {
         t.expect0("1".singular()).true() ;
         t.expect1("\r".isNewLine()).true() ;
         t.expect2("1".isNewLine()).false() ;

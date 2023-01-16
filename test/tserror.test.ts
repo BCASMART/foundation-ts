@@ -13,7 +13,7 @@ class A {
 }
 
 export const errorsGroups = TSTest.group("Error classes en functions tests", async (group) => {
-    group.unary('verifying $subclassReponsabililty(instance, method)', async (t) => {
+    group.unary('$subclassReponsabililty() function', async (t) => {
         const identifier = $uuid() ;
         const instance = new A(identifier) ;
         let info:AnyDictionary|undefined = undefined ;

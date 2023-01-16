@@ -96,7 +96,7 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
 
 
 
-    group.unary("Testing terminal functions()", async (t) => {
+    group.unary("$term() && $termclean() functions()", async (t) => {
         if ($inbrowser()) {
             t.expect0($term(vl)).toBe(v0);
             t.expect0($term(vl2)).toBe(v0);
@@ -110,6 +110,7 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         t.expect4($termclean(v3)).toBe(v4);
         t.expect5($termclean(v5)).toBe(v6);
     });
+
     group.description("==========================================");
     if ($inbrowser()) {
         group.description("Utils functions test is running in browser");
@@ -120,7 +121,7 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         group.description("==========================================");
 
         // we don't run this test in browser mode because $insp() and $inspect() are the same in this context
-        group.unary("Testing $insp() function", async (t) => {
+        group.unary("$insp() function", async (t) => {
             t.expect($insp(tree).normalizeSpaces()).toBe(inspect(tree, false, 10).normalizeSpaces());
             t.description("-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.");
         });

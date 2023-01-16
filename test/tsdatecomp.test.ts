@@ -10,7 +10,7 @@ export const dateCompGroups = [
         const A:TSDurationComp = { days:3 as uint, hours:2 as uint, minutes:25 as uint, seconds: 10 as uint} ;
     
     
-        group.unary('verifying $durationcomponents()', async (t) => {
+        group.unary('$durationcomponents() function', async (t) => {
             t.expect0(Z).toBeDefined() ;
             t.expect1(Z.days).toBe(0) ;
             t.expect2(Z.hours).toBe(0) ;
@@ -34,7 +34,7 @@ export const dateCompGroups = [
         const G:TSDurationComp = { days:0 as uint, hours:0 as uint, minutes:25 as uint, seconds: 0 as uint} ;
         const H:TSDurationComp = { days:0 as uint, hours:0 as uint, minutes:0 as uint, seconds: 10 as uint} ;
     
-        group.unary('verifying standard format', async (t) => {
+        group.unary('Date standard format', async (t) => {
             t.expect0($duration2String(A)).toBe("3-02:25:10") ;
             t.expect1($duration2String(B)).toBe("02:25:10") ;
             t.expect2($duration2String(D)).toBe("02:25") ;
@@ -47,7 +47,7 @@ export const dateCompGroups = [
     
         const F1 = "%(%d jours%[, %]%)%[%≤%h heures%≥%<%≤%{,%b et%} %≥%m minutes%{ et %s secondes%}%>%]" ;
     
-        group.unary('Verifying complex format', async (t) => {
+        group.unary('Date complex format', async (t) => {
         
             t.register('format', F1) ;
             t.expect0($duration2String(A, F1)).toBe("3 jours, 2 heures, 25 minutes et 10 secondes") ;
@@ -61,7 +61,7 @@ export const dateCompGroups = [
             t.expect8($duration2String(Z, F1)).toBe("") ; 
         }) ;
     }),
-    TSTest.group("Testing complex iso string output function", async (group) => {
+    TSTest.group("Complex iso string output function", async (group) => {
         const C = TSDate.zulu().toComponents() ;
         const s = $components2StringWithOffset(C, {
             milliseconds:0 as uint,
@@ -71,7 +71,7 @@ export const dateCompGroups = [
             milliseconds:0 as uint,
         }) ;
     
-        group.unary(`Verifying milliseconds output"`, async (t) => {
+        group.unary(`Milliseconds output"`, async (t) => {
             const p = s.lastIndexOf('.') ;
             t.expect0(s.slice(p)).toBe('.000Z') ;
             t.expect1(s2.slice(p)).toBe('.000+00:00') ;

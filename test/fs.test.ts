@@ -142,7 +142,7 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expectL($absolute('toto/tata/tutu')).is($path(curdir, 'toto', 'tata', 'tutu')) ;
                 t.expectM($absolute('toto/tata/tutu/')).is($path(curdir, 'toto', 'tata', 'tutu')+sep) ;
             }) ;
-            group.unary('testing $createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
+            group.unary('$createdirectory(), $...writeString(), $readstring(), $isreadable()... functions', async (t) => {
                 const folder = $absolute($path('tdist', 'output')) ;
                 t.register("Folder", folder) ;
                 t.expect0($createDirectory(folder)).true() ;

@@ -241,7 +241,7 @@ export const dateGroups = [
         group.unary('d.isEqual(=other date)', async (t) => { t.expect(D.isEqual(E)).toBeTruthy() ; }) ;
         group.unary('d.isEqual(<date)', async (t) => { t.expect(!D.isEqual(D.firstDateOfYear())).toBeTruthy() ; }) ;
 
-        group.unary('Testing ISOString compatibility', async(t) => {
+        group.unary('ISOString compatibility', async(t) => {
             const RD = new Date(Date.UTC(1945,4,8,23,1,0)) ;
             const ref = RD.toISOString() ;
             t.expect0(D.toISOString()).toBe(ref) ;
