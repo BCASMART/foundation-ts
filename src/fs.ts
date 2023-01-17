@@ -428,60 +428,69 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
         const pathToWrite = opts.attomically ? $uniquefile(src) : src!;
         end = Math.min(end!, buf.byteLength);
         start = Math.min(start!, end);
+        const stats = $stats(src) ;
 
-        // never move the next line of code before this point because 
-        // TSData.byteLength may be different from its internal storage buffer length
-        // warning: this method works because it's not async so we can
-        // consider that TSData is immutable during this scope
-        if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage; }
+        if (!$ok(stats) || stats?.isFile()) {
+            // never move the next line of code before this point because 
+            // TSData.byteLength may be different from its internal storage buffer length
+            // warning: this method works because it's not async so we can
+            // consider that TSData is immutable during this scope
+            if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage; }
 
-        try {
-            const fd = openSync(pathToWrite, 'w', mode);
-            const MAX_TRY = 3;
             try {
-                let retries = 0;
-                while (start < end) {
-                    const wlen = writeSync(fd, buf, start, end - start);
-                    if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
-                    if (retries > MAX_TRY) {
-                        throw new TSError(`$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.`, {
-                            path: src,
-                            buffer: buf,
-                            options: opts
-                        });
+                const fd = openSync(pathToWrite, 'w', mode);
+                const MAX_TRY = 3;
+                try {
+                    let retries = 0;
+                    while (start < end) {
+                        const wlen = writeSync(fd, buf, start, end - start);
+                        if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
+                        if (retries > MAX_TRY) {
+                            throw new TSError(`$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.`, {
+                                path: src,
+                                buffer: buf,
+                                options: opts
+                            });
+                        }
+                        start += wlen;
                     }
-                    start += wlen;
+                    done = true;
                 }
-                done = true;
-            }
-            finally {
-                closeSync(fd);
-            }
-        }
-        catch (e) {
-            done = false;
-        }
-
-        if (done && opts.attomically) {
-            const renamedExistingFile = $uniquefile(src);
-            done = _safeRename(src!, renamedExistingFile);
-            if (done && !_safeRename(pathToWrite, src!)) {
-                // we immediately try to give back its name to our original file
-                if (!_safeRename(renamedExistingFile, src!)) {
-                    // we should have been able to give our initial file its original name back
-                    // but we could'nt do it, so, in this very hypothetical case, we will not
-                    // destroy anything and will throw an Error will all the info in it 
-                    throw new TSError(`Unable to atomically finish writing file '${src}'`, {
-                        wantedPath: src,
-                        renamedExistingFile: renamedExistingFile,
-                        writtenDataFile: pathToWrite
-                    });
+                finally {
+                    closeSync(fd);
                 }
+            }
+            catch (e) {
                 done = false;
             }
-            if (!done) { _safeUnlink(pathToWrite); } // we may let a newly created temporary file here if unlink does not succeed
-            else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile); }
-            else { precedent = renamedExistingFile; }
+        }
+
+        if (done && opts.attomically) {    
+            if ($ok(stats)) {
+                const renamedExistingFile = $uniquefile(src);
+                done = _safeRename(src!, renamedExistingFile);
+                if (done && !_safeRename(pathToWrite, src!)) {
+                    // we immediately try to give back its name to our original file
+                    if (!_safeRename(renamedExistingFile, src!)) {
+                        // we should have been able to give our initial file its original name back
+                        // but we could'nt do it, so, in this very hypothetical case, we will not
+                        // destroy anything and will throw an Error will all the info in it 
+                        throw new TSError(`Unable to atomically finish writing file '${src}'`, {
+                            wantedPath: src,
+                            renamedExistingFile: renamedExistingFile,
+                            writtenDataFile: pathToWrite
+                        });
+                    }
+                    done = false;
+                }
+                if (!done) { _safeUnlink(pathToWrite); } // we may let a newly created temporary file here if unlink does not succeed
+                else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile); }
+                else { precedent = renamedExistingFile; }
+            }
+            else {
+                done = _safeRename(pathToWrite, src!) ;
+                if (!done) { _safeUnlink(pathToWrite); } // we may let a newly created temporary file here if unlink does not succeed
+            }
         }
     }
     return [done, precedent];

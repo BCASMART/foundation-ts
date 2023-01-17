@@ -1,5 +1,5 @@
 import { $defined, $length, $ok } from '../src/commons';
-import { $absolute, $createDirectory, $currentdirectory, $dir, $ext, $filename, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeString } from '../src/fs';
+import { $absolute, $createDirectory, $currentdirectory, $dir, $ext, $filename, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeBuffer, $writeString } from '../src/fs';
 import { TSTest, TSTestGroup } from '../src/tstester';
 import { Nullable } from '../src/types';
 import { $inbrowser, $logterm } from "../src/utils";
@@ -148,27 +148,33 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expect0($createDirectory(folder)).true() ;
                 t.expect1($isdirectory(folder)).true() ;
                 t.expect2($isfile(folder)).toBeFalsy() ;
-                const str = "Sursum" ;
+
+                const fileb = $path(folder, 'sc0.txt') ;
+                const source = Buffer.from([0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39]) ;
+                t.expect3($writeBuffer(fileb, source, { attomically:true })).true() ;
+                t.expect4($readString(fileb)).toBe('0123456789') ;
+
+                const str = "Sursum" ;                
                 const file = $path(folder, 'sc.txt') ;
-                t.expect3($writeString(file, str)).true() ;
-                t.expect4($readString(file)).is(str) ;
+                t.expectA($writeString(file, str)).true() ;
+                t.expectB($readString(file)).is(str) ;
                 const str2 = str + ' Corda' ;
                 const [wres2, prec2] = $fullWriteString(file,  str2, { attomically:true, removePrecedentVersion:true }) ;
-                t.expect5(wres2).true() ;
-                t.expect6(prec2).toBeNull() ;
-                t.expect7($readString(file)).is(str2) ;
+                t.expectC(wres2).true() ;
+                t.expectD(prec2).toBeNull() ;
+                t.expectE($readString(file)).is(str2) ;
         
                 const str3 = str2 + ' 2' ;
                 const [wres3, prec3] = $fullWriteString(file,  str3, { attomically:true }) ;
                 const memhash = $hash(str3) ;
                 const hash = await $hashfile(file) ;
-                t.expect8(wres3).true() ;
-                t.expect9($length(prec3)).gt(0) ;
-                t.expectA($readString(file)).is(str3) ;
-                t.expectB($readString(prec3)).is(str2) ;
-                t.expectC($isreadable(file)).true() ;
-                t.expectD($iswritable(file)).true() ;
-                t.expectE(hash).is(memhash) ;
+                t.expectF(wres3).true() ;
+                t.expectG($length(prec3)).gt(0) ;
+                t.expectH($readString(file)).is(str3) ;
+                t.expectI($readString(prec3)).is(str2) ;
+                t.expectJ($isreadable(file)).true() ;
+                t.expectK($iswritable(file)).true() ;
+                t.expectL(hash).is(memhash) ;
             }) ;    
     
         })) ;
