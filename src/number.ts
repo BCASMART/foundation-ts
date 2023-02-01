@@ -89,9 +89,10 @@ declare global {
         round:              (this:number, decimalPlaces?:number) => number ;
         singular:           (this:number) => boolean ;
         toDate:             (this:number) => Date|null ;
-        toHex2:             (this:number, toLowerCase?:boolean) => string ;
-        toHex4:             (this:number, toLowerCase?:boolean) => string ;
-        toHex8:             (this:number, toLowerCase?:boolean) => string ;
+        toHex1:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
+        toHex2:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
+        toHex4:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
+        toHex8:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
         toInt:              (this:number, defaultValue?:int) => int ;
         toTSDate:           (this:number) => TSDate|null ;
         toUnsigned:         (this:number, defaultValue?:uint) => uint ;
@@ -117,19 +118,23 @@ Number.prototype.octets             = function octets(this:number, decimalPlaces
 Number.prototype.round              = function round(this:number, decimalPlaces?:number) { return $round(this, decimalPlaces) ; }
 Number.prototype.singular           = function singular(this:number) { return this === 1 ; }
 Number.prototype.toDate             = function toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; }
-Number.prototype.toHex2             = function toHex2(this:number, toLowerCase:boolean = false) {
+Number.prototype.toHex1             = function toHex1(this:number, toLowerCase?:Nullable<boolean>) {
+    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
+    return r[this.toUnsigned() & 0x0F]
+}
+Number.prototype.toHex2             = function toHex2(this:number, toLowerCase?:Nullable<boolean>) {
     const n = this.toUnsigned() ;
-    const r = toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
+    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
-Number.prototype.toHex4             = function toHex4(this:number, toLowerCase:boolean = false) {
+Number.prototype.toHex4             = function toHex4(this:number, toLowerCase?:Nullable<boolean>) {
     const n = this.toUnsigned() ;
-    const r = toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
+    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
-Number.prototype.toHex8             = function toHex8(this:number, toLowerCase:boolean = false) {
+Number.prototype.toHex8             = function toHex8(this:number, toLowerCase?:Nullable<boolean>) {
     const n = this.toUnsigned() ;
-    const r = toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
+    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>28) & 0xF]+r[(n>>24) & 0xF]+r[(n>>20) & 0xF]+r[(n >> 16) & 0xF]+r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
 Number.prototype.toInt              = function toInt(this:number, defaultValue?:int) { return $toint(this, defaultValue) ; }

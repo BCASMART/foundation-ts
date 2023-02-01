@@ -234,7 +234,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this._index(data!, i as uint) === i ;
     }
 
-    public indexOf(value:Nullable<TSDataLike | number>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
+    public indexOf(value:Nullable<TSDataLike | number | string>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
         if (!$ok(value) || !this._len) { return - 1 ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return -1 ; }
 
@@ -242,7 +242,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     
-    public lastIndexOf(value:Nullable<TSData | number | Uint8Array>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
+    public lastIndexOf(value:Nullable<TSDataLike | number | Uint8Array>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
         if (!$ok(value) || !this._len) { return - 1 ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return -1 ; }
 

@@ -262,7 +262,7 @@ export class TSFusionTreeNode {
                             const a = $iscollection(v) ? v.getItems() : ($ismethod(v, 'fusionEnumeration') ? v.fusionEnumeration() : [v]) ;
                             const acount = $length(a) ;
                             for (let j = 0 ; j < acount ; j++) {
-                                node._fusion(template, globalContext, [...stack, a[j]], [...localStack, a[j]._localContext], {...systemContext, count:acount, index:j, position:j+1, remaining:count-j-1}, procedures, errors) ;
+                                node._fusion(template, globalContext, [...stack, a[j]], [...localStack, a[j]._localContext], {...systemContext, count:acount, index:j, position:j+1, remaining:acount-j-1}, procedures, errors) ;
                             }
                         }
                         break ;

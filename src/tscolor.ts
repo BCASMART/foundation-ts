@@ -4,7 +4,7 @@ import { $round } from "./number";
 import { $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
+import { Comparison, Nullable, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
 
 
 
@@ -18,10 +18,11 @@ import { Comparison, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX,
  * cmykComponents()
  */
 export interface TSColorToStringOptions {
-    removeAlpha?:true ;
-    shortestCSS?:true ;
-    rgbaCSSLike?:true ;
-    colorSpace?:TSColorSpace ;
+    removeAlpha?:Nullable<boolean> ;
+    uppercase?:Nullable<boolean>;
+    shortestCSS?:Nullable<boolean> ;
+    rgbaCSSLike?:Nullable<boolean> ;
+    colorSpace?:Nullable<TSColorSpace> ;
 }
 
 /**
@@ -44,6 +45,8 @@ export enum TSToGrayScaleMode {
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
+// TODO: assert a better conversion between [0 .. 255] to [0 .. 1.0] components
+//       and same thing for opacity
 export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public readonly colorSpace:TSColorSpace ;
     private _channels:number[] ;
@@ -267,10 +270,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             $round(v * 100)
         ] ;     
     }
-
-
-
-
+    
     public toAlpha(newAlpha:uint8):TSColor {
         if (!$isunsigned(newAlpha, 0xFF)) {
             throw new TSError(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;
@@ -378,23 +378,23 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             const [R,G,B] = this.rgb() ;
             const alpha = this.alpha ;
 
-            if (this.alpha === 255 || opts.removeAlpha) {
-                if (opts.shortestCSS && _isShortRGB(R,G,B)) {
-                    return _colorToShortCSS(R,G,B) ;
+            if ((this.alpha === 255 && !opts.rgbaCSSLike)  || !!opts.removeAlpha) {
+                if (!!opts.shortestCSS && _isShortRGB(R,G,B)) {
+                    return _colorToShortCSS(R, G, B, opts.uppercase) ;
                 }
-                return _colorToStandardCSS(R,G,B) ;
+                return _colorToStandardCSS(R, G, B, undefined, opts.uppercase) ;
             }
-            if (opts.rgbaCSSLike) {
-                return _colorToStandardCSS(R,G,B,alpha)
+            if (!!opts.rgbaCSSLike) {
+                return _colorToStandardCSS(R, G, B, alpha, opts.uppercase)
             }
             return `rgba(${R},${G},${B},${this.opacity})` ;
         }
         opacity = this.opacity ;
         const [C,M,Y,K] = this.cmykComponents() ;
         if (colorSpace === TSColorSpace.Grayscale) {
-            return opacity === 1 || opts.removeAlpha ? `gray(${1-K})` : `gray(${1-K}, ${opacity})`
+            return opacity === 1 || !!opts.removeAlpha ? `gray(${1-K})` : `gray(${1-K}, ${opacity})`
         }
-        return opacity === 1 || opts.removeAlpha ? `cmyk(${C}, ${M}, ${Y}, ${K})` : `cmyka(${C}, ${M}, ${Y}, ${K}, ${opacity})`
+        return opacity === 1 || !!opts.removeAlpha ? `cmyk(${C},${M},${Y},${K})` : `cmyka(${C},${M},${Y},${K},${opacity})`
     }
 
 	public toJSON(): any {
@@ -681,22 +681,18 @@ function _isShortRGB(R:uint8, G:uint8, B:uint8) {
            (B >> 4 & 0x0f) === (B & 0x0f) ;
 }
 
-function _colorToShortCSS(R:uint8, G:uint8, B:uint8):string {
-    return `#${(R & 0x0f).toString(16)}${(G & 0x0f).toString(16)}${(B & 0x0f).toString(16)}` ;
+function _colorToShortCSS(R:uint8, G:uint8, B:uint8, uppercase?:Nullable<boolean>):string {
+    const lc = !uppercase ;
+    return `#${R.toHex1(lc)}${G.toHex1(lc)}${B.toHex1(lc)}` ;
 }
 export interface TSColorConstructor {
     new (colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string): TSColor;
 }
 
-function _colorToStandardCSS(R:uint8, G:uint8, B:uint8, A?:uint8):string {
-    function _toHex(v: number): string {
-        const s = v.toString(16);
-        return v >= 16 ? s : "0" + s;
-    }
-    if ($ok(A)) {
-        return `#${_toHex(R)}${_toHex(G)}${_toHex(B)}${_toHex(A!)}`;
-    }
-    return `#${_toHex(R)}${_toHex(G)}${_toHex(B)}` ;
+function _colorToStandardCSS(R:uint8, G:uint8, B:uint8, A?:Nullable<uint8>, uppercase?:Nullable<boolean>):string {
+    const lc = !uppercase ;
+    return $ok(A) ? `#${R.toHex2(lc)}${G.toHex2(lc)}${B.toHex2(lc)}${A!.toHex2(lc)}`
+                  : `#${R.toHex2(lc)}${G.toHex2(lc)}${B.toHex2(lc)}`
 }
 
 interface _StringColorRegex {

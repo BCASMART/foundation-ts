@@ -129,7 +129,16 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         }
 
     }) ;
-
+    group.unary("System vars", async(t) => {
+        const s = "{{items#:[{{_index}},{{_position}},{{_count}},{{_remaining}}]\n}}" ;
+        const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
+        if (t.expect0(template).OK()) {
+            let errors:string[] = [] ;
+            const res = template?.fusionWithDataContext({items:["one", "two", "three", "four"]}, glob, errors) ;
+            t.register('errors', $inspect(errors)) ;
+            t.expect1(res).is("[0,1,4,3]\n[1,2,4,2]\n[2,3,4,1]\n[3,4,4,0]\n") ;
+        }
+    }) ;
     group.unary("Simple vars replacement with parameters", async(t) => {
         const D = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
         const context = {

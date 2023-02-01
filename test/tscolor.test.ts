@@ -114,4 +114,14 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect7(rgbGray.luminosity.round(decimals)).toBe(luminosity) ;
         t.expect8(cmykGray.luminosity.round(decimals)).toBe(luminosity) ;
     }) ;
+
+    group.unary('TSColor toString()', async(t) => {
+        t.expect0(yellowRGB.toString()).toBe('#ffff00') ;
+        t.expect1(yellowRGB.toString({ uppercase:true})).toBe('#FFFF00') ;
+        t.expect2(yellowCMYK.toString({ uppercase:true, colorSpace:TSColorSpace.RGB})).toBe('#FFFF00') ;
+        t.expect3(yellowCMYK.toString({ uppercase:true, colorSpace:TSColorSpace.RGB, shortestCSS:true})).toBe('#FF0') ;
+        t.expect4(yellowCMYK.toString()).toBe('cmyk(0,0,1,0)') ;
+        t.expect5(yellowRGB.toString({ rgbaCSSLike:true })).toBe('#ffff00ff') ;
+        t.expect6(yellowRGB.toOpacity(0.5).toString({ rgbaCSSLike:true })).toBe('#ffff007f') ;
+    }) ;
 }) ;
