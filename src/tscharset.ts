@@ -1,6 +1,6 @@
 
 import { $count, $encoding, $isproperty, $isstring, $length, $lse, $ok, $toint, $value } from './commons';
-import { $bufferFromArrayBuffer, $bufferFromBytes, $bytesFromBytes, $uint8ArrayFromBytes } from './data';
+import { $arrayFromBytes, $bufferFromBytes, $bytesFromDataLike, $uint8ArrayFromBytes } from './data';
 import { FoundationEncodingsAliases } from './string_tables';
 import TSCharsetDefinitions from './tscharsets.json' ;
 import { TSData } from './tsdata';
@@ -92,9 +92,12 @@ export abstract class TSCharset {
     }
 
     // TODO: a static method to detect the charset from a raw buffer...
-    public abstract stringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string ;
+    public abstract stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string ;
     public abstract stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes ;
 
+    public stringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
+        return this.stringFromBytes($bytesFromDataLike(source), sourceStart, sourceEnd)
+    }
     public bufferFromString(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Buffer {
         return $bufferFromBytes(this.stringToBytes(source, sourceStart, sourceEnd)) ;
     }
@@ -104,7 +107,7 @@ export abstract class TSCharset {
     }
 
     public bytesFromString(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):uint8[] {
-        return $bytesFromBytes(this.stringToBytes(source, sourceStart, sourceEnd)) ;
+        return $arrayFromBytes(this.stringToBytes(source, sourceStart, sourceEnd)) ;
     }
 
     // @ts-ignore
@@ -142,6 +145,7 @@ class TSLoadedCharset extends TSCharset {
             }
         }
     }
+
     public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes
     {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
@@ -155,18 +159,18 @@ class TSLoadedCharset extends TSCharset {
         return ret ;
     }
 
-    public stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
-        let source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
-        let target = '' ;
+    public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string
+    {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
-    
+        let target = ''
+
         if (start < end) {
-            if (source instanceof TSData) { [source,] = source.internalStorage ; }
             for (let i = start ; i < end ; i++) {
                 const s = this._toUnicodeTable[source[i]] ;
                 if (s) { target += s ; }
             }
         }
+
         return target ;
     }
 
@@ -183,14 +187,22 @@ export class TSSystemCharset extends TSCharset {
         return [] ;
     }
 
-    public stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
-        let source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
+    private _stringFromBuffer(source:Buffer, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
-            const data = source instanceof TSData ? source.mutableBuffer : $bufferFromBytes(source) ;
-            return (data as Buffer).toString($encoding(this.name as StringEncoding), start, end) ;
+            return source.toString($encoding(this.name as StringEncoding), start, end) ;
         }
         return '' ;
+    }
+    
+    public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
+        return this._stringFromBuffer($bufferFromBytes(source), sourceStart, sourceEnd) ;
+    }
+
+    public stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
+        if (src instanceof Buffer) { return this._stringFromBuffer(src, sourceStart, sourceEnd) ; }
+        else if (src instanceof TSData) { return this._stringFromBuffer(src.mutableBuffer, sourceStart, sourceEnd) ; }
+        else { return this._stringFromBuffer($bufferFromBytes(src as Bytes), sourceStart, sourceEnd) ; }
     }
 }
 

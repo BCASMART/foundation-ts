@@ -44,6 +44,7 @@ import { rangeSetGroups } from './tsrangeset.test';
 import { requestGroups } from './tsrequest.test';
 import { serverGroups } from './tsserver.test';
 import { utilsGroups } from './utils.test';
+import { decoratorGroups } from './decorators.test';
 
 const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
@@ -71,13 +72,13 @@ tester.addGroups(qualifierGroups,   "qualifiers") ;
 tester.addGroups(errorsGroups,      "errors") ;
 tester.addGroups(fsGroups,          "fs") ;
 tester.addGroups(fusionGroups,      "fusion") ;
-
+tester.addGroups(decoratorGroups,   "decorators") ;
 
 tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
     const setB = new Set([
         "commons", "strings", "numbers", "arrays", 
-        "compare", "countries", "crypto", "dates", 
+        "compare", "countries", "crypto", "dates", "decorators",
         "defaults", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
@@ -85,7 +86,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {
-        t.expect0(tester.names.length).is(22) ;
+        t.expect0(tester.names.length).is(23) ;
         t.expect1(setA).is(setB) ;
     }) ;
     

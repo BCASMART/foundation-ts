@@ -3,26 +3,22 @@ import { TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
 import { Bytes, Nullable, TSDataLike, uint8 } from "./types";
 
-export function $bufferFromArrayBuffer(a: ArrayBuffer): Buffer {
-    return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a);
+export interface DataConversionOptions {
+    start?:Nullable<number>,
+    end?:Nullable<number>,
+    forceCopy?:Nullable<boolean>
 }
 
-export function $bytesFromBytes(source:Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): uint8[]
-{
-    const [sourceLen, start, end,] = $lse(source, sourceStart, sourceEnd) ;    
-    if ((source instanceof Array<uint8>)) { 
-        return start === 0 && end === sourceLen ? source : source.slice(start, end) ;
-    }
-    const ret:uint8[] = [] ;
-    for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i] as uint8 ; }
-    return ret ;
-}
+// ===================== conversions to Buffer ==============================
 
-export function $bufferFromBytes(source:Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): Buffer
-{
-    const [sourceLen, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
+export function $bufferFromArrayBuffer(a: ArrayBuffer): Buffer 
+{ return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a); }
 
-    if (source instanceof Buffer) {
+export function $bufferFromBytes(source:Bytes, opts:DataConversionOptions = {}): Buffer
+{
+    const [sourceLen, start, end, len] = $lse(source, opts.start, opts.end) ;
+
+    if (!opts.forceCopy && source instanceof Buffer) {
         return start === 0 && end === sourceLen ? source : source.subarray(start, end) ;
     }
     else if (start === 0 && end === sourceLen) { return Buffer.from(source) ; }
@@ -30,13 +26,22 @@ export function $bufferFromBytes(source:Bytes, sourceStart?: Nullable<number>, s
     const ret = Buffer.allocUnsafe(len) ;
     for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i]; }
     return ret ;
-
 }
 
-export function $uint8ArrayFromBytes(source:Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): Uint8Array
+export function $bufferFromDataLike(source:TSDataLike, options?:DataConversionOptions): Buffer
 {
-    const [sourceLen, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
-    if (source instanceof Uint8Array && !(source instanceof Buffer)) {
+    const [src, opts] = _toBytesOpts(source, options) ;
+    return $bufferFromBytes(src, opts) ;
+}
+
+// ===================== conversions to Uint8Array ==============================
+
+export { $bufferFromArrayBuffer as $uint8ArrayFromArrayBuffer }
+
+export function $uint8ArrayFromBytes(source:Bytes, opts:DataConversionOptions = {}): Uint8Array
+{
+    const [sourceLen, start, end, len] = $lse(source, opts.start, opts.end) ;
+    if (!opts.forceCopy && (source instanceof Uint8Array || source instanceof Buffer)) {
         return start === 0 && end === sourceLen ? source : source.subarray(start, end) ;
     }
     const ret = new Uint8Array(len);
@@ -44,18 +49,47 @@ export function $uint8ArrayFromBytes(source:Bytes, sourceStart?: Nullable<number
     return ret ;
 }
 
-export function $uint8ArrayFromDataLike(source:TSDataLike, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): Uint8Array
+export function $uint8ArrayFromDataLike(source:TSDataLike, options?:DataConversionOptions): Uint8Array
 {
-    return source instanceof ArrayBuffer ?
-            $uint8ArrayFromBytes($bufferFromArrayBuffer(source), sourceStart, sourceEnd) :
-            (source instanceof TSData ? 
-                source.toUint8Array(sourceStart, sourceEnd) :
-                $uint8ArrayFromBytes(source as Bytes, sourceStart, sourceEnd)
-            ) ;
+    const [src, opts] = _toBytesOpts(source, options) ;
+    return $uint8ArrayFromBytes(src, opts) ;
 }
 
-export function $arrayBufferFromBytes(source: Bytes, sourceStart?: Nullable<number>, sourceEnd?: Nullable<number>): ArrayBuffer {
-    const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
+// ===================== conversions to Bytes ==============================
+export { $bufferFromArrayBuffer as $bytesFromArrayBuffer }
+
+export function $bytesFromDataLike(source:TSDataLike, opts:DataConversionOptions = {}): Bytes
+{
+    if (source instanceof TSData || source instanceof ArrayBuffer) { return $bufferFromDataLike(source, opts) ; }
+    
+    return !opts.forceCopy ? source as Bytes : $bufferFromDataLike(source, opts) ;
+}
+
+// ===================== conversions to array of uint8[] ==============================
+
+export function $arrayFromBytes(source:Bytes, opts:DataConversionOptions = {}): uint8[]
+{
+    const [sourceLen, start, end,] = $lse(source, opts.start, opts.end) ;
+
+    if (!opts.forceCopy && !(source instanceof Uint8Array) && !(source instanceof Buffer)) {
+        return start === 0 && end === sourceLen ? source : source.slice(start, end) ;
+    }
+    const ret:uint8[] = [] ;
+    for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i] as uint8 ; }
+    return ret ;
+}
+
+export function $arrayFromDataLike(source:TSDataLike, options?:DataConversionOptions): uint8[]
+{
+    const [src, opts] = _toBytesOpts(source, options) ;
+    return $arrayFromBytes(src, opts) ;
+}
+
+
+// ===================== conversions to ArrayBuffer ==============================
+// WARNING: opts.forceCopy is useless here since we always have a copy
+export function $arrayBufferFromBytes(source: Bytes, opts:DataConversionOptions = {}): ArrayBuffer {
+    const [, start, end, len] = $lse(source, opts.start, opts.end) ;
     const ret = new ArrayBuffer(len);
 
     if (len > 0) {
@@ -64,6 +98,18 @@ export function $arrayBufferFromBytes(source: Bytes, sourceStart?: Nullable<numb
     }
     return ret ;
 }
+
+export function $arrayBufferFromDataLike(source:TSDataLike, opts:DataConversionOptions = {}): ArrayBuffer
+{
+    if (source instanceof ArrayBuffer) {
+        const [sourceLen, start, end,] = $lse(source, opts.start, opts.end) ;
+        return !opts.forceCopy && start === 0 && end === sourceLen ? source : source.slice(start, end) ;
+    }
+    else if (source instanceof TSData) { source = source.mutableBuffer ; }
+    return $arrayBufferFromBytes(source as Bytes, opts)
+}
+
+// ===================== Base64 conversions ==============================
 
 const base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
@@ -125,6 +171,7 @@ export function $encodeBase64(source: Uint8Array | string, reference: string = b
     return output;
 }
 
+// ===================== Data description ==============================
 interface $bufferAspectOptions {
     prefix?: string;
     suffix?: string;
@@ -183,3 +230,15 @@ ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
 String.prototype.toBase64         = function toBase64(this: string): string { return $encodeBase64(this); }
 Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
 ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }
+
+// ===================== private functions ==============================
+export function _toBytesOpts(source:TSDataLike, opts:DataConversionOptions = {}): [Bytes, DataConversionOptions]
+{
+    if (source instanceof ArrayBuffer) {
+        opts = {...opts, forceCopy: false } // here we already force a conversion, so no need to do it twice
+        return [$bufferFromArrayBuffer(source), {...opts, forceCopy: false }] ;
+    }
+    else if (source instanceof TSData) { return [source.mutableBuffer, opts] ; }
+    return [source, opts] ;
+}
+

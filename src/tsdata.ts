@@ -1,6 +1,6 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
 import { $crc32, $hash, HashMethod } from "./crypto";
-import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bytesFromBytes } from "./data";
+import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
@@ -97,8 +97,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     // ============================ POTENTIALLY MUTABLE OPERATIONS =============================================
 
     public splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):TSData {
-        const datasource = source instanceof ArrayBuffer ? $bufferFromArrayBuffer(source as ArrayBuffer) : source ;
-        return this._splice(targetStart, deleteCount, datasource, sourceStart, sourceEnd, paddingByte) ;    
+        return this._splice(targetStart, deleteCount, source, sourceStart, sourceEnd, paddingByte) ;    
     }
     
     public appendByte(source:uint8):TSData {
@@ -111,13 +110,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
     public appendData(source:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData
-    { 
-        if ($ok(source)) {
-            const datasource = source instanceof ArrayBuffer ? $bufferFromArrayBuffer(source as ArrayBuffer) : source ;
-            return this._splice(this._len, 0, datasource, sourceStart, sourceEnd) ; 
-        }
-        return this ;
-    }
+    { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
     public appendString(source:Nullable<string>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
         const [,start,end,] = $lse(source, sourceStart, sourceEnd) ;
@@ -134,9 +127,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     public replaceData(source:Nullable<TSDataLike>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
-        const datasource = source instanceof ArrayBuffer ? $bufferFromArrayBuffer(source as ArrayBuffer) : source ;
-        const [, start, end, len] = $lse(datasource, sourceStart, sourceEnd) ;
-        return this._splice($tounsigned(targetStart), len, datasource, start, end) ; // we remove 
+        const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
+        return this._splice($tounsigned(targetStart), len, source, start, end) ; // we remove 
     }
 
     public replaceString(source:Nullable<string>, targetStart?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
@@ -318,23 +310,22 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
 
-    public toBytes(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): uint8[] { 
-        return this.toArray(sourceStart, sourceEnd) as uint[] ; 
-    }
+    public toBytes(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): Bytes
+    { return this.toBuffer(sourceStart, sourceEnd) ; }
     
     public toArray(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): number[] { 
         const [, start, end] = $lse(this, sourceStart, sourceEnd) ;
-        return $bytesFromBytes(this._buf, start, end) ; 
+        return $arrayFromBytes(this._buf, { start:start, end:end, forceCopy:true } ) ; 
     }
     
     public toArrayBuffer(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): ArrayBuffer { 
         const [, start, end] = $lse(this, sourceStart, sourceEnd) ;
-        return $arrayBufferFromBytes(this._buf, start, end) ; 
+        return $arrayBufferFromBytes(this._buf, {start:start, end:end, forceCopy:true }) ; 
     }
 
     public toUint8Array(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): Uint8Array { 
         const [, start, end] = $lse(this, sourceStart, sourceEnd) ;
-        return $uint8ArrayFromBytes(this._buf, start, end) ; 
+        return $uint8ArrayFromBytes(this._buf, { start:start, end:end, forceCopy:true } ) ; 
     }
 
     public toBuffer(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): Buffer {
@@ -348,8 +339,15 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (this === other) { return Same ; }
         else if (other instanceof TSData) { return Buffer.compare(this.mutableBuffer, other.mutableBuffer) as Comparison ; }
         else if (other instanceof Uint8Array) { return Buffer.compare(this.mutableBuffer, other) as Comparison ; }
-        else if (other instanceof ArrayBuffer) { return this.compare($bufferFromArrayBuffer(other)) ; }
+        else if (other instanceof ArrayBuffer) { return Buffer.compare(this.mutableBuffer, $bufferFromArrayBuffer(other)) ; }
+        // QUESTION: should we have a comparaison with uint8[] here.
         return undefined ;
+    }
+
+    public compareToData(other:Nullable<TSDataLike>) : Comparison {
+        if (this === other) { return Same ; }
+        else if (!$ok(other)) { return undefined ; }
+        return Buffer.compare(this.mutableBuffer, other instanceof TSData ? other.mutableBuffer : $bufferFromDataLike(other!)) ;
     }
 
     public isEqual(other:any) : boolean {
@@ -365,11 +363,15 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         else if (other instanceof ArrayBuffer) {
             return this.isEqual($bufferFromArrayBuffer(other)) ;
         }
+        // QUESTION: should we test equality with uint8[] here.
         return false ;
     }
 
+    public isEqualToData(other:Nullable<TSDataLike>) : boolean
+    { return this.compareToData(other) === Same ; }
+
     // ============ private methods =============== 
-    private _splice(targetStart:number, deleteCount:number, source?:Nullable<Bytes|TSData>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):TSData {
+    private _splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):TSData {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         const padding = Math.min($tounsigned(paddingByte), UINT8_MAX) ;
 
@@ -425,9 +427,10 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this.mutableBuffer.lastIndexOf(value!, byteOffset) ;
     }
 
-    private _insideCopy(source:Bytes|TSData, start:number, end:number, targetStart:number) {
+    private _insideCopy(source:TSDataLike, start:number, end:number, targetStart:number) {
         if (start < end) {
-            if (source instanceof Buffer || source instanceof TSData) { source.copy(this._buf, targetStart, start, end) ; }
+            if (source instanceof ArrayBuffer) { $bufferFromArrayBuffer(source).copy(this._buf, targetStart, start, end) ;}
+            else if (source instanceof Buffer || source instanceof TSData) { source.copy(this._buf, targetStart, start, end) ; }
             else { for (let i = start ; i < end ; i++) { this._buf[targetStart+i] = source[i] & 0xff } ; }
         }
     }
@@ -464,13 +467,12 @@ export interface TSDataConstructor {
 }
 
 function _dataValue(value:TSDataLike|number|string, encoding?:Nullable<StringEncoding|TSCharset>):Uint8Array|number|null {
-    if (value instanceof Buffer || value instanceof Uint8Array) { return value ; }
-    if ($isstring(value)) { return $charset(encoding, TSCharset.binaryCharset()).uint8ArrayFromString(value as string) ; }
-    if (value instanceof ArrayBuffer) { return $bufferFromArrayBuffer(value as ArrayBuffer) ; }
-    if (value instanceof TSData) { return value.mutableBuffer ; }
-    if ($isunsigned(value, 0xff)) { return value as number ; }
-    if ($isarray(value)) { return $uint8ArrayFromBytes(value as uint8[]) ; }
-    return null ;
+    return typeof value === 'number' ?
+           ($isunsigned(value) ? value as number : null) :
+           ($isstring(value) ? 
+            $charset(encoding, TSCharset.binaryCharset()).uint8ArrayFromString(value as string) :
+            $uint8ArrayFromDataLike(value as TSDataLike)
+           ) ;
 }
 
 function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {

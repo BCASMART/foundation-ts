@@ -1,6 +1,6 @@
 import { $capacityForCount, $defined, $ismethod, $isnumber, $length, $ok, $string } from "./commons";
 import { $equal } from "./compare";
-import { $bufferFromArrayBuffer } from "./data";
+import { $uint8ArrayFromDataLike } from "./data";
 import { $charset, TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
@@ -103,8 +103,8 @@ export abstract class TSFusionTemplate {
         const em = _ascii2data($length(opts.endingMark) ? opts.endingMark! : TSFusionTemplate.DefaultEndingMark) ;
         const sepa = _ascii2data($length(opts.separator) ? opts.separator! : TSFusionTemplate.DefaultSeparator) ;
         const debug = !!opts.debugParsing ;
-        const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : (src instanceof TSData ? src.mutableBuffer : src) ; 
-
+        const source = $uint8ArrayFromDataLike(src) ; 
+ 
         // four our simple automatcode to be working properly, 
         // constants must be at least 2 character long
         // and have different first characters
@@ -789,7 +789,7 @@ export abstract class TSGenericDataTemplate extends TSFusionTemplate {
 export class TSHTMLTemplate extends TSGenericDataTemplate {
 
     public static fromHTMLData(src:TSDataLike, opts?:TSFusionTemplateOptions):TSHTMLTemplate|null {
-        const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
+        const source = $uint8ArrayFromDataLike(src) ; 
         if (!$length(source)) { return null ; }  
         try { return new TSHTMLTemplate(source, opts) ; }
         catch(e) {
@@ -800,8 +800,7 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     
     public constructor(src:TSDataLike, opts?:TSFusionTemplateOptions)
     { 
-        const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
-        const [data, charset] = _parseHTML(source, opts) ;
+        const [data, charset] = _parseHTML($uint8ArrayFromDataLike(src), opts) ;
         super(data, opts, charset) ;
     }
 
@@ -819,7 +818,8 @@ export class TSDataTemplate extends TSGenericDataTemplate {
 
     // default charset is UTF-8
     public static fromData(src:TSDataLike, encoding?:Nullable<StringEncoding|TSCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null {
-        const source = src instanceof ArrayBuffer ? $bufferFromArrayBuffer(src) : src ;
+        const source = $uint8ArrayFromDataLike(src) ; 
+
         if (!$length(source)) { return null ; }
         const charset = $charset(encoding) ;
 
@@ -856,10 +856,14 @@ export class TSDataTemplate extends TSGenericDataTemplate {
  */
 const ASCIICharset = TSCharset.asciiCharset() ;
 
-function _ascii2data(s:string) { return ASCIICharset.bytesFromString(s) ; }
-function _data2ascii(d:Bytes, start?:number, end?:number)  { return ASCIICharset.stringFromData(d, start, end) ; }
+function _ascii2data(s:string)
+{ return ASCIICharset.bytesFromString(s) ; }
 
-function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):[TSData, TSCharset] {
+function _data2ascii(d:Nullable<Bytes>, start?:number, end?:number) 
+{ return $ok(d) ? ASCIICharset.stringFromBytes(d!, start, end) : '' ; }
+
+function _parseHTML(src:Uint8Array, options?:TSFusionTemplateOptions):[TSData, TSCharset]
+{
     const startingMark = $length(options?.startingMark) ? options!.startingMark! : TSFusionTemplate.DefaultStartingMark ;
     const endingMark   = $length(options?.endingMark)   ? options!.endingMark!   : TSFusionTemplate.DefaultEndingMark ;
     const separator    = $length(options?.separator)    ? options!.separator!    : TSFusionTemplate.DefaultSeparator ;
@@ -958,7 +962,6 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):[TSDa
         '':             [DOT]
     } ;
 
-    const src = source instanceof TSData ? (source as TSData).mutableBuffer : source ;
     const len = src.length ;
     let target = new TSData(len) ;
     let state = State.Text ;
@@ -968,7 +971,7 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):[TSDa
     let insideLast = 0 ;
     let tag = '';
     let element:Element = Element.Unknown ;
-    let values:TSDictionary<Bytes> = {}
+    let values:TSDictionary<Uint8Array> = {}
     let isCloser = false ;
 
     function upper(c:number):number { return c & 0xdf ; }
@@ -1129,6 +1132,10 @@ function _parseHTML(source:Bytes|TSData, options?:TSFusionTemplateOptions):[TSDa
         }
 
         i++ ;
+        if (debug) {
+            $logterm(`&0&o${i.fpad(8,'_')}&w: ----------, state:&p${state}&x, last:&y${last}&0`) ;
+        }
+
     }
 
     if (state !== State.Text) {

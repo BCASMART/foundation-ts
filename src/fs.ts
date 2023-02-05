@@ -40,13 +40,12 @@ import { homedir } from 'os';
 import { $isbool, $isstring, $isunsigned, $length, $ok } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
-import { $inbrowser, $logterm } from './utils';
+import { $inbrowser } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
 import { Nullable, StringEncoding, TSDataLike } from './types';
 import { $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
-import { $bufferFromArrayBuffer } from './data';
 
 /**
  * WARNING: paths functions internalImplementation does not exist on Windows,
@@ -333,27 +332,28 @@ export function $filename(s: Nullable<string>, internalImplementation: boolean =
     return basename(s!);
 }
 
-export function $loadJSON(source: Nullable<string | TSDataLike>): any | null {
-    const pathParameter = $isstring(source);
-    if (pathParameter) { TSError.assertNotInBrowser('$loadJSON'); }
-    let ret = null;
-    const src = source instanceof ArrayBuffer ? $bufferFromArrayBuffer(source) : source;
-    if ($length(src)) {
-        const charset = TSCharset.utf8Charset();
-        let loadedString = pathParameter ? $readString(src as string, charset) : charset.stringFromData(source as TSDataLike);
-        if ($length(loadedString)) {
-            try {
-                ret = JSON.parse(<string>loadedString);
-                ret = $ok(ret) ? ret : null;
-            }
-            catch (e) {
-                if (pathParameter) { $logterm(`&R&w Impossible to parse JSON file &P ${src} &0`); }
-                else { $logterm(`&R&w Impossible to parse &P ${src!.length} bytes &R given JSON buffer &0`); }
-                ret = null;
-            }
-        }
+// JSON buffer is always considered as UTF8 buffer
+export function $loadJSON(source: Nullable<string | TSDataLike>): any
+{
+    let ret = null ;
+    let json:string|null = null ;
+
+    if ($isstring(source)) {
+        TSError.assertNotInBrowser('$loadJSON') ;
+        json = (source as string)!.length ? $readString(source as string, TSCharset.utf8Charset()) : '' ;
     }
-    return ret;
+    else {
+        json = TSCharset.utf8Charset().stringFromData(source as TSDataLike) ;
+    }
+
+    if ($length(json)) {
+        try {
+            ret = JSON.parse(json as string);
+            ret = $ok(ret) ? ret : null;
+        }
+        catch { ret = null ; }
+    }
+    return ret ;
 }
 
 export function $readString(src: Nullable<string>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {

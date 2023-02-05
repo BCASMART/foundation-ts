@@ -270,7 +270,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             $round(v * 100)
         ] ;     
     }
-    
+
     public toAlpha(newAlpha:uint8):TSColor {
         if (!$isunsigned(newAlpha, 0xFF)) {
             throw new TSError(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;

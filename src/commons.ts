@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -81,14 +81,18 @@ export function $hasproperties(obj:any, properties:Nullable<string[]>)
     return true ;
 }
 
-export function $intornull(n:Nullable<string|number>) : int | null
+export function $intornull(n:Nullable<string|number|bigint>) : int | null
 {
 	if (!$ok(n)) { return null ; }
-	if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+	else if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+    else if (typeof n === 'bigint') {
+        return n >= INT_MIN_BIG && n <= INT_MAX_BIG ? Number(n as bigint) as int : null ;
+    
+    }
 	return $isint(n) ? <int>n : null ;
 }
 
-export function $int(n:Nullable<string|number>, defaultValue:int=<int>0) : int
+export function $int(n:Nullable<string|number|bigint>, defaultValue:int=<int>0) : int
 { return $value($intornull(n), defaultValue) ; }
 
 export function $email(s:Nullable<string>) : email | null
@@ -151,27 +155,36 @@ export function $address(a:Nullable<Address>) : Address | null
     return ret ;
 }
 
-export function $unsignedornull(n:Nullable<string|number>) : uint | null
+export function $unsignedornull(n:Nullable<string|number|bigint>) : uint | null
 {
 	if (!$ok(n)) { return null ; }
-	if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+	else if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+    else if (typeof n === 'bigint') {
+        return n >= UINT_MIN_BIG && n <= UINT_MAX_BIG ? Number(n as bigint) as uint : null ;
+    }
 	return $isunsigned(n) ? n as uint : null ;
 }
 
-export function $unsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
+export function $unsigned(v:Nullable<string|number|bigint>, defaultValue:uint=<uint>0) : uint
 { return $value($unsignedornull(v), defaultValue) ; }
 
-export function $toint(v:Nullable<string|number>, defaultValue:int=<int>0) : int
+export function $toint(v:Nullable<string|number|bigint>, defaultValue:int=<int>0) : int
 {
     if (!$ok(v)) { return defaultValue ; }
-    if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
+    else if (typeof v === 'bigint') {
+        v = v >= INT_MIN_BIG && v <= INT_MAX_BIG ? Number(v as bigint) : defaultValue ;
+    }
+    else if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
     return isNaN(v as number) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v as number, INT_MAX))) as int ;
 }
 
 export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
 {
     if (!$ok(v)) { return defaultValue ; }
-    if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
+    else if (typeof v === 'bigint') {
+        v = v >= UINT_MIN_BIG && v <= UINT_MAX_BIG ? Number(v as bigint) : defaultValue ;
+    }
+    else if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
     return isNaN(v as number) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v as number, UINT_MAX))) as uint ;
 }
 
@@ -213,12 +226,12 @@ export function $capacityForCount(count:number):uint
 export function $count<T=any>(a: Nullable<ArrayLike<T>>) : number
 { return $ok(a) ? (<ArrayLike<T>>a).length : 0 ; }
 
-export function $length(s: Nullable<string | Bytes | TSData>) : number
-{ return $ok(s) ? (<string|Bytes|TSData>s).length : 0 ; }
+export function $length(s: Nullable<string | TSDataLike>) : number
+{ return s instanceof ArrayBuffer ? s.byteLength : ($ok(s) ? (<string|Bytes|TSData>s).length : 0) ; }
 
-export function $lse<T>(s:Nullable<string | Bytes | TSData | ArrayLike<T>>, start?:Nullable<number>, end?:Nullable<number>) : [uint, uint, uint, uint] {
+export function $lse<T>(s:Nullable<string | TSDataLike | ArrayLike<T>>, start?:Nullable<number>, end?:Nullable<number>) : [uint, uint, uint, uint] {
     if (!$ok(s)) { return [0, 0, 0, 0] as [uint, uint, uint, uint];}
-    const len = s!.length
+    const len = s instanceof ArrayBuffer ? s.byteLength : s!.length ;
     start = $tounsigned(start);
     end = Math.min($tounsigned(end, len as uint), len) ;
     return [len, start, end, Math.max(end-start, 0)] as [uint, uint, uint, uint] ;

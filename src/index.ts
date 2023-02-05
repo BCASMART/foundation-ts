@@ -1,6 +1,7 @@
 export * as commons         from './commons'
 export * as compare         from './compare'
 export * as crypto          from './crypto'
+export * as decorators      from './decorators'
 export * as fs              from './fs'
 export * as tscolor         from './tscolor'
 export * as tscountry       from './tscountry'

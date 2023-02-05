@@ -30,15 +30,18 @@ export const INT32_MAX:int32 = <int32>0x7fffffff
 export const INT32_MIN:int32 = <int32>(-INT32_MAX - 1)
 export const INT_MAX:int = <int>(Number.MAX_SAFE_INTEGER - 1) ;
 export const INT_MIN:int = <int>(Number.MIN_SAFE_INTEGER + 1) ;
-
+export const INT_MAX_BIG:bigint = BigInt(INT_MAX) ;
+export const INT_MIN_BIG:bigint = BigInt(INT_MIN) ;
 export const UINT8_MAX:uint8 = <uint8>0xff ;
 export const UINT8_MIN:uint8 = <uint8>0 ;
 export const UINT16_MAX:uint16 = <uint16>0xffff ;
 export const UINT16_MIN:uint16 = <uint16>0 ;
 export const UINT32_MAX:uint32 = <uint32>0xffffffff ;
 export const UINT32_MIN:uint32 = <uint32>0 ;
-export const UINT_MAX:uint = <uint>(Number.MAX_SAFE_INTEGER - 1) ;
+export const UINT_MAX:uint = <uint>INT_MAX ;
 export const UINT_MIN:uint = <uint>0 ;
+export const UINT_MAX_BIG:bigint = INT_MAX_BIG ;
+export const UINT_MIN_BIG:bigint = BigInt(0) ;
 
 export const MONEY_MIN = <money>-999999999 ;
 export const MONEY_MAX = <money>+999999999 ;

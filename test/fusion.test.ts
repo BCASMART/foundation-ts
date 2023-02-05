@@ -275,6 +275,8 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
                 debugParsing:false, 
                 procedures:{ name:htmlName } 
             }) ;
+            
+            t.expectZ(template).OK() ;
 
             if (t.expect1(template?.source.toString(mac)).toBe(i)) {
                 let errors:string[] = [] ;
