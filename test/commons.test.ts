@@ -1,7 +1,7 @@
 
 import { $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isemail, $isurl, $isuuid, $keys, $ok, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID } from "../src/commons";
 import { TSDate } from "../src/tsdate";
-import { INT_MAX, INT_MIN, UINT_MAX } from "../src/types";
+import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
@@ -271,9 +271,17 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect6($isuuid('')).false() ;
         t.expect7($isuuid(5)).false() ;
         t.expect8($isuuid({})).false() ;
-        t.expectA($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).is('3C244E6D-A03E-4D45-A87C-B1E1F967B362') ;
-        t.expectB($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B36')).null() ;
-        t.expectC($UUID('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).null() ;
+        t.expect9($isuuid('a14ceb40-ac4f-11ed-b648-67a97617e043')).true() ;
+        t.expectA($isuuid('a14ceb40-ac4f-11ed-b648-67a97617e043', UUIDv1)).true() ;
+        t.expectB($isuuid('a14ceb40-ac4f-11ed-b648-67a97617e043', UUIDv4)).false() ;
+        t.expectC($isuuid('3C244E6D-A03E-4D45-A87C-B1E1F967B362', UUIDv1)).true() ;
+        t.expectD($isuuid('3C244E6D-A03E-4D45-A87C-B1E1F967B362', UUIDv4)).true() ;
+        t.expectE($isuuid('3C244E6D-A03E-5D45-A87C-B1E1F967B362', UUIDv4)).false() ;
+        t.expectF($isuuid('3C244E6D-A03E-4D45-187C-B1E1F967B362', UUIDv4)).false() ;
+
+        t.expectX($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).is('3C244E6D-A03E-4D45-A87C-B1E1F967B362') ;
+        t.expectY($UUID('3C244E6D-A03E-4D45-A87C-B1E1F967B36')).null() ;
+        t.expectZ($UUID('3C244E6D-A03E-4D45-A87C-B1E1H967B362')).null() ;
     }) ;
 
     group.unary("$strings() function", async(t) => {

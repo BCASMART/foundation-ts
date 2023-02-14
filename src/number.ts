@@ -6,9 +6,8 @@ import { int, INT32_MIN, Nullable, uint, UINT32_MAX } from "./types";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
 
-export function $icast(v:number):number {
-    return v >= 0 ? (v! <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v! >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ;
-}
+export function $icast(v:number):number
+{ return v >= 0 ? (v <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ; }
 
 export function $round(v:number, decimalPlaces:number = 0):number {
     var p = Math.pow(10, $toint(decimalPlaces));
@@ -81,6 +80,7 @@ declare global {
         fpad3:              (this:number, failedChar?:string) => string ;
         fpad4:              (this:number, failedChar?:string) => string ;
         hexaValue:          (this:number) => number ; // returns -1 is the number representing an unicode character is not an hexadecimal one
+        icast:              (this:number) => number ;
         isNewLine:          (this:number) => boolean ;
         isWhiteSpace:       (this:number) => boolean ;
         isStrictWhiteSpace: (this:number) => boolean ;
@@ -110,35 +110,36 @@ Number.prototype.hexaValue          = function hexaValue(this:number):number {
     if (this >= 97 && this < 103) { return this - 87 ; }
     return -1 ;
 }
-Number.prototype.isNewLine          = function isNewLine(this:number) { return FoundationNewLineNumberCodeSet.has(this) ; }
-Number.prototype.isWhiteSpace       = function isWhiteSpace(this:number) { return FoundationWhiteSpacesNumberCodeSet.has(this) ; }
-Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number) { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; }
-Number.prototype.meters             = function meters(this:number, decimalPlaces?:number) { return $meters(this, decimalPlaces) ; }
-Number.prototype.octets             = function octets(this:number, decimalPlaces?:number) { return $octets(this, decimalPlaces) ; }
-Number.prototype.round              = function round(this:number, decimalPlaces?:number) { return $round(this, decimalPlaces) ; }
-Number.prototype.singular           = function singular(this:number) { return this === 1 ; }
+Number.prototype.icast              = function iCast(this:number):number { return $icast(this) ; }
+Number.prototype.isNewLine          = function isNewLine(this:number):boolean { return FoundationNewLineNumberCodeSet.has(this) ; }
+Number.prototype.isWhiteSpace       = function isWhiteSpace(this:number):boolean { return FoundationWhiteSpacesNumberCodeSet.has(this) ; }
+Number.prototype.isStrictWhiteSpace = function isWhiteSpace(this:number):boolean { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; }
+Number.prototype.meters             = function meters(this:number, decimalPlaces?:number):string { return $meters(this, decimalPlaces) ; }
+Number.prototype.octets             = function octets(this:number, decimalPlaces?:number):string { return $octets(this, decimalPlaces) ; }
+Number.prototype.round              = function round(this:number, decimalPlaces?:number):number { return $round(this, decimalPlaces) ; }
+Number.prototype.singular           = function singular(this:number):boolean { return this === 1 ; }
 Number.prototype.toDate             = function toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; }
-Number.prototype.toHex1             = function toHex1(this:number, toLowerCase?:Nullable<boolean>) {
+Number.prototype.toHex1             = function toHex1(this:number, toLowerCase?:Nullable<boolean>):string {
     const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[this.toUnsigned() & 0x0F]
 }
-Number.prototype.toHex2             = function toHex2(this:number, toLowerCase?:Nullable<boolean>) {
+Number.prototype.toHex2             = function toHex2(this:number, toLowerCase?:Nullable<boolean>):string {
     const n = this.toUnsigned() ;
     const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
-Number.prototype.toHex4             = function toHex4(this:number, toLowerCase?:Nullable<boolean>) {
+Number.prototype.toHex4             = function toHex4(this:number, toLowerCase?:Nullable<boolean>):string {
     const n = this.toUnsigned() ;
     const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
-Number.prototype.toHex8             = function toHex8(this:number, toLowerCase?:Nullable<boolean>) {
+Number.prototype.toHex8             = function toHex8(this:number, toLowerCase?:Nullable<boolean>):string {
     const n = this.toUnsigned() ;
     const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[(n>>28) & 0xF]+r[(n>>24) & 0xF]+r[(n>>20) & 0xF]+r[(n >> 16) & 0xF]+r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
 }
-Number.prototype.toInt              = function toInt(this:number, defaultValue?:int) { return $toint(this, defaultValue) ; }
+Number.prototype.toInt              = function toInt(this:number, defaultValue?:int):int { return $toint(this, defaultValue) ; }
 Number.prototype.toTSDate           = function toTSDate(this:number):TSDate|null { return TSDate.fromTimeStamp(this) ; }
-Number.prototype.toUnsigned         = function toUnsigned(this:number, defaultValue?:uint) { return $tounsigned(this, defaultValue) ; }
-Number.prototype.unit               = function unit(this:number, opts?:$unitOptions) { return $unit(this, opts) ; }
+Number.prototype.toUnsigned         = function toUnsigned(this:number, defaultValue?:uint):uint { return $tounsigned(this, defaultValue) ; }
+Number.prototype.unit               = function unit(this:number, opts?:$unitOptions):string { return $unit(this, opts) ; }
 

@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidRegex, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidV1Regex, uuidV4Regex, UUIDVersion, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, UUIDv1, UUIDv4 } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -63,8 +63,8 @@ export function $isemail(o:any) : boolean
 export function $isurl(o:any, opts?:$urlOptions) : boolean
 { return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
 
-export function $isuuid(o:any) : boolean
-{ return $isstring(o) && $ok($UUID(o)) ; }
+export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : boolean
+{ return $isstring(o) && $ok($UUID(o, version)) ; }
 
 export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
 
@@ -122,10 +122,10 @@ export function $url(s:Nullable<string>, opts:$urlOptions = {}) : url | null
     return m![1] !== null && opts.acceptsProtocolRelativeUrl ? s as url : null ; 
 }
 
-export function $UUID(s:Nullable<string>) : UUID | null
+export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
 { 
     if (!$isstring(s)) { return null ; } 
-    return _regexvalidatedstring<UUID>(uuidRegex, s) ; 
+    return _regexvalidatedstring<UUID>($value(version, UUIDv1) === UUIDv4 ? uuidV4Regex:uuidV1Regex, s) ; 
 }
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601

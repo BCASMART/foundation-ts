@@ -1,11 +1,11 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
-import { $crc32, $hash, HashMethod } from "./crypto";
+import { $crc16, $crc32, $hash, HashMethod } from "./crypto";
 import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { Bytes, Comparison, Nullable, Same, StringEncoding, TSDataLike, uint, uint32, uint8, UINT8_MAX } from "./types" ;
+import { Bytes, Comparison, Nullable, Same, StringEncoding, TSDataLike, uint, uint16, uint32, uint8, UINT8_MAX } from "./types" ;
 
 /**
  * TSData is a mutable buffer-like class. You cannot directly access the contained bytes in a TSData.
@@ -302,6 +302,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public toBase64():string { return $encodeBase64(this.mutableBuffer) ; }
     public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
     public crc32():uint32 { return $crc32(this) ; }
+    public crc16():uint16 { return $crc16(this) ; }
 
     // ============ TSObject conformance =============== 
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string {
