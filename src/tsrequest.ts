@@ -1,4 +1,4 @@
-import { AnyDictionary, Nullable, TSDataLike } from './types';
+import { Nullable, TSDataLike, TSDictionary } from './types';
 import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
@@ -22,7 +22,7 @@ export function $barerauth(base64token:string) : string
 }
 
 // this method removes null or undefined values from a query
-export function $query(baseURL:string, query:AnyDictionary) : string {
+export function $query(baseURL:string, query:TSDictionary) : string {
     let params = new URLSearchParams() ;
         
     for (let [key, value] of Object.entries(query)) {

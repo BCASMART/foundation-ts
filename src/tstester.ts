@@ -4,7 +4,7 @@ import { TSData } from "./tsdata";
 import { TSRange } from "./tsrange";
 import { TSRangeSet } from "./tsrangeset";
 import { TSInterval } from './tsinterval'
-import { AnyDictionary, Ascending, Descending, Nullable } from "./types";
+import { Ascending, Descending, Nullable, TSDictionary } from "./types";
 import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
 import { TSList } from "./tslist";
 import { $left } from "./strings";
@@ -251,7 +251,7 @@ export class TSUnaryTest extends TSGenericTest {
     private _failed:number = 0 ;
     private _passed:number = 0 ;
     private _expected:number = 0 ;
-    private _registrations:AnyDictionary = {} ;
+    private _registrations:TSDictionary = {} ;
 
     public constructor(g:TSTestGroup, s:string, f:unaryFN, opts?:TSGenericTestOptions) {
         super(s, f as testFN, opts) ;

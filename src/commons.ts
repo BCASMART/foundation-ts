@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidV1Regex, uuidV4Regex, UUIDVersion, isodate, Address, AnyDictionary, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, UUIDv1, UUIDv4 } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidV1Regex, uuidV4Regex, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, UUIDv1, UUIDv4, TSDictionary } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -46,7 +46,7 @@ export function $isobject(o:any) : boolean
 { return $ok(o) && typeof o === 'object' ; }
 
 export function $objectcount(o:any) : number 
-{ return $isobject(o) ? $keys(o).length : 0 ; }
+{ return o instanceof Map ? o.size : ($isobject(o) ? $keys(o).length : 0) ; }
 
 export function $isarray(o:any) : boolean
 { return Array.isArray(o) ; }
@@ -223,8 +223,8 @@ export function $capacityForCount(count:number):uint
     return (count < 128 ? __capacitiesForCounts[count] : ((count + (count >> 1)) & ~255) + 256) as uint; 
 }
 
-export function $count<T=any>(a: Nullable<ArrayLike<T>>) : number
-{ return $ok(a) ? (<ArrayLike<T>>a).length : 0 ; }
+export function $count<T=any>(a: Nullable<ArrayLike<T> | Set<T>>) : number
+{ return a instanceof Set ? a!.size : ($ok(a) ? (<ArrayLike<T>>a).length : 0) ; }
 
 export function $length(s: Nullable<string | TSDataLike>) : number
 { return s instanceof ArrayBuffer ? s.byteLength : ($ok(s) ? (<string|Bytes|TSData>s).length : 0) ; }
@@ -278,22 +278,52 @@ export function $partial<T,U>(a:Nullable<T>, opts:$partialOptions<T,U>={}):[U, n
     return [ret as U, n] ;
 }
 
-// TODO: review all AnyDictionary functions to make a specific file 
-// and a more thorough specificaiton. Here, all null, undefined and function
+// TODO: review all TSDictionary functions to make a specific file 
+// and a more thorough specifications. Here, all null, undefined and function
 // properties are removed
-export function $dict<T = object>(source:Nullable<T>, keys?:Array<keyof T>):AnyDictionary {    
-    const ret:AnyDictionary = {} ;
+export function $dict<T = object>(source:Nullable<T>, keys?:Array<keyof T>):TSDictionary {    
+    const ret:TSDictionary = {} ;
     if ($ok(source)) { 
-        _fillObject<object,AnyDictionary>('dict', ret, source, { properties:keys as any[] }) ;
+        _fillObject<object,TSDictionary>('dict', ret, source, { properties:keys as any[] }) ;
     }
     return ret ;
 }
 
-export function $includesdict(source:Nullable<object>, dict:AnyDictionary, keys?:string[]):boolean {
+// WARNING: we only discard key, value pair if undefined is returned by 
+//          the callback function on any value of the tupple 
+//          default callback function transform key to string and discards
+//          the entry if the returned key is null, undefined or an empty string
+export function $objectMap<T = object>(source:Nullable<T>, callback?:(key:any, value: any) => [string|undefined, any]):Map<string, any> {
+    if (!$ok(callback)) { 
+        callback = function(k:string, v:any) {
+            const tk = $string(k) ; 
+            return tk.length > 0 ? [tk, v] : [undefined, v] ; 
+        } ; 
+    }
+    const map = new Map<string, any>() ;
+
+    if (source instanceof Map) {
+        const entries = (source as Map<any, any>).entries() ;
+        for (let [k0, v0] of entries) {
+            const [k, v] = callback!(k0, v0) ;
+            if ($defined(v) && $defined(v)) { map.set(k!, v!) ;}
+        }
+    }
+    else {
+        const keys = $keys(source) ;
+        for (let key of keys) {
+            const [k, v] = callback!(key as string, (source as T)[key]) ;
+            if ($defined(v) && $defined(v)) { map.set(k!, v!) ;}
+        }    
+    }
+    return map ;
+}
+
+export function $includesdict(source:Nullable<object>, dict:TSDictionary, keys?:string[]):boolean {
     if ($ok(source)) {
         keys = $ok(keys) ? keys! : $keys(dict) as string[] ;
         if (keys.length) {
-            const v = source as AnyDictionary ;
+            const v = source as TSDictionary ;
             for (let k of keys) { if (!$equal(v[k], dict[k])) { return false ; }}
             return true ;
         }

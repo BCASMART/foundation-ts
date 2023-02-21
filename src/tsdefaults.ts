@@ -1,5 +1,5 @@
 import { $isobject, $isstring, $length, $ok, $valueornull } from "./commons";
-import { AnyDictionary, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation } from "./types";
+import { Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
@@ -57,7 +57,7 @@ export class TSDefaults {
     private _defaultCurrency:currency = Currencies.EUR ;
     private _tmpDirectory:string = $inbrowser() ? '' : os.tmpdir() ;
 
-    private _values:AnyDictionary = {} ;
+    private _values:TSDictionary = {} ;
     private _localizations:StringTranslations = {} ;
     private _countriesMap:Map<string, country> ;
     private _languagesMap:Map<string, language> ;

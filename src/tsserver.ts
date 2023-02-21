@@ -6,7 +6,7 @@ import * as https from "https"
 import { $defined, $ismethod, $isunsigned, $keys, $length, $objectcount, $ok, $string, $unsigned, $value } from "./commons";
 import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { AnyDictionary, Nullable, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
+import { Nullable, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm } from "./utils";
 
 import { TSParametricEndPoints, TSStaticWebsite, TSStaticWebSiteOptions } from "./tsservercomp";
@@ -344,7 +344,7 @@ export class TSServer {
                 }) ;
             }
             catch (e:any) {
-                let ret:AnyDictionary = {} ;
+                let ret:TSDictionary = {} ;
                 ret.status = $isunsigned(e?.status) && Object.values(Resp).includes(e!.status!) ? e!.status! : Resp.InternalError ;
                 ret.error = (e as Error).message ; if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; } ;
                 if ($ok(e.info)) { ret.info = e.info ; }

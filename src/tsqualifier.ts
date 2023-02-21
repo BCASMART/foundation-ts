@@ -1,6 +1,6 @@
 import { $isarray, $isstring, $ok } from "./commons";
 import { TSRange } from "./tsrange";
-import { AnyDictionary, Ascending, Descending, Nullable, Same } from "./types";
+import { Ascending, Descending, Nullable, Same, TSDictionary } from "./types";
 import { $compare, $equal } from "./compare";
 import { $iscollection, TSCollection } from "./tsobject";
 import { TSError } from "./tserrors";
@@ -8,7 +8,7 @@ import { TSError } from "./tserrors";
 
 export type QualifierOperator  =  'AND' | 'OR' | 'NOT' | 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE' | 'LIKE' | 'IN' | 'NIN' | 'OK' | 'KO' ;
 export type QualifierOperand   =  any ;
-export type QualifierCondition<T>   =  AnyDictionary | TSQualifier<T> ;
+export type QualifierCondition<T>   =  TSDictionary | TSQualifier<T> ;
 
 
 export const LAZY_INTERSECTION = false ;
@@ -174,7 +174,7 @@ export class TSQualifier<T> {
 
     public inverse():TSQualifier<T> { return (this.constructor as any).NOT(this) as TSQualifier<T> ; }
 
-    public validateValue(value:T, validateValueForCondition?:(v:T, cond:AnyDictionary) => boolean):boolean {
+    public validateValue(value:T, validateValueForCondition?:(v:T, cond:TSDictionary) => boolean):boolean {
         let vals ;
         let op ;
 

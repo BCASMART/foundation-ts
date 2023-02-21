@@ -1,7 +1,7 @@
 import { $uuid } from '../src/crypto';
 import { $subclassReponsabililty, TSError } from '../src/tserrors';
 import { TSTest } from '../src/tstester';
-import { AnyDictionary } from '../src/types';
+import { TSDictionary } from '../src/types';
 //import { $logterm } from '../src/utils';
 
 class A {
@@ -16,7 +16,7 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
     group.unary('$subclassReponsabililty() function', async (t) => {
         const identifier = $uuid() ;
         const instance = new A(identifier) ;
-        let info:AnyDictionary|undefined = undefined ;
+        let info:TSDictionary|undefined = undefined ;
         try {
             /*const res =*/ instance.method(12) ;
             //$logterm(`res = ${res}`) ;

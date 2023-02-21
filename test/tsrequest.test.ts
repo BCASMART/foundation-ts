@@ -1,12 +1,12 @@
 import { TSDate } from "../src/tsdate";
-import { AnyDictionary } from "../src/types";
+import { TSDictionary } from "../src/types";
 import { $query } from "../src/tsrequest";
 
 import { TSTest } from '../src/tstester';
 
 export const requestGroups = TSTest.group("Testing static request functions", async (group) => {
     const uri = "https://example.com" ;
-    const dict:AnyDictionary = {
+    const dict:TSDictionary = {
         foo1:'1',
         foo2:'2',
         foo3:new TSDate('19660413T120522'),

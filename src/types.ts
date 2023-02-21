@@ -178,11 +178,9 @@ export type country = keyof typeof Countries ;
 export type language = keyof typeof Languages ;
 export type currency = keyof typeof Currencies ;
 
-
 // ========== dictionary types =====================
 export type TSDictionary<T = any> = { [k: string]: T };
 
-export type AnyDictionary = 		TSDictionary ;
 export type ObjectDictionary = 		TSDictionary<object> 
 export type StringDictionary = 		TSDictionary<string> ;
 export type NumberDictionary = 		TSDictionary<number> ;

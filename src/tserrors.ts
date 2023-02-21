@@ -1,7 +1,7 @@
 import { $isint, $isunsigned, $ok } from "./commons";
 import { TSLeafInspect } from "./tsobject";
 import { Resp } from "./tsrequest";
-import { AnyDictionary, Nullable } from "./types";
+import { Nullable, TSDictionary } from "./types";
 import { $inbrowser } from "./utils";
 export class TSUniqueError extends Error implements TSLeafInspect {
 	private static __timeoutInstance:TSUniqueError ;
@@ -30,8 +30,8 @@ export class TSUniqueError extends Error implements TSLeafInspect {
 
 }
 export class TSError extends Error {
-    public readonly info:AnyDictionary|undefined ;
-    public constructor(message:string, info?:AnyDictionary) {
+    public readonly info:TSDictionary|undefined ;
+    public constructor(message:string, info?:TSDictionary) {
         super(message) ;
         this.info = info ;
     }
@@ -85,7 +85,7 @@ export function $subclassReponsabililty(instance:object, method:Function):any {
 
 export class TSHttpError extends TSError {
     public readonly status:Resp ;
-    public constructor(message:string, status:Resp, info?:AnyDictionary) {
+    public constructor(message:string, status:Resp, info?:TSDictionary) {
         super(message, info) ;
         this.status = status ;
     }
