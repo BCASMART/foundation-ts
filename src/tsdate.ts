@@ -8,7 +8,7 @@
  * their content after creation
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
-import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value } from "./commons";
+import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value, $isdate } from "./commons";
 import { $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
@@ -74,7 +74,9 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         }
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
-            if ($isnumber(t)) { 
+            if (t === Number.POSITIVE_INFINITY) { this._timestamp = TSMaxTimeStamp ; }
+            else if (t === Number.NEGATIVE_INFINITY) { this._timestamp = -TSSecsFrom00010101To20010101 ; }
+            else if ($isnumber(t)) { 
                 this._timestamp = $insettimestamp(t) ; // we trash the seconds here by making ts an integer
 			}
             else if (t instanceof TSDate) {
@@ -109,6 +111,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     public static past()   : TSDate { return new TSDate(TSDate.PAST) ; }
     public static future() : TSDate { return new TSDate(TSDate.FUTURE) ; }
     public static zulu()   : TSDate { return new TSDate($div(Date.now(),1000) - TSSecsFrom19700101To20010101) ; }
+    public static isDateSource(value:any):boolean
+    { return $isnumber(value) || $isdate(value) || value === TSDate.PAST || value === TSDate.FUTURE || value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY ; }
 
     // this specific method takes a Date representation 
     // in Zulu timezone.
@@ -131,6 +135,9 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
     public static from(date:Nullable<number|string|Date>) : TSDate | null {
         if (!$ok(date)) { return null ; }
+        if (date === TSDate.FUTURE || date === TSDate.PAST || date === Number.POSITIVE_INFINITY || date === Number.NEGATIVE_INFINITY) { 
+            return new TSDate(date as any) ;
+        }
         if ($isnumber(date)) { return this.fromTimeStamp(date as number) ; }
         if (date instanceof Date) { return this.fromDate(date as Date) ; }
         return this.fromIsoString(date as string) ;

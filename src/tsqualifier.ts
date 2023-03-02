@@ -15,6 +15,7 @@ export const LAZY_INTERSECTION = false ;
 
 export type TSQualifierCollection<T> = ArrayLike<T> | Set<T> | TSCollection<T>
 
+
 export type RecursiveKeyPath<T, K extends keyof T> =
   K extends string
   ? T[K] extends Record<string, any>
@@ -25,8 +26,18 @@ export type RecursiveKeyPath<T, K extends keyof T> =
   : never ;
 
 
-export type KeyPath<T> = RecursiveKeyPath<Required<T>, keyof Required<T>> | keyof Required<T> ;
-
+// FIXME: get a proper recursive key type definition
+/**
+ *
+ * we use to have a make all keys as KeyPath<T> in order 
+ * to check the qualifier keys but it makes a lots of error 
+ * in using this class : tsc wrongly fails in recursive checking 
+ * 
+ * So we keep the type but transform it in order not to get wrong errors.
+ */
+// export type KeyPath<T> = RecursiveKeyPath<Required<T>, keyof Required<T>> | keyof Required<T> ;
+// @ts-ignore
+export type KeyPath<T> = string ;
 
 export class TSQualifier<T> {
     public readonly operator:QualifierOperator ;
