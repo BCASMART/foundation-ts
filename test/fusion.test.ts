@@ -197,6 +197,11 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
                 t.register('errors{A}', $inspect(errors)) ;
                 t.expectB(resA).toBeOK() ;
                 t.expectC(resA?.toString(mac)).toBe(resC) ;
+                let errorsBis:string[] = [] ;
+                const resAM = templateA?.fusionStringWithDataContext(p, glob, errorsBis) ;
+                t.register('errors{A-bis}', $inspect(errorsBis)) ;
+                t.expectD(resAM).toBeOK() ;
+                t.expectE(resAM).toBe(resC) ;
             }
         }
     }) ;
@@ -280,10 +285,9 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
 
             if (t.expect1(template?.source.toString(mac)).toBe(i)) {
                 let errors:string[] = [] ;
-                const res = template?.fusionWithDataContext(p1, glob, errors) ;
+                const res = template?.fusionStringWithDataContext(p1, glob, errors) ;
                 t.register('errors[1]', $inspect(errors)) ;
-                t.expect2(res).toBeOK() ;
-                t.expect3(res?.toString(mac)).toBe(r) ;
+                t.expect2(res).toBe(r) ;
             }        
         }
 

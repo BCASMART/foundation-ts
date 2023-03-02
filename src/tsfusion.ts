@@ -760,6 +760,7 @@ export class TSStringTemplate extends TSFusionTemplate {
         }) ? this._outputString! : null ;
     }
 
+    fusionStringWithDataContext = this.fusionWithDataContext ;
 }
 
 export abstract class TSGenericDataTemplate extends TSFusionTemplate {
@@ -787,6 +788,7 @@ export abstract class TSGenericDataTemplate extends TSFusionTemplate {
  * tag conversion
  */
 export class TSHTMLTemplate extends TSGenericDataTemplate {
+    private _htmlCharset:TSCharset ;
 
     public static fromHTMLData(src:TSDataLike, opts?:TSFusionTemplateOptions):TSHTMLTemplate|null {
         const source = $uint8ArrayFromDataLike(src) ; 
@@ -802,6 +804,7 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     { 
         const [data, charset] = _parseHTML($uint8ArrayFromDataLike(src), opts) ;
         super(data, opts, charset) ;
+        this._htmlCharset = charset ;
     }
 
     public pushFusionValue(value:NonNullable<any>):void {
@@ -811,6 +814,12 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
         else { s = $string(value).toHTML() ; }
         if (s.length) { this._outputData?.appendBytes(_ascii2data(s!)) ; }
     }
+
+    public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
+        const ret = this.fusionWithDataContext(data, globalContext, errors) ;
+        return $ok(ret) ? this._htmlCharset.stringFromData(ret!) : null ;
+    }
+
 }
 
 export class TSDataTemplate extends TSGenericDataTemplate {
@@ -842,11 +851,17 @@ export class TSDataTemplate extends TSGenericDataTemplate {
         this._charset = charset ;
     }
 
-    public get charset():TSCharset { return this._charset! ; }
+    public get charset():TSCharset { return this._charset ; }
 
     public pushFusionValue(value:NonNullable<any>):void {
         this._outputData?.appendString($string(value), this._charset) ;
     }
+
+    public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
+        const ret = this.fusionWithDataContext(data, globalContext, errors) ;
+        return $ok(ret) ? this.charset.stringFromData(ret!) : null ;
+    }
+
 }
 
 /*
