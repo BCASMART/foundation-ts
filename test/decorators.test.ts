@@ -34,7 +34,7 @@ export const decoratorGroups = TSTest.group("Decorators", async (group) => {
         t.expect1(name).is('Jean-Philippe DURAND') ;
         t.expect2(s).is(144) ;
         const lines = logs.map(l => { 
-            return l.includes('---- executed') ? '---- done ----' : l ;
+            return l.includes('---- did trace') ? '---- done ----' : l ;
         }) ;
 
         t.expect3(lines).is([
