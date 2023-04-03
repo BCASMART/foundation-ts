@@ -5,7 +5,7 @@ import { TSData } from '../src/tsdata';
 import { TSTest } from '../src/tstester';
 import { Same, uint8 } from '../src/types';
 
-export const dataGroups = [
+export const mutableDataGroups = [
     TSTest.group("Testing TSData", async (group) => {
         const b = '0123456789' ;
         const sup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' ;

@@ -204,8 +204,9 @@ declare global {
         toBase64:    (this: string) => string;
     }
     export interface Uint8Array {
-        leafInspect: (this: Uint8Array) => string;
-        toBase64:    (this: Uint8Array) => string;
+        leafInspect:         (this: Uint8Array) => string;
+        toBase64:            (this: Uint8Array) => string;
+        isGenuineUint8Array: (this:Uint8Array) => boolean ;
     }
     export interface Uint16Array {
         leafInspect: (this: Uint16Array) => string;
@@ -218,9 +219,10 @@ declare global {
         toBase64:    (this: any) => string;
     }
 }
-
-Buffer.prototype.leafInspect      = function leafInspect(this: Uint8Array): string { return '<' + $dataAspect(this, { prefix: '', suffix: '', separator: '', showLength: false, transformFn: (n) => n.toHex2() }) + '>'; }
-Uint8Array.prototype.leafInspect  = function leafInspect(this: Uint8Array): string { return $dataAspect(this); }
+Uint8Array.prototype.isGenuineUint8Array = function isGenuine(this:Uint8Array): boolean { return this.constructor.name === 'Uint8Array' ; } 
+Uint8Array.prototype.leafInspect  = function leafInspect(this: Uint8Array): string { 
+    return this.constructor.name === 'Uint8Array' ? $dataAspect(this) : '<' + $dataAspect(this, { prefix: '', suffix: '', separator: '', showLength: false, transformFn: (n) => n.toHex2() }) + '>' ; 
+}
 Uint16Array.prototype.leafInspect = function leafInspect(this: Uint16Array): string { return $dataAspect(this); }
 Uint32Array.prototype.leafInspect = function leafInspect(this: Uint32Array): string { return $dataAspect(this); }
 ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {

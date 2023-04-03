@@ -94,7 +94,14 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
     tree.sub1.sub2.sub3.root = tree;
     tree.sub1.sub2.sub3.parent = tree.sub1.sub2;
 
-
+    group.unary('$inbrowser() function', async(t) => {
+        if ($inbrowser()) {
+            t.expect1(typeof document === 'undefined').false() ;
+        }
+        else {
+            t.expect2(typeof document === 'undefined').true() ;
+        }
+    }) ;
 
     group.unary("$term() && $termclean() functions()", async (t) => {
         if ($inbrowser()) {

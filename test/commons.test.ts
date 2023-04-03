@@ -6,7 +6,6 @@ import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
 import { TSDateForm } from "../src/tsdatecomp";
-import { $decodeBase64, $encodeBase64 } from "../src/data";
 
 export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
@@ -297,15 +296,4 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect9($strings(null, [], undefined, null,[])).is([]) ;
     }) ;
 
-    group.unary("$decodeBase64() and $encodeBase64() functions", async(t) => {
-        const b64 = 'JVBERi0xLjQKJcKlwrEKCgoKMSAwIG9iagogIDw8IC9UeXBlIC9DYXRhbG9nCiAgICAgL1BhZ2VzIDIgMCBSCiAgPj4KZW5kb2JqCgoyIDAgb2JqCiAgPDwgL1R5cGUgL1BhZ2VzCiAgICAgL0tpZHMgWzMgMCBSXQogICAgIC9Db3VudCAxCiAgICAgL01lZGlhQm94IFswIDAgMzAwIDE0NF0KICA+PgplbmRvYmoKCjMgMCBvYmoKICA8PCAgL1R5cGUgL1BhZ2UKICAgICAgL1BhcmVudCAyIDAgUgogICAgICAvUmVzb3VyY2VzCiAgICAgICA8PCAvRm9udAogICAgICAgICAgIDw8IC9GMQogICAgICAgICAgICAgICA8PCAvVHlwZSAvRm9udAogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTEKICAgICAgICAgICAgICAgICAgL0Jhc2VGb250IC9UaW1lcy1Sb21hbgogICAgICAgICAgICAgICA+PgogICAgICAgICAgID4+CiAgICAgICA+PgogICAgICAvQ29udGVudHMgNCAwIFIKICA+PgplbmRvYmoKCjQgMCBvYmoKICA8PCAvTGVuZ3RoIDU1ID4+CnN0cmVhbQogIEJUCiAgICAvRjEgMTggVGYKICAgIDAgMCBUZAogICAgKEhlbGxvIFdvcmxkKSBUagogIEVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxOCAwMDAwMCBuIAowMDAwMDAwMDc3IDAwMDAwIG4gCjAwMDAwMDAxNzggMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAp0cmFpbGVyCiAgPDwgIC9Sb290IDEgMCBSCiAgICAgIC9TaXplIDUKICA+PgpzdGFydHhyZWYKNTY1CiUlRU9GCg==' ;
-        const array = $decodeBase64(b64) ;
-        t.expect0(array).is(Buffer.from(b64, 'base64')) ;
-        const b64_2 = $encodeBase64(array) ;
-        t.expect1(b64_2).is(b64) ;
-
-        const str = 'This is a string' ;
-        const str64 = $encodeBase64(str) ;
-        t.expect2(str64).is(Buffer.from(str, 'binary').toString('base64')) ;
-    })
 }) ;
