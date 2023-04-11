@@ -1,12 +1,21 @@
 import { createReadStream } from 'fs';
-import * as crypto from 'crypto';
+import { 
+    createCipheriv, 
+    createDecipheriv, 
+    createHash, 
+    Hash, 
+    KeyObject, 
+    randomBytes, 
+    randomInt, 
+    randomUUID 
+} from 'crypto';
 
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, uuidV1Regex, UUIDv4, uuidV4Regex, UUIDVersion } from './types';
 import { $isstring, $length, $ok, $unsigned, $value } from './commons';
 import { $bufferFromBytes, $bufferFromDataLike, $uint8ArrayFromDataLike } from './data';
 import { $charset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
-import { $logterm } from './utils';
+import { $inbrowser, $logterm } from './utils';
 import { $ftrim, $trim } from './strings';
 
 import { __TSCRC16ARCTable, __TSCRC32Table } from './crypto_tables';
@@ -22,10 +31,10 @@ export type  EncryptionAlgorithm = 'AES128' | 'AES256' ;
 export const AES128:EncryptionAlgorithm = 'AES128' ;
 export const AES256:EncryptionAlgorithm = 'AES256' ;
 
-/* we only generate UUID v4 */
+/* we only generate UUID v4. Note that in browser, internal implementation is always used */
 export function $uuid(internalImplementation: boolean = false): UUID {
-    if (!internalImplementation) {
-        try { return <UUID>crypto.randomUUID(); }
+    if (!internalImplementation && !$inbrowser()) {
+        try { return <UUID>randomUUID(); }
         catch { $logterm('Warning:crypto.randomUUID() is not available') ; }    
     }
     return _generateV4UUID(true) as UUID ;
@@ -59,7 +68,7 @@ export interface $encryptOptions {
 
 // default encryption mode is AES256-CBC with a random generated initialization vector
 // default output is an hexa string
-export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | crypto.KeyObject, opts?: Nullable<$encryptOptions>):  TSData | string | null {
+export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | KeyObject, opts?: Nullable<$encryptOptions>):  TSData | string | null {
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
     if (!charset) { return null; }
     
@@ -69,9 +78,9 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | c
     let returnValue = null ;
     try {
         const addIV = !opts?.noInitializationVector ;
-        const iv = addIV ? crypto.randomBytes(16) : __CommonInitializationVector ;
+        const iv = addIV ? randomBytes(16) : __CommonInitializationVector ;
 
-        const cipher = crypto.createCipheriv(algo, key, iv);
+        const cipher = createCipheriv(algo, key, iv);
         let encrypted = addIV ? new TSData(iv) : new TSData() ; 
         encrypted.appendBytes(cipher.update(source)) ;
         encrypted.appendBytes(cipher.final()) ;
@@ -87,7 +96,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | c
 export interface $decryptOptions extends $encryptOptions {}
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
-export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike | crypto.KeyObject, opts?: Nullable<$decryptOptions>): TSData | string | null {
+export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike | KeyObject, opts?: Nullable<$decryptOptions>): TSData | string | null {
     const hasVector = !opts?.noInitializationVector ;
     const isString = $isstring(source) ;
     const len = $length(source) ;
@@ -116,7 +125,7 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike | 
             src = $bufferFromDataLike(source as TSDataLike, { start:hasVector?16:0 }) ;
             iv = hasVector ? $bufferFromDataLike(source as TSDataLike, { end:16 }) : __CommonInitializationVector ;
         }
-        let decipher = crypto.createDecipheriv(algo, key, iv);
+        let decipher = createDecipheriv(algo, key, iv);
         let decrypted = new TSData(decipher.update(src));
         decrypted.appendBytes(decipher.final());
         returnValue = !opts?.dataOutput ? decrypted.toString(charset) : decrypted ;
@@ -171,7 +180,7 @@ export async function $uuidhashfile(filePath: Nullable<string>, version?:Nullabl
 export function $random(max?: Nullable<number>): uint 
 {
     let m = $unsigned(max) ; if (!m) { m = UINT32_MAX ; } 
-    return crypto.randomInt(Math.min(m, UINT_MAX)) as uint ; 
+    return randomInt(Math.min(m, UINT_MAX)) as uint ; 
 }
 
 export interface $passwordOptions {
@@ -183,7 +192,7 @@ export interface $passwordOptions {
 
 export function $password(len: number, opts: $passwordOptions = { hasLowercase: true }): string | null {
     const MAX_CONSECUTIVE_CHARS = 2;
-    const rand = crypto.randomInt ; 
+    const rand = randomInt ; 
     if (!opts.hasLowercase && !opts.hasNumeric && !opts.hasSpecials && !opts.hasUppercase) {
         opts.hasUppercase = true;
     }
@@ -284,16 +293,16 @@ function _algo(algo:Nullable<string>):string
     return $ok(__TSEncryptKeyLength[a]) ? a : AES256 ;
 }
 
-function _createHash(method?:Nullable<HashMethod>):crypto.Hash
-{ return crypto.createHash($value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256')) ; }
+function _createHash(method?:Nullable<HashMethod>):Hash
+{ return createHash($value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256')) ; }
 
-function _charsetKeyAndAlgo(skey: string | TSDataLike | crypto.KeyObject, opts?: Nullable<$encryptOptions>): [TSCharset | null, crypto.KeyObject | Uint8Array, string] {
+function _charsetKeyAndAlgo(skey: string | TSDataLike | KeyObject, opts?: Nullable<$encryptOptions>): [TSCharset | null, KeyObject | Uint8Array, string] {
     const defaultCharset = TSCharset.binaryCharset() ;
     const keyCharset = $charset(opts?.keyEncoding, defaultCharset);
     const algo = _algo(opts?.algorithm) ;
-    const isKeyObject = skey instanceof crypto.KeyObject;
+    const isKeyObject = skey instanceof KeyObject;
     let key = isKeyObject ?
-        skey as crypto.KeyObject :
+        skey as KeyObject :
         ($isstring(skey) ?
             keyCharset.uint8ArrayFromString(skey as string) :
             $uint8ArrayFromDataLike(skey as TSDataLike)
@@ -322,7 +331,7 @@ function _generateV4UUID(convertToLowerCase:boolean):string {
         if (i === 12) { uuid += '-4' ; }
         else {
             if (i === 8 || i === 16 || i === 20) { uuid += '-' ; }
-            const rand = crypto.randomInt(16) | 0 ;
+            const rand = randomInt(16) | 0 ;
             uuid += (i == 16 ? (rand & 3 | 8) : rand).toHex1(convertToLowerCase) ; 
         }
     }
