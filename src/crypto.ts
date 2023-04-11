@@ -32,8 +32,8 @@ export const AES256:EncryptionAlgorithm = 'AES256' ;
 
 /* we only generate UUID v4. Note that in browser, internal implementation is always used */
 export function $uuid(internalImplementation: boolean = false): UUID {
-    if (!internalImplementation && !$inbrowser()) {
-        try { return <UUID>randomUUID(); }
+    if (!internalImplementation && typeof randomUUID !== 'undefined' && !$inbrowser()) {
+        try { return <UUID>(randomUUID as ()=>string)(); }
         catch { $logterm('Warning:crypto.randomUUID() is not available') ; }    
     }
     return _generateV4UUID(true) as UUID ;
