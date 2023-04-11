@@ -4,7 +4,6 @@ import {
     createDecipheriv, 
     createHash, 
     Hash, 
-    KeyObject, 
     randomBytes, 
     randomInt, 
     randomUUID 
@@ -68,7 +67,7 @@ export interface $encryptOptions {
 
 // default encryption mode is AES256-CBC with a random generated initialization vector
 // default output is an hexa string
-export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | KeyObject, opts?: Nullable<$encryptOptions>):  TSData | string | null {
+export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
     if (!charset) { return null; }
     
@@ -96,7 +95,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike | K
 export interface $decryptOptions extends $encryptOptions {}
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
-export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike | KeyObject, opts?: Nullable<$decryptOptions>): TSData | string | null {
+export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
     const hasVector = !opts?.noInitializationVector ;
     const isString = $isstring(source) ;
     const len = $length(source) ;
@@ -176,11 +175,17 @@ export function $uuidhash(buf: string | TSDataLike, version?:Nullable<UUIDVersio
 export async function $uuidhashfile(filePath: Nullable<string>, version?:Nullable<UUIDVersion>): Promise<string|null>
 { return _uuidHash(await $hashfile(filePath, MD5), version) ; }
 
-// default random range is [0,UINT32_MAX]
-export function $random(max?: Nullable<number>): uint 
-{
+export function $random(max?: Nullable<number>): uint {
     let m = $unsigned(max) ; if (!m) { m = UINT32_MAX ; } 
-    return randomInt(Math.min(m, UINT_MAX)) as uint ; 
+    if (typeof randomInt !== 'undefined') {
+        return (randomInt as (n:number) => number)(Math.min(m, UINT_MAX)) as uint ; 
+    }
+    if (m <= UINT32_MAX) {
+        const bytes = randomBytes(4) ; 
+        return (bytes.readUInt32LE(0) % m) as uint ;
+    }
+    const bytes = randomBytes(8) ; 
+    return ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
 }
 
 export interface $passwordOptions {
@@ -192,29 +197,30 @@ export interface $passwordOptions {
 
 export function $password(len: number, opts: $passwordOptions = { hasLowercase: true }): string | null {
     const MAX_CONSECUTIVE_CHARS = 2;
-    const rand = randomInt ; 
     if (!opts.hasLowercase && !opts.hasNumeric && !opts.hasSpecials && !opts.hasUppercase) {
         opts.hasUppercase = true;
     }
     if (len < 3 || len > 256) return null;
+    const rand = randomBytes(3) ;
 
     let base = '';
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }
-    if (opts.hasUppercase) { base = base + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; }
-    if (opts.hasNumeric) { base = base + "0123456789"; }
-    if (opts.hasLowercase && (rand(891) % 7)) { base = base + "abcdefghijklmnopqrstuvwxyz"; }
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }
-    if (opts.hasSpecials) { base = base + "!#$-_&*@()+/"; }
-    if (opts.hasSpecials && (rand(1795) % 3)) { base = base + "-#@*!"; }
-    if (opts.hasNumeric && (rand(733) % 2)) { base = base + "0123456789"; }
-    if (opts.hasNumeric) { base = base + "0123456789"; }
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }
-    const charlen = base.length;
+    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 26
+    if (opts.hasUppercase) { base = base + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; }                          // 52
+    if (opts.hasNumeric) { base = base + "0123456789"; }                                            // 62
+    if (opts.hasLowercase && (rand[0] % 7)) { base = base + "abcdefghijklmnopqrstuvwxyz"; }       // 88
+    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 114
+    if (opts.hasSpecials) { base = base + "!#$-_&*@()+/"; }                                         // 126
+    if (opts.hasSpecials && (rand[1] % 3)) { base = base + "-#@*!"; }                            // 131
+    if (opts.hasNumeric && (rand[2] % 2)) { base = base + "0123456789"; }                         // 141
+    if (opts.hasNumeric) { base = base + "0123456789"; }                                            // 151
+    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 177
+    const charlen = base.length; // charlen < 256
     let identicals = 0, i = 0;
-    let last = '', password = '';
-
+    let last = '', password = '' ;
+    const rbytes = randomBytes(len) ;
+    
     while (i < len) {
-        let c = base.charAt(rand(charlen));
+        let c = base.charAt(rbytes[i] % charlen);
         if (c == last) {
             if (++identicals == MAX_CONSECUTIVE_CHARS) { identicals--; }
             else {
@@ -296,18 +302,12 @@ function _algo(algo:Nullable<string>):string
 function _createHash(method?:Nullable<HashMethod>):Hash
 { return createHash($value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256')) ; }
 
-function _charsetKeyAndAlgo(skey: string | TSDataLike | KeyObject, opts?: Nullable<$encryptOptions>): [TSCharset | null, KeyObject | Uint8Array, string] {
+function _charsetKeyAndAlgo(skey: string | TSDataLike, opts?: Nullable<$encryptOptions>): [TSCharset | null, Uint8Array, string] {
     const defaultCharset = TSCharset.binaryCharset() ;
     const keyCharset = $charset(opts?.keyEncoding, defaultCharset);
     const algo = _algo(opts?.algorithm) ;
-    const isKeyObject = skey instanceof KeyObject;
-    let key = isKeyObject ?
-        skey as KeyObject :
-        ($isstring(skey) ?
-            keyCharset.uint8ArrayFromString(skey as string) :
-            $uint8ArrayFromDataLike(skey as TSDataLike)
-        );
-    if (!isKeyObject && (key as Uint8Array).length !== __TSEncryptKeyLength[algo]) { return [null, key, __TSEncryptAlgoRef[AES256]]; }
+    const key = $isstring(skey) ? keyCharset.uint8ArrayFromString(skey as string) : $uint8ArrayFromDataLike(skey as TSDataLike) ;
+    if (key.length !== __TSEncryptKeyLength[algo]) { return [null, key, __TSEncryptAlgoRef[AES256]]; }
     return [$charset(opts?.encoding, defaultCharset), key, __TSEncryptAlgoRef[algo]]
 }
 
@@ -327,11 +327,13 @@ function _crc(source: string | TSDataLike, crc:number, table:number[], andValue:
 
 function _generateV4UUID(convertToLowerCase:boolean):string {
     let uuid = "";
+    const rbytes = randomBytes(32) ;
+
     for (let i = 0; i < 32; i++) {
         if (i === 12) { uuid += '-4' ; }
         else {
             if (i === 8 || i === 16 || i === 20) { uuid += '-' ; }
-            const rand = randomInt(16) | 0 ;
+            const rand = (rbytes[i] >> (i % 24)) & 0x0F ;
             uuid += (i == 16 ? (rand & 3 | 8) : rand).toHex1(convertToLowerCase) ; 
         }
     }
