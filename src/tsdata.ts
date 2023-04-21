@@ -1,5 +1,5 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
-import { $crc16, $crc32, $hash, $uuidhash, HashMethod } from "./crypto";
+import { $crc16, $crc32, $hash, $hashOptions, $slowhash, $uuidhash, HashMethod } from "./crypto";
 import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
@@ -305,6 +305,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public crc32():uint32 { return $crc32(this) ; }
 
     public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
+    public slowhash(options?: $hashOptions):string|Buffer { return $slowhash(this, options) ; }
     public uuidhash(version?:Nullable<UUIDVersion>) { return $uuidhash(this, version) ; }
 
     // ============ TSObject conformance =============== 

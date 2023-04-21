@@ -31,9 +31,13 @@ export class TSUniqueError extends Error implements TSLeafInspect {
 }
 export class TSError extends Error {
     public readonly info:TSDictionary|undefined ;
-    public constructor(message:string, info?:TSDictionary) {
+
+    private _errorCode:number = NaN ;
+
+    public constructor(message:string, info?:Nullable<TSDictionary>, errorCode?:Nullable<number>) {
         super(message) ;
-        this.info = info ;
+        if ($ok(info)) { this.info = info! } ;
+        this.errorCode = errorCode ;
     }
 
     public static assertIntParam(v:Nullable<number>, fn:string, param:string) {
@@ -62,7 +66,10 @@ export class TSError extends Error {
         }
     }
 
-    public entries(): [string, any][] { return Object.entries({ name:this.name, message:this.message, info:this.info}) ; }
+    public get errorCode() { return this._errorCode ; }
+    public set errorCode(code:Nullable<number>) { if ($isint(code)) { this._errorCode = code! ;} } 
+
+    public entries(): [string, any][] { return Object.entries({ name:this.name, errorCode:this.errorCode, message:this.message, info:this.info}) ; }
 
 }
 
@@ -85,11 +92,11 @@ export function $subclassReponsabililty(instance:object, method:Function):any {
 
 export class TSHttpError extends TSError {
     public readonly status:Resp ;
-    public constructor(message:string, status:Resp, info?:TSDictionary) {
-        super(message, info) ;
+    public constructor(message:string, status:Resp, info?:Nullable<TSDictionary>, errorCode?:Nullable<number>) {
+        super(message, info, errorCode) ;
         this.status = status ;
     }
 
-    public entries(): [string, any][] { return Object.entries({ name:this.name, status:this.status, message:this.message, info:this.info}) ; }
+    public entries(): [string, any][] { return Object.entries({ name:this.name, status:this.status, errorCode:this.errorCode, message:this.message, info:this.info}) ; }
 
 }

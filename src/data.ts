@@ -181,6 +181,7 @@ interface $bufferAspectOptions {
     transformFn?: (n: number) => string;
 }
 
+
 export function $dataAspect(
     source: Bytes | Uint16Array | Uint32Array,
     opts: $bufferAspectOptions = { prefix: '[', suffix: ']', separator: ',', showLength: true }

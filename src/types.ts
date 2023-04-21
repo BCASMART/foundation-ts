@@ -84,6 +84,9 @@ export const Descending = 1 ;
 
 export type Comparison = -1 | 0 | 1 | undefined ; 
 
+// ========== system types =========================
+export type TSEndianness = 'BE' | 'LE' ;
+
 // ========== enumerated types =====================
 // ISO 3166-1 alpha-2
 export enum Countries {

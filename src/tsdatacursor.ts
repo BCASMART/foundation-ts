@@ -2,9 +2,7 @@ import { endianness } from "os"
 import { $isunsigned, $ok } from "./commons";
 import { TSData, TSDataOptions } from "./tsdata";
 import { TSError } from "./tserrors";
-import { Nullable, TSDataLike } from "./types";
-
-export type TSEndianness = 'BE' | 'LE' ;
+import { Nullable, TSDataLike, TSEndianness } from "./types";
 
 export interface TSDataCursorOptions extends TSDataOptions {
     cursor?:number ;

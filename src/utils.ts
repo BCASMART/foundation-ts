@@ -6,6 +6,7 @@ import { FoundationHTMLEncoding } from "./string_tables";
 import { $charset } from './tscharset';
 import { Nullable, StringDictionary, TSDataLike, uint, unichar } from './types';
 import { DefaultsConfigurationOptions } from './tsdefaults';
+import { $bytesFromDataLike } from "./data";
 
 export const $noop = () => {} ;
 
@@ -375,6 +376,23 @@ export function $logterm(format:string, ...args:any[]) {
 
 export function $writeterm(format:string, ...args:any[]) {
     return _logwriteterm(false, format, args)
+}
+
+export function $hexadump(source:Nullable<TSDataLike>) {
+    let data = $ok(source) ? $bytesFromDataLike(source!) : [] ;
+    let sourceLen = data.length ;
+    let len = sourceLen % 16 > 0 ? sourceLen + 16 - sourceLen % 16 : sourceLen ;
+    $logterm("&0&x         00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F chars&0") ;
+    $logterm("&0&x---------------------------------------------------------------------------&0") ;
+
+    function _H(x:number):string { return (x < sourceLen ? data[x] : 0).toHex2() ; }
+    function _B(x:number):string { return x < sourceLen ? (data[x] === 38 ? String.fromCharCode(0xff08) : (data[x] >= 32 && data[x] < 128 ? String.fromCharCode(data[x]) : '&B⋅&G')):'' ; }
+    
+    for (let p = 0 ; p < len ; p += 16) {
+        $logterm(`&0&j${p.toHex8()} ${_H(p)} ${_H(p+1)} ${_H(p+2)} ${_H(p+3)} ${_H(p+4)} ${_H(p+5)} ${_H(p+6)} ${_H(p+7)} ${_H(p+8)} ${_H(p+9)} ${_H(p+10)} ${_H(p+11)} ${_H(p+12)} ${_H(p+13)} ${_H(p+14)} ${_H(p+15)} &w&G&w ${_B(p)}${_B(p+1)}${_B(p+2)}${_B(p+3)}${_B(p+4)}${_B(p+5)}${_B(p+6)}${_B(p+7)}${_B(p+8)}${_B(p+9)}${_B(p+10)}${_B(p+11)}${_B(p+12)}${_B(p+13)}${_B(p+14)}${_B(p+15)} &0`) ;
+    }
+    
+    $logterm("&0&x---------------------------------------------------------------------------&0") ;
 }
 
 export function $logheader(s: string, width: number = 0, style: string = '&w', starStyle: string = '&x')
