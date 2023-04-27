@@ -1,11 +1,13 @@
-import { $isfunction, $isstring, $lse, $ok } from "./commons";
+import { $isfunction, $isstring, $length, $lse, $ok } from "./commons";
 import { TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
 import { Bytes, Nullable, TSDataLike, uint8 } from "./types";
 
-export interface DataConversionOptions {
+export interface DataInterval {
     start?:Nullable<number>,
-    end?:Nullable<number>,
+    end?:Nullable<number>
+}
+export interface DataConversionOptions extends DataInterval {
     forceCopy?:Nullable<boolean>
 }
 
@@ -170,6 +172,16 @@ export function $encodeBase64(source: Uint8Array | string, reference: string = b
     }
     return output;
 }
+// ===================== Data operations ==============================
+export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
+    var len = Math.max($length(a), $length(b)) ;
+    const ret = Buffer.allocUnsafe(len) ;
+    if (!len) { return ret ; }
+    const ab = $bytesFromDataLike(a) ;
+    const bb = $bytesFromDataLike(b) ;
+    for (let i = 0 ; i < len ; i++) { ret[i] = (ab[i] ^ bb[i]) & 0xff ; }
+    return ret ;
+}
 
 // ===================== Data description ==============================
 interface $bufferAspectOptions {
@@ -208,6 +220,7 @@ declare global {
         leafInspect:         (this: Uint8Array) => string;
         toBase64:            (this: Uint8Array) => string;
         isGenuineUint8Array: (this:Uint8Array) => boolean ;
+        XOR:                 (this: TSDataLike, other:TSDataLike) => Buffer;
     }
     export interface Uint16Array {
         leafInspect: (this: Uint16Array) => string;
@@ -218,6 +231,7 @@ declare global {
     export interface ArrayBuffer {
         leafInspect: (this: any) => string;
         toBase64:    (this: any) => string;
+        XOR:         (this: TSDataLike, other:TSDataLike) => Buffer;
     }
 }
 Uint8Array.prototype.isGenuineUint8Array = function isGenuine(this:Uint8Array): boolean { return this.constructor.name === 'Uint8Array' ; } 
@@ -234,14 +248,18 @@ String.prototype.toBase64         = function toBase64(this: string): string { re
 Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
 ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }
 
+Uint8Array.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
+ArrayBuffer.prototype.XOR         = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
+
 // ===================== private functions ==============================
 export function _toBytesOpts(source:TSDataLike, opts:DataConversionOptions = {}): [Bytes, DataConversionOptions]
 {
     if (source instanceof ArrayBuffer) {
-        opts = {...opts, forceCopy: false } // here we already force a conversion, so no need to do it twice
-        return [$bufferFromArrayBuffer(source), {...opts, forceCopy: false }] ;
+        return [$bufferFromArrayBuffer(source), {...opts, forceCopy: false }] ; // we alreay are forced to do a conversion here, don't do it twice
     }
-    else if (source instanceof TSData) { return [source.mutableBuffer, opts] ; }
+    else if (source instanceof TSData) {
+        return [source.mutableBuffer, opts] ; 
+    }
     return [source, opts] ;
 }
 

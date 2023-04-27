@@ -84,6 +84,13 @@ export const Descending = 1 ;
 
 export type Comparison = -1 | 0 | 1 | undefined ; 
 
+export enum TSUnicity {
+    None,
+    Objects,
+    Equality,
+    Visual
+} ;
+
 // ========== system types =========================
 export type TSEndianness = 'BE' | 'LE' ;
 

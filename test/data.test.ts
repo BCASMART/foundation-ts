@@ -5,7 +5,7 @@ export const dataGroups = [
     TSTest.group("Testing simple level data manipulations functions", async (group) => {
         const a:Uint8Array = new Uint8Array([65,66,67,68]) ;
         const c = Buffer.from("ABCD") ;
-        group.unary('testing isGenuineUint8Array() method', async(t) => {
+        group.unary('x.isGenuineUint8Array() method', async(t) => {
             t.expect0(a.isGenuineUint8Array()).true() ;
             t.expect1(c.isGenuineUint8Array()).false() ;
         }) ;

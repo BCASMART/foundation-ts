@@ -7,6 +7,7 @@ import { $charset } from './tscharset';
 import { Nullable, StringDictionary, TSDataLike, uint, unichar } from './types';
 import { DefaultsConfigurationOptions } from './tsdefaults';
 import { $bytesFromDataLike } from "./data";
+import { $unit } from "./number";
 
 export const $noop = () => {} ;
 
@@ -18,6 +19,30 @@ export function $inbrowser():boolean {
         ($inbrowser as any).flag = inb ;
     }
     return ($inbrowser as any).flag ;
+}
+
+export function $mark():number {
+    if (typeof process?.hrtime === 'function') {
+        const [seconds, nanoSeconds] = process!.hrtime() ;
+        return seconds + nanoSeconds / 1000000000.0 ;
+    }
+    else if (typeof window?.performance?.now === 'function') {
+        return window!.performance!.now() / 1000.0 ;
+    }
+    else {
+        return Date.now() / 1000.0 ;
+    }
+}
+
+export function $ellapsed(previousMark:number):string { 
+    return $unit($mark() - previousMark, {
+        unitName:"second",
+        unit:"s",
+        decimalPlaces:3,
+        minimalUnit:-2,
+        ignoreZeroDecimals:true,
+        ignoreMinimalUnitDecimals:true
+    }) ;
 }
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {

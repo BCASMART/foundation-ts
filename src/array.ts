@@ -1,39 +1,89 @@
-import { $count, $defined, $ismethod, $isnumber, $isstring, $ok } from "./commons";
-import { $compare } from "./compare";
+import { $count, $defined, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
+import { $compare, $equal, $visualequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
-import { Ascending, Comparison, Descending, Nullable } from "./types";
+import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types";
 
 
-export function $mapset<T, R = T>(values: Nullable<Iterable<T>>, callback:(value: T, index: number) => Nullable<R>): Set<R> {
+/*
+    This is a map function where callback returns as null or undefined are
+    flushed from the result. The function also manages 3 unicity checking :
+
+        TSUnicity.None:     No unicity is guaranteed. You may get the same item several times
+        TSUnicity.Object:   An unicity is guaranteed using the object themselves (equivalent to pointers equality).
+        TSUnicity.Equality: All returned objects are not equal one to each other using $equal() function.
+        TSUnicity.Visual:   All returned objects are not equal one to each other using $visualequal() function. 
+ */
+
+export type $mapCallback<T,R> = (value: T, index: number) => Nullable<R> ;  
+export interface $mapOptions<T, R> {
+    callback?: $mapCallback<T,R>,
+    unicity?:Nullable<TSUnicity> ;
+}
+
+export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] {
+    const opts = $isfunction(options) ? { callback: options as $mapCallback<T,R> } 
+                                      : ($ok(options) ? options as $mapOptions<T,R> : {}) ;
+    if (!$ok(opts.callback)) { opts.callback = v => v as any as R ; }
+    if (!$ok(opts.unicity)) { opts.unicity = TSUnicity.None ; }
+
+    const ret = new Array<R>() ;
+    if ($ok(values)) {
+        const fn = opts.callback! ;
+
+        switch (opts.unicity) { 
+            case TSUnicity.None: {
+                let index = 0;
+                for (let v of values!) {
+                    const mv = fn(v, index);
+                    if ($ok(mv)) { ret.push(mv!); }
+                    index++;
+                }
+                break ;
+            }
+            case TSUnicity.Objects:
+                _mapEquality(ret, values!, fn, (_:R[]) => false)
+                break ;
+
+            case TSUnicity.Equality:
+                _mapEquality(ret, values!, fn, (src:R[], o?:Nullable<R>) => $includesequal(src, o))
+                break ;
+
+            case TSUnicity.Visual:
+                _mapEquality(ret, values!, fn, (src:R[], o?:Nullable<R>) => $includesvisual(src, o))
+                break ;
+        }
+    }
+    return ret;
+}
+
+
+export function $mapset<T, R = T>(values: Nullable<Iterable<T>>, callback?:Nullable<$mapCallback<T,R>>): Set<R> {
     if (!$ok(callback)) { callback = function(v:any, _:number){ return v as R ; } ; }
     const ret = new Set<R>() ;
     if ($ok(values)) {
         let index = 0 ;
         for (let v of values!) {
-            const mv = callback!(v, index) ;
+            const mv = callback!(v, index++) ;
             if ($ok(mv)) { ret.add(mv!) ; }
-            index ++ ;
         }
     }
     return ret ;
 }
 
-/*
-    This is a map function where callback returns as null or undefined are
-    flushed from the result
- */
-export function $map<T, R = T>(values: Nullable<Iterable<T>>, callback: (value: T, index: number) => Nullable<R>): R[] {
-    const ret = new Array<R>();
+export function $includesequal<T = any>(values: Nullable<Iterable<T>>, object:any): boolean {
     if ($ok(values)) {
-        let index = 0;
-        for (let v of values!) {
-            const mv = callback(v, index);
-            if ($ok(mv)) { ret.push(mv!); }
-            index++;
-        }
+        for (let v of values!) { if ($equal(object, v)) return true ; }
     }
-    return ret;
+    return false ;
 }
+
+export function $includesvisual<T = any>(values: Nullable<Iterable<T>>, object:any): boolean {
+    if ($ok(values)) {
+        for (let v of values!) { if ($visualequal(object, v)) return true ; }
+    }
+    return false ;
+}
+
 
 export function $first<T = any>(values: Nullable<ArrayLike<T>>): T | undefined {
     const n = $count(values); return n > 0 ? values![0] : undefined;
@@ -73,20 +123,25 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
 
 declare global {
     export interface Array<T> extends TSFusionEnumeration {
-        average:        (this:T[], opts?: $averageOptions) => number | undefined;
-        filteredMap:    <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => R[];
-        filteredSet:    <R = T>(this:T[], callback: (value: T, index: number) => Nullable<R>) => Set<R>;
+        average:        (this:T[], opts?: $averageOptions) => number | undefined ;
+        filteredMap:    <R = T>(this:T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>) => R[];
+        filteredSet:    <R = T>(this:T[], callback?:Nullable<$mapCallback<T,R>>) => Set<R>;
+        includesequal:  (this:T[], object:any) => boolean ;
+        includesvisual: (this:T[], object:any) => boolean ;
         first:          (this:T[]) => T | undefined;
         last:           (this:T[]) => T | undefined;
         max:            (this:T[]) => T | undefined;
         min:            (this:T[]) => T | undefined;
         sum:            (this:T[]) => number | undefined;
     }
+    // TODO: includesequal for sets?
 }
 
 Array.prototype.average             = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); } ;
-Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): R[] { return $map(this, callback); } ;
-Array.prototype.filteredSet         = function filteredMap<T, R>(this: T[], callback: (e: T, index: number) => Nullable<R>): Set<R> { return $mapset(this, callback); } ;
+Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); } ;
+Array.prototype.filteredSet         = function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $mapset(this, callback); } ;
+Array.prototype.includesequal       = function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }
+Array.prototype.includesvisual      = function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }
 Array.prototype.first               = function first<T>(this: T[]): T | undefined { return $first(this); } ;
 Array.prototype.fusionEnumeration   = function fusionEnumeration():any[] { return this as any[] ; } ;
 Array.prototype.last                = function first<T>(this: T[]): T | undefined { return $last(this); } ;
@@ -95,6 +150,18 @@ Array.prototype.min                 = function min<T>(this: T[]): T | undefined 
 Array.prototype.sum                 = function sum<T>(this: T[]): number | undefined { return $sum(this); } ;
 
 // ================================== private functions ==============================
+function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>, includesFn:(source:R[], v?:Nullable<R>)=>boolean) {
+    const set = new Set<R>() ;
+    let index = 0;
+    for (let v of values!) {
+        const mv = fn(v, index++);
+        if ($ok(mv) && !set.has(mv!) && !includesFn(target, mv)) { 
+            target.push(mv!) ; 
+            set.add(mv!) ;
+        }
+    }
+}
+
 function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number, number|undefined] {
     // since we work on Iterable, we don't use any length
     // and count our collection when trying to perform a sum

@@ -4,7 +4,8 @@ import {
     createDecipheriv, 
     createHash, 
     Hash, 
-    randomBytes, 
+    randomBytes,
+    getRandomValues, 
     randomInt, 
     randomUUID 
 } from 'crypto';
@@ -44,7 +45,7 @@ export function $uuid(internalImplementation: boolean = false): UUID {
 
 export function $slowuuid(convertToLowerCase:boolean = false): UUID {
     let uuid = "";
-    const rbytes = randomBytes(32) ;
+    const rbytes = _randomBytes(32) ;
 
     for (let i = 0; i < 32; i++) {
         if (i === 12) { uuid += '-4' ; }
@@ -65,7 +66,6 @@ export function $uuidVersion(str:Nullable<string>):UUIDVersion | undefined {
     if (uuidV1Regex.test(s)) { return UUIDv1 ; }
     return undefined ;
 }
-
 
 const __TSNoSpecificIV = Buffer.from([3,67,0,14,2,95,191,0,217,255,7,6,1,67,13,89]) ;
 let __CommonInitializationVector = __TSNoSpecificIV ;
@@ -88,6 +88,10 @@ export interface $encryptOptions {
 // default output is an hexa string
 // FIXME: have a replacement in browser when not available
 export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
+    if (typeof createCipheriv === 'undefined') {
+        throw new TSError(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
+    }
+
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
     if (!charset) { return null; }
     
@@ -97,7 +101,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
     let returnValue = null ;
     try {
         const addIV = !opts?.noInitializationVector ;
-        const iv = addIV ? randomBytes(16) : __CommonInitializationVector ;
+        const iv = addIV ? _randomBytes(16) : __CommonInitializationVector ;
 
         const cipher = createCipheriv(algo, key, iv);
         let encrypted = addIV ? new TSData(iv) : new TSData() ; 
@@ -116,6 +120,10 @@ export interface $decryptOptions extends $encryptOptions {}
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
 export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
+    if (typeof createDecipheriv === 'undefined') {
+        throw new TSError(`$decrypt() : function createDecipheriv() is not available in your system.`, { source:source, options:opts }) ;
+    }
+
     const hasVector = !opts?.noInitializationVector ;
     const isString = $isstring(source) ;
     const len = $length(source) ;
@@ -200,6 +208,9 @@ export interface $hashOptions {
     dataOutput?: Nullable<boolean>;
 }
 
+// $slowhash() is 5 to 7 times slower than node.js implementation
+// which, considering, is not so bad, since node.js implementation is written in C
+// QUESTION: protect $slowhash() with a try/catch ?
 export function $slowhash(source: string | TSDataLike, options:$hashOptions = {}):string|Buffer {
     const buf = $isstring(source) ?
                 $charset(options.encoding, TSCharset.binaryCharset())!.bufferFromString(source as string) :
@@ -247,19 +258,23 @@ export async function $uuidhashfile(filePath: Nullable<string>, version?:Nullabl
     return _uuidHash(await $hashfile(filePath, MD5), version) ; 
 }
 
-// QUESTION: make the internal implementation accessible ?
-// QUESTION: protect the randomInt() call with a try/catch ?
+// QUESTION: protect $random() with a try/catch ?
 export function $random(max?: Nullable<number>): uint {
     let m = $unsigned(max) ; if (!m) { m = UINT32_MAX ; } 
-    if (typeof randomInt !== 'undefined') {
-        return (randomInt as (n:number) => number)(Math.min(m, UINT_MAX)) as uint ; 
+    if (typeof randomInt === 'function') {
+        return randomInt(Math.min(m, UINT_MAX)) as uint ; 
     }
-    if (m <= UINT32_MAX) {
-        const bytes = randomBytes(4) ; 
-        return (bytes.readUInt32LE(0) % m) as uint ;
+    else if (typeof randomBytes === 'function') {
+        if (m <= UINT32_MAX) {
+            const bytes = randomBytes(4) ; 
+            return (bytes.readUInt32LE(0) % m) as uint ;
+        }
+        const bytes = randomBytes(8) ; 
+        return ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
     }
-    const bytes = randomBytes(8) ; 
-    return ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
+    else {
+        return Math.floor(Math.random() * Math.min(m, UINT_MAX)) as uint ;
+    }
 }
 
 export interface $passwordOptions {
@@ -275,7 +290,7 @@ export function $password(len: number, opts: $passwordOptions = { hasLowercase: 
         opts.hasUppercase = true;
     }
     if (len < 3 || len > 256) return null;
-    const rand = randomBytes(3) ;
+    const rand = _randomBytes(3) ;
 
     let base = '';
     if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 26
@@ -291,7 +306,7 @@ export function $password(len: number, opts: $passwordOptions = { hasLowercase: 
     const charlen = base.length; // charlen < 256
     let identicals = 0, i = 0;
     let last = '', password = '' ;
-    const rbytes = randomBytes(len) ;
+    const rbytes = _randomBytes(len) ;
     
     while (i < len) {
         // TODO: here we could avoid 0 as rbyte and in case of 0, make a shift
@@ -484,6 +499,21 @@ function _algo(algo:Nullable<string>):string
     return $ok(__TSEncryptKeyLength[a]) ? a : AES256 ;
 }
 
+function _randomBytes(length:number):Uint8Array {
+    if (typeof randomBytes === 'function') { return randomBytes(length) ; }
+    else {
+        const array = new Uint8Array(length) ;
+        if (typeof getRandomValues === 'function') { return getRandomValues(array) ; }
+        else if (typeof randomInt === 'function') {
+            for (let i = 0 ; i < length ; i++) { array[i] = randomInt(255) ; }
+        }
+        else {
+            for (let i = 0 ; i < length ; i++) { array[i] = Math.floor(Math.random() * 255) ;}
+        }
+        return array ;
+    }
+}
+
 function _createHash(method?:Nullable<HashMethod>):Hash
 { return createHash($value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256')) ; }
 
@@ -509,8 +539,6 @@ function _crc(source: string | TSDataLike, crc:number, table:number[], andValue:
     }
     return crc ;
 }
-
-
 
 function _insideHash256(H:number[], W:number[]) {
     function _gamma0(x:number):number { return _ror(7,  x) ^ _ror(18, x) ^ (x>>>3) ;  }

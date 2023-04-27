@@ -5,7 +5,7 @@ import { TSRange } from "./tsrange";
 import { TSRangeSet } from "./tsrangeset";
 import { TSInterval } from './tsinterval'
 import { Ascending, Descending, Nullable, TSDictionary } from "./types";
-import { $inspect, $logterm, $term, $writeterm } from "./utils";
+import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
 import { TSList } from "./tslist";
 import { $left } from "./strings";
 
@@ -89,7 +89,8 @@ export class TSTester {
             return ;
         }
 
-        console.time('TSTester') ;
+        const start = $mark() ;
+
         this.log(`${opts.clearScreen?'&Z':''}&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
         let expectations = 0 ;
         let expectationsFailed = 0 ;
@@ -103,10 +104,7 @@ export class TSTester {
         let groups = this.groups.filter(g => g.focused) ;
         const n = $count(groups) ;
         if (n > 0) {
-            this.log(`&0&O&r Test will be restricted to ${n} groups out of ${this.groups.length} &0`) ;
-            groups.forEach(g => {
-                this.log(`&o - ${g.name} &0`) ;
-            }) ;
+            this.log(`&0&O&r Test will be restricted to ${n} groups out of all ${this.groups.length} &0`) ;
         }
         else { groups = this.groups ; }
 
@@ -129,7 +127,7 @@ export class TSTester {
             if ($isfunction(opts.stopItCallback)) { opts!.stopItCallback!(this) ; }
         }
         else {
-            this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? 'was' : 's were'} executed &0`) ;
+            this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? 'was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
             if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
             if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${passed === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
             if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
@@ -139,7 +137,6 @@ export class TSTester {
             else if (expectationsFailed > 0) {
                 this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
             }
-            console.timeEnd('TSTester') ;
         }
     }
 }
@@ -210,6 +207,7 @@ export class TSTestGroup extends TSGenericTest {
     }
 
     public async run():Promise<[number, number, boolean]> {
+        const start = $mark() ;
         let expectations = 0 ;
         let expectationFailed = 0 ;
         let stopit = false ;
@@ -230,7 +228,7 @@ export class TSTestGroup extends TSGenericTest {
             if (this.silent && expectationFailed > 0) {
                 this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
             }
-            if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y\n`) ; }
+            if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y in ${$ellapsed(start)}\n`) ; }
         }
 
         return [expectations, expectationFailed, stopit] ;

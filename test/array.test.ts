@@ -1,9 +1,10 @@
-import { $average, $first, $last, $map, $max, $min, $sum } from "../src/array";
+import { $average, $first, $includesequal, $includesvisual, $last, $map, $mapset, $max, $min, $sum } from "../src/array";
 import { $count, $defined, $ok } from "../src/commons";
 import { TSTest } from "../src/tstester";
+import { TSUnicity } from "../src/types";
 
 export const arrayGroups = TSTest.group("Commons array functions", async (group) => {
-    group.unary("verifying $map<T,R>(x)", async(t) => {
+    group.unary("functions $map(), $mapset(), $includesequal(), $includesvisual", async(t) => {
         let array:string[] = [] ;
         array[3] = '3' ;
         array[5] = '5' ;
@@ -13,9 +14,29 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expect3(array.filteredMap(e => e)).toBe(['3','5']) ;
         t.expect4(array.filteredMap((e,i) => $defined(e) ? null : `<undef ${i}>`))
          .toBe(['<undef 0>','<undef 1>', '<undef 2>','<undef 4>']) ;
+        
+        const source = [1, 5, null, 6, 'A', undefined, 5, "1"] ;
+        t.expectA($map(source, e => e)).is([1, 5, 6, 'A', 5, "1"]);
+        t.expectB($map(source, { unicity:TSUnicity.Objects })).is([1, 5, 6, 'A', "1"]);
+        t.expectC($map(source, { unicity:TSUnicity.Equality })).is([1, 5, 6, 'A', "1"]);
+        t.expectD($map(source, { unicity:TSUnicity.Visual })).is([1, 5, 6, 'A']);
+
+        t.expectL($includesequal(source, null)).true();
+        t.expectM($includesequal(source, undefined)).true();
+        t.expectN($includesequal(source, 1)).true();
+        t.expectO($includesequal(source, "1")).true();
+        t.expectP($includesequal(source, "5")).false();
+
+        t.expectS($includesvisual(source, null)).true();
+        t.expectT($includesvisual(source, undefined)).true();
+        t.expectU($includesvisual(source, 1)).true();
+        t.expectV($includesvisual(source, "1")).true();
+        t.expectW($includesvisual(source, "5")).true();
+
+        t.expectZ($mapset(source)).is(new Set([1, 5, 6, 'A', "1"])) ;
     }) ;
 
-    group.unary("verifying $count(), $min(), $max(), $sum(), $average(), $first() and $last() functions", async(t) => {
+    group.unary("functions $count(), $min(), $max(), $sum(), $average(), $first() and $last()", async(t) => {
         const values =  [1, 4, 6, '10', '-4', undefined, null, 7] ;
         const values1 = [1, 4, 6, 10, -4, 7] ;
         const values2 = [1, 4, 6, null, undefined, 7, {a:-1,b:20}, null] ;

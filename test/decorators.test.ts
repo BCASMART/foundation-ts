@@ -4,14 +4,17 @@ import { TSTrace, TSTracer } from "../src/decorators"
 class P {
     constructor(public firstName:string, public lastName:string) {}
 
+    // @ts-ignore
     @TSTrace
     // @ts-ignore
     public completeName():string { return `${this.firstName.capitalize()} ${this.lastName.toLocaleUpperCase()}` ; }
 
+    // @ts-ignore
     @TSTrace
     // @ts-ignore
     public computation(n:number) { for (let i = 0 ; i < n ; i++) {} }
 
+    // @ts-ignore
     @TSTrace
     // @ts-ignore
     public square(n:number) { return n*n ; }
@@ -34,7 +37,7 @@ export const decoratorGroups = TSTest.group("Decorators", async (group) => {
         t.expect1(name).is('Jean-Philippe DURAND') ;
         t.expect2(s).is(144) ;
         const lines = logs.map(l => { 
-            return l.includes('---- did trace') ? '---- done ----' : l ;
+            return l.includes('---- executed') ? '---- done ----' : l ;
         }) ;
 
         t.expect3(lines).is([

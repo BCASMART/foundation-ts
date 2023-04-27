@@ -190,8 +190,9 @@ export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0
 
 export function $string(v:any) : string {
     if ($isstring(v)) { return v ; }
+    else if (!$ok(v)) { return '' ; }
     else if ($ismethod(v, 'toString')) { return v.toString() ; }
-    else { return $ok(v) ? `${v}` : '' ; }
+    else { return `${v}` ; }
 }
 
 export function $array<T=any>(...values:T[]):T[] { return values ; }
@@ -391,7 +392,7 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
         
         for (let p of opts.properties) {
             if (!$isstring(p)) { 
-                throw new TSError(`${fn}() needs to have valid string properties`, 
+                throw new TSError(`$${fn}() needs to have valid string properties`, 
                 { function:fn, source:source, destination:destination, options:opts}) ; 
             }
             const v = opts.filter(source[p]) ; 
