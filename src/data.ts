@@ -1,7 +1,7 @@
 import { $isfunction, $isstring, $length, $lse, $ok } from "./commons";
-import { TSCharset } from "./tscharset";
+import { $charset, TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
-import { Bytes, Nullable, TSDataLike, uint8 } from "./types";
+import { Bytes, Nullable, StringEncoding, TSDataLike, TSEndianness, uint32, uint8 } from "./types";
 
 export interface DataInterval {
     start?:Nullable<number>,
@@ -111,20 +111,48 @@ export function $arrayBufferFromDataLike(source:TSDataLike, opts:DataConversionO
     return $arrayBufferFromBytes(source as Bytes, opts)
 }
 
+// ===================== conversions to Uint32 ==============================
+export function $uint32ArrayFromDataLike(source:TSDataLike,  endianness?:Nullable<TSEndianness>, complete?:Nullable<boolean>): uint32[] {
+    return $uint32ArrayFromBuffer($bufferFromDataLike(source), endianness, complete) ;
+}
+
+export function $uint32ArrayFromBuffer(source:Buffer, endianness?:Nullable<TSEndianness>, complete?:Nullable<boolean>):uint32[] {
+    const supl = source.length % 4 ;
+    const compl = !!complete && supl > 0 ? 1 : 0 ;
+    const len = (source.length / 4) | 0 ;
+    const ret = new Array<number>(len+compl) ;
+
+    if (endianness === 'LE') {
+        for (let i = 0 ; i < len ; i++) ret[i] = source.readInt32LE(i<<2) ;
+        if (compl) {
+            ret[len] = 0 ;
+            for (let i = 0, n = len << 2 ; i < supl ; i++) { ret[len] |= source[n+i] << (i<<3) ; }
+        }
+    }
+    else {
+        for (let i = 0 ; i < len ; i++) ret[i] = source.readInt32BE(i<<2) ;
+        if (compl) {
+            ret[len] = 0 ;
+            for (let i = 0, n = len << 2 ; i < supl ; i++) { ret[len] |= source[n+i] << (24-(i<<3)) ; }
+        }
+    }
+    return ret as uint32[];
+}
+
 // ===================== Base64 conversions ==============================
 
 const base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 export function $decodeBase64(input: string, reference: string = base64KeyStr): Uint8Array {
-    var chr1, chr2, chr3;
-    var enc1, enc2, enc3, enc4;
-    var i = 0;
-    var size = 0;
+    let chr1, chr2, chr3;
+    let enc1, enc2, enc3, enc4;
+    let i = 0;
+    let size = 0;
     const len = input.length;
 
     input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
 
-    var uint8 = new Uint8Array(input.length);
+    let uint8 = new Uint8Array(input.length);
 
     while (i < len) {
 
@@ -145,13 +173,14 @@ export function $decodeBase64(input: string, reference: string = base64KeyStr): 
     return uint8.subarray(0, size);
 }
 
-export function $encodeBase64(source: Uint8Array | string, reference: string = base64KeyStr): string {
-    var output = "";
-    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
-
-    const input = $isstring(source) ? TSCharset.binaryCharset().uint8ArrayFromString(source as string) : source as Uint8Array;
+export function $encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, encoding?:Nullable<StringEncoding | TSCharset>): string {
+    const reference = $length(ref) ? ref as string : base64KeyStr ;
+    let output = "";
+    let chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+    const charset = $charset(encoding, TSCharset.binaryCharset()) ;
+    const input = $isstring(source) ? charset.uint8ArrayFromString(source as string) : $uint8ArrayFromDataLike(source as TSDataLike) ;
     const len = input.length;
-    var i = 0;
+    let i = 0 ;
 
     while (i < len) {
         chr1 = input[i++];
@@ -174,7 +203,7 @@ export function $encodeBase64(source: Uint8Array | string, reference: string = b
 }
 // ===================== Data operations ==============================
 export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
-    var len = Math.max($length(a), $length(b)) ;
+    const len = Math.max($length(a), $length(b)) ;
     const ret = Buffer.allocUnsafe(len) ;
     if (!len) { return ret ; }
     const ab = $bytesFromDataLike(a) ;

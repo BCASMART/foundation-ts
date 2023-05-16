@@ -623,7 +623,7 @@ export function _logwriteterm(log:boolean, format:string, args:any[]) {
         for (let a of args) {
             format += $HTML(a.toString(), FoundationHTMLEncodingExtended) ;
         }
-        var c:any = $isfunction(document?.getElementById) ? document!.getElementById("ftsconsole") : undefined ;
+        const c:any = $isfunction(document?.getElementById) ? document!.getElementById("ftsconsole") : undefined ;
         if ($ok(c)) {
             let content = c.innerHTML ;
             content += format ;

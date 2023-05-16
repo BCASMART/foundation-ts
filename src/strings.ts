@@ -54,50 +54,45 @@ export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = fa
     const len = $length(s)
     const ret: string[] = [] ;
     if (len > 0) {
-        let lastWasCR = false, lastWasNewLine = false ;
-        let last = 0;
-        let i = 0;
+        enum LCState { CR, NewLine, Other } ;
         const [CR, LF, FF, NEL, LS, PS] = [0x000D, 0x000A, 0x000C, 0x0085, 0x02028, 0x02029] ;
         const isOtherLineSeparator = useOnlyASCIISeparators ? (_:number) => false : (c:number) => c === LS || c === PS || c === NEL || c === FF ;
 
-        while (i < len) {
-            const c = s!.charCodeAt(i);
-            if (lastWasCR) {
-                lastWasCR = false;
-                ret.push(s!.slice(last, i - 1));
-                if (c === LF) { last = i + 1 ; lastWasNewLine = true ; }
-                else if (isOtherLineSeparator(c)) {
-                    ret.push('') ;
-                    last = i + 1 ;
-                    lastWasNewLine = true ;
-                }
-                else {
-                    // we go back for another round on the same character with lastWasCR as false and a new last var
-                    last = i;
-                    i--;
-                    lastWasNewLine = false ;
-                }
+        let lcstate:LCState = LCState.Other ;
+        let lastPosition = 0, pos = 0 ;
+
+        while (pos < len) {
+            const c = s!.charCodeAt(pos) ;
+            if (lcstate === LCState.CR) {
+                ret.push(s!.slice(lastPosition, pos - 1)) ;
+                if (c === LF) { lastPosition = pos + 1 ; lcstate = LCState.NewLine ; }
+                else if (isOtherLineSeparator(c)) { ret.push('') ; lastPosition = pos + 1 ; lcstate = LCState.NewLine ; }
+                else { lcstate = LCState.Other ; lastPosition = pos-- ; } // we rewind the last char as if the precedent one was not CR
             }
-            else if (c === CR) { lastWasCR = true; lastWasNewLine = false ; }
+            else if (c === CR) { lcstate = LCState.CR ; }
             else if (c === LF || isOtherLineSeparator(c)) {
-                ret.push(s!.slice(last, i));
-                last = i + 1;
-                lastWasNewLine = true ;
+                ret.push(s!.slice(lastPosition, pos));
+                lastPosition = pos + 1 ;
+                lcstate = LCState.NewLine ;
             }
-            else { lastWasNewLine = false ; }
-            i++;
+            else { lcstate = LCState.Other ; }
+            pos++ ;
         }
-        if (lastWasCR) {
-            ret.push(s!.slice(last, i - 1));
-            ret.push('');
-        }
-        else if (lastWasNewLine) { ret.push('') ; }
-        else if (last < i) {
-            ret.push(s!.slice(last, i));
+        switch (lcstate) {
+            case LCState.CR:
+                ret.push(s!.slice(lastPosition, pos - 1));
+                ret.push('');
+                break ;
+            case LCState.NewLine:
+                ret.push('') ;
+                break ;
+            case LCState.Other:
+                if (lastPosition < pos) { ret.push(s!.slice(lastPosition, pos)) ; }
+                break ;
         }
     }
     else if ($ok(s)) { ret.push('') ; }
-    return ret;
+    return ret ;
 }
 
 export function $normspaces(s: Nullable<string>): string { return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " "); }

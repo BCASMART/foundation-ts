@@ -10,7 +10,7 @@ export function $icast(v:number):number
 { return v >= 0 ? (v <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ; }
 
 export function $round(v:number, decimalPlaces:number = 0):number {
-    var p = Math.pow(10, $toint(decimalPlaces));
+    const p = Math.pow(10, $toint(decimalPlaces));
     return Math.round((v * p) * (1 + Number.EPSILON)) / p ;
 }
 

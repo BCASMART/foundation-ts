@@ -1,5 +1,5 @@
-import { Nullable, TSDataLike, TSDictionary } from './types';
-import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned } from './commons';
+import { Nullable, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
+import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
 import { $ftrim } from './strings';
@@ -10,29 +10,41 @@ import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
 import { $arrayBufferFromBytes, $encodeBase64 } from './data';
 import { TSData } from './tsdata';
 import { $map } from './array';
+import { $charset, TSCharset } from './tscharset';
+import { $iscollection } from './tsobject'
 
 
-export function $basicauth(login:string, pwd:string) : string
+export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEncoding|TSCharset>) : string
 {
-	return 'Basic ' + $encodeBase64(`${login}:${pwd}`) ;
+    // if we have password with accents, we need to manage charset. Since the new RFC 7617
+    // we should analyse WWW-Authenticate header returned by the server to know wich charset
+    // to use but since 2018 all browsers will usually default to UTF-8 if a user enters non-ASCII characters 
+    // for username or password. So our default is UTF8 (its also $charset() function default).
+
+	return 'Basic ' + $encodeBase64(`${login}:${pwd}`, undefined, $charset(encoding)) ;
 }
-export function $barerauth(base64token:string) : string
+
+export function $barerauth(base64StringOrData:string|TSDataLike) : string
 {
-	return `Bearer ${base64token}` ;
+    // there's no charset in bareauth. Tokens are considered as ASCII strings
+    const tok = $isstring(base64StringOrData) ? base64StringOrData as string : $encodeBase64(base64StringOrData as TSDataLike) ;
+	return `Bearer ${tok}` ;
 }
 
 // this method removes null or undefined values from a query
+// if a query value is an array, a collection or a Set, it will be enumerated
 export function $query(baseURL:string, query:TSDictionary) : string {
     let params = new URLSearchParams() ;
         
     for (let [key, value] of Object.entries(query)) {
         key = $ftrim(key) ;
-        if (key.length) {
-            if ($isarray(value)) {
-                let uniques = new Set<Nullable<string>>() ; // we don't want to add the same value twice
-                for (let v of (value as Array<any>)) {
+        if (key.length && $ok(value)) {
+            if ($iscollection(value)) { value = value.getItems() ; }
+            if ($isarray(value) || value instanceof Set) {
+                let uniques = new Set<string>() ; // we don't want to add the same value twice
+                for (let v of (value as any[] || Set)) {
                     if ($ok(v)) { 
-                        v = v.toString() ; 
+                        v = $string(v) ; 
                         if (!uniques.has(v)) {
                             uniques.add(v) ;
                             params.append(key, v) ; 
@@ -40,7 +52,7 @@ export function $query(baseURL:string, query:TSDictionary) : string {
                     }
                 }
             }
-            else if ($ok(value)) { params.append(key, value.toString()) ; } 
+            else { params.append(key, $string(value)) ; }
         }
     }
 
@@ -144,7 +156,7 @@ export const NO_BODY = undefined ;
 export const NO_HEADERS = {} ;
 
 export type RequestHeaders = { [key:string]: string | string[] | number}
-export type RequestAuth = { login:string, password:string }
+export type RequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> }
 
 interface TSRequestError {
     status?:number ;
@@ -158,10 +170,10 @@ export interface TSResponse {
     headers:RequestHeaders
 }
 export interface TSRequestOptions {
-    headers?:RequestHeaders,
-    timeout?:number,
-    managesCredentials?:boolean,
-    auth?:RequestAuth|string
+    headers?:Nullable<RequestHeaders> ;
+    timeout?:Nullable<number> ;
+    managesCredentials?:Nullable<boolean> ;
+    auth?:Nullable<RequestAuth|string|TSDataLike> ; // if TSDataLike, we need to convert it to base64
 }
 
 export class TSRequest {
@@ -175,36 +187,51 @@ export class TSRequest {
     public constructor(baseURL:string='', opts:TSRequestOptions = {}) {
         this.baseURL = baseURL ;
         this.commonHeaders= $ok(opts?.headers) ? _standardHeaders(opts.headers!) : {} ;
-		if ($isstring(opts.auth)) { this.setToken(<string>opts.auth) ; }
-		else if ($ok(opts.auth)) { this.setAuth(<RequestAuth>opts.auth) ; }
+		
+        if (opts.auth instanceof ArrayBuffer || opts.auth instanceof Uint8Array /* covers Buffer */ || opts.auth instanceof TSData || $isstring(opts.auth)) {
+            this.setToken(opts.auth as TSDataLike | string) ;
+        }
+        else if ($isarray(opts.auth)) {
+            for (let v of opts.auth as any[]) {
+                if (!$isunsigned(v, UINT8_MAX)) {
+                    throw new TSError('TSRequest.constructor(): malformed authentification token', { baseURL:baseURL, options:opts}) ;
+                }
+            } 
+            this.setToken(opts.auth as TSDataLike) ;
+        }
+        else if ($ok(opts.auth)) {
+            this.setAuth(opts.auth as RequestAuth) ;
+        }
 
         if ($ok(opts.timeout) && opts.timeout! < 0) { 
             throw new TSError('TSRequest.constructor(): if set, timeout option should be positive', { baseURL:baseURL, options:opts}) ; 
         }
-
+        
 		const commonTimeout = $tounsigned(opts.timeout) ;
 		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
-		this.channel = axios.create({baseURL:baseURL, withCredentials:opts.managesCredentials}) ;
+		this.channel = axios.create({baseURL:baseURL, withCredentials:!!opts.managesCredentials}) ;
 	} 
 
 	public setAuth(auth?:Nullable<RequestAuth>) {
-		if ($ok(auth) && $length(auth?.login)) {
-			this.basicAuth = $basicauth(<string>auth?.login, (<RequestAuth>auth).password) ;
+		if ($ok(auth) && $length(auth!.login)) {
+			this.basicAuth = $basicauth(auth!.login, auth!.password, auth!.encoding) ;
 		}
 		else { 
 			this.basicAuth = '' ;
 		}
 	}
 
-	public setToken(token?:Nullable<string>) {
+    // if you pass as string it's a base64string. If you pass a data, it is converted to base64
+	public setToken(token?:Nullable<string|TSDataLike>) {
 		if ($length(token)) {
-			token = $barerauth(<string>token) ;
+			token = $barerauth(token!) ;
 		}
 		else {
 			this.token = '' ;
 		}
 	}
 
+    // we keep this method for backward compatibility
 	public async request(
 		relativeURL:string, 
 		method?:Verb, 
@@ -244,6 +271,8 @@ export class TSRequest {
 		}
 
 		if ($ok(body)) {
+            // TODO: we should make a better conversion here but since
+            // our goal is to remove the Axio's dependancy, it can wait
             if (body instanceof TSData) { config.data = (body as TSData).mutableBuffer ; } 
             else if (body instanceof Uint8Array) { config.data = $arrayBufferFromBytes(body as Uint8Array) ; }
             else { config.data = body ; } 

@@ -1,4 +1,4 @@
-import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes } from '../src/data';
+import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint32ArrayFromBuffer } from '../src/data';
 import { TSTest } from '../src/tstester';
 
 export const dataGroups = [
@@ -40,6 +40,39 @@ export const dataGroups = [
             const str64 = $encodeBase64(str) ;
             t.expect2(str64).is(Buffer.from(str, 'binary').toString('base64')) ;
         }) ;
+        group.unary("$uint32ArrayFromBuffer() function", async(t) => {
+            const bytes = [64,65,66,67,31,38,39,37] ;
+            const base = Buffer.from(bytes) ;
+            const full = Buffer.from([...bytes, 1, 2, 3, 4])
+            const bufs  = [base, Buffer.from([...bytes, 1]),          Buffer.from([...bytes, 1, 2]),       Buffer.from([...bytes, 1, 2, 3]),    full] ;
+            const pbufs = [base, Buffer.from([...bytes, 1, 0, 0, 0]), Buffer.from([...bytes, 1, 2, 0, 0]), Buffer.from([...bytes, 1, 2, 3, 0]), full] ;
+            
+            const nb    = [base.readUint32BE(0), base.readUint32BE(4)] ; 
+            const refb0 = [nb, nb, nb, nb, [...nb, 0x01020304]] ;
+            const refb  = [nb, [...nb, 0x01000000], [...nb, 0x01020000], [...nb, 0x01020300], [...nb, 0x01020304]] ;
+            const nl    = [base.readUint32LE(0), base.readUint32LE(4)] ; 
+            const refl0 = [nl, nl, nl, nl, [...nl, 0x04030201]] ;
+            const refl  = [nl, [...nl, 0x00000001], [...nl, 0x00000201], [...nl, 0x00030201], [...nl, 0x04030201]] ;
 
+            for (let i = 0 ; i < 5 ; i++) {
+                const A = $uint32ArrayFromBuffer(bufs[i], 'BE', true) ;
+                const B =  $uint32ArrayFromBuffer(pbufs[i], 'BE', true) ;
+                t.expect(A, `EBQ${i}`).is(B) ;
+                t.expect(A, `RBQ${i}`).is(refb[i]) ;
+
+                const C = $uint32ArrayFromBuffer(bufs[i], 'BE', false) ;
+                const D = $uint32ArrayFromBuffer(bufs[i]) ;
+                t.expect(C, `BBQ${i}`).is(refb0[i]) ;
+                t.expect(C, `CBQ${i}`).is(D) ;
+
+                const X = $uint32ArrayFromBuffer(bufs[i], 'LE', true) ;
+                const Y =  $uint32ArrayFromBuffer(pbufs[i], 'LE', true) ;
+                t.expect(X, `ELQ${i}`).is(Y) ;
+                t.expect(X, `RLQ${i}`).is(refl[i]) ;
+
+                const Z = $uint32ArrayFromBuffer(bufs[i], 'LE', false) ;
+                t.expect(Z, `BLQ${i}`).is(refl0[i]) ;
+            }
+        }) ;
     })
 ] ;

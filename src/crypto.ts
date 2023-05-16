@@ -261,16 +261,17 @@ export async function $uuidhashfile(filePath: Nullable<string>, version?:Nullabl
 // QUESTION: protect $random() with a try/catch ?
 export function $random(max?: Nullable<number>): uint {
     let m = $unsigned(max) ; if (!m) { m = UINT32_MAX ; } 
+    
     if (typeof randomInt === 'function') {
         return randomInt(Math.min(m, UINT_MAX)) as uint ; 
     }
     else if (typeof randomBytes === 'function') {
-        if (m <= UINT32_MAX) {
-            const bytes = randomBytes(4) ; 
-            return (bytes.readUInt32LE(0) % m) as uint ;
-        }
-        const bytes = randomBytes(8) ; 
-        return ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
+        const is32bits = m <= UINT32_MAX ;
+        return _randomFromBytes(m, randomBytes(is32bits?4:8), is32bits) ;
+    }
+    else if (typeof getRandomValues === 'function') {
+        const is32bits = m <= UINT32_MAX ;
+        return _randomFromBytes(m, getRandomValues(Buffer.allocUnsafe(is32bits?4:8)), is32bits) ;
     }
     else {
         return Math.floor(Math.random() * Math.min(m, UINT_MAX)) as uint ;
@@ -390,8 +391,6 @@ export function $md5(buf:Nullable<TSDataLike>, separator?:Nullable<string>, data
             h[c[0]] = fn[c[1]](h[c[2]], h[c[3]], h[c[4]], h[c[5]], M[c[6]], c[7], c[8]) ;
         }) ;
         for (let i = 0 ; i < 4 ; i++) { H[i] = (H[i]+h[i]) >>> 0 ; }
-        //H[0] = (H[0]+h[0]) >>> 0 ; H[1] = (H[1]+h[1]) >>> 0 ; 
-        //H[2] = (H[2]+h[2]) >>> 0 ; H[3] = (H[3]+h[3]) >>> 0 ;
     }) ;
     return HB.output(H) ;
 }
@@ -447,7 +446,7 @@ export function $sha256(buf:Nullable<TSDataLike>, separator?:Nullable<string>, d
 export function $sha384(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     // H vector contains a high bytes, a low butes, b high bytes, b low bytes, ...
     let H = [... _TSSHA384HTable] ;
-    var W = new Array(160) ;
+    let W = new Array(160) ;
     const HB = new _TSHashBuffer(buf, {integersCount:32, separator:separator, dataoutput:dataoutput}) ;
     HB.hash(_insideHash512(H, W)) ;
     return HB.output(H.slice(0, 12)) ;
@@ -455,7 +454,7 @@ export function $sha384(buf:Nullable<TSDataLike>, separator?:Nullable<string>, d
 
 export function $sha512(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     let H = [... _TSSHA512HTable] ;
-    var W = new Array(160) ;
+    let W = new Array(160) ;
     const HB = new _TSHashBuffer(buf, {integersCount:32, separator:separator, dataoutput:dataoutput}) ;
     HB.hash(_insideHash512(H, W)) ;
     return HB.output(H) ;
@@ -491,6 +490,12 @@ function _uuidHash(h:Nullable<string>, version?:Nullable<UUIDVersion>) {
             + '-' + s.slice(20,32);
     }
     return null ;
+}
+
+function _randomFromBytes(m:uint, bytes:Buffer, is32bits:boolean):uint {
+    return is32bits ? 
+           (bytes.readUInt32LE(0) % m) as uint :
+           ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
 }
 
 function _algo(algo:Nullable<string>):string
