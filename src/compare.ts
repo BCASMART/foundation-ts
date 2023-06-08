@@ -1,7 +1,8 @@
-import { $count, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
+import { $count, $defined, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
 import { $normspaces, $ascii } from "./strings";
+import { TSError } from "./tserrors";
 
 // ================== comparison functions =========================
 
@@ -83,9 +84,8 @@ export function $order(a:any, b:any): NonNullable<Comparison>
 { 
 	if (a === b) { return Same ; }
     if (typeof a === 'number' && typeof b === 'number') { return $numorder(a, b) ; }
-    return $ok(a) ? ($ok(b) ? $compare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; 
+    return _order(a, b, $compare) ; 
 }
-
 
 export function $visualcompare(a:any, b:any):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
@@ -101,7 +101,7 @@ export function $visualcompare(a:any, b:any):Comparison {
 }
 
 export function $visualorder(a:any, b:any):NonNullable<Comparison>
-{ return $ok(a) ? ($ok(b) ? $visualcompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
+{ return a === b ? Same : _order(a, b, $visualcompare) ; }
 
 // ================== equality functions =========================
 
@@ -195,3 +195,17 @@ export function $visualequal(a:any, b:any):boolean {
 }
 
 // TODO: an epsilon equal or a near equal function
+
+// ================= private functions
+function _order(a:any, b:any, comparisonFn:(a:any,b:any)=>Comparison):NonNullable<Comparison> {
+    if (!$ok(a)) { return $ok(b) ? Ascending : Same ; }
+    else if (!$ok(b)) { return $ok(a) ? Descending : Same ; }
+    else {
+        const comp = comparisonFn(a,b) ;
+        if (!$defined(comp)) {
+            throw new TSError("Impossible to order elements A and B", { A:a, B:b }) ;
+        }
+        return comp! ;
+    }
+}
+

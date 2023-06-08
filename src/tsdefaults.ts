@@ -1,5 +1,5 @@
-import { $isobject, $isstring, $length, $ok, $valueornull } from "./commons";
-import { Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
+import { $isobject, $isstring, $length, $ok, $value, $valueornull } from "./commons";
+import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
@@ -13,8 +13,10 @@ export interface Locales {
     names:StringTranslation;
     language: language,
     months:string[];
+    monthsList?:string[];
     shortMonths:string[];
     days:string[];
+    daysList?:string[];
     shortDays:string[];
     startingWeekDay:number;
     dateTimeFormat:string;
@@ -24,6 +26,8 @@ export interface Locales {
     timeFormat:string;
     partialTimeFormat:string;
     ampm:string[];
+    continentNames:ContinentNames;
+    currencies?:CurrenciesInfo
 }
 export interface DefaultsConfigurationOptions {
     encoding?:Nullable<StringEncoding|TSCharset> ;
@@ -31,14 +35,14 @@ export interface DefaultsConfigurationOptions {
     underscoreMax?:Nullable<number> ;
     variableMax?:Nullable<number> ;
 }
-
 export type StringTranslations = { [key in Languages]?:StringDictionary } ;
-
+export type CurrenciesInfo = { [key in Currencies]?: { [key in Languages]?:Partial<CurrencyInfo> }} ;
+export interface CurrencyInfo { unit:string ; units:string ; subunit:string ; subunits:string, code?:string, subcode?:string }
 export class TSDefaults {
 	private static __instance: TSDefaults ;
 
     /**
-     * LOCALES (mostly date/time locales) are set in 7 common EEC languages
+     * LOCALES (mostly date/time locales) are set in 8 common EEC languages
      * - english (en)
      * - french (fr),
      * - spanish (es),
@@ -46,15 +50,16 @@ export class TSDefaults {
      * - italian (it)
      * - portuguese (pt)
      * - dutch (nl)
+     * - greeck (el)
      * 
      * This default management system is primarely meant to be used with EEC
      * countries. So we have the 27 countries of the EEC here + some other
-     * to complete the panel of the european nations.
+     * to complete the panel of the european nations and some others like the US.
      */
     private static __locales = localesList as Locales[] ;
-
-    private _defaultLanguage:language = Languages.fr ;
-    private _defaultCurrency:currency = Currencies.EUR ;
+    private _defaultLanguage:language ;
+    private _defaultCurrency:currency ;
+    private _defaultCountry:TSCountry ;
     private _tmpDirectory:string = $inbrowser() ? '' : os.tmpdir() ;
 
     private _values:TSDictionary = {} ;
@@ -81,7 +86,14 @@ export class TSDefaults {
         }) ;
         
         this._managedLocalesMap = managedLocales ;
-        TSCountry.loadCountries(managedLocales, this._managedLanguages) ;
+        const cmap = TSCountry.loadCountries(managedLocales, this._managedLanguages) ;
+        const c = cmap.get(Countries.FR) ;
+        if (!$ok(c)) { 
+            throw new TSError(`Did not find country '${Countries.FR}' to be the default`) ;
+        }
+        this._defaultCountry = c!
+        this._defaultCurrency = c!.currency ;
+        this._defaultLanguage = c!.locales.language ;
 	}
     
     public managedLanguages() : language[] { return [... this._managedLanguages] ; } // send a copy
@@ -91,6 +103,12 @@ export class TSDefaults {
         const locales = this._managedLocalesMap.get(v) ;
         if ($ok(locales)) { return locales!.language ; }
         return null ;
+    }
+
+    public continentName(cont:Nullable<continent>, lang?:Nullable<language>) : string | null {
+        if (!$ok(cont)) { return null ; }
+        const locales = this._managedLocalesMap.get($value(lang, this.defaultLanguage)) ;
+        return $valueornull(locales?.continentNames[cont!]) ;
     }
 
     public country(s:Nullable<string>) : country | null {
@@ -163,6 +181,14 @@ export class TSDefaults {
         return this._managedLocalesMap.get(this.defaultLanguage)! ;
     }
 	
+    public get defaultCountry() { return this._defaultCountry ; }
+    
+    // warning: setDefaultCountry DOES NOT CHANGE the default language NOR the default currency
+    public setDefaultCountry(c:TSCountry):TSCountry {
+        if ($ok(c)) { this._defaultCountry = c ; }
+        return this._defaultCountry ;
+    }
+    
     public get defaultLanguage() { return this._defaultLanguage ; }
     public setDefaultLanguage(l:language):language {
         if ($ok(this._managedLocalesMap.get(l))) {
@@ -239,6 +265,7 @@ export function $tmp():string { return TSDefaults.defaults().tmpDirectory ; }
 export function $locales(locale?:Nullable<language|country|TSCountry>):Locales { return TSDefaults.defaults().locales(locale) ; }
 export function $country(s:Nullable<string>):country | null { return TSDefaults.defaults().country(s) ; }
 export function $language(s?:Nullable<TSCountry|string>):language | null { return TSDefaults.defaults().language(s) ; }
+export function $continentName(cont:Nullable<continent>, lang?:Nullable<language>): string | null { return TSDefaults.defaults().continentName(cont, lang) ; }
 export function $currency(s?:Nullable<TSCountry|string>):currency | null { return TSDefaults.defaults().currency(s) ; }
 export function $config(path?:Nullable<string>, opts?:Nullable<DefaultsConfigurationOptions>) { TSDefaults.defaults().configure(path, opts) ; }
 

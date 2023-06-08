@@ -1,0 +1,25 @@
+{
+    "EUR": { 
+        "unit":     "euro", 
+        "units":    "euro", 
+        "subunit":  "cent", 
+        "subunits": "cent", 
+        "code":     "€" 
+    },
+    "USD": {
+        "unit":     "dollard", 
+        "units":    "dollards", 
+        "subunit":  "cent", 
+        "subunits": "cents", 
+        "code":     "$",
+        "subcode":  "¢" 
+    },
+    "GBP": { 
+        "unit":     "pound", 
+        "units":    "pounds", 
+        "subunit":  "penny", 
+        "subunits": "pence", 
+        "code":     "£", 
+        "subcode":  "p" 
+    }
+}

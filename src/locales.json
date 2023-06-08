@@ -1,5 +1,27 @@
 [
     {
+        "language": "de",
+        "months":["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+        "shortMonths":["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
+        "days":["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+        "shortDays":["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+        "startingWeekDay":1,
+        "dateTimeFormat":"%%e.%m.%Y %H:%M:%S",
+        "dateFormat":"%e.%m.%Y",
+        "shortDateFormat":"%e.%m.%y",
+        "shortDateTimeFormat":"%%e.%m.%y %H:%M:%S",
+        "timeFormat":"%H:%M:%S",
+        "partialTimeFormat":"%H:%M",
+        "names": { "fr": "allemand", "en": "german", "de": "Deutsch", "it": "tedesco", "es": "alemán", "pt": "alemão", "nl":"Duits", "el":"γερμανικά" },
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "EUR": { "unit": "Euro", "units":"Euro", "subunit":"Cent", "subunits": "Cent" },
+            "GPB": { "unit": "Pfund", "units":"Pfund", "subunit":"Penny", "subunits": "Pence" },
+            "USD": { "unit": "Dollar", "units":"Dollar", "subunit":"Cent", "subunits": "Cent"}
+        },
+        "continentNames": { "AF": "Afrika", "AN": "Antarktis", "AS": "Asien", "EU": "Europa", "NA": "Nordamerika", "OC": "Ozeanien", "SA": "Südamerika"}
+    },
+    {
         "language": "en",
         "months":["January", "February", "March", "April", "May", "June", "July", "August", "Septembre", "Octobre", "Novembre", "Decembre"],
         "shortMonths":["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -12,24 +34,9 @@
         "shortDateTimeFormat":"%m/%d/%y %H:%M:%S",
         "timeFormat":"%H:%M:%S",
         "partialTimeFormat":"%H:%M",
-        "names": { "fr": "anglais", "en": "english", "de": "englisch", "it": "inglese", "es": "inglés", "pt": "inglês", "nl":"Engels" },
-        "ampm": ["AM", "PM"]
-    },
-    {
-        "language": "fr",
-        "months":["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
-        "shortMonths":["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
-        "days":["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
-        "shortDays":["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
-        "startingWeekDay":1,
-        "dateTimeFormat":"%d/%m/%Y %H:%M:%S",
-        "dateFormat":"%d/%m/%Y",
-        "shortDateFormat":"%d/%m/%y",
-        "shortDateTimeFormat":"%d/%m/%y %H:%M:%S",
-        "timeFormat":"%H:%M:%S",
-        "partialTimeFormat":"%H:%M",
-        "names": { "fr": "français", "en": "french", "de": "französisch", "it": "francese", "es": "francés", "pt": "francês", "nl":"Fransen" },
-        "ampm": ["AM", "PM"]
+        "names": { "fr": "anglais", "en": "english", "de": "Englisch", "it": "inglese", "es": "inglés", "pt": "inglês", "nl":"Engels", "el":"αγγλικά" },
+        "ampm": ["AM", "PM"],
+        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Asia", "EU": "Europe", "NA": "North America", "OC": "Oceania", "SA": "South America"}
     },
     {
         "language": "es",
@@ -44,24 +51,35 @@
         "dateTimeFormat":"%d/%m/%Y %H:%M:%S",
         "shortDateTimeFormat":"%d/%m/%y %H:%M:%S",
         "startingWeekDay":1,
-        "names": { "fr": "espagnol", "en": "spanish", "de": "spanisch", "it": "spagnolo", "es": "español", "pt": "espanhol", "nl":"Spaans" },
-        "ampm": ["AM", "PM"]
+        "names": { "fr": "espagnol", "en": "spanish", "de": "Spanisch", "it": "spagnolo", "es": "español", "pt": "espanhol", "nl":"Spaans", "el":"ισπανικά" },
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "EUR": { "units":"euros", "subunit":"céntimo", "subunits": "céntimos" },
+            "GPB": { "unit": "libra", "units":"libras", "subunit":"penique", "subunits": "peniques" },
+            "USD": { "units":"dolares", "subunit":"centavo", "subunits": "centavos"}
+        },
+        "continentNames": { "AF": "África", "AN": "Antártida", "AS": "Asia", "EU": "Europa", "NA": "América del norte", "OC": "Oceanía", "SA": "Sudamerica"}
     },
     {
-        "language": "de",
-        "months":["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
-        "shortMonths":["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
-        "days":["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
-        "shortDays":["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+        "language": "fr",
+        "months":["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
+        "shortMonths":["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
+        "days":["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+        "shortDays":["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
         "startingWeekDay":1,
-        "dateTimeFormat":"%%e.%m.%Y %H:%M:%S",
-        "dateFormat":"%e.%m.%Y",
-        "shortDateFormat":"%e.%m.%y",
-        "shortDateTimeFormat":"%%e.%m.%y %H:%M:%S",
+        "dateTimeFormat":"%d/%m/%Y %H:%M:%S",
+        "dateFormat":"%d/%m/%Y",
+        "shortDateFormat":"%d/%m/%y",
+        "shortDateTimeFormat":"%d/%m/%y %H:%M:%S",
         "timeFormat":"%H:%M:%S",
         "partialTimeFormat":"%H:%M",
-        "names": { "fr": "allemand", "en": "german", "de": "deutsch", "it": "tedesco", "es": "alemán", "pt": "alemão", "nl":"Duits" },
-        "ampm": ["AM", "PM"]
+        "names": { "fr": "français", "en": "french", "de": "Französisch", "it": "francese", "es": "francés", "pt": "francês", "nl":"Frans", "el":"γαλλικά" },
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "EUR": { "units":"euros", "subunit":"centime", "subunits": "centimes" },
+            "GBP": { "unit":"livre", "units":"livres" }
+        },
+        "continentNames": { "AF": "Afrique", "AN": "Antartique", "AS": "Asie", "EU": "Europe", "NA": "Amérique du Nord", "OC": "Océanie", "SA": "Amérique du Sud"}
     },
     {
         "language": "it",
@@ -76,8 +94,35 @@
         "dateTimeFormat":"%d/%m/%Y %H:%M:%S",
         "shortDateTimeFormat":"%d/%m/%y %H:%M:%S",
         "startingWeekDay":1,
-        "names": { "fr": "italien", "en": "italian", "de": "italienisch", "it": "italiano", "es": "italiano", "pt": "italiano", "nl":"Italiaan"},
-        "ampm": ["AM", "PM"]
+        "names": { "fr": "italien", "en": "italian", "de": "Italienisch", "it": "italiano", "es": "italiano", "pt": "italiano", "nl":"Italiaan", "el":"ιταλικός"},
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "EUR": { "subunit":"centesimo", "subunits": "centesimi" },
+            "GBP": { "unit":"sterlina", "units":"sterline", "subunit":"penny", "subunits": "penny" },
+            "USD": { "unit": "dollaro", "units":"dollari", "subunit":"centesimo", "subunits": "centesimi"}
+        },
+        "continentNames": { "AF": "Africa", "AN": "Antartide", "AS": "Asia", "EU": "Europa", "NA": "Nord America", "OC": "Oceania", "SA": "Sud America"}
+    },
+    {
+        "language": "nl",
+        "shortDays":["zon", "ma", "di", "woe", "don", "vrij", "zat"],
+        "days":["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"],
+        "shortMonths":["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
+        "months":["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"],
+        "shortDateFormat":"%d-%m-%y",
+        "dateFormat": "%d-%m-%Y",
+        "timeFormat":"%H:%M:%S",
+        "partialTimeFormat":"%H:%M",
+        "dateTimeFormat":"%d-%m-%Y %H:%M:%S",
+        "shortDateTimeFormat":"%d-%m-%y %H:%M:%S",
+        "startingWeekDay":1,
+        "names": { "fr": "néerlandais", "en": "dutch", "de": "Holländisch", "it": "olandese", "es": "holandés", "pt": "neerlandeses", "nl": "Nederlands", "el":"ολλανδικός" },
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "GPB": { "unit":"pond", "units":"pond" },
+            "USD": { "units":"dollar", "subunits": "cent"}
+        },
+        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Azië", "EU": "Europa", "NA": "Noord Amerika", "OC": "Oceanië", "SA": "Zuid-Amerika"}
     },
     {
         "language": "pt",
@@ -92,23 +137,36 @@
         "dateTimeFormat":"%d-%m-%Y %H:%M:%S",
         "shortDateTimeFormat":"%d-%m-%y %H:%M:%S",
         "startingWeekDay":0,
-        "names": { "fr": "portuguais", "en": "portuguese", "de": "portugiesisch", "it": "portoghese", "es": "portugués", "pt": "portugueses", "nl": "Portugezen" },
-        "ampm": ["AM", "PM"]
-    },    
+        "names": { "fr": "portuguais", "en": "portuguese", "de": "Portugiesisch", "it": "portoghese", "es": "portugués", "pt": "portugueses", "nl": "Portugezen", "el":"πορτογαλικά" },
+        "ampm": ["AM", "PM"],
+        "currencies": {
+            "EUR": { "units":"euros", "subunit":"cêntimo", "subunits": "cêntimos" },
+            "GBP": { "unit":"libra", "units":"libras", "subunit":"centavo", "subunits": "centavos" },
+            "USD": { "unit":"dólar", "units":"dólares", "subunit":"centavo", "subunits": "centavos"}
+        },
+        "continentNames": { "AF": "África", "AN": "Antártica", "AS": "Ásia", "EU": "Europa", "NA": "América do Norte", "OC": "Oceânia", "SA": "América do Sul"}
+    },
     {
-        "language": "nl",
-        "shortDays":["zon", "ma", "di", "woe", "don", "vrij", "zat"],
-        "days":["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"],
-        "shortMonths":["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
-        "months":["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"],
-        "shortDateFormat":"%d-%m-%y",
-        "dateFormat": "%d-%m-%Y",
+        "language":"el",
+        "shortDays":["Κυρ.", "Δευ.", "Τρ.", "Τετ.", "Πέμ.", "Παρ.", "Σάβ."],
+        "days":["Κυριακή", "Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο"],
+        "shortMonths":["Ίαν.", "Φεβρ.",  "Μάρτ", "Άπρ.", "Μάϊος", "Ίούν.", "Ίούλ.", "Αύγ.", "Σεπτ.", "Όκτ.", "Νοέµ.", "Δεκ."],
+        "months":["Ιανουαρίου", "Φεβρουαρίου", "Μαρτίου", "Απριλίου", "Μαΐου", "Ιουνίου", "Ιουλίου", "Αυγούστου", "Σεπτεμβρίου", "Οκτωβρίου", "Νοεμβρίου", "Δεκεμβρίου"],
+        "monthsList":["Ιανουάριος", "Φεβρουάριος", "Μάρτιος", "Απρίλιος", "Μάιος", "Ιούνιος", "Ιούλιος", "Αύγουστος", "Σεπτέμβριος", "Οκτώβριος", "Νοέμβριος", "Δεκέμβριος"],
+        "shortDateFormat":"%d/%m/%y",
+        "dateFormat": "%d/%m/%Y",
         "timeFormat":"%H:%M:%S",
         "partialTimeFormat":"%H:%M",
-        "dateTimeFormat":"%d-%m-%Y %H:%M:%S",
-        "shortDateTimeFormat":"%d-%m-%y %H:%M:%S",
+        "dateTimeFormat":"%d/%m/%Y %H:%M:%S",
+        "shortDateTimeFormat":"%d/%m/%y %H:%M:%S",
         "startingWeekDay":1,
-        "names": { "fr": "néerlandais", "en": "dutch", "de": "holländisch", "it": "olandese", "es": "holandés", "pt": "neerlandeses", "nl": "Nederlands" },
-        "ampm": ["AM", "PM"]
-    }
+        "names": { "fr": "grec", "en": "greek", "de": "Griechisch", "it": "greco", "es": "griego", "pt": "grego", "nl": "Grieks", "el":"ελληνικά" },
+        "ampm": ["π.μ.", "μ.μ."],
+        "currencies": {
+            "EUR": { "unit":"ευρώ", "units":"ευρώ", "subunit":"λεπτό", "subunits": "λεπτά" },
+            "GBP": { "unit":"λίρα", "units":"λίρες", "subunit":"δεκάρα", "subunits": "πένες" },
+            "USD": { "unit":"δολάριο", "units":"δολάρια", "subunit":"σεντ", "subunits": "σεντς"}
+        },
+        "continentNames": { "AF": "Αφρική", "AN": "Ανταρκτική", "AS": "Ασία", "EU": "Ευρώπη", "NA": "Βόρεια Αμερική", "OC": "Ωκεανία", "SA": "Νότια Αμερική"}
+    }    
 ]

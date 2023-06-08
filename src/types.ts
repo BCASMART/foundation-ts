@@ -95,6 +95,16 @@ export enum TSUnicity {
 export type TSEndianness = 'BE' | 'LE' ;
 
 // ========== enumerated types =====================
+// continents
+export enum Continents {
+    AF = 'AF',
+    AN = 'AN',
+    AS = 'AS',
+    EU = 'EU',
+    NA = 'NA',
+    OC = 'OC',
+    SA = 'SA'
+}
 // ISO 3166-1 alpha-2
 export enum Countries {
     AC = 'AC',  AD = 'AD',  AE = 'AE',  AF = 'AF',  AG = 'AG',  AI = 'AI',  AL = 'AL',  AM = 'AM',  AO = 'AO',  AR = 'AR',  AS = 'AS',  AT = 'AT',  AU = 'AU',  AW = 'AW',  AX = 'AX',  AZ = 'AZ',  
@@ -184,6 +194,7 @@ export enum Currencies {
     ZAR = 'ZAR', ZMK = 'ZMK', ZWL = 'ZWL'
 } ;
 
+export type continent = keyof typeof Continents ;
 export type country = keyof typeof Countries ;
 export type language = keyof typeof Languages ;
 export type currency = keyof typeof Currencies ;
@@ -198,6 +209,7 @@ export type FlagDictionary = 		TSDictionary<boolean> ;
 export type StringArrayDictionary = TSDictionary<string[]> ;
 export type NumberArrayDictionary = TSDictionary<number[]> ;
 export type StringTranslation =     { [key in Languages]?:string } ;
+export type ContinentNames =        { [key in Continents]:string } ;
 
 // ========== interfaces =====================
 export interface Address {

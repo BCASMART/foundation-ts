@@ -8,6 +8,8 @@ import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
 import { $icast } from "./number";
 import { TSError } from "./tserrors";
+import { TSCountry } from "./tscountry";
+import { PhoneValidity, TSPhoneNumber } from "./tsphonenumber";
 
 export function $defined(o:any):boolean 
 { return o !== undefined && typeof o !== 'undefined' }
@@ -63,6 +65,9 @@ export function $isemail(o:any) : boolean
 export function $isurl(o:any, opts?:$urlOptions) : boolean
 { return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
 
+export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
+{ return $isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK ; }
+
 export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : boolean
 { return $isstring(o) && $ok($UUID(o, version)) ; }
 
@@ -100,6 +105,12 @@ export function $email(s:Nullable<string>) : email | null
     const m = _regexvalidatedstring<email>(emailRegex, s) ;
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
+
+export function $phonenumber(s:Nullable<string>, country?:Nullable<TSCountry>): TSPhoneNumber | null
+{ return TSPhoneNumber.fromString(s, country) ; }
+
+export function $isophone(s:Nullable<string>, country?:Nullable<TSCountry>): string | null
+{ return $valueornull(TSPhoneNumber.fromString(s, country)?.toString()) ;}
 
 export interface $urlOptions { 
     acceptsProtocolRelativeUrl?:boolean ;
@@ -140,7 +151,6 @@ export function $isodate(s:Nullable<Date|TSDate|string>, format:IsoDateFormat=TS
     }
     return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
 }
-
 export function $address(a:Nullable<Address>) : Address | null 
 {
     if (!$isobject(a)) { return null ; }

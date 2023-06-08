@@ -1,6 +1,8 @@
-import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID } from "./commons";
-import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID, $value } from "./commons";
+import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
+import { TSPhoneNumber } from "./tsphonenumber";
 import { int, Nullable, uint } from "./types";
 
 // for now $ascii() does not mak any transliterations from
@@ -94,8 +96,17 @@ export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = fa
     else if ($ok(s)) { ret.push('') ; }
     return ret ;
 }
+export interface $normspacesOpions {
+    replacer?:string,
+    strict?:boolean
+}
 
-export function $normspaces(s: Nullable<string>): string { return $ftrim(s).replace(FoundationFindAllWhitespacesRegex, " "); }
+export function $normspaces(s: Nullable<string>, opts:$normspacesOpions = {}): string { 
+    return $ftrim(s).replace(
+        opts.strict ? FoundationFindStrictWhitespacesRegex : FoundationFindAllWhitespacesRegex, 
+        $value(opts.replacer, " ")
+    ); 
+}
 
 export function $firstcap(s: Nullable<string>): string { return _capitalize(s, 1); }
 
@@ -140,6 +151,7 @@ declare global {
         toHTML:             (this: string) => string;
         toHTMLContent:      (this: string) => HTMLContent ;
         toInt:              (this: string, defaultValue?: int) => int;
+        toPhoneNumber:      (this: string, defaultCountry?:Nullable<TSCountry>) => TSPhoneNumber|null;
         toTSDate:           (this: string) => TSDate|null ;
         toUnsigned:         (this: string, defaultValue?: uint) => uint;
     }
@@ -171,6 +183,7 @@ String.prototype.toHTML             = function toHTML(this: any): string { retur
 String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
 String.prototype.toInt              = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }
 String.prototype.toTSDate           = function toTSDate(this:string):TSDate|null { return TSDate.fromIsoString(this) ; }
+String.prototype.toPhoneNumber      = function toPhoneNumber(this:string, defaultCountry?:Nullable<TSCountry>):TSPhoneNumber|null { return TSPhoneNumber.fromString(this, defaultCountry) ; }
 String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint): uint { return $tounsigned(this, defaultValue); }
 
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }

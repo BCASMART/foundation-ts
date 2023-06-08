@@ -2,6 +2,7 @@
     {
         "alpha2Code":"AL",
         "alpha3Code": "ALB",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Albanie",
@@ -10,17 +11,23 @@
             "es": "Albania",
             "it": "Albania",
             "pt": "Albânia",
-            "nl": "Albanië"        
+            "nl": "Albanië",
+            "el": "Αλβανία"        
         },
         "currency": "ALL",
         "spokenLanguages": ["sq", "el"],
         "domains": [".al"],
-        "dialCode": "+355",
-        "startingWeekDay":1
+        "phonePlan": {
+            "minDigits":8,
+            "maxDigits":8,
+            "dialCode": "355",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"AD",
         "alpha3Code": "AND",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Andorre",
@@ -29,7 +36,8 @@
             "es": "Andorra",
             "it": "Andorra",
             "pt": "Andorra",
-            "nl": "Andorra"        
+            "nl": "Andorra",
+            "el": "Ανδόρα"        
         },
         "aliases": [
             "Principauté d'Andorre",
@@ -40,12 +48,42 @@
         "localeLanguage": "es",
         "spokenLanguages": ["ca", "es", "fr"],
         "domains": [".ad"],
-        "dialCode": "+376",
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":6,
+            "maxDigits":6,
+            "dialCode": "376", 
+            "trunkCode": "0" 
+        }
+    },
+    {
+        "alpha2Code":"AM",
+        "alpha3Code": "ARM",
+        "continent": "EU",
+        "EEC": false, 
+        "names": {
+            "fr": "Arménie",
+            "en": "Armenia", 
+            "de": "Armenien",
+            "es": "Armenia",
+            "it": "Armenia",
+            "pt": "Arménia",
+            "nl": "Armenië",
+            "el": "Αρμενία"        
+        },
+        "currency": "AMD",
+        "spokenLanguages": ["hi"],
+        "domains": [".am", ".հայ"],
+        "phonePlan": { 
+            "minDigits":8,
+            "maxDigits":9,
+            "dialCode": "374", 
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"AT",
         "alpha3Code": "AUT",
+        "continent": "EU",
         "EEC": true, 
         "names": {
             "fr": "Autriche",
@@ -54,18 +92,23 @@
             "es": "Austria",
             "it": "Austria",
             "pt": "Áustria",
-            "nl": "Oostenrijk"        
+            "nl": "Oostenrijk",
+            "el": "Αυστρία"        
         },
         "currency": "EUR",
         "localeLanguage": "de",
         "spokenLanguages": ["de"],
         "domains": [".at"],
-        "dialCode": "+43", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":7,
+            "dialCode": "43", 
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"BE",
         "alpha3Code": "BEL",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Belgique", 
@@ -74,18 +117,23 @@
             "es": "Bélgica",
             "it": "Belgio",
             "pt": "Bélgica",
-            "nl": "België"       
+            "nl": "België",
+            "el": "Βέλγιο"       
         },
         "currency": "EUR",
         "localeLanguage": "nl",
         "spokenLanguages": ["nl", "fr", "de"], 
         "domains": [".be"],
-        "dialCode": "+32", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":9,
+            "dialCode": "32", 
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"BY",
         "alpha3Code": "BLR",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Biélorussie",
@@ -94,17 +142,23 @@
             "es": "Bielorrusia",
             "it": "Bielorussia",
             "pt": "Bielo-Rússia",
-            "nl": "Wit-Rusland"        
+            "nl": "Wit-Rusland",
+            "el": "Λευκορωσία"        
         },
         "currency": "BYN",
         "spokenLanguages": ["be", "ru"], 
-        "domains": [".by"],
-        "dialCode": "+375", 
-        "startingWeekDay":1
+        "domains": [".by", ".бел"],
+        "phonePlan": { 
+            "minDigits":11,
+            "maxDigits":11,
+            "dialCode": "375", 
+            "trunkCode": "80" 
+        }
     },    
     {
         "alpha2Code":"BA",
         "alpha3Code": "BIH",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Bosnie-Herzégovine", 
@@ -113,21 +167,52 @@
             "es": "Bosnia y Herzegovina",
             "it": "Bosnia Erzegovina",
             "pt": "Bósnia e Herzegovina",
-            "nl": "Bosnië-Herzegovina"       
+            "nl": "Bosnië-Herzegovina",
+            "el": "Βοσνία και Ερζεγοβίνη"       
         },
         "aliases":[
-            "Bosnia", "Bosnie", "Bosnien", "Bosnië", "Bósnia", "Bosnie Herzégovine", "Bosnië Herzegovina"
+            "Bosnia", "Bosnie", "Bosnien", "Bosnië", "Bósnia", "Bosnie Herzégovine", "Bosnië Herzegovina", "Βοσνία"
         ],
         "currency": "BAM",
         "spokenLanguages": ["bs", "hr", "sr"], 
         "domains": [".ba"],
-        "dialCode": "+387", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":9,
+            "maxDigits":9,
+            "dialCode": "387",
+            "trunkCode": "0" 
+        } 
     },
-
+    {
+        "alpha2Code":"BR",
+        "alpha3Code": "BRA",
+        "continent": "SA",
+        "EEC": false,
+        "names":{
+            "fr": "Brésil",
+            "en": "Brazil", 
+            "de": "Brasilien", 
+            "es": "Brasil",
+            "it": "Brasile",
+            "pt": "Brasil",
+            "nl": "Brazilië",
+            "el": "Βραζιλία"        
+        },
+        "currency": "BRL",
+        "localeLanguage": "pt",
+        "spokenLanguages": ["pt"], 
+        "domains": [".br"],
+        "phonePlan": { 
+            "minDigits":11,
+            "maxDigits":12,
+            "dialCode": "55", 
+            "trunkCode": "0" 
+        } 
+    },
     {
         "alpha2Code":"BG",
         "alpha3Code": "BGR",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Bulgarie",
@@ -136,17 +221,55 @@
             "es": "Bulgaria",
             "it": "Bulgaria",
             "pt": "Bulgária",
-            "nl": "Bulgarije"        
+            "nl": "Bulgarije",
+            "el": "Βουλγαρία"        
         },
         "currency": "BGN",
         "spokenLanguages": ["bg"], 
-        "domains": [".bg"],
-        "dialCode": "+359", 
-        "startingWeekDay":1
+        "domains": [".bg", ".бг"],
+        "phonePlan": { 
+            "minDigits":9,
+            "dialCode": "359", 
+            "trunkCode": "0" 
+        } 
+    },
+    {
+        "alpha2Code":"CA",
+        "alpha3Code": "CAN",
+        "continent": "NA",
+        "EEC": false,
+        "names":{
+            "fr": "Canada",
+            "en": "Canada",
+            "de": "Kanada",
+            "es": "Canadá",
+            "it": "Canada",
+            "pt": "Canadá",
+            "nl": "Canada",
+            "el": "Καναδάς"
+        },
+        "currency": "CAD",
+        "domains": [".ca"],
+        "localeLanguage": "en",
+        "spokenLanguages":["en", "fr"], 
+        "phonePlan": { 
+            "dialCode": "1",
+            "areaCodes": [
+                "204", "226", "236", "249", "250", "263", "289",
+                "306", "343", "354", "365", "367", "368",
+                "403", "416", "418", "431", "437", "438", "450", "468", "474",
+                "506", "514", "519", "548", "579", "581", "584", "587",
+                "604", "613", "639", "647", "672", "683",
+                "705", "709", "742", "753", "778", "780", "782",
+                "807", "819", "825", "867", "873", "902", "905"
+            ],
+            "trunkCode": ""
+        } 
     },
     {
         "alpha2Code":"HR",
         "alpha3Code": "HRV",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Croatie", 
@@ -155,17 +278,22 @@
             "es": "Croacia",
             "it": "Croazia",
             "pt": "Croácia",
-            "nl": "Kroatië"        
+            "nl": "Kroatië",
+            "el": "Κροατία"        
         },
         "currency": "EUR",
         "spokenLanguages": ["hr"],
         "domains": [".hr"],
-        "dialCode": "+385", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":9,
+            "dialCode": "385",
+            "trunkCode":"0" 
+        } 
     },
     {
         "alpha2Code":"CY",
         "alpha3Code": "CYP",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Chypre", 
@@ -174,17 +302,24 @@
             "es": "Chipre",
             "it": "Cipro",
             "pt": "Chipre",
-            "nl": "Cyprus"        
+            "nl": "Cyprus",
+            "el": "Κύπρος"        
         },
+        "localeLanguage": "el",
         "currency": "EUR",
         "spokenLanguages": ["el", "tr"], 
         "domains": [".cy"],
-        "dialCode": "+357",
-        "startingWeekDay":1    
+        "phonePlan": {
+            "minDigits":8,
+            "maxDigits":8,
+            "dialCode": "357", 
+            "trunkCode":"" 
+        }    
     },
     {
         "alpha2Code":"CZ", 
         "alpha3Code": "CZE",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "République tchèque",
@@ -193,18 +328,24 @@
             "es": "República Checa",
             "it": "Repubblica Ceca",
             "pt": "República Checa",
-            "nl": "Tsjechische Republiek"
+            "nl": "Tsjechische Republiek",
+            "el": "Τσεχική Δημοκρατία"
         },
         "aliases":["Tschechien", "Chequia", "Cechia", "Tchéquie", "Tsjechië"],
         "currency": "CZK",
         "spokenLanguages": ["cs"], 
         "domains": [".cz"],
-        "dialCode": "+420", 
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "dialCode": "420",
+            "minDigits": 9,
+            "maxDigits": 9,
+            "trunkCode": ""
+        } 
     },
     {
         "alpha2Code":"DK", 
         "alpha3Code": "DNK",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Danemark",
@@ -213,17 +354,34 @@
             "es": "Dinamarca",
             "it": "Danimarca",
             "pt": "Dinamarca",
-            "nl": "Denemarken"        
+            "nl": "Denemarken",
+            "el": "Δανία"        
         },
+        "aliases":[
+            "Royaume du Danemark",
+            "Kingdom of Denmark",
+            "Danish Realm",
+            "Königreich Dänemark",
+            "Reino de Dinamarca",
+            "Regno di Danimarca",
+            "Koninkrijk Denemarken",
+            "Reino da Dinamarca",
+            "Βασίλειο της Δανίας"
+        ],
         "currency": "DKK",
         "spokenLanguages": ["da"], 
         "domains": [".dk"],
-        "dialCode": "+45", 
-        "startingWeekDay":1        
+        "phonePlan": {
+            "minDigits": 8,
+            "maxDigits": 8, 
+            "dialCode": "45",
+            "trunkCode": "" 
+        } 
     },
     {
         "alpha2Code": "EE", 
         "alpha3Code": "EST",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Estonie",
@@ -232,17 +390,22 @@
             "es": "Estonia",
             "it": "Estonia",
             "pt": "Estónia",
-            "nl": "Estland"
+            "nl": "Estland",
+            "el": "Εσθονία"
         },
         "currency": "EUR",
         "spokenLanguages":["et"], 
         "domains": [".ee"],
-        "dialCode": "+372", 
-        "startingWeekDay":1                
+        "phonePlan": {
+            "minDigits":8, 
+            "dialCode": "372",
+            "trunkCode": "" 
+        } 
     },
     {
         "alpha2Code": "FI", 
         "alpha3Code": "FIN",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Finlande",
@@ -251,17 +414,23 @@
             "es": "Finlandia",
             "it": "Finlandia",
             "pt": "Finlândia",
-            "nl": "Finland"
+            "nl": "Finland",
+            "el": "Φινλανδία"
         },
         "currency": "EUR",
         "spokenLanguages":["fi"], 
         "domains": [".fi"],
-        "dialCode": "+358", 
-        "startingWeekDay":1                
+        "phonePlan": {
+            "minDigits": 8,
+            "maxDigits": 11, 
+            "dialCode": "358",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code": "FR", 
         "alpha3Code": "FRA",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "France",
@@ -270,18 +439,80 @@
             "es": "Francia",
             "it": "Francia",
             "pt": "França",
-            "nl": "Frankrijk"
+            "nl": "Frankrijk",
+            "el": "Γαλλία"
         },
+        "aliases":[
+            "République Française",
+            "French Republic",
+            "Γαλλική Δημοκρατία",
+            "Französische Republik",
+            "República Francesa",
+            "República Francesa"
+        ],
         "currency": "EUR",
         "localeLanguage": "fr",
         "spokenLanguages": ["fr"], 
         "domains": [".fr"],
-        "dialCode": "+33", 
-        "startingWeekDay":1                        
+        "phonePlan": { 
+            "dialCode": "33",
+            "trunkCode": "0" 
+        } 
+    },
+    {
+        "alpha2Code":"GE",
+        "alpha3Code": "GEO",
+        "continent": "EU",
+        "EEC": false, 
+        "names": {
+            "fr": "Géorgie",
+            "en": "Georgia", 
+            "de": "Georgien",
+            "es": "Georgia",
+            "it": "Georgia",
+            "pt": "Geórgia",
+            "nl": "Georgië",
+            "el": "Γεωργία"        
+        },
+        "currency": "GEL",
+        "spokenLanguages": ["hi"],
+        "domains": [".ge", ".გე"],
+        "phonePlan": { 
+            "maxDigits": 11,
+            "dialCode": "995",
+            "trunkCode": "0" 
+        }
+    },
+    {
+        "alpha2Code": "GL", 
+        "alpha3Code": "GRL",
+        "state": "DK",
+        "continent": "NA",
+        "EEC": false,
+        "names": {
+            "fr": "Groenland",
+            "en": "Greenland", 
+            "de": "Grönland", 
+            "es": "Groenlandia",
+            "it": "Groenlandia",
+            "pt": "Gronelândia",
+            "nl": "Groenland",
+            "el": "Γροιλανδία"
+        },
+        "currency": "DKK",
+        "spokenLanguages": ["kl", "da"], 
+        "domains": [".gl"],
+        "phonePlan": { 
+            "minDigits":6,
+            "maxDigits":6,
+            "dialCode": "299", 
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code": "GB",
         "alpha3Code": "GBR",
+        "continent": "EU",
         "EEC": false,
         "names": {
             "fr": "Royaume Uni",
@@ -290,23 +521,29 @@
             "es": "Reino Unido",
             "it": "Regno Unito",
             "pt": "Reino Unido",
-            "nl": "Verenigd Koninkrijk"
+            "nl": "Verenigd Koninkrijk",
+            "el": "Ηνωμένο Βασίλειο"
         },
         "aliases":[
             "UK", "United Kingdom of Great Britain and Northern Ireland",
             "Angleterre", "England", "Inglaterra", "Inghilterra", "Inglaterra", "Engeland", 
-            "Britain", "Great Britain", "Grande Bretagne", "Großbritannien", "Gran Bretaña", "Gran Bretagna", "Grã-Bretanha", "Brittannië"
+            "Britain", "Great Britain", "Grande Bretagne", "Großbritannien", "Gran Bretaña", "Gran Bretagna", "Grã-Bretanha", "Brittannië",
+            "Αγγλία", "Βρετανία"
         ],
         "currency": "GBP",
         "localeLanguage": "en",
         "spokenLanguages": ["en"], 
         "domains": [".uk"],
-        "dialCode": "+34", 
-        "startingWeekDay":0                        
+        "phonePlan": {
+            "maxDigits":11, 
+            "dialCode": "44",
+            "trunkCode": "0"
+        } 
     },
     {
         "alpha2Code": "DE", 
         "alpha3Code": "DEU",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Allemagne", 
@@ -315,18 +552,23 @@
             "es": "Alemania",
             "it": "Germania",
             "pt": "Alemanha",
-            "nl": "Duitsland"
+            "nl": "Duitsland",
+            "el": "Γερμανία"
         },
         "currency": "EUR",
         "localeLanguage": "de",
         "spokenLanguages": ["de"],
         "domains": [".de"],
-        "dialCode": "+49", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "maxDigits":14, 
+            "dialCode": "49",
+            "trunkCode": "0" 
+        } 
     },
     {
         "alpha2Code": "GR", 
         "alpha3Code": "GRC",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Grèce",
@@ -335,17 +577,22 @@
             "es": "Grecia",
             "it": "Grecia",
             "pt": "Grécia",
-            "nl": "Griekenland"
+            "nl": "Griekenland",
+            "el": "Ελλάδα"
         },
         "currency": "EUR",
+        "localeLanguage": "el",
         "spokenLanguages": ["el"], 
-        "domains": [".gr"],
-        "dialCode": "+30", 
-        "startingWeekDay":1
+        "domains": [".gr", ".ελ"],
+        "phonePlan": { 
+            "dialCode": "30",
+            "trunkCode": "" 
+        } 
     },
     {
         "alpha2Code": "HU", 
         "alpha3Code": "HUN",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Hongrie",
@@ -354,17 +601,22 @@
             "es": "Hungría",
             "it": "Ungheria",
             "pt": "Hungria",
-            "nl": "Hongarije"        
+            "nl": "Hongarije",
+            "el": "Ουγγαρία"        
         },
         "currency": "HUF",
         "spokenLanguages": ["hu"], 
         "domains": [".hu"],
-        "dialCode": "+36", 
-        "startingWeekDay":1        
+        "phonePlan": { 
+            "maxDigits":11,
+            "dialCode": "36",
+            "trunkCode": "06"
+        } 
     },
     {
         "alpha2Code": "IE", 
         "alpha3Code": "IRL",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Irlande", 
@@ -373,17 +625,56 @@
             "es": "Irlanda",
             "it": "Irlanda",
             "pt": "Irlanda",
-            "nl": "Ierland"
+            "nl": "Ierland",
+            "el": "Ιρλανδία"
         },
         "currency": "EUR",
         "spokenLanguages": ["en"], 
         "domains": [".ie"],
-        "dialCode": "+353", 
-        "startingWeekDay":1        
+        "phonePlan": {
+            "minDigits": 9,
+            "maxDigits": 13, 
+            "dialCode": "353",
+            "trunkCode": "0" 
+        } 
+    },
+    {
+        "alpha2Code": "IS", 
+        "alpha3Code": "ISL",
+        "continent": "EU",
+        "EEC": false,
+        "names":{
+            "fr": "Islande", 
+            "en": "Iceland", 
+            "de": "Island",
+            "es": "Islandia",
+            "it": "Islanda",
+            "pt": "Islândia",
+            "nl": "IJsland",
+            "el": "Ισλανδία"
+        },
+        "currency": "ISK",
+        "spokenLanguages": ["is"], 
+        "domains": [".is"],
+        "phonePlan": {
+            "minDigits":7,
+            "maxDigits":9,
+            "dialCode": "354", 
+            "trunkCode": ""
+        }, 
+        "specificLocales":{
+            "shortDateFormat":"%d.%m.%y",
+            "dateFormat": "%d.%m.%Y",
+            "timeFormat":"%H:%M:%S",
+            "partialTimeFormat":"%H:%M",
+            "dateTimeFormat":"%d.%m.%Y %H:%M:%S",
+            "shortDateTimeFormat":"%d.%m.%y %H:%M:%S"
+        }    
     },
     {
         "alpha2Code": "IT", 
         "alpha3Code": "ITA",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Italie",
@@ -392,18 +683,24 @@
             "es": "Italia",
             "it": "Italia",
             "pt": "Itália",
-            "nl": "Italië"
+            "nl": "Italië",
+            "el": "Ιταλία"
         },
         "currency": "EUR",
         "localeLanguage": "it",
         "spokenLanguages": ["it"], 
         "domains": [".it"],
-        "dialCode": "+39", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "39",
+            "minDigits": 9,
+            "maxDigits": 11,
+            "trunkCode": ""
+        }
     },
     {
         "alpha2Code": "XK",
         "alpha3Code": "XKX",
+        "continent": "EU",
         "EEC": false,
         "names": {
             "fr": "Kosovo", 
@@ -412,17 +709,22 @@
             "es": "Kosovo",
             "it": "Kosovo",
             "pt": "Kosovo",
-            "nl": "Kosovo"
+            "nl": "Kosovo",
+            "el": "Κοσσυφοπέδιο"
         },
         "currency": "EUR",
         "spokenLanguages":["sq", "sr"],
-        "domains": [".xk"],
-        "dialCode": "+383", 
-        "startingWeekDay":1
+        "domains": [".xk", ".ks", ".kv"],
+        "phonePlan": { 
+            "minDigits": 9,
+            "dialCode": "383",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code": "LV",
         "alpha3Code": "LVA",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Lettonie", 
@@ -431,17 +733,23 @@
             "es": "Letonia",
             "it": "Lettonia",
             "pt": "Letónia",
-            "nl": "Letland"
+            "nl": "Letland",
+            "el": "Λετονία"
         },
         "currency": "EUR",
         "spokenLanguages":["lv"],
         "domains": [".lv"],
-        "dialCode": "+371", 
-        "startingWeekDay":1        
+        "phonePlan": { 
+            "minDigits": 8,
+            "maxDigits": 8,
+            "dialCode": "371",
+            "trunkCode": ""
+        } 
     },
     {
         "alpha2Code":"LI",
         "alpha3Code": "LIE",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Liechtenstein",
@@ -450,18 +758,24 @@
             "es": "Liechtenstein",
             "it": "Liechtenstein",
             "pt": "Listenstaine",
-            "nl": "Liechtenstein"      
+            "nl": "Liechtenstein",
+            "el": "Λιχτενστάιν"      
         },
         "currency": "CHF",
         "localeLanguage": "de",
         "spokenLanguages":["de"],
         "domains": [".li"],
-        "dialCode": "+423", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits": 7,
+            "maxDigits": 9,
+            "dialCode": "423",
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"LT", 
         "alpha3Code": "LTU",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Lituanie", 
@@ -470,17 +784,23 @@
             "es": "Lituania",
             "it": "Lituania",
             "pt": "Lituânia",
-            "nl": "Litouwen"
+            "nl": "Litouwen",
+            "el": "Λιθουανία"
         },
         "currency": "EUR",
         "spokenLanguages":["lt"],
         "domains": [".lt"],
-        "dialCode": "+370", 
-        "startingWeekDay":1
+        "phonePlan": {
+            "minDigits": 7,
+            "maxDigits": 11,
+            "dialCode": "370",
+            "trunkCode": "8"
+        }
     },
     {
         "alpha2Code":"LU",
         "alpha3Code": "LUX",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Luxembourg", 
@@ -489,18 +809,24 @@
             "es": "Luxemburgo",
             "it": "Lussemburgo",
             "pt": "Luxemburgo",
-            "nl": "Luxemburg"
+            "nl": "Luxemburg",
+            "el": "Λουξεμβούργο"
         },
         "currency": "EUR",
         "localeLanguage":"fr",
         "spokenLanguages":["lb", "fr", "de"], 
         "domains": [".lu"],
-        "dialCode": "+352", 
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "dialCode": "352",
+            "minDigits": 6,
+            "maxDigits": 8,
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"MK",
         "alpha3Code": "MKD",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Macédoine du Nord",
@@ -509,20 +835,26 @@
             "es": "Macedonia del Norte",
             "it": "Macedonia del Nord",
             "pt": "Macedônia do Norte",
-            "nl": "Noord-Macedonië"
+            "nl": "Noord-Macedonië",
+            "el": "Βόρεια Μακεδονία"
         },
         "aliases":[
-            "Macédoine", "Macedonia", "Macedônia", "Macedonië", "Mazedonien"
+            "Macédoine", "Macedonia", "Macedônia", "Macedonië", "Mazedonien", "Μακεδονία"
         ],
         "currency": "MKD",
         "spokenLanguages":["mk", "sq", "tr", "sr"], 
-        "domains": [".mk"],
-        "dialCode": "+389", 
-        "startingWeekDay":1
+        "domains": [".mk", ".мкд"],
+        "phonePlan": { 
+            "dialCode": "389",
+            "minDigits": 9,
+            "maxDigits": 9,
+            "trunkCode": "0" 
+        } 
     },
     {
         "alpha2Code":"MT",
         "alpha3Code": "MLT",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Malte",
@@ -531,17 +863,47 @@
             "es": "Malta",
             "it": "Malta",
             "pt": "Malta",
-            "nl": "Malta"
+            "nl": "Malta",
+            "el": "Μάλτα"
         },
         "currency": "EUR",
         "spokenLanguages":["mt", "en"], 
         "domains": [".mt"],
-        "dialCode": "+356",
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "minDigits":8,
+            "maxDigits":8,
+            "dialCode": "356",
+            "trunkCode": "" 
+        }
+    },
+    {
+        "alpha2Code":"MX",
+        "alpha3Code": "MEX",
+        "continent": "NA",
+        "EEC": false,
+        "names":{
+            "fr": "Mexique",
+            "en": "Mexico", 
+            "de": "Mexiko",
+            "es": "México",
+            "it": "Messico",
+            "pt": "México",
+            "nl": "Mexico",
+            "el": "Μεξικό"
+        },
+        "currency": "MXN",
+        "localeLanguage":"es",
+        "spokenLanguages":["es"], 
+        "domains": [".mx"],
+        "phonePlan": { 
+            "dialCode": "52",
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"MD",
         "alpha3Code": "MDA",
+        "continent": "EU",
         "EEC":false,
         "names":{
             "fr": "Moldavie",
@@ -550,17 +912,21 @@
             "es": "Moldavia",
             "it": "Moldavia",
             "pt": "Moldávia",
-            "nl": "Moldavië"
+            "nl": "Moldavië",
+            "el": "Μολδαβία"
         },
         "currency": "MDL",
         "spokenLanguages":["ro", "ru", "tr"], 
         "domains": [".md"],
-        "dialCode": "+373",
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "373",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"MC",
         "alpha3Code": "MCO",
+        "continent": "EU",
         "EEC":false,
         "names":{
             "fr": "Monaco",
@@ -569,25 +935,32 @@
             "es": "Mónaco",
             "it": "Monaco",
             "pt": "Mônaco",
-            "nl": "Monaco"
+            "nl": "Monaco",
+            "el": "Μονακό"
         },
         "aliases": [
             "Principauté de Monaco",
             "Principado de Mônaco",
             "Principato di Monaco",
             "Principality of Monaco",
-            "Principado de Mónaco"
+            "Principado de Mónaco",
+            "Πριγκιπάτο του Μονακό"
         ],
         "currency": "EUR",
         "localeLanguage": "fr",
         "spokenLanguages":["fr", "it"], 
         "domains": [".mc"],
-        "dialCode": "+377",
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits": 8,
+            "maxDigits": 8,
+            "dialCode": "377",
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"ME",
         "alpha3Code": "MNE",
+        "continent": "EU",
         "EEC":false,
         "names":{
             "fr": "Monténégro",
@@ -596,16 +969,22 @@
             "es": "Montenegro",
             "it": "Montenegro",
             "pt": "Montenegro",
-            "nl": "Montenegro"
+            "nl": "Montenegro",
+            "el": "Μαυροβούνιο"
         },
         "currency": "EUR",
         "domains": [".me"],
-        "dialCode": "+382",
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits": 9,
+            "maxDigits": 9,
+            "dialCode": "382",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"NL",
         "alpha3Code": "NLD",
+        "continent": "EU",
         "EEC":true,
         "names":{
             "fr": "Pays-Bas",
@@ -614,7 +993,8 @@
             "es": "Países Bajos",
             "it": "Paesi Bassi",
             "pt": "Países Baixos",
-            "nl": "Nederland"
+            "nl": "Nederland",
+            "el": "Ολλανδία"
         },
         "aliases":[
             "Hollande", "Pays Bas", "Holanda"
@@ -623,12 +1003,15 @@
         "localeLanguage": "nl",
         "spokenLanguages":["nl"], 
         "domains": [".nl"],
-        "dialCode": "+31", 
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "dialCode": "31",
+            "trunkCode": "0" 
+        }
     },
     {
         "alpha2Code":"NO", 
         "alpha3Code": "NOR",
+        "continent": "EU",
         "EEC":false,
         "names":{
             "fr": "Norvège",
@@ -637,17 +1020,23 @@
             "es": "Noruega",
             "it": "Norvegia",
             "pt": "Noruega",
-            "nl": "Noorwegen"
+            "nl": "Noorwegen",
+            "el": "Νορβηγία"
         },
         "currency": "NOK",
         "spokenLanguages":["no"],
         "domains": [".no"],
-        "dialCode": "+47",
-        "startingWeekDay":1
+        "phonePlan": { 
+            "minDigits":8,
+            "maxDigits":12,
+            "dialCode": "47",
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"PL", 
         "alpha3Code": "POL",
+        "continent": "EU",
         "EEC":true,
         "names":{
             "fr": "Pologne",
@@ -656,17 +1045,23 @@
             "es": "Polonia",
             "it": "Polonia",
             "pt": "Polónia",
-            "nl": "Polen"
+            "nl": "Polen",
+            "el": "Πολωνία"
         },
         "currency": "PLN",
         "spokenLanguages":["pl"], 
         "domains": [".pl"],
-        "dialCode": "+48", 
-        "startingWeekDay":1            
+        "phonePlan": { 
+            "dialCode": "48",
+            "minDigits":9,
+            "maxDigits":9,
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"PT", 
         "alpha3Code": "PRT",
+        "continent": "EU",
         "EEC":true,
         "names":{
             "fr": "Portugal",
@@ -675,18 +1070,25 @@
             "es": "Portugal",
             "it": "Portogallo",
             "pt": "Portugal",
-            "nl": "Portugal"
+            "nl": "Portugal",
+            "el": "Πορτογαλία"
         },
         "currency": "EUR",
         "localeLanguage":"pt",
         "spokenLanguages":["pt"], 
         "domains": [".pt"],
-        "dialCode": "+351", 
-        "startingWeekDay":0            
+        "phonePlan": { 
+            "minDigits": 9,
+            "maxDigits": 9,
+            "dialCode": "351", 
+            "trunkCode": "" 
+        }, 
+        "specificLocales": { "startingWeekDay": 0 }           
     },
     {
         "alpha2Code":"RO", 
         "alpha3Code": "ROU",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Roumanie",
@@ -695,17 +1097,53 @@
             "es": "Rumania",
             "it": "Romania",
             "pt": "Roménia",
-            "nl": "Roemenië"
+            "nl": "Roemenië",
+            "el": "Ρουμανία"
         },
         "currency": "RON",
         "spokenLanguages":["ro"], 
         "domains": [".ro"],
-        "dialCode": "+40", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "40",
+            "trunkCode": "0" 
+        } 
+    }, 
+    {
+        "alpha2Code":"SM", 
+        "alpha3Code": "SMR",
+        "continent":"EU",
+        "EEC": false,
+        "names":{
+            "fr": "République de Saint-Marin",
+            "en": "Republic of San Marino",
+            "de": "Republik San Marino", 
+            "es": "República de San Marino",
+            "it": "Repubblica di San Marino",
+            "pt": "República de San Marino",
+            "nl": "Republiek San Marino",
+            "el": "Δημοκρατία του Άγιου Μαρίνου"
+        },
+        "aliases": [
+            "Saint-Marin",
+            "San Marino",
+            "Serenissima Repubblica di San Marino",
+            "Άγιος Μαρίνος",
+            "Σαν Μαρίνο"
+        ],
+        "phonePlan": { 
+            "minDigits":6,
+            "dialCode": "378",
+            "trunkCode": "" 
+        }, 
+        "currency": "EUR",
+        "localeLanguage":"it",
+        "domains": [".sm"],
+        "spokenLanguages":["it", "es"] 
     },
     {
         "alpha2Code":"RS", 
         "alpha3Code": "SRB",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Serbie",
@@ -714,17 +1152,22 @@
             "es": "Serbio",
             "it": "Serbo",
             "pt": "Sérvio",
-            "nl": "Servië"
+            "nl": "Servië",
+            "el": "Σερβία"
         },
         "currency": "RSD",
         "spokenLanguages":["sr", "bs"], 
-        "domains": [".rs"],
-        "dialCode": "+381", 
-        "startingWeekDay":1    
+        "domains": [".rs", ".срб"],
+        "phonePlan": { 
+            "dialCode": "381",
+            "maxDigits": 11,
+            "trunkCode": "0" 
+        } 
     },
     {
         "alpha2Code":"SK", 
         "alpha3Code": "SVK",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Slovaquie",
@@ -733,17 +1176,21 @@
             "es": "República Eslovaca",
             "it": "Slovacchia",
             "pt": "Eslováquia",
-            "nl": "Slowakije"
+            "nl": "Slowakije",
+            "el": "Σλοβακία"
         },
         "currency": "EUR",
         "spokenLanguages":["sk"],
         "domains": [".sk"],
-        "dialCode": "+421", 
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "dialCode": "421", 
+            "trunkCode": "0"
+        } 
     },
     {
         "alpha2Code":"SI", 
         "alpha3Code": "SVN",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Slovénie",
@@ -752,17 +1199,23 @@
             "es": "Eslovenia",
             "it": "Slovenia",
             "pt": "Eslovénia",
-            "nl": "Slovenië"
+            "nl": "Slovenië",
+            "el": "Σλοβενία"
         },
         "currency": "EUR",
         "spokenLanguages":["sl"], 
         "domains": [".si"],
-        "dialCode": "+386", 
-        "startingWeekDay":1    
+        "phonePlan": { 
+            "dialCode": "386", 
+            "minDigits": 9,
+            "maxDigits": 9,
+            "trunkCode": "0"
+        } 
     },
     {
         "alpha2Code":"ES", 
         "alpha3Code": "ESP",
+        "continent": "EU",
         "EEC": true,
         "names": {
             "fr": "Espagne",
@@ -771,18 +1224,24 @@
             "es": "España",
             "it": "Spagna",
             "pt": "Espanha",
-            "nl": "Spanje"
+            "nl": "Spanje",
+            "el": "Ισπανία"
         },
         "currency": "EUR",
         "localeLanguage": "es",
         "spokenLanguages":["es"], 
         "domains": [".es"],
-        "dialCode": "+34", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "34", 
+            "minDigits": 9,
+            "maxDigits": 9,
+            "trunkCode": ""
+        } 
     },
     {
         "alpha2Code":"SE", 
         "alpha3Code": "SWE",
+        "continent": "EU",
         "EEC": true,
         "names":{
             "fr": "Suède",
@@ -791,17 +1250,23 @@
             "es": "Suecia",
             "it": "Svezia",
             "pt": "Suécia",
-            "nl": "Zweden"
+            "nl": "Zweden",
+            "el": "Σουηδία"
         },
         "currency": "SEK",
         "spokenLanguages":["sv"], 
         "domains": [".se"],
-        "dialCode": "+46", 
-        "startingWeekDay":1 
+        "phonePlan": { 
+            "minDigits":8,
+            "maxDigits":14,
+            "dialCode": "46",
+            "trunkCode": "0" 
+        } 
     },
     {
         "alpha2Code":"CH", 
         "alpha3Code": "CHE",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Suisse",
@@ -810,18 +1275,22 @@
             "es": "Suiza",
             "it": "Svizzera",
             "pt": "Suíça",
-            "nl": "Zwitserland"
+            "nl": "Zwitserland",
+            "el": "Ελβετός"
         },
         "currency": "CHF",
         "localeLanguage": "fr",
         "spokenLanguages":["fr", "de", "it"], 
         "domains": [".ch"],
-        "dialCode": "+41", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "41",
+            "trunkCode": "0"
+        } 
     },
     {
         "alpha2Code":"UA", 
         "alpha3Code": "UKR",
+        "continent": "EU",
         "EEC": false,
         "names":{
             "fr": "Ukraine",
@@ -830,18 +1299,58 @@
             "es": "Ucrania",
             "it": "Ucraina",
             "pt": "Ucrânia",
-            "nl": "Oekraïne"
+            "nl": "Oekraïne",
+            "el": "Ουκρανία"
         },
         "aliases": ["Ucraino"],
+        "currency": "UAH",
         "spokenLanguages":["uk", "ru", "pl"], 
-        "domains": [".ua"],
-        "dialCode": "+380", 
-        "startingWeekDay":1
+        "domains": [".ua", ".укр"],
+        "phonePlan": { 
+            "dialCode": "380",
+            "trunkCode": "0"
+        } 
+    },
+    {
+        "alpha2Code":"US",
+        "alpha3Code": "USA",
+        "continent": "NA",
+        "EEC": false,
+        "localeLanguage": "en",
+        "names":{
+            "fr": "États-Unis d'Amérique",
+            "en": "United States of America",
+            "de": "Vereinigte Staaten von Amerika",
+            "es": "Estados Unidos de América",
+            "it": "Stati Uniti d'America",
+            "pt": "Estados Unidos da América",
+            "nl": "Verenigde Staten van Amerika",
+            "el": "Ηνωμένες πολιτείες Αμερικής"
+        },
+        "aliases":[
+            "États-Unis",
+            "Vereinigten Staaten",
+            "Stati Uniti",
+            "Estados Unidos",
+            "Verenigde Staten",
+            "United States",
+            "USA",
+            "U.S.A.",
+            "Ηνωμένες πολιτείες"
+        ],
+        "currency": "USD",
+        "domains": [".us"],
+        "spokenLanguages":["en", "es"], 
+        "phonePlan": { 
+            "dialCode": "1",
+            "trunkCode": "" 
+        }
     },
     {
         "alpha2Code":"VA", 
         "alpha3Code": "VAT",
         "EEC": false,
+        "continent": "EU",
         "names":{
             "fr": "Vatican",
             "en": "Vatican",
@@ -849,7 +1358,8 @@
             "es": "Vaticano",
             "it": "Vaticano",
             "pt": "Vaticano",
-            "nl": "Vaticaan"
+            "nl": "Vaticaan",
+            "el": "Βατικάνο"
         },
         "aliases":[
             "El Vaticano",
@@ -862,7 +1372,10 @@
         "localeLanguage": "it",
         "spokenLanguages":["it"], 
         "domains": [".va"],
-        "dialCode": "+379", 
-        "startingWeekDay":1
+        "phonePlan": { 
+            "dialCode": "39",
+            "trunkCode": "",
+            "areaCodes": ["06698"]
+        } 
     }
 ]
