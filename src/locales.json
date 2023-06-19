@@ -16,7 +16,7 @@
         "ampm": ["AM", "PM"],
         "currencies": {
             "EUR": { "unit": "Euro", "units":"Euro", "subunit":"Cent", "subunits": "Cent" },
-            "GPB": { "unit": "Pfund", "units":"Pfund", "subunit":"Penny", "subunits": "Pence" },
+            "GBP": { "unit": "Pfund", "units":"Pfund", "subunit":"Penny", "subunits": "Pence" },
             "USD": { "unit": "Dollar", "units":"Dollar", "subunit":"Cent", "subunits": "Cent"}
         },
         "continentNames": { "AF": "Afrika", "AN": "Antarktis", "AS": "Asien", "EU": "Europa", "NA": "Nordamerika", "OC": "Ozeanien", "SA": "Südamerika"}
@@ -55,7 +55,7 @@
         "ampm": ["AM", "PM"],
         "currencies": {
             "EUR": { "units":"euros", "subunit":"céntimo", "subunits": "céntimos" },
-            "GPB": { "unit": "libra", "units":"libras", "subunit":"penique", "subunits": "peniques" },
+            "GBP": { "unit": "libra", "units":"libras", "subunit":"penique", "subunits": "peniques" },
             "USD": { "units":"dolares", "subunit":"centavo", "subunits": "centavos"}
         },
         "continentNames": { "AF": "África", "AN": "Antártida", "AS": "Asia", "EU": "Europa", "NA": "América del norte", "OC": "Oceanía", "SA": "Sudamerica"}
@@ -119,7 +119,7 @@
         "names": { "fr": "néerlandais", "en": "dutch", "de": "Holländisch", "it": "olandese", "es": "holandés", "pt": "neerlandeses", "nl": "Nederlands", "el":"ολλανδικός" },
         "ampm": ["AM", "PM"],
         "currencies": {
-            "GPB": { "unit":"pond", "units":"pond" },
+            "GBP": { "unit":"pond", "units":"pond" },
             "USD": { "units":"dollar", "subunits": "cent"}
         },
         "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Azië", "EU": "Europa", "NA": "Noord Amerika", "OC": "Oceanië", "SA": "Zuid-Amerika"}

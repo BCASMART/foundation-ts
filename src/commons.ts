@@ -35,8 +35,8 @@ export function $iswhitespace(s: Nullable<string|number>) : boolean
 export function $isnumber(o:any) : boolean
 { return typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
 
-export function $isint(o:any) : boolean
-{ return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= INT_MIN && <number>o <= INT_MAX; }
+export function $isint(o:any, minimum:number = INT_MIN, maximum:number = INT_MAX) : boolean
+{ return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= minimum && <number>o <= maximum; }
 
 export function $isunsigned(o:any, maximum:number=UINT_MAX) : boolean
 { return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
@@ -66,7 +66,7 @@ export function $isurl(o:any, opts?:$urlOptions) : boolean
 { return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
 
 export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
-{ return $isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK ; }
+{ return o instanceof TSPhoneNumber || ($isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK) ; }
 
 export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : boolean
 { return $isstring(o) && $ok($UUID(o, version)) ; }

@@ -142,15 +142,19 @@ export function $uint32ArrayFromBuffer(source:Buffer, endianness?:Nullable<TSEnd
 // ===================== Base64 conversions ==============================
 
 const base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+const base64Regex  = /[^A-Za-z0-9\+\/\=]/g ;
 
-export function $decodeBase64(input: string, reference: string = base64KeyStr): Uint8Array {
+export function $decodeBase64(input: string): Uint8Array
+{ return _decodeBase64(input, base64KeyStr, base64Regex) ; }
+
+function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Array {
     let chr1, chr2, chr3;
     let enc1, enc2, enc3, enc4;
     let i = 0;
     let size = 0;
     const len = input.length;
 
-    input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+    input = input.replace(regex, "");
 
     let uint8 = new Uint8Array(input.length);
 

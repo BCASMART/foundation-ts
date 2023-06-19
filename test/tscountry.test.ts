@@ -59,10 +59,10 @@ export const countriesGroups = TSTest.group("Testing TSCountry class", async (gr
         t.expectF(TSCountry.country("greenland")?.state.label).is("Denmark") ;
     }) ;
 
-    group.unary('TSCountry dump dialcodes', async (_) => {
+    /*group.unary('TSCountry dump dialcodes', async (_) => {
         const dialCodes = C.map((c) => c.phonePlan.dialCode).sort() ;
         group.description("==========================================");
         group.description(dialCodes.join('\n')) ;
         group.description("==========================================");
-    }) ;
+    }) ;*/
 }) ;

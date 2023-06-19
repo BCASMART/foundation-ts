@@ -8,6 +8,7 @@ import { Nullable, StringDictionary, TSDataLike, uint, unichar } from './types';
 import { DefaultsConfigurationOptions } from './tsdefaults';
 import { $bytesFromDataLike } from "./data";
 import { $unit } from "./number";
+import { Stream } from "stream";
 
 export const $noop = () => {} ;
 
@@ -53,6 +54,15 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 	]).finally(() => clearTimeout(timer)) ;
 }
 
+export async function $readStreamBuffer(stream:Stream):Promise<Buffer|null> {
+    return new Promise((resolve, reject) => {
+        let chunks:Array<Buffer> = [] ;
+        stream.on("data", (chunk:Buffer) => chunks.push(chunk));
+        stream.on("end", () => resolve(Buffer.concat(chunks)));
+        stream.on("error", _ => reject(null));
+    }) ;
+}
+
 export interface $envOptions extends DefaultsConfigurationOptions  {
     merge?:Nullable<StringDictionary> ;     // environment to be merged with interpreted variables.
                                             // if merge is process.env, new values are overwriting process.env
@@ -83,6 +93,197 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOpti
     }
     return ret ;
 }
+
+
+export function $inspect(v:any, level?:number) { return $inbrowser() ? _tsinspect(v, level) : _nodeInspect(v, level) ; }
+export function $insp(v:any, level?:number) { return _tsinspect(v, level) ; }
+
+export function $term(s:string, escapeChar:string = '&'):string {
+    if ($inbrowser()) { return $termclean(s, escapeChar) ; }
+    let fmtlen = $length(s) ;
+    let ret = "" ;
+    if (fmtlen) {
+        let escape = false ;
+        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
+        for (let i = 0 ; i < fmtlen ; i++) {
+            const c = s.charAt(i) ;
+            if (escape) {
+                escape = false ;
+                switch (c) {
+                    case escapeChar: ret += escapeChar ; break ;
+
+                    case '0': ret += "\x1b[0m"  ; break ;           // reset
+
+                    // styles
+                    case '1': ret += "\x1b[1m"  ; break ;           // bright mode (old version)
+                    case '!': ret += "\x1b[1m"  ; break ;           // bright mode
+                    case '>': ret += "\x1b[2m"  ; break ;           // dimmed (old version)
+                    case '?': ret += "\x1b[2m"  ; break ;           // dimmed
+                    case '/': ret += "\x1b[3m"  ; break ;           // italic
+                    case '_': ret += "\x1b[4m"  ; break ;           // underscore
+                    case '%': ret += "\x1b[5m"  ; break ;           // blinked
+                    case '<': ret += "\x1b[7m"  ; break ;           // inversed
+                    case '-': ret += "\x1b[9m"  ; break ;           // strikethrough
+
+                    // screen + cursor
+                    case 'h': ret += "\x1b[0G"; break ;             // put the cursor at the beginning of the current line
+                    case 'H': ret += "\x1b[H"; break ;              // put the cursor home
+                    case 'z': ret += '\x1b[2K\x1b[0G' ; break ;     // clear current line and put the cursor at the first column
+                    case 'Z': ret += '\x1b[2J\x1b[H' ; break ;      // clear the whole terminal and put the cursor home
+
+                    // colors
+                    case 'a': ret += "\x1b[38;5;216m" ; break ;     // apricot font
+                    case 'A': ret += "\x1b[48;5;216m" ; break ;     // apricot background
+                    case 'b': ret += "\x1b[34m" ; break ;           // blue font
+                    case 'B': ret += "\x1b[44m" ; break ;           // blue background
+                    case 'c': ret += "\x1b[36m" ; break ;           // cyan font
+                    case 'C': ret += "\x1b[46m" ; break ;           // cyan background
+                    case 'd': ret += "\x1b[38;5;238m" ; break ;     // dark gray font
+                    case 'D': ret += "\x1b[48;5;238m" ; break ;     // dark gray background
+                    case 'e': ret += "\x1b[38;5;229m" ; break ;     // egg white font
+                    case 'E': ret += "\x1b[48;5;229m" ; break ;     // egg white background
+                    // fF
+                    case 'g': ret += "\x1b[32m" ; break ;           // green font  
+                    case 'G': ret += "\x1b[42m" ; break ;           // green background                    
+                    // h/H is for the cursor home
+                    // iI
+                    case 'j': ret += "\x1b[38;5;121m" ; break ;     // jungle green font
+                    case 'J': ret += "\x1b[48;5;121m" ; break ;     // jungle green background
+                    case 'k': ret += "\x1b[30m" ; break ;           // black font
+                    case 'K': ret += "\x1b[40m" ; break ;           // black background
+                    case 'l': ret += "\x1b[38;5;252m" ; break ;     // light gray font
+                    case 'L': ret += "\x1b[48;5;252m" ; break ;     // light gray background
+                    case 'm': ret += "\x1b[35m" ; break ;           // magenta font
+                    case 'M': ret += "\x1b[45m" ; break ;           // magenta background
+                    case 'o': ret += "\x1b[38;5;208m" ; break ;     // orange font
+                    case 'O': ret += "\x1b[48;5;208m" ; break ;     // orange background
+                    case 'p': ret += "\x1b[38;5;212m" ; break ;     // pink font
+                    case 'P': ret += "\x1b[48;5;212m" ; break ;     // pink background
+                    // qQ
+                    case 'r': ret += "\x1b[31m" ; break ;           // red font
+                    case 'R': ret += "\x1b[41m" ; break ;           // red background
+                    // sS
+                    // tT
+                    case 'u': ret += "\x1b[38;5;117m"  ; break ;    // uranian blue font
+                    case 'U': ret += "\x1b[48;5;117m"  ; break ;    // uranian blue background
+                    case 'v': ret += "\x1b[38;5;99m"  ; break ;     // violet font
+                    case 'V': ret += "\x1b[48;5;99m"  ; break ;     // violet background
+                    case 'w': ret += "\x1b[37m" ; break ;           // white font 
+                    case 'W': ret += "\x1b[47m" ; break ;           // white background
+                    case 'x': ret += "\x1b[38;5;244m" ; break ;     // gray font
+                    case 'X': ret += "\x1b[48;5;244m" ; break ;     // gray background
+                    case 'y': ret += "\x1b[33m" ; break ;           // yellow font
+                    case 'Y': ret += "\x1b[43m" ; break ;           // yellow background
+                    // zZ are for clearing the screen
+
+                    default:
+                        ret += escapeChar ;
+                        ret += c ;
+                        break ;
+                }
+            }
+            else if (c === escapeChar) { escape = true ; }
+            else { ret += c ; }
+        }    
+        if (escape) { ret += escapeChar ; }
+    }
+    return ret ;
+}
+
+export function $termclean(s:string, escapeChar:string = '&'):string {
+    let len = $length(s) ;
+    let ret = "" ;
+    if (len) {
+        enum State { Standard, EscapeChar, EscapeEscape} ;
+        let state = State.Standard ;
+        let i = 0 ;
+        let escapeSequenceStart = 0 ;
+        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
+        while (i < len) {
+            const c = s.charAt(i) ;
+            switch (state) {
+                case State.Standard:
+                    if (c === escapeChar) { state = State.EscapeChar ; }
+                    else if (c === '\x1b') { state = State.EscapeEscape ; escapeSequenceStart = i ;}
+                    else { ret += c ; }
+                    break ;
+                case State.EscapeEscape:
+                    if ('mGHJK'.includes(c)) { state = State.Standard ;}
+                    else if (!"[0123456789;".includes(c)) { 
+                        state = State.Standard ;
+                        ret += '\x1b' ; 
+                        i = escapeSequenceStart ; 
+                    }
+                    break ;
+                case State.EscapeChar:
+                    if (c === escapeChar) { ret += escapeChar ; }
+                    else if (!"01>/_%<-?!aAbBcCdDeEgGhHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) { 
+                        ret += escapeChar ;
+                        i-- ; 
+                    }
+                    state = State.Standard ;
+            }
+            i++ ;
+        }
+    }
+    return ret ;
+}
+
+export function $logterm(format:string, ...args:any[]) {
+    return _logwriteterm(true, format, args)
+}
+
+export function $writeterm(format:string, ...args:any[]) {
+    return _logwriteterm(false, format, args)
+}
+
+export function $hexadump(source:Nullable<TSDataLike>) {
+    let data = $ok(source) ? $bytesFromDataLike(source!) : [] ;
+    let sourceLen = data.length ;
+    let len = sourceLen % 16 > 0 ? sourceLen + 16 - sourceLen % 16 : sourceLen ;
+    $logterm("&0&x         00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F chars&0") ;
+    $logterm("&0&x---------------------------------------------------------------------------&0") ;
+
+    function _H(x:number):string { return (x < sourceLen ? data[x] : 0).toHex2() ; }
+    function _B(x:number):string { return x < sourceLen ? (data[x] === 38 ? String.fromCharCode(0xff08) : (data[x] >= 32 && data[x] < 128 ? String.fromCharCode(data[x]) : '&B⋅&G')):'' ; }
+    
+    for (let p = 0 ; p < len ; p += 16) {
+        $logterm(`&0&j${p.toHex8()} ${_H(p)} ${_H(p+1)} ${_H(p+2)} ${_H(p+3)} ${_H(p+4)} ${_H(p+5)} ${_H(p+6)} ${_H(p+7)} ${_H(p+8)} ${_H(p+9)} ${_H(p+10)} ${_H(p+11)} ${_H(p+12)} ${_H(p+13)} ${_H(p+14)} ${_H(p+15)} &w&G&w ${_B(p)}${_B(p+1)}${_B(p+2)}${_B(p+3)}${_B(p+4)}${_B(p+5)}${_B(p+6)}${_B(p+7)}${_B(p+8)}${_B(p+9)}${_B(p+10)}${_B(p+11)}${_B(p+12)}${_B(p+13)}${_B(p+14)}${_B(p+15)} &0`) ;
+    }
+    
+    $logterm("&0&x---------------------------------------------------------------------------&0") ;
+}
+
+export function $logheader(s: string, width: number = 0, style: string = '&w', starStyle: string = '&x')
+{
+    if (!width) { width = s.length; }
+    $logterm("\n&0" + starStyle + "".padEnd(width + 4, '*'));
+    $logterm(starStyle + '* ' + style + s.padEnd(width + 1, ' ') + '&0' + starStyle + '*');
+    $logterm(starStyle + "".padEnd(width + 4, '*') + "&0\n");
+}
+
+
+export interface TSCall {
+    getFunction(): (...args: any[]) => any | undefined;
+	getFunctionName(): string | null;
+	getMethodName(): string | undefined;
+	getFileName(): string | null;
+	getLineNumber(): number | null;
+	getColumnNumber(): number | null;
+	getEvalOrigin(): string | undefined;
+	getTypeName(): string | null;
+	getThis(): unknown | undefined;
+}
+
+export function $stack():TSCall[] {
+    const previousPrepareStackTrace = Error.prepareStackTrace;
+	Error.prepareStackTrace = (_, stack) => stack;
+	const stack = new Error().stack ;
+	Error.prepareStackTrace = previousPrepareStackTrace;
+	return stack as unknown as TSCall[];
+}
+
+// ================================== private functions and classes ==============================
 
 function _interpretEnvLine(env:StringDictionary, line:string, index:number, reference:StringDictionary, underscoreMax:uint, variableMax:uint, debug:boolean):[string, string] {
     const len = line.length ;
@@ -259,197 +460,6 @@ function _interpretEnvLine(env:StringDictionary, line:string, index:number, refe
 
     return [line.slice(keyStart, afterKey), v] ;
 }
-
-export function $inspect(v:any, level?:number) { return $inbrowser() ? _tsinspect(v, level) : _nodeInspect(v, level) ; }
-export function $insp(v:any, level?:number) { return _tsinspect(v, level) ; }
-
-export function $term(s:string, escapeChar:string = '&'):string {
-    if ($inbrowser()) { return $termclean(s, escapeChar) ; }
-    let fmtlen = $length(s) ;
-    let ret = "" ;
-    if (fmtlen) {
-        let escape = false ;
-        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
-        for (let i = 0 ; i < fmtlen ; i++) {
-            const c = s.charAt(i) ;
-            if (escape) {
-                escape = false ;
-                switch (c) {
-                    case escapeChar: ret += escapeChar ; break ;
-
-                    case '0': ret += "\x1b[0m"  ; break ;           // reset
-
-                    // styles
-                    case '1': ret += "\x1b[1m"  ; break ;           // bright mode (old version)
-                    case '!': ret += "\x1b[1m"  ; break ;           // bright mode
-                    case '>': ret += "\x1b[2m"  ; break ;           // dimmed (old version)
-                    case '?': ret += "\x1b[2m"  ; break ;           // dimmed
-                    case '/': ret += "\x1b[3m"  ; break ;           // italic
-                    case '_': ret += "\x1b[4m"  ; break ;           // underscore
-                    case '%': ret += "\x1b[5m"  ; break ;           // blinked
-                    case '<': ret += "\x1b[7m"  ; break ;           // inversed
-                    case '-': ret += "\x1b[9m"  ; break ;           // strikethrough
-
-                    // screen + cursor
-                    case 'h': ret += "\x1b[0G"; break ;             // put the cursor at the beginning of the current line
-                    case 'H': ret += "\x1b[H"; break ;              // put the cursor home
-                    case 'z': ret += '\x1b[2K\x1b[0G' ; break ;     // clear current line and put the cursor at the first column
-                    case 'Z': ret += '\x1b[2J\x1b[H' ; break ;      // clear the whole terminal and put the cursor home
-
-                    // colors
-                    case 'a': ret += "\x1b[38;5;216m" ; break ;     // apricot font
-                    case 'A': ret += "\x1b[48;5;216m" ; break ;     // apricot background
-                    case 'b': ret += "\x1b[34m" ; break ;           // blue font
-                    case 'B': ret += "\x1b[44m" ; break ;           // blue background
-                    case 'c': ret += "\x1b[36m" ; break ;           // cyan font
-                    case 'C': ret += "\x1b[46m" ; break ;           // cyan background
-                    case 'd': ret += "\x1b[38;5;238m" ; break ;     // dark gray font
-                    case 'D': ret += "\x1b[48;5;238m" ; break ;     // dark gray background
-                    case 'e': ret += "\x1b[38;5;229m" ; break ;     // egg white font
-                    case 'E': ret += "\x1b[48;5;229m" ; break ;     // egg white background
-                    // fF
-                    case 'g': ret += "\x1b[32m" ; break ;           // green font  
-                    case 'G': ret += "\x1b[42m" ; break ;           // green background                    
-                    // h/H is for the cursor home
-                    // iI
-                    case 'j': ret += "\x1b[38;5;121m" ; break ;     // jungle green font
-                    case 'J': ret += "\x1b[48;5;121m" ; break ;     // jungle green background
-                    case 'k': ret += "\x1b[30m" ; break ;           // black font
-                    case 'K': ret += "\x1b[40m" ; break ;           // black background
-                    case 'l': ret += "\x1b[38;5;252m" ; break ;     // light gray font
-                    case 'L': ret += "\x1b[48;5;252m" ; break ;     // light gray background
-                    case 'm': ret += "\x1b[35m" ; break ;           // magenta font
-                    case 'M': ret += "\x1b[45m" ; break ;           // magenta background
-                    case 'o': ret += "\x1b[38;5;208m" ; break ;     // orange font
-                    case 'O': ret += "\x1b[48;5;208m" ; break ;     // orange background
-                    case 'p': ret += "\x1b[38;5;212m" ; break ;     // pink font
-                    case 'P': ret += "\x1b[48;5;212m" ; break ;     // pink background
-                    // qQ
-                    case 'r': ret += "\x1b[31m" ; break ;           // red font
-                    case 'R': ret += "\x1b[41m" ; break ;           // red background
-                    // sS
-                    // tT
-                    case 'u': ret += "\x1b[38;5;117m"  ; break ;    // uranian blue font
-                    case 'U': ret += "\x1b[48;5;117m"  ; break ;    // uranian blue background
-                    case 'v': ret += "\x1b[38;5;99m"  ; break ;     // violet font
-                    case 'V': ret += "\x1b[48;5;99m"  ; break ;     // violet background
-                    case 'w': ret += "\x1b[37m" ; break ;           // white font 
-                    case 'W': ret += "\x1b[47m" ; break ;           // white background
-                    case 'x': ret += "\x1b[38;5;244m" ; break ;     // gray font
-                    case 'X': ret += "\x1b[48;5;244m" ; break ;     // gray background
-                    case 'y': ret += "\x1b[33m" ; break ;           // yellow font
-                    case 'Y': ret += "\x1b[43m" ; break ;           // yellow background
-                    // zZ are for clearing the screen
-
-                    default:
-                        ret += escapeChar ;
-                        ret += c ;
-                        break ;
-                }
-            }
-            else if (c === escapeChar) { escape = true ; }
-            else { ret += c ; }
-        }    
-        if (escape) { ret += escapeChar ; }
-    }
-    return ret ;
-}
-
-export function $termclean(s:string, escapeChar:string = '&'):string {
-    let len = $length(s) ;
-    let ret = "" ;
-    if (len) {
-        enum State { Standard, EscapeChar, EscapeEscape} ;
-        let state = State.Standard ;
-        let i = 0 ;
-        let escapeSequenceStart = 0 ;
-        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&' ; }
-        while (i < len) {
-            const c = s.charAt(i) ;
-            switch (state) {
-                case State.Standard:
-                    if (c === escapeChar) { state = State.EscapeChar ; }
-                    else if (c === '\x1b') { state = State.EscapeEscape ; escapeSequenceStart = i ;}
-                    else { ret += c ; }
-                    break ;
-                case State.EscapeEscape:
-                    if ('mGHJK'.includes(c)) { state = State.Standard ;}
-                    else if (!"[0123456789;".includes(c)) { 
-                        state = State.Standard ;
-                        ret += '\x1b' ; 
-                        i = escapeSequenceStart ; 
-                    }
-                    break ;
-                case State.EscapeChar:
-                    if (c === escapeChar) { ret += escapeChar ; }
-                    else if (!"01>/_%<-?!aAbBcCdDeEgGhHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) { 
-                        ret += escapeChar ;
-                        i-- ; 
-                    }
-                    state = State.Standard ;
-            }
-            i++ ;
-        }
-    }
-    return ret ;
-}
-
-
-export function $logterm(format:string, ...args:any[]) {
-    return _logwriteterm(true, format, args)
-}
-
-export function $writeterm(format:string, ...args:any[]) {
-    return _logwriteterm(false, format, args)
-}
-
-export function $hexadump(source:Nullable<TSDataLike>) {
-    let data = $ok(source) ? $bytesFromDataLike(source!) : [] ;
-    let sourceLen = data.length ;
-    let len = sourceLen % 16 > 0 ? sourceLen + 16 - sourceLen % 16 : sourceLen ;
-    $logterm("&0&x         00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F chars&0") ;
-    $logterm("&0&x---------------------------------------------------------------------------&0") ;
-
-    function _H(x:number):string { return (x < sourceLen ? data[x] : 0).toHex2() ; }
-    function _B(x:number):string { return x < sourceLen ? (data[x] === 38 ? String.fromCharCode(0xff08) : (data[x] >= 32 && data[x] < 128 ? String.fromCharCode(data[x]) : '&B⋅&G')):'' ; }
-    
-    for (let p = 0 ; p < len ; p += 16) {
-        $logterm(`&0&j${p.toHex8()} ${_H(p)} ${_H(p+1)} ${_H(p+2)} ${_H(p+3)} ${_H(p+4)} ${_H(p+5)} ${_H(p+6)} ${_H(p+7)} ${_H(p+8)} ${_H(p+9)} ${_H(p+10)} ${_H(p+11)} ${_H(p+12)} ${_H(p+13)} ${_H(p+14)} ${_H(p+15)} &w&G&w ${_B(p)}${_B(p+1)}${_B(p+2)}${_B(p+3)}${_B(p+4)}${_B(p+5)}${_B(p+6)}${_B(p+7)}${_B(p+8)}${_B(p+9)}${_B(p+10)}${_B(p+11)}${_B(p+12)}${_B(p+13)}${_B(p+14)}${_B(p+15)} &0`) ;
-    }
-    
-    $logterm("&0&x---------------------------------------------------------------------------&0") ;
-}
-
-export function $logheader(s: string, width: number = 0, style: string = '&w', starStyle: string = '&x')
-{
-    if (!width) { width = s.length; }
-    $logterm("\n&0" + starStyle + "".padEnd(width + 4, '*'));
-    $logterm(starStyle + '* ' + style + s.padEnd(width + 1, ' ') + '&0' + starStyle + '*');
-    $logterm(starStyle + "".padEnd(width + 4, '*') + "&0\n");
-}
-
-
-export interface TSCall {
-    getFunction(): (...args: any[]) => any | undefined;
-	getFunctionName(): string | null;
-	getMethodName(): string | undefined;
-	getFileName(): string | null;
-	getLineNumber(): number | null;
-	getColumnNumber(): number | null;
-	getEvalOrigin(): string | undefined;
-	getTypeName(): string | null;
-	getThis(): unknown | undefined;
-}
-
-export function $stack():TSCall[] {
-    const previousPrepareStackTrace = Error.prepareStackTrace;
-	Error.prepareStackTrace = (_, stack) => stack;
-	const stack = new Error().stack ;
-	Error.prepareStackTrace = previousPrepareStackTrace;
-	return stack as unknown as TSCall[];
-}
-
-// ================================== private functions and classes ==============================
 
 function _nodeInspect(v:any, level:number=10) { return inspect(v, false, level) ; }
 interface _tsInspectEntry {

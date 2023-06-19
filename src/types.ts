@@ -105,6 +105,8 @@ export enum Continents {
     OC = 'OC',
     SA = 'SA'
 }
+export const TSContinentSet = new Set<continent>(Object.values(Continents)) ;
+
 // ISO 3166-1 alpha-2
 export enum Countries {
     AC = 'AC',  AD = 'AD',  AE = 'AE',  AF = 'AF',  AG = 'AG',  AI = 'AI',  AL = 'AL',  AM = 'AM',  AO = 'AO',  AR = 'AR',  AS = 'AS',  AT = 'AT',  AU = 'AU',  AW = 'AW',  AX = 'AX',  AZ = 'AZ',  
@@ -134,6 +136,7 @@ export enum Countries {
     YE = 'YE',  YT = 'YT',  
     ZA = 'ZA',  ZM = 'ZM',  ZW = 'ZW'
 } ;
+export const TSCountrySet = new Set<country>(Object.values(Countries)) ;
 
 // ISO 639-1 (excepted all constructed languages)
 export enum Languages {
@@ -164,6 +167,7 @@ export enum Languages {
     yi = 'yi', yo = 'yo',
     za = 'za', zh = 'zh', zu = 'zu'
 } ;
+export const TSLanguageSet = new Set<language>(Object.values(Languages)) ;
 
 export enum Currencies {
     AED = 'AED', AFN = 'AFN', ALL = 'ALL', AMD = 'AMD', ANG = 'ANG', AOA = 'AOA', ARP = 'ARP', ARS = 'ARS', AUD = 'AUD', AWG = 'AWG', AZN = 'AZN', 
@@ -193,6 +197,7 @@ export enum Currencies {
     YER = 'YER', 
     ZAR = 'ZAR', ZMK = 'ZMK', ZWL = 'ZWL'
 } ;
+export const TSCurrencySet = new Set<currency>(Object.values(Currencies)) ;
 
 export type continent = keyof typeof Continents ;
 export type country = keyof typeof Countries ;

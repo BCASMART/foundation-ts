@@ -6,9 +6,6 @@ import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
 
-
-
-
 /**
  * TSColor are immutable objects. RGB Colors may be cached, 
  * CMYK and Grayscale colors are not. It's a one class implementation
@@ -68,21 +65,29 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 	public static readonly green    = TSColor.cmyk(1,0,1,0) ;
 	public static readonly blue     = TSColor.cmyk(1,1,0,0) ;
 	
+    public static fromString(rgbStringColor:Nullable<string>):TSColor | null {
+        const s = $ftrim(rgbStringColor).toLowerCase() ;
+        if (!s.length) { return null ; }
+
+        let color = TSColor._cachedRGBColor(s) ;
+        if ($defined(color)) { return color! ;}
+        const [channels, alpha] = TSColor._parseHexColorString(s) ;
+        if ($ok(channels)) {
+            color = new TSColor(TSColorSpace.RGB, channels!, alpha) ;
+            TSColor._cacheRGBColor(color) ;
+            return color ;
+        }
+        return null ;
+    }
+
 	public static rgb(stringColor: string):TSColor;
 	public static rgb(colorDefinition: number):TSColor;
 	public static rgb(R: number, G: number, B: number, A?: number):TSColor;
     public static rgb():TSColor {
         if (arguments.length === 1) {
             if ($isstring(arguments[0])) {
-                const s = $ftrim(arguments[0]).toLowerCase() ;
-                let color = TSColor._cachedRGBColor(s) ;
-                if ($defined(color)) { return color! ;}
-                const [channels, alpha] = TSColor._parseHexColorString(s) ;
-                if ($ok(channels)) {
-                    color = new TSColor(TSColorSpace.RGB, channels!, alpha) ;
-                    TSColor._cacheRGBColor(color) ;
-                    return color ;
-                }
+                const fsc = TSColor.fromString(arguments[0] as string) ;
+                if ($ok(fsc)) { return fsc! ;}
             }
             else if ($isunsigned(arguments[0], UINT32_MAX)) {
                 const v = arguments[0] as number;

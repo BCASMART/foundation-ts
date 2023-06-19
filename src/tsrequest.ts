@@ -1,4 +1,4 @@
-import { Nullable, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
+import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
 import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
@@ -333,3 +333,20 @@ function _standardHeaders(headers:Nullable<RequestHeaders>):RequestHeaders {
     }
     return ret ;
 }
+
+declare global {
+    export interface URLSearchParams {
+        query:              (this: URLSearchParams) => StringDictionary | null;
+    }
+}
+
+URLSearchParams.prototype.query = function query(this: URLSearchParams): StringDictionary | null {
+    const ret:StringDictionary = {} ;
+    let total = 0 ;
+
+    for (const [key, value] of this) {
+        if (key.length > 0) { ret[key] = value ; total ++ ; }
+    }
+    return total > 0 ? ret : null ;
+} ;
+

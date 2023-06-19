@@ -974,6 +974,7 @@
         },
         "currency": "EUR",
         "domains": [".me"],
+        "spokenLanguages":["bs", "hr", "sr"], 
         "phonePlan": { 
             "minDigits": 9,
             "maxDigits": 9,

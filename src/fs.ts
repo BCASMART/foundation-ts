@@ -230,7 +230,8 @@ export function $fromposix(src?:Nullable<string>):string {
 }
 
 /**
- * There's no usage of internalImplementation boolean in $absolute()
+ * There's no usage of internalImplementation 
+ * boolean parameter in $absolute() function
  * because this cannot works if we are on a browser
  * and if we want to concatenate homedir and curdir, we need
  * to use the FS standard implementation
