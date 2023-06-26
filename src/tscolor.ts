@@ -5,6 +5,7 @@ import { $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { Comparison, Nullable, Same, StringDictionary, uint, UINT32_MAX, uint8, UINT8_MAX, UINT8_MIN } from "./types";
+import { $logheader, $logterm } from "./utils";
 
 /**
  * TSColor are immutable objects. RGB Colors may be cached, 
@@ -147,6 +148,14 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             return new TSColor(TSColorSpace.Grayscale, [0,0,0,1-whiteIntensity], opacity) ;
         }
         throw new TSError('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
+    }
+
+    public static logColorCache() {
+        void TSColor._cachedRGBColor('yellow') ;
+        $logheader('TSColor cache:') ;
+        for (let [name, color] of TSColor.__colorsCache!) {
+            $logterm(`${name}: ${color.toString()}`) ;
+        }
     }
 
     /*
@@ -438,6 +447,56 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 	}
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private static readonly __TSWebColorNames: StringDictionary = {
         aliceblue: "#f0f8ff",
         antiquewhite: "#faebd7",
@@ -476,7 +535,6 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         darkseagreen: "#8fbc8f",
         darkslateblue: "#483d8b",
         darkslategray: "#2f4f4f",
-        darkslategrey: "#2f4f4f",
         darkturquoise: "#00ced1",
         darkviolet: "#9400d3",
         deeppink: "#ff1493",
@@ -619,11 +677,13 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     ] ;
 
     private static _cacheRGBColor(c:TSColor) {
-        if ($defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache!.size + 7 < TSColor.__colorCacheMaxSize) {
+        if ($ok(c) && $defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache!.size + 7 < TSColor.__colorCacheMaxSize) {
             const [R, G, B] = c.rgb() ;
             const s = _colorToStandardCSS(R,G,B, c.alpha) ;
-            if (!TSColor.__colorsCache!.has(s) && (!c.name.length || !TSColor.__colorsCache!.has(c.name))) {
-                if (c.name.length) { TSColor.__colorsCache!.set(c.name, c) ; }
+            const l = $length(c.name) ;
+            if ((l > 0 && !TSColor.__colorsCache!.has(c.name)) || (l === 0 && !TSColor.__colorsCache!.has(s))) {
+//            if (!TSColor.__colorsCache!.has(s) && (!c.name.length || !TSColor.__colorsCache!.has(c.name))) {
+                if (l > 0) { TSColor.__colorsCache!.set(c.name, c) ; }
                 TSColor.__colorsCache!.set(s, c) ;
                 TSColor.__colorsCache!.set(s.slice(1), c) ;
                 if (c.alpha === 0xff) {

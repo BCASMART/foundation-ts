@@ -1,5 +1,5 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSStructure } from "../src/tsstructure";
+import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser } from "../src/tsparser";
 import { $dict, $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
@@ -34,8 +34,8 @@ const names:TSObjectNode = {
     _valueItemsType:'string!'
 } ;
 
-export const structureGroups = TSTest.group("TSStructure class ", async (group) => {
-    group.unary("TSStructure example", async(t) => {
+export const structureGroups = TSTest.group("TSParser class ", async (group) => {
+    group.unary("TSParser example", async(t) => {
         const def = {
             _mandatory: true,
             _keysCase: TSCase.lowercase,
@@ -271,9 +271,9 @@ function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
     }
 }
 
-function _define(t:TSUnaryTest, def:TSNode, test:string):[TSStructure|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
+function _define(t:TSUnaryTest, def:TSNode, test:string):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
     let errors:string[] = [] ;
-    const struct = TSStructure.from(def, errors) ;
+    const struct = TSParser.define(def, errors) ;
     if (t.expect0(struct).OK() && t.expect1(errors.length).is(0)) { 
         function _v(n:number, v:any) { return _valid(t, struct!, v, n) ; }
         function _i(n:number, v:any) { return _valid(t, struct!, v, n, false) ; }
@@ -281,13 +281,13 @@ function _define(t:TSUnaryTest, def:TSNode, test:string):[TSStructure|null, (n:n
         return [struct, _v, _i] ; 
     }
 
-    $logterm(`Test[${test}]: cannot define structure. Errors:\n&o${errors.join('\n')}`) ;
+    $logterm(`Test[${test}]: cannot define parser. Errors:\n&o${errors.join('\n')}`) ;
     // @ts-ignore
     function _vfalse(n:number, v:any) { return false ;}
     return [null, _vfalse, _vfalse]
 }
 
-function _valid(t:TSUnaryTest, struct:TSStructure, v:any, n:number, res:boolean = true):boolean {
+function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean = true):boolean {
     const errors:string[] = [] ;
     const ret = t.expect(struct.validate(v, errors), `val-${n}`).is(res) ;
     if (!ret) {

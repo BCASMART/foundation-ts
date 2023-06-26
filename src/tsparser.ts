@@ -13,7 +13,7 @@ import { TSCharset } from "./tscharset";
 
 /*
 
-    Example of structure definition usage
+    Example of parser definition usage
 
     const def = {
         _mandatory: true,
@@ -43,8 +43,8 @@ import { TSCharset } from "./tscharset";
         }
     } ;
 
-    const structure = TSStructure.from(def) ;
-    if ($ok(structure)) {
+    const parser = TSParser.define(def) ;
+    if ($ok(parser)) {
         const value = {
             name:   "Monserat",
             mail:   'h.monserat@orange.fr',
@@ -64,7 +64,7 @@ import { TSCharset } from "./tscharset";
             }
         }
         
-        const result = structure!.interpret(value) ;
+        const result = parser!.interpret(value) ;
 
     }
 
@@ -131,14 +131,14 @@ export type TSObjectNode = { [key: string]: TSNode } | {
 export type TSNode = TSLeafNode | TSObjectNode | TSArrayNode | TSExtendedArrayNode ;
 
 
-export abstract class TSStructure {
+export abstract class TSParser {
     public readonly errors:string[] = [] ;
     public readonly mandatory:boolean ;
     protected _check:(v:any)=>boolean = (_:any) => true ;
     protected _transform:(v:any)=>any = (v:any) => v ;
     protected _natify?:(v:any)=>TSNativeValue = undefined ;
 
-    public static from(rootNode:TSNode, errors?:Nullable<Array<string>>):TSStructure|null {
+    public static define(rootNode:TSNode, errors?:Nullable<Array<string>>):TSParser|null {
         return $valueornull(_structureConstruction(rootNode, errors)) ;
     }
     
@@ -201,23 +201,23 @@ export abstract class TSStructure {
 }
 
 // ========================== PRIVATE CLASSES ==========================================
-class TSDictionaryStructure extends TSStructure {
-    private _keysStructure:TSLeafStructure ;
-    private _valuesStructure:TSStructure ;
+class TSDictionaryParser extends TSParser {
+    private _keysParser:TSLeafParser ;
+    private _valuesParser:TSParser ;
 
-    public constructor(node:TSObjectNode, keysStructure:TSStructure, valuesStructure:TSStructure) {
+    public constructor(node:TSObjectNode, keysParser:TSParser, valuesParser:TSParser) {
         const m = node._mandatory ;
         super(!!m, node._checker as any, node._transformer as any, node._natifier as any) ;
 
-        if (!(keysStructure instanceof TSLeafStructure) || !keysStructure.isKey) {
+        if (!(keysParser instanceof TSLeafParser) || !keysParser.isKey) {
             this.errors.push('_keysType field is not a valid node key definition') 
         }
 
         if ($defined(m) && !$isbool(m)) { this.errors.push(`_mandatory field should be a boolean`) ; }
         if ($ok(node._keysCase)) { this.errors.push(`_keysCase field should not be set for a dictionary`) ; }
         
-        this._keysStructure = keysStructure as TSLeafStructure ;
-        this._valuesStructure = valuesStructure! ;
+        this._keysParser = keysParser as TSLeafParser ;
+        this._valuesParser = valuesParser! ;
     }
 
     public toJSON():object { return {
@@ -226,8 +226,8 @@ class TSDictionaryStructure extends TSStructure {
         _check: this._check,
         _transform: this._transform,
         _natify: this._natify,
-        _keysStruct: this._keysStructure.toJSON(),
-        _valuesStruct: this._valuesStructure.toJSON()
+        _keysStruct: this._keysParser.toJSON(),
+        _valuesStruct: this._valuesParser.toJSON()
     } ; }
 
     protected _validate(value:any, path:string, errors?:Nullable<string[]>):boolean {
@@ -241,9 +241,9 @@ class TSDictionaryStructure extends TSStructure {
         const p = path.length ? path : 'dict' ;
         for (let [k, v] of entries) {
             // @ts-ignore
-            if (!this._keysStructure._validate(k, `${p}.${k}[key]`, errors)) return false ; 
+            if (!this._keysParser._validate(k, `${p}.${k}[key]`, errors)) return false ; 
             // @ts-ignore
-            if (!this._valuesStructure._validate(v, `${p}.${k}`, errors)) return false ; 
+            if (!this._valuesParser._validate(v, `${p}.${k}`, errors)) return false ; 
             founds ++ ;
         }
         if (founds === 0 && this.mandatory) { 
@@ -256,8 +256,8 @@ class TSDictionaryStructure extends TSStructure {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
-            const ki = this._keysStructure.rawEncode(k) ; 
-            const vi = this._valuesStructure.rawInterpret(v) ;
+            const ki = this._keysParser.rawEncode(k) ; 
+            const vi = this._valuesParser.rawInterpret(v) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
         }
         return this._transform(ret) ;
@@ -267,8 +267,8 @@ class TSDictionaryStructure extends TSStructure {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
-            const ki = this._keysStructure.rawEncode(k) ; 
-            const vi = this._valuesStructure.rawEncode(v) ;
+            const ki = this._keysParser.rawEncode(k) ; 
+            const vi = this._valuesParser.rawEncode(v) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
         }
         return this._natify ? this._natify(ret) : ret ;
@@ -276,13 +276,13 @@ class TSDictionaryStructure extends TSStructure {
 
 }
 
-class TSObjectStructure extends TSStructure {
-    private _itemsStructures:TSDictionary<TSStructure> ;
+class TSObjectParser extends TSParser {
+    private _itemsParsers:TSDictionary<TSParser> ;
     private _count:number ;
     private _keyTransform:(s:string)=>string = (s:string) => s ;
     private _keysCase:TSCase = TSCase.standard ;
 
-    public constructor(node:TSObjectNode, itemsStructures:TSDictionary<TSStructure>) {
+    public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>) {
         const m = node._mandatory ;
         super(!!m, node._checker as any, node._transformer as any, node._natifier as any) ;
 
@@ -298,8 +298,8 @@ class TSObjectStructure extends TSStructure {
             this._keysCase = l ;
         }
 
-        this._itemsStructures = itemsStructures ;
-        this._count = $objectcount(itemsStructures) ;
+        this._itemsParsers = itemsParsers ;
+        this._count = $objectcount(itemsParsers) ;
     }
 
     public toJSON():object {
@@ -312,7 +312,7 @@ class TSObjectStructure extends TSStructure {
         } ;
         if (this._keysCase !== 'standard') { ret._keysCase = this._keysCase ; }
 
-        const structEntries = Object.entries(this._itemsStructures) ;
+        const structEntries = Object.entries(this._itemsParsers) ;
         for (let [k, struct] of structEntries) {
             ret[k] = struct.toJSON()
         }
@@ -335,7 +335,7 @@ class TSObjectStructure extends TSStructure {
             if (founds.has(k)) {
                 return _serror(errors, path, `.${k} is present several times`) ;
             }
-            const struct = this._itemsStructures[k] ;
+            const struct = this._itemsParsers[k] ;
             if (!$ok(struct)) {
                 return _serror(errors, path, `.${k} is unknown`) ;
             }
@@ -345,7 +345,7 @@ class TSObjectStructure extends TSStructure {
         }
         if (founds.size < this._count) {
             // look for mandatory fields not present
-            const structEntries = Object.entries(this._itemsStructures) ;
+            const structEntries = Object.entries(this._itemsParsers) ;
             for (let [k, struct] of structEntries) {
                 if (!founds.has(k) && struct.mandatory) {
                     return _serror(errors, path, `.${k} is mandatory`) ;
@@ -360,7 +360,7 @@ class TSObjectStructure extends TSStructure {
         const entries = Object.entries(value) ;
         for (let [key, v] of entries) {
             const k = this._keyTransform(key) ;
-            const struct = this._itemsStructures[k] ;
+            const struct = this._itemsParsers[k] ;
             const res = struct.rawInterpret(v) ; 
             if ($ok(res)) { ret[k] = res ; }
         }
@@ -372,7 +372,7 @@ class TSObjectStructure extends TSStructure {
         const entries = Object.entries(value) ;
         for (let [key, v] of entries) {
             const k = this._keyTransform(key) ;
-            const struct = this._itemsStructures[k] ;
+            const struct = this._itemsParsers[k] ;
             const res = struct.rawEncode(v) ; 
             if ($ok(res)) { ret[k] = res ; }
         }
@@ -380,12 +380,12 @@ class TSObjectStructure extends TSStructure {
     }
 }
 
-class TSArrayStructure extends TSStructure {
+class TSArrayParser extends TSParser {
     private _min:number ;
     private _max:number ;
-    private _itemsStructure:TSStructure ;
+    private _itemsParser:TSParser ;
 
-    public constructor(node:TSExtendedArrayNode, itemStructure:TSStructure) {
+    public constructor(node:TSExtendedArrayNode, itemParser:TSParser) {
         const m = node._mandatory ;
         let min = 0, max = UINT_MAX ;
         const errors:Array<string> = [] ;
@@ -410,7 +410,7 @@ class TSArrayStructure extends TSStructure {
 
         this._min = min ;
         this._max = max ;
-        this._itemsStructure = itemStructure ;
+        this._itemsParser = itemParser ;
         for (let e of errors) { this.errors.push(e) ; }
     }
 
@@ -422,7 +422,7 @@ class TSArrayStructure extends TSStructure {
         _check: this._check,
         _transform: this._transform,
         _natify: this._natify,
-        _itemsStruct: this._itemsStructure.toJSON()
+        _itemsStruct: this._itemsParser.toJSON()
     } ; }
 
     protected _validate(value:any, path:string, errors?:Nullable<string[]>):boolean {
@@ -440,7 +440,7 @@ class TSArrayStructure extends TSStructure {
         const p = path.length ? path : 'array' ;
         for (let i = 0 ; i < n ; i++) { 
             // @ts-ignore
-            if (!this._itemsStructure._validate(value[i], `${p}[${i}]`, errors)) return false ; 
+            if (!this._itemsParser._validate(value[i], `${p}[${i}]`, errors)) return false ; 
         }
         return this._check(value) ? true : _serror(errors, path, 'specific check did fail') ;
     }
@@ -448,7 +448,7 @@ class TSArrayStructure extends TSStructure {
     public rawInterpret(value:any):any {
         const ret:Array<any> = [] ;
         for (let v of value) { 
-            ret.push(this._itemsStructure.rawInterpret(v)) ;
+            ret.push(this._itemsParser.rawInterpret(v)) ;
         }
         return this._transform(ret) ;
     }
@@ -456,14 +456,14 @@ class TSArrayStructure extends TSStructure {
     public rawEncode(value:any):any {
         const ret:Array<any> = [] ;
         for (let v of value) { 
-            ret.push(this._itemsStructure.rawEncode(v)) ;
+            ret.push(this._itemsParser.rawEncode(v)) ;
         }
         return this._natify ? this._natify(ret) : ret ;
     }
 
 }
 
-class TSLeafStructure extends TSStructure {
+class TSLeafParser extends TSParser {
     private _manager:TSLeafNodeManager ;
     private _type:TSLeafOptionalNode ;
     private _conversion:TSDictionary<number|string>|undefined ;
@@ -498,21 +498,21 @@ class TSLeafStructure extends TSStructure {
     private static __dummyManager:TSLeafNodeManager = { valid:(_:any)=>false, str2v:(_:string) => undefined} ;
 
     public constructor(node:TSExtendedLeafNode) {
-        const manager =  $isstring(node._type) ? TSLeafStructure.__managers[node._type] : undefined ;
+        const manager =  $isstring(node._type) ? TSLeafParser.__managers[node._type] : undefined ;
         const transformer = $ok(node._transformer) ? node._transformer : ($ok(manager?.trans) ? manager!.trans! : undefined) ;
         const natifier = $ok(node._natifier) ? node._natifier : ($ok(manager?.v2nat) ? manager!.v2nat! : undefined) ;
         
         super(!!node._mandatory, node._checker, transformer, natifier) ;
 
         if (!$ok(manager)) { 
-            this.errors.push(`Invalid structure type '${node._type}'`) ;
-            this._manager = TSLeafStructure.__dummyManager ;
+            this.errors.push(`Invalid parser type '${node._type}'`) ;
+            this._manager = TSLeafParser.__dummyManager ;
         }
         else { this._manager = manager! ;}
 
         const enumeration = node._enum ;
         if ($isarray(enumeration)) { 
-            if (!$ok(manager!.enum)) { this.errors.push(`Structure type '${node._type}' does not support enumeration`) ; }
+            if (!$ok(manager!.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
             if (!enumeration!.length) { this.errors.push(`Empty enumeration definition array for type '${node._type}'`) ; }
             for (let e of enumeration as Array<string|number>) { 
                 if (!manager!.enum!(e)) { 
@@ -522,7 +522,7 @@ class TSLeafStructure extends TSStructure {
             this._enumeration = new Set(enumeration as Array<string|number>) ;
         }
         else if ($isobject(enumeration)) {
-            if (!$ok(manager!.enum)) { this.errors.push(`Structure type '${node._type}' does not support enumeration`) ; }
+            if (!$ok(manager!.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
             const entries = Object.entries(enumeration as TSDictionary<string|number>) ;
             
             this._enumeration = new Set<string|number>() ;
@@ -660,11 +660,11 @@ const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'uppercase':(s:string)=> s.toUpperCase()
 } ;
 
-function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSStructure|null {
+function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSParser|null {
     if ($isstring(node)) {
         let mandatory = (node as TSMandatoryLeafNode).endsWith('!') ;
         if (mandatory) { node = (node as string).left((node as string).length-1) as TSLeafOptionalNode ; }
-        return new TSLeafStructure({ _type:node as TSLeafOptionalNode, _mandatory:mandatory}) ;
+        return new TSLeafParser({ _type:node as TSLeafOptionalNode, _mandatory:mandatory}) ;
     }
     else if ($isarray(node)) {
         const a = (node as Array<any>) ;
@@ -687,46 +687,46 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSStruct
             else { max = $unsigned(a[2]) ; }
         }
         const itemsType = (a as TSArrayNode)[0] ;
-        const itemsStructure = _structureConstruction(itemsType, errors) ;
-        if (!itemsStructure?.isValid) { 
-            if ($count(itemsStructure?.errors)) { errors?.push(...itemsStructure!.errors) ; }
+        const itemsParser = _structureConstruction(itemsType, errors) ;
+        if (!itemsParser?.isValid) { 
+            if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
             return null ; 
         }
-        return new TSArrayStructure({ _itemsType:itemsType!, _min: min, _max: max }, itemsStructure) ;
+        return new TSArrayParser({ _itemsType:itemsType!, _min: min, _max: max }, itemsParser) ;
     }
     else if ($isobject(node)) {
         if ($ok((node as TSExtendedLeafNode)._type)) {
             // this is a leaf node
-            return new TSLeafStructure(node as TSExtendedLeafNode) ;
+            return new TSLeafParser(node as TSExtendedLeafNode) ;
         }
         else if ($ok((node as TSObjectNode)._keysType) || $ok((node as TSObjectNode)._valueItemsType)) {
             // this is a dictionary    
             if (!$ok((node as TSObjectNode)._keysType)) { errors?.push('_keysType field is not set for dictionary node definition') ; }
-            const keysStructure = _structureConstruction((node as TSObjectNode)._keysType!, errors) ;
-            if (!keysStructure?.isValid) { 
-                if ($count(keysStructure?.errors)) { errors?.push(...keysStructure!.errors) ; }
+            const keysParser = _structureConstruction((node as TSObjectNode)._keysType!, errors) ;
+            if (!keysParser?.isValid) { 
+                if ($count(keysParser?.errors)) { errors?.push(...keysParser!.errors) ; }
                 return null ; 
             }    
             if (!$ok((node as TSObjectNode)._valueItemsType)) {errors?.push('_valueItemsType field is not set for a dictionary node definition') ; }
-            const itemsStructure = _structureConstruction((node as TSObjectNode)._valueItemsType!, errors) ;
-            if (!itemsStructure?.isValid) { 
-                if ($count(itemsStructure?.errors)) { errors?.push(...itemsStructure!.errors) ; }
+            const itemsParser = _structureConstruction((node as TSObjectNode)._valueItemsType!, errors) ;
+            if (!itemsParser?.isValid) { 
+                if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
                 return null ; 
             }    
-            return new TSDictionaryStructure(node as TSObjectNode, keysStructure!, itemsStructure!) ;
+            return new TSDictionaryParser(node as TSObjectNode, keysParser!, itemsParser!) ;
         }
         else if ($ok((node as TSExtendedArrayNode)._itemsType)) {
             // this is an array
-            const itemsStructure = _structureConstruction((node as TSExtendedArrayNode)._itemsType, errors) ;
-            if (!itemsStructure?.isValid) { 
-                if ($count(itemsStructure?.errors)) { errors?.push(...itemsStructure!.errors) ; }
+            const itemsParser = _structureConstruction((node as TSExtendedArrayNode)._itemsType, errors) ;
+            if (!itemsParser?.isValid) { 
+                if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
                 return null ; 
             }
-            return new TSArrayStructure(node as TSExtendedArrayNode, itemsStructure) ;
+            return new TSArrayParser(node as TSExtendedArrayNode, itemsParser) ;
         }
         else {
             // this a structured object
-            const itemsStructures:TSDictionary<TSStructure> = {} ;
+            const itemsParsers:TSDictionary<TSParser> = {} ;
             const entries = Object.entries(node as TSObjectNode) ;
             const keyscase = $value(
                 InternalCasingMap[$value((node as TSObjectNode)._keysCase as Nullable<TSCase>, TSCase.standard)],
@@ -739,12 +739,12 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSStruct
                         errors?.push(`wrong key '${key}' for object node definition`) ;
                     }
                     else {
-                        const itemStructure = _structureConstruction((subnode as TSNode), errors) ;
-                        if (!itemStructure?.isValid) { 
-                            if ($count(itemStructure?.errors)) { errors?.push(...itemStructure!.errors) ; }
+                        const itemParser = _structureConstruction((subnode as TSNode), errors) ;
+                        if (!itemParser?.isValid) { 
+                            if ($count(itemParser?.errors)) { errors?.push(...itemParser!.errors) ; }
                             return null ; 
                         }    
-                        itemsStructures[keyscase(key)] = itemStructure! ;
+                        itemsParsers[keyscase(key)] = itemParser! ;
                         found++ ;
                     }
                 }
@@ -753,7 +753,7 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSStruct
                 errors?.push('empty object node definition') ;
                 return null ;
             }
-            return new TSObjectStructure(node as TSObjectNode, itemsStructures) ;
+            return new TSObjectParser(node as TSObjectNode, itemsParsers) ;
         }
     }
     return null ;

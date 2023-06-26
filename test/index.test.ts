@@ -47,7 +47,7 @@ import { serverGroups } from './tsserver.test';
 import { utilsGroups } from './utils.test';
 import { decoratorGroups } from './decorators.test';
 import { phoneGroups } from './tsphonenumber.test';
-import { structureGroups } from './tsstructure.test';
+import { structureGroups } from './tsparser.test';
 
 const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
@@ -77,7 +77,7 @@ tester.addGroups(errorsGroups,      "errors") ;
 tester.addGroups(fsGroups,          "fs") ;
 tester.addGroups(fusionGroups,      "fusion") ;
 tester.addGroups(phoneGroups,       "phones") ;
-tester.addGroups(structureGroups,   "struct") ;
+tester.addGroups(structureGroups,   "parser") ;
 tester.addGroups(decoratorGroups,   "decorators") ;
 
 tester.addGroup("Testing tester system itself", async (group) => {
@@ -88,7 +88,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "defaults", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
-        "fs", "fusion", "phones", "struct", "internals"]) ;
+        "fs", "fusion", "phones", "parser", "internals"]) ;
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {

@@ -37,6 +37,11 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expectE(yellowRGB.colorSpace).toBe(TSColorSpace.RGB) ;
         t.expectF(yellowCMYK.colorSpace).toBe(TSColorSpace.CMYK) ;
         t.expectG(realGray.colorSpace).toBe(TSColorSpace.Grayscale) ;
+        t.expectH(TSColor.rgb("cyan").toString()).is("#00ffff") ;
+        t.expectI(TSColor.rgb("darkgrey").toString()).is("#a9a9a9") ;
+        t.expectJ(TSColor.rgb("darkslategray").toString()).is("#2f4f4f") ;
+        t.expectK(TSColor.rgb("dimgrey").toString()).is("#696969") ;
+        t.expectL(TSColor.rgb("grey").toString()).is("#808080") ;
     }) ;
 
     group.unary("TSColors similaryty", async(t) => {
