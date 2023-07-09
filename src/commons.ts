@@ -71,6 +71,10 @@ export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
 export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : boolean
 { return $isstring(o) && $ok($UUID(o, version)) ; }
 
+// a very restrictive test excluding arrays of numbers or other kind of object
+export function $isdataobject(o:any)
+{ return o instanceof TSData || o instanceof Uint8Array || o instanceof ArrayBuffer ; }
+
 export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
 
 export function $isproperty(obj:any, prop:string):boolean

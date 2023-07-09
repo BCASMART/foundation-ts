@@ -1,21 +1,25 @@
-import { ServerResponse } from "http";
 import { Agent } from "https";
 import axios from "axios";
 
-import { TSEndPointsDictionary, TSServer, TSServerOptions, TSServerRequest, TSServerStartStatus } from "../src/tsserver";
-import { TSParametricEndPoints } from "../src/tsservercomp";
-import { $keys, $length, $string } from "../src/commons";
+import { TSServer, TSServerOptions } from "../src/tsserver";
+import { $UUID, $keys, $length, $string } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
 import { $absolute, $path, $readBuffer } from "../src/fs";
-import { uint16 } from "../src/types";
+import { Languages, TSDictionary, uint16 } from "../src/types";
 import { $inbrowser } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
+import { TSEndPoint, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
+import { TSServerEndPoint } from "../src/tsserver_endpoints";
+import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
+import { TSObjectNode, TSParser } from "../src/tsparser";
+import { TSColor } from "../src/tscolor";
+import { TSCountry } from "../src/tscountry";
 
 export const serverGroups = [
     TSTest.group("Testing TSServer API definitions", async (group) => {
-        const apis: TSEndPointsDictionary = {
+        const apis: TSDictionary<TSEndpointsDefinition> = {
             // 0
             '/sessions/callBack': {
                 PUT: sameCallFunction,
@@ -61,9 +65,9 @@ export const serverGroups = [
         const objects: Array<any> = [];
 
         for (let api of $keys(apis)) {
-            let ep: TSParametricEndPoints | undefined = undefined;
+            let ep: TSServerEndPoint | undefined = undefined;
             try {
-                ep = new TSParametricEndPoints($string(api), apis[api], true);
+                ep = new TSServerEndPoint($string(api), apis[api]);
             }
             catch (e) {
                 ep = undefined;
@@ -111,9 +115,12 @@ if (!$inbrowser()) {
         const localDirectory = $absolute('test/main') ;
         const content = $readBuffer($path(localDirectory, 'index.html')) ;
         const port = 8327 as uint16 ;
-        const options:TSServerOptions = {
+        const basicOptions: TSServerOptions = {
             port:port,
-            logInfo:false,
+            logInfo:false
+        } ;
+        const options:TSServerOptions = {
+            ...basicOptions,
             webSites:{ '/':localDirectory }
         } ;
         
@@ -128,9 +135,9 @@ if (!$inbrowser()) {
             if (t.expect0(content).OK() && t.expect1(content!.length).gt(0)) {
                 const startStatus = await TSServer.start(null, options) ;
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
-                t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
+                t.expect3(TSServer.isRunning()).true() ;
 
-                const client = new TSRequest(`http://localhost:8327/`) ;
+                const client = new TSRequest(`http://localhost:${port}/`) ;
                 const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
                 if (t.expectA(status).toBe(Resp.OK)) {
                     t.expectB(ret).toBe(content) ;
@@ -139,6 +146,100 @@ if (!$inbrowser()) {
                 t.expectZ(stopped).toBeUndefined() ;    
             }
         }) ;
+        
+        group.unary('Parametric endpoint with post request test', async(t) => {
+            const sessionID = $UUID("2281C1F4-15CA-4BE2-A576-67E8D9FFAFA1") ;
+            const badSessionID = $UUID("41D3BEA0-B52A-4186-901A-DFA15D8D4E4E") ;
+            const eventStart = 100 ;
+            const eventEnd = 500 ;
+            const eventInvalids = true ;
+            const endPointStructure:TSObjectNode = {
+                _mandatory:true,
+                textColor:'color!',
+                text:'string!',
+                country:'country!',
+                language:'language!',
+                currency:'currency!',
+                data:'hexa!'
+            }
+            const france = TSCountry.country('France')! ;
+            const incompleteResponse = { 
+                text:'this is a text', 
+                language:Languages.fr,
+                currency:france.currency,
+                data:Buffer.from([0x30, 0x39, 0x41, 0x5a, 0x61, 0x7a])
+            } ;
+            const endPointResponse = { 
+                ... incompleteResponse,
+                textColor:TSColor.rgb('red'), 
+                country:france
+            }
+            const returnedResponse = {
+                ... incompleteResponse,
+                textColor:TSColor.rgb('red'), 
+                country:france.alpha2Code
+            }
+            const returnedResponseParser = TSParser.define(endPointStructure) ;
+
+            if (t.expect1(returnedResponseParser).OK()) {
+                t.register('options', basicOptions) ;            
+
+                const postEndPoint:TSEndPoint = {
+                    controller:async (req:TSServerRequest, resp:TSServerResponse):Promise<void> => {
+                        const sid = req.parameters['sid'] ;
+                        t.expect3(sid === sessionID || sid === badSessionID).true() ;
+                        t.expect4(req.query).is({ start:eventStart, end:eventEnd, invalids:eventInvalids }) ;
+                        t.expect5(req.body).is(parserStructureTestInterpretation()) ;
+                        resp.returnObject(sid === sessionID ? endPointResponse : incompleteResponse) ;
+                    },
+                    query:{
+                        start: 'unsigned!',
+                        end:   'unsigned!',
+                        invalids: 'boolean'
+                    },
+                    body:parserStructureTestDefinition,
+                    response:endPointStructure
+                } ;
+                const serverEndPoints = {
+                    '/sessions/{sid:uuid}/events':{
+                        POST:postEndPoint
+                    }
+                } ;
+                const startStatus = await TSServer.start(serverEndPoints, options) ;
+                t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
+                t.expectA(TSServer.isRunning()).true() ;
+                t.register('sessionID', sessionID) ;
+                const client = new TSRequest(`http://localhost:${port}/`) ;
+                const resp = await client.req(
+                    `sessions/${sessionID}/events?start=${eventStart}&end=${eventEnd}&invalids=${eventInvalids}`, 
+                    Verb.Post, 
+                    RespType.Json, 
+                    parserStructureTestValue()
+                ) ;
+                t.expectB(resp.status).toBe(Resp.OK) ;
+                const r0 = returnedResponseParser!.interpret(resp.response) ;
+                t.expectC(r0).is(returnedResponse) ; 
+
+                const resp2 = await client.req(
+                    `sessions/${badSessionID}/events?start=${eventStart}&end=${eventEnd}&invalids=${eventInvalids}`, 
+                    Verb.Post, 
+                    RespType.Json, 
+                    parserStructureTestValue()
+                ) ;
+                t.expectD(resp2.status).toBe(Resp.InternalError) ;
+                const r = resp2.response as any ;
+                t.expectE(r.status).is(Resp.InternalError) ;
+                t.expectF(r.error).is('Invalid structured response') ;
+                t.expectG(r.info?.errors).toBeArray() ;
+                t.expectH(r.info?.errors.length).toBe(2) ;
+                t.expectI(r.info?.errors[0]).toBe('value.textColor is mandatory') ;
+                t.expectJ(r.info?.errors[1]).toBe('value.country is mandatory') ;
+                t.expectK(r.errorCode).toBe(TSServerErrorCodes.BadResponseStructure) ;
+                const stopped = await TSServer.stop() ;
+                t.expectZ(stopped).toBeUndefined() ;   
+            } 
+        }) ;
+        
         group.unary('Same page in HTTP/S', async (t) => {
 
             /**
@@ -161,7 +262,8 @@ if (!$inbrowser()) {
                 const startStatus = await TSServer.start(null, opts as TSServerOptions) ;
                 t.register('options', opts) ;            
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTPS) ;
-                t.expect3(await TSServer.start(null, options)).toBe(TSServerStartStatus.AlreadyRunning) ;
+                t.expect3(TSServer.isRunning()).true() ;
+
                 const client = new TSRequest(`https://localhost:9654/`) ;
                 const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
                 if (t.expectA(status).toBe(Resp.OK)) {
@@ -175,4 +277,4 @@ if (!$inbrowser()) {
 }
 
 // @ts-ignore
-const sameCallFunction = async (req: TSServerRequest, res: ServerResponse) => { };
+const sameCallFunction = async (req: TSServerRequest, res: TSServerResponse) => { };

@@ -21,7 +21,7 @@ export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEn
     // to use but since 2018 all browsers will usually default to UTF-8 if a user enters non-ASCII characters 
     // for username or password. So our default is UTF8 (its also $charset() function default).
 
-	return 'Basic ' + $encodeBase64(`${login}:${pwd}`, undefined, $charset(encoding)) ;
+	return 'Basic ' + $encodeBase64(`${login}:${pwd}`, $charset(encoding)) ;
 }
 
 export function $barerauth(base64StringOrData:string|TSDataLike) : string

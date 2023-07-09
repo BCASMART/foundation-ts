@@ -14,7 +14,7 @@ export interface DataConversionOptions extends DataInterval {
 // ===================== conversions to Buffer ==============================
 
 export function $bufferFromArrayBuffer(a: ArrayBuffer): Buffer 
-{ return ArrayBuffer.isView(a) ? Buffer.from(a!.buffer, a!.byteOffset, a!.byteLength) : Buffer.from(a); }
+{ return ArrayBuffer.isView(a) ? Buffer.from(a.buffer, a.byteOffset, a.byteLength) : Buffer.from(a); }
 
 export function $bufferFromBytes(source:Bytes, opts:DataConversionOptions = {}): Buffer
 {
@@ -22,6 +22,9 @@ export function $bufferFromBytes(source:Bytes, opts:DataConversionOptions = {}):
 
     if (!opts.forceCopy && source instanceof Buffer) {
         return start === 0 && end === sourceLen ? source : source.subarray(start, end) ;
+    }
+    else if (!opts.forceCopy && source instanceof Uint8Array) {
+        return Buffer.from(source.buffer, source.byteOffset+start, len) ;   
     }
     else if (start === 0 && end === sourceLen) { return Buffer.from(source) ; }
 
@@ -43,7 +46,7 @@ export { $bufferFromArrayBuffer as $uint8ArrayFromArrayBuffer }
 export function $uint8ArrayFromBytes(source:Bytes, opts:DataConversionOptions = {}): Uint8Array
 {
     const [sourceLen, start, end, len] = $lse(source, opts.start, opts.end) ;
-    if (!opts.forceCopy && (source instanceof Uint8Array || source instanceof Buffer)) {
+    if (!opts.forceCopy && source instanceof Uint8Array /* includes Buffer */) {
         return start === 0 && end === sourceLen ? source : source.subarray(start, end) ;
     }
     const ret = new Uint8Array(len);
@@ -73,7 +76,7 @@ export function $arrayFromBytes(source:Bytes, opts:DataConversionOptions = {}): 
 {
     const [sourceLen, start, end,] = $lse(source, opts.start, opts.end) ;
 
-    if (!opts.forceCopy && !(source instanceof Uint8Array) && !(source instanceof Buffer)) {
+    if (!opts.forceCopy && !(source instanceof Uint8Array /* includes buffer */)) {
         return start === 0 && end === sourceLen ? source : source.slice(start, end) ;
     }
     const ret:uint8[] = [] ;
@@ -141,11 +144,16 @@ export function $uint32ArrayFromBuffer(source:Buffer, endianness?:Nullable<TSEnd
 
 // ===================== Base64 conversions ==============================
 
-const base64KeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-const base64Regex  = /[^A-Za-z0-9\+\/\=]/g ;
+const base64KeyStr    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+const base64URLKeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=";
+const base64Regex     = /[^A-Za-z0-9\+\/\=]/g ;
+const base64URLRegex  = /[^A-Za-z0-9\-\_\=]/g ;
 
 export function $decodeBase64(input: string): Uint8Array
 { return _decodeBase64(input, base64KeyStr, base64Regex) ; }
+
+export function $decodeBase64URL(input: string): Uint8Array
+{ return _decodeBase64(input, base64URLKeyStr, base64URLRegex) ; }
 
 function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Array {
     let chr1, chr2, chr3;
@@ -177,7 +185,13 @@ function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Arr
     return uint8.subarray(0, size);
 }
 
-export function $encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, encoding?:Nullable<StringEncoding | TSCharset>): string {
+export function $encodeBase64(source: TSDataLike | string, encoding?:Nullable<StringEncoding | TSCharset>): string
+{ return _encodeBase64(source, base64KeyStr, encoding) ; }
+
+export function $encodeBase64URL(source: TSDataLike | string, encoding?:Nullable<StringEncoding | TSCharset>): string
+{ return _encodeBase64(source, base64URLKeyStr, encoding) ; }
+
+function _encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, encoding?:Nullable<StringEncoding | TSCharset>): string {
     const reference = $length(ref) ? ref as string : base64KeyStr ;
     let output = "";
     let chr1, chr2, chr3, enc1, enc2, enc3, enc4;
@@ -205,6 +219,11 @@ export function $encodeBase64(source: TSDataLike | string, ref?: Nullable<string
     }
     return output;
 }
+
+export function $decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
+export function $encodeHexa(source:TSDataLike):string { return $bufferFromDataLike(source).toString('hex') ; }
+
+
 // ===================== Data operations ==============================
 export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
     const len = Math.max($length(a), $length(b)) ;
@@ -252,7 +271,8 @@ declare global {
     export interface Uint8Array {
         leafInspect:         (this: Uint8Array) => string;
         toBase64:            (this: Uint8Array) => string;
-        isGenuineUint8Array: (this:Uint8Array) => boolean ;
+        toHexa:              (this: any) => string;
+        isGenuineUint8Array: (this: Uint8Array) => boolean ;
         XOR:                 (this: TSDataLike, other:TSDataLike) => Buffer;
     }
     export interface Uint16Array {
@@ -264,6 +284,7 @@ declare global {
     export interface ArrayBuffer {
         leafInspect: (this: any) => string;
         toBase64:    (this: any) => string;
+        toHexa:      (this: any) => string;
         XOR:         (this: TSDataLike, other:TSDataLike) => Buffer;
     }
 }
@@ -277,9 +298,14 @@ ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
     const buf = $bufferFromArrayBuffer(this);
     return 'ArrayBuffer { [Uint8Contents]: <' + $dataAspect(buf, { prefix: '', suffix: '', separator: '', showLength: false, name: '', transformFn: (n) => n.toHex2(true) }) + '>, byteLength: ' + buf.length + ' }';
 }
+
 String.prototype.toBase64         = function toBase64(this: string): string { return $encodeBase64(this); }
 Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
-ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64($bufferFromArrayBuffer(this)) ; }
+ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64(this) ; }
+
+Uint8Array.prototype.toHexa       = function toHexa(this: any): string { return Buffer.from(this.buffer,this.byteOffset,this.byteLength).toString('hex');; }
+Buffer.prototype.toHexa           = function toHexa(this: any): string { return this.toString('hex'); } 
+ArrayBuffer.prototype.toHexa      = function toHexa(this: any): string { return $encodeHexa(this) ; }
 
 Uint8Array.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
 ArrayBuffer.prototype.XOR         = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }

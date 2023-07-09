@@ -1,10 +1,10 @@
 import { $count, $length, $ok, $value } from './commons';
 import { $continentName, $language, Locales, TSDefaults } from './tsdefaults';
 import { TSClone, TSLeafInspect, TSObject } from './tsobject';
-import { Comparison, continent, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
+import { Comparison, continent, Countries, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
 import { $compare } from './compare';
-import { $ascii, $ftrim } from './strings';
+import { $ascii, $ftrim, $trim } from './strings';
 import { PhonePlan, PhonePlanInfo } from './tsphonenumber';
 
 /**
@@ -52,6 +52,8 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public readonly phonePlan:PhonePlan ;
     public readonly currency: currency;
     public readonly locales:Locales;
+    
+    private _vatValidator?:VATNumberValidator ;
 
     private _state?: country ;
     
@@ -73,6 +75,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         this.locales = $ok(info.specificLocales) ? {... locales, ...info.specificLocales!} : {... locales} ;
         this.nativeLanguage = $value(nativeLanguage, $count(this.spokenLanguages) > 0 ? this.spokenLanguages[0] : this.locales.language) ;
         this._state = info.state ;
+        this._vatValidator = TSCountry.CountriesVATInfo[info.alpha2Code] ;
     }
 
 
@@ -116,6 +119,15 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         return null ;
     }
 
+    public static countryForVATNumber(vatNumber:Nullable<string>): TSCountry | null {
+        vatNumber = $trim(vatNumber).toUpperCase() ;
+        if (vatNumber.length >= 3) {
+            const vatCountry = TSCountry.country(vatNumber.slice(0,2)) ;
+            if ($ok(vatCountry) && vatCountry!.validateVATNumber(vatNumber) !== null) { return vatCountry ; }
+        } 
+        return null ;
+    }
+
     public static countries(): TSCountry[] {
         if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
         return [... TSCountry.__countries] ;
@@ -142,7 +154,19 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         const ret =  this.names[$ok(lang) ? lang! : $language()!] ;
         return $length(ret) ? ret! : null ;
     }
-
+    
+    /**
+     * This method returns:
+     * - null if it's not a valid VAT number
+     * - undefined if it has not be possible to check the VAT number
+     * – a valid string which is the correct VAT number correctly formated
+     */
+    public validateVATNumber(vatNumber:Nullable<string>):Nullable<string> {
+        vatNumber = $trim(vatNumber).toUpperCase() ;
+        if (vatNumber.length < 3) { return null ; }
+        return $ok(this._vatValidator) ? this._vatValidator!(vatNumber) : undefined ;
+    }
+    
     public toString():string { return this.alpha2Code ; }
     public toJSON():any { return this.alpha2Code ; }
 	public toArray(): string[] { return [this.alpha2Code, this.alpha3Code] ;}
@@ -159,7 +183,118 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }
-
+    // ============ Static VAT constants =============== 
+    private static CountriesVATInfo:{ [key in Countries]?:VATNumberValidator } = {
+        AT:(s:string) => { 
+            const m = s.match(/^AT\s*U\s*([0-9]{8})$/) ;
+            return $count(m) === 2 ? `ATU${m![1]}` : null ;
+        },
+        BE:(s:string) => { 
+            const m = s.match(/^BE\s*(0)?([0-9]{9})$/) ;
+            return $count(m) === 3 ? `BE0${m![2]}` : null ;
+        },
+        BG:(s:string) => {
+            const m = s.match(/^BG\s*([0-9]{9,10})$/) ;
+            return $count(m) === 2 ? `BG${m![1]}` : null ;
+        },
+        HR:(s:string) => {
+            const m = s.match(/^HR\s*([0-9]{11})$/) ;
+            return $count(m) === 2 ? `HR${m![1]}` : null ;
+        },
+        CY:(s:string) => {
+            const m =s.match(/^CY\s*([0-9]){8}\s*([A-Z])$/) ; 
+            return $count(m) === 3 ? `CY${m![1]}${m![2]}` : null ;
+        },
+        CZ:(s:string) => {
+            const m = s.match(/^CZ\s*([0-9]{8,10})$/) ;
+            return $count(m) === 2 ? `CZ${m![1]}` : null ;
+        },
+        DK:(s:string) => {
+            const m = s.match(/^DK\s*([0-9]{8})$/) ; 
+            return $count(m) === 2 ? `DK${m![1]}` : null ;
+        },
+        EE:(s:string) => {
+            const m = s.match(/^EE\s*([0-9]{9})$/) ; 
+            return $count(m) === 2 ? `EE${m![1]}` : null ;
+        },
+        FI:(s:string) => {
+            const m = s.match(/^FI\s*([0-9]{8})$/) ; 
+            return $count(m) === 2 ? `FI${m![1]}` : null ;
+        },
+        FR:(s:string) => {
+            const m = s.match(/^FR\s*([0-9A-Z]{2})\s*([0-9]{9})$/) ;
+            return $count(m) === 3 ? `FR${m![1]}${m![2]}` : null ;
+        },
+        DE:(s:string) => {
+            const m = s.match(/^DE\s*([0-9]{9})$/) ; 
+            return $count(m) === 2 ? `DE${m![1]}` : null ;
+        },
+        GR:(s:string) => {
+            const m = s.match(/^(EL|GR)\s*([0-9]{9})$/) ; 
+            return $count(m) === 3 ? `EL${m![2]}` : null ;
+        },
+        HU:(s:string) => {
+            const m = s.match(/^HU\s*([0-9]{8})$/) ; 
+            return $count(m) === 2 ? `HU${m![1]}` : null ;
+        },
+        IE:(s:string) => {
+            const m = s.match(/^IE\s*([0-9]{7})\s*([A-Z]{2})$/) ; 
+            return $count(m) === 3 ? `IE${m![1]}${m![2]}` : null ;
+        },
+        IT:(s:string) => {
+            const m = s.match(/^IT\s*([0-9]{11})$/) ;
+            return $count(m) === 2 ? `IT${m![1]}` : null ;
+        },
+        LV:(s:string) => {
+            const m = s.match(/^LV\s*([0-9]{11})$/) ;
+            return $count(m) === 2 ? `LV${m![1]}` : null ;
+        },
+        LT:(s:string) => {
+            const m = s.match(/^LT\s*([0-9]{9}|[0-9]{12})$/) ; 
+            return $count(m) === 2 ? `LT${m![1]}` : null ;
+        },
+        LU:(s:string) => {
+            const m = s.match(/^LU\s*([0-9]{8})$/) ; 
+            return $count(m) === 2 ? `LU${m![1]}` : null ;
+        },
+        MT:(s:string) => {
+            const m = s.match(/^MT\s*([0-9]{8})$/) ; 
+            return $count(m) === 2 ? `MT${m![1]}` : null ;
+        },
+        NL:(s:string) => {
+            const m = s.match(/^NL\s*([0-9]{9})\s*B\s*([0-9]{2})$/) ; 
+            return $count(m) === 3 ? `NL${m![1]}B${m![2]}` : null ;
+        },
+        PL:(s:string) => {
+            const m = s.match(/^PL\s*([0-9]{10})$/) ; 
+            return $count(m) === 2 ? `PL${m![1]}` : null ;
+        },
+        PT:(s:string) => {
+            const m = s.match(/^PT\s*([0-9]{3})\s*([0-9]{3})\s*([0-9]{3})$/) ; 
+            return $count(m) === 4 ? `PT${m![1]}${m![2]}${m![3]}` : null ;
+        },
+        RO:(s:string) => {
+            const m = s.match(/^RO\s*([0-9]{10})$/) ; 
+            return $count(m) === 2 ? `RO${m![1]}` : null ;
+        },
+        SK:(s:string) => {
+            const m = s.match(/^SK\s*([0-9]{10})$/) ; 
+            return $count(m) === 2 ? `SK${m![1]}` : null ;
+        },
+        SI:(s:string) => {
+            const m = s.match(/^SI\s*([0-9]{9})$/) ; 
+            return $count(m) === 2 ? `SI${m![1]}` : null ;
+        },
+        ES:(s:string) => {
+            const m = s.match(/^ES\s*([0-9A-Z])\s*([0-9]{7})\s*([0-9A-Z])$/) ; 
+            return $count(m) === 4 ? `ES${m![1]}${m![2]}${m![3]}` : null ;
+        },
+        SE:(s:string) => {
+            const m = s.match(/^SE\s*([0-9]{12})$/) ; 
+            return $count(m) === 2 ? `SE${m![1]}` : null ;
+        }
+    }
+    
 }
 
 interface CountryInfo {
@@ -179,4 +314,6 @@ interface CountryInfo {
     aliases?:string[];
     specificLocales?:Partial<Locales>;          // specific locales
 }
+
+type VATNumberValidator = (s:string) => string|null ;
 

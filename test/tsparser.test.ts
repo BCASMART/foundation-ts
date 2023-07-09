@@ -1,6 +1,6 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser } from "../src/tsparser";
-import { $dict, $ok, $phonenumber } from "../src/commons";
+import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserActionOptions } from "../src/tsparser";
+import { $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
 import { $inspect, $logterm } from "../src/utils";
@@ -34,86 +34,95 @@ const names:TSObjectNode = {
     _valueItemsType:'string!'
 } ;
 
+export const parserStructureTestDefinition = {
+    _mandatory: true,
+    _keysCase: TSCase.lowercase,
+    name:   'string!',
+    firstName: 'string',
+    mail:   'email!',
+    mobile: 'phone',
+    bgcolor: 'color',
+    language: 'language',
+    company: {
+        _mandatory: true,
+        name: 'string!',
+        hiringDate: 'date!',
+        position: 'string!',
+        photo: 'data',
+        website: 'url',
+        tags: ['string'],
+        offices:[{ 
+            officeType: {
+                _type:'uint8',
+                _mandatory: true,
+                _enum:{ 'headquarter': 1, 'agency': 2 }
+            },
+            name: 'string!',
+        }, 0, 8]
+    }
+} ;
+
+export function parserStructureTestValue():any {
+    return {
+        name:   "Monserat",
+        firstName: "Henry",
+        language: 'fr',
+        mail:   'h.monserat@orange.fr',
+        mobile: '+(33 1) 45 24 70 00',
+        bgcolor: '#ff0000',
+        company:{
+            name:"MyCompany",
+            hiringDate: "2023-06-15",
+            position: "chef de projet",
+            tags:["informatique", "services"],
+            offices:[{
+                officeType:"agency",
+                name:"Agence de Paris Nord"
+            }]
+        }
+    }
+} ;
+
+export function parserStructureTestInterpretation() {
+    const v = parserStructureTestValue() ;
+    return {
+        name:   "Monserat",
+        firstname: "Henry",
+        language: 'fr',
+        mail:   'h.monserat@orange.fr',
+        mobile: $phonenumber(v.mobile),
+        bgcolor: TSColor.fromString(v.bgcolor),
+        company:{
+            name:"MyCompany",
+            hiringDate:TSDate.fromIsoString(v.company.hiringDate),
+            position: "chef de projet",
+            tags:["informatique", "services"],
+            offices:[{
+                officeType:2,
+                name:"Agence de Paris Nord"
+            }]
+        }
+    } ;
+} 
+
 export const structureGroups = TSTest.group("TSParser class ", async (group) => {
     group.unary("TSParser example", async(t) => {
-        const def = {
-            _mandatory: true,
-            _keysCase: TSCase.lowercase,
-            name:   'string!',
-            firstName: 'string',
-            mail:   'email!',
-            mobile: 'phone',
-            bgcolor: 'color',
-            language: 'language',
-            company: {
-                _mandatory: true,
-                name: 'string!',
-                hiringDate: 'date!',
-                position: 'string!',
-                photo: 'data',
-                website: 'url',
-                tags: ['string'],
-                offices:[{ 
-                    officeType: {
-                        _type:'uint8',
-                        _mandatory: true,
-                        _enum:{ 'headquarter': 1, 'agency': 2 }
-                    },
-                    name: 'string!',
-                }, 0, 8]
-            }
-        } ;
-
-        const [struct, _v, _i] = _define(t, def, 'example') ;
-        if ($ok(struct)) {            
-            const value:any = {
-                name:   "Monserat",
-                firstName: "Henry",
-                language: 'fr',
-                mail:   'h.monserat@orange.fr',
-                mobile: '+(33 1) 45 24 70 00',
-                bgcolor: '#ff0000',
-                company:{
-                    name:"MyCompany",
-                    hiringDate: "2023-06-15",
-                    position: "chef de projet",
-                    tags:["informatique", "services"],
-                    offices:[{
-                        officeType:"agency",
-                        name:"Agencde de Paris Nord"
-                    }]
-                }
-            } ;
-            if (_v(2, value)) {
-                const res = struct!.rawInterpret(value) ;
-                if (!t.expect3(res).is({
-                    name:   "Monserat",
-                    firstname: "Henry",
-                    language: 'fr',
-                    mail:   'h.monserat@orange.fr',
-                    mobile: $phonenumber(value.mobile),
-                    bgcolor: TSColor.fromString(value.bgcolor),
-                    company:{
-                        name:"MyCompany",
-                        hiringDate:TSDate.fromIsoString(value.company.hiringDate),
-                        position: "chef de projet",
-                        tags:["informatique", "services"],
-                        offices:[{
-                            officeType:2,
-                            name:"Agencde de Paris Nord"
-                        }]
-                    }
-                })) {
+        const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example') ;
+        if ($ok(struct)) {    
+            let v = parserStructureTestValue() ;         
+            if (_v(2, v)) {
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expect3(res).is(parserStructureTestInterpretation())) {
                     console.log($inspect(struct!.toJSON(), 10)) ;
                 }
             }
-            let v = $dict(value) ;
+            v = parserStructureTestValue() ;
             v.language = '@@' ;                     _i(11, v) ;
 
-            v = $dict(value) ;                      _v(12, v) ;
+            v = parserStructureTestValue() ;
             v.plus = '+' ;                          _i(13, v) ;
 
-            v = $dict(value) ;
+            v = parserStructureTestValue() ;
             v.language = null ;                     _v(14, v) ;
             v.company.tags.push('other') ;          _v(15, v) ;
             v.company.tags = [] ;                   _v(16, v) ;
@@ -123,6 +132,18 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 name:'Bad office'
             }) ;                                    _i(18,v) ;
             v.company.offices[1].officeType = 1 ;   _v(19, v) ;
+        }
+    }) ;
+    group.unary("TSParser example in JSON mode", async(t) => {
+        const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example', 'json') ;
+        if ($ok(struct)) {            
+            const v = parserStructureTestValue() ;         
+            if (_v(2, v)) {
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expect3(res).is(parserStructureTestInterpretation())) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+            }
         }
     }) ;
 
@@ -271,12 +292,12 @@ function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
     }
 }
 
-function _define(t:TSUnaryTest, def:TSNode, test:string):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
+function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserActionContext):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
     let errors:string[] = [] ;
     const struct = TSParser.define(def, errors) ;
     if (t.expect0(struct).OK() && t.expect1(errors.length).is(0)) { 
-        function _v(n:number, v:any) { return _valid(t, struct!, v, n) ; }
-        function _i(n:number, v:any) { return _valid(t, struct!, v, n, false) ; }
+        function _v(n:number, v:any) { return _valid(t, struct!, v, n, true, context) ; }
+        function _i(n:number, v:any) { return _valid(t, struct!, v, n, false, context) ; }
 
         return [struct, _v, _i] ; 
     }
@@ -287,11 +308,11 @@ function _define(t:TSUnaryTest, def:TSNode, test:string):[TSParser|null, (n:numb
     return [null, _vfalse, _vfalse]
 }
 
-function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean = true):boolean {
-    const errors:string[] = [] ;
-    const ret = t.expect(struct.validate(v, errors), `val-${n}`).is(res) ;
+function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean, context?:TSParserActionContext):boolean {
+    const opts:TSParserActionOptions = { errors: [], context:context } ;
+    const ret = t.expect(struct.validate(v, opts), `val-${n}`).is(res) ;
     if (!ret) {
-        $logterm(`Test[${n}]: struct value should be ${res?"valid":"INVALID"} error:\n&o${errors.join('\n')}`) ;
+        $logterm(`Test[${n}]: struct value should be ${res?"valid":"INVALID"} error:\n&o${opts.errors!.join('\n')}`) ;
     }
     return ret ;
 }

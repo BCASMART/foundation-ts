@@ -1,6 +1,5 @@
-import { $count, $defined, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
+import { $count, $defined, $isarray, $isbool, $isdataobject, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
 import { $compare, $equal, $unorderedEqual } from "./compare";
-import { TSData } from "./tsdata";
 import { TSRange } from "./tsrange";
 import { TSRangeSet } from "./tsrangeset";
 import { TSInterval } from './tsinterval'
@@ -395,7 +394,7 @@ export class TSExpectAgent {
         if (this._value instanceof Map) { return this._value.size > 0       ? this._elogfail('<an empty Map>')   : this._step?.pass() ; }
         if ($isarray(this._value))      { return $count(this._value) > 0    ? this._elogfail('<an empty Array>') : this._step?.pass() ; }
         if ($isstring(this._value))     { return $length(this._value) > 0   ? this._elogfail('<an empty String>'): this._step?.pass() ; }
-        if (this._value instanceof Uint8Array || this._value instanceof TSData) {
+        if ($isdataobject(this._value)) {
             return $length(this._value) > 0 ? this._elogfail('<an empty buffer>'): this._step?.pass() ;
         }
         if (this._value instanceof TSList) { return this._value.count > 0     ? this._elogfail('<an empty List>')   : this._step?.pass() ; }
@@ -410,7 +409,7 @@ export class TSExpectAgent {
         if (this._value instanceof Map) { return this._value.size === 0     ? this._elogfail('<a significant Map>')   : this._step?.pass() ; }
         if ($isarray(this._value))      { return $count(this._value) === 0  ? this._elogfail('<a significant Array>') : this._step?.pass() ; }
         if ($isstring(this._value))     { return $length(this._value) === 0 ? this._elogfail('<a significant String>'): this._step?.pass() ; }
-        if (this._value instanceof Uint8Array || this._value instanceof TSData) {
+        if ($isdataobject(this._value)) {
             return $length(this._value) === 0 ? this._elogfail('<a significant buffer>'): this._step?.pass() ;
         }
         if (this._value instanceof TSList) { return this._value.count === 0     ? this._elogfail('<a significant List>')   : this._step?.pass() ; }

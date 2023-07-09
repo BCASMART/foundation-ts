@@ -314,6 +314,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string {
         return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ;
     }
+    public toHexa():string { return this.mutableBuffer.toString('hex') ; }
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
 

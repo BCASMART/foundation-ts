@@ -54,12 +54,13 @@ export function $timeout(promise:Promise<any>, time:number, exception:any) : Pro
 	]).finally(() => clearTimeout(timer)) ;
 }
 
-export async function $readStreamBuffer(stream:Stream):Promise<Buffer|null> {
+export async function $readStreamBuffer(stream:Nullable<Stream>):Promise<Buffer|null> {
+    if (!$ok(stream)) { return null ; }
     return new Promise((resolve, reject) => {
         let chunks:Array<Buffer> = [] ;
-        stream.on("data", (chunk:Buffer) => chunks.push(chunk));
-        stream.on("end", () => resolve(Buffer.concat(chunks)));
-        stream.on("error", _ => reject(null));
+        stream!.on("data", (chunk:Buffer) => chunks.push(chunk));
+        stream!.on("end", () => resolve(Buffer.concat(chunks)));
+        stream!.on("error", _ => reject(null));
     }) ;
 }
 
