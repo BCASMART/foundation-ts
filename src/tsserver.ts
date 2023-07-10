@@ -106,6 +106,7 @@ export interface TSServerOptions {
 export class TSServer {
     private static __server:TSServer|undefined = undefined ;
     private static readonly DEFAULT_CLOSE_TIMEOUT = 15000 ;
+    private static __methodColors:{[key in Verb]:string} = { GET:'&j', POST:'&u', PUT:'&v', DELETE:'&r', PATCH:'&o' }
     public readonly host:string ;
     public readonly port:number ;
     public readonly rootPath:string = '' ;
@@ -266,7 +267,7 @@ export class TSServer {
                         query:{}, // the final query will be calculated later
                         body:undefined // the final body will be calculated later
                     }, res) ; 
-                    if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle resource '${url.pathname}'.`) ; }
+                    if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle ${TSServer.__methodColors[method!]}${method!}&w resource '${url.pathname}'.`) ; }
                     return ;
                 }
                 else if (method === Verb.Get) {

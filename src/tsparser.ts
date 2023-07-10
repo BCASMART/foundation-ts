@@ -515,7 +515,7 @@ class TSLeafParser extends TSParser {
         'int8':      { valid:(v:any) => _isInt(v, INT8_MIN,  INT8_MAX),  str2v:_int, enum:(v) => $isint(v, INT8_MIN, INT8_MAX), iskey:true },
         'int16':     { valid:(v:any) => _isInt(v, INT16_MIN, INT16_MAX), str2v:_int, enum:(v) => $isint(v, INT16_MIN, INT16_MAX), iskey:true },
         'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => $isint(v, INT32_MIN, INT32_MAX), iskey:true },
-        'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString},
+        'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => s, enum:_isLanguage, iskey:true},
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
         'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:$isnumber},

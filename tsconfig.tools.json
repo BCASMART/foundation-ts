@@ -1,5 +1,5 @@
 {
-    "include": ["./src/**/*", "./test/**/*"],
+    "include": ["./src/**/*", "./tools/**/*"],
     "exclude": ["node_modules", "dist", "tdist", "exe"],
     "compilerOptions": {
         "allowJs": true,
@@ -21,7 +21,7 @@
         "noImplicitThis": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "outDir": "./tdist",
+        "outDir": "./exe",
         "removeComments": false,
         "resolveJsonModule": true,
         "rootDir": ".",

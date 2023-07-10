@@ -207,7 +207,7 @@ if (!$inbrowser()) {
                 } ;
                 const startStatus = await TSServer.start(serverEndPoints, options) ;
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
-                t.expectA(TSServer.isRunning()).true() ;
+                t.expectA(await TSServer.isRunning()).true() ;
                 t.register('sessionID', sessionID) ;
                 const client = new TSRequest(`http://localhost:${port}/`) ;
                 const resp = await client.req(

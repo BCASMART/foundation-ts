@@ -1,16 +1,19 @@
 {
   "name": "foundation-ts",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist tdist browser/*.js",
+    "clean": "rm -rf dist tdist exe browser/*.js",
     "fsbase": "npm run clean && tsc --project tsconfig.test.json && node tdist/test/build_standard_paths.js",
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
     "browser": "npm run clean && npm run build && browserify dist/index.js -o browser/foundationts.js",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
     "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node --async-stack-traces --experimental-modules tdist/test/index.test.js",
-    "browsertest": "npm run test && browserify tdist/test/index.test.js -o tdist/browser.test.js && cp test/index.test.html tdist/index.html && open tdist/index.html"
+    "browsertest": "npm run test && browserify tdist/test/index.test.js -o tdist/browser.test.js && cp test/index.test.html tdist/index.html && open tdist/index.html",
+    "tools": "npm run clean && tsc --project tsconfig.tools.json",
+    "echo": "node --async-stack-traces --experimental-modules exe/tools/echo.js",
+    "ping": "node --async-stack-traces --experimental-modules exe/tools/ping.js"
   },
   "main": "index.js",
   "types": "index.d.ts",
