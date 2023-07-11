@@ -57,14 +57,14 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     // THOSE ARE PRIMARY Grayscale or CMYK COLORS
     // TO GET RGB Colors use TSColor.rgb(). 
     // EG: To get a named color called green, use: TSColor.rgb('green')
-    public static readonly black    = TSColor.grayscale(0) ;
-    public static readonly white    = TSColor.grayscale(1) ;
-	public static readonly cyan     = TSColor.cmyk(1,0,0,0) ;
-	public static readonly magenta  = TSColor.cmyk(0,1,0,0) ;
-	public static readonly yellow   = TSColor.cmyk(0,0,1,0) ;
-    public static readonly red      = TSColor.cmyk(0,1,1,0) ;
-	public static readonly green    = TSColor.cmyk(1,0,1,0) ;
-	public static readonly blue     = TSColor.cmyk(1,1,0,0) ;
+    public static black()  { return TSColor.grayscale(0) ; }
+    public static white()  { return TSColor.grayscale(1) ; }
+	public static cyan()   { return TSColor.cmyk(1,0,0,0) ; }
+	public static magenta(){ return TSColor.cmyk(0,1,0,0) ; }
+	public static yellow() { return TSColor.cmyk(0,0,1,0) ; }
+    public static red()    { return TSColor.cmyk(0,1,1,0) ; }
+	public static green()  { return TSColor.cmyk(1,0,1,0) ; }
+	public static blue()   { return TSColor.cmyk(1,1,0,0) ; }
 	
     public static fromString(rgbStringColor:Nullable<string>):TSColor | null {
         const s = $ftrim(rgbStringColor).toLowerCase() ;

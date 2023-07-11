@@ -20,7 +20,7 @@ import { TSInterval } from '../src/tsinterval';
 import { TSList } from '../src/tslist';
 import { TSEmptyRange, TSRange } from '../src/tsrange';
 import { TSRangeSet } from '../src/tsrangeset';
-import { $inbrowser, $logterm } from '../src/utils';
+import { $exit, $logterm } from '../src/utils';
 import { arrayGroups } from './array.test';
 import { commonsGroups } from "./commons.test";
 import { compareGroups } from './compare.test';
@@ -48,6 +48,7 @@ import { utilsGroups } from './utils.test';
 import { decoratorGroups } from './decorators.test';
 import { phoneGroups } from './tsphonenumber.test';
 import { structureGroups } from './tsparser.test';
+import { envGroups } from './env.test';
 
 const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
@@ -63,6 +64,7 @@ tester.addGroups(dataGroups,        "data") ;
 tester.addGroups(dateGroups,        "dates") ;
 tester.addGroups(dateCompGroups,    "dates") ;
 tester.addGroups(defaultsGroups,    "defaults") ;
+tester.addGroups(envGroups,         "env") ;
 tester.addGroups(intervalGroups,    "intervals") ;
 tester.addGroups(rangeGroups,       "ranges") ;
 tester.addGroups(rangeSetGroups,    "ranges") ;
@@ -85,14 +87,14 @@ tester.addGroup("Testing tester system itself", async (group) => {
     const setB = new Set([
         "commons", "strings", "numbers", "arrays", 
         "compare", "countries", "crypto", "dates", "decorators",
-        "defaults", "intervals", "ranges", "ranges", 
+        "defaults", "env", "intervals", "ranges", "ranges", 
         "requests", "server", "utils", "data", 
         "colors", "geometry", "qualifiers", "errors", 
         "fs", "fusion", "phones", "parser", "internals"]) ;
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {
-        t.expect0(tester.names.length).is(25) ;
+        t.expect0(tester.names.length).is(26) ;
         t.expect1(setA).is(setB) ;
     }) ;
     
@@ -137,7 +139,6 @@ tester.addGroup("Testing tester system itself", async (group) => {
 }, "internals") ;
 
 (async () => {
-    const process = $inbrowser() ? undefined : require('process') ;
     await tester.run({
         focusNames:args, 
         clearScreen:!dumper, 
@@ -146,6 +147,6 @@ tester.addGroup("Testing tester system itself", async (group) => {
             if (!TSTester.globalOptions.silent) { $logterm(`&0&o** ${t.desc} STOPPED **&0`) ; } 
         }
     }) ;
-    process?.exit() ;
+    $exit() ;
 })();
 

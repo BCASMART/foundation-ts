@@ -7,7 +7,7 @@ import { uint8 } from '../src/types';
 
 export const colorGroups = TSTest.group("TSColor class ", async (group) => {
     const yellowRGB = TSColor.rgb('Yellow') ;
-    const yellowCMYK = TSColor.yellow ;
+    const yellowCMYK = TSColor.yellow() ;
     const realGray = TSColor.grayscale(0.5) ;
     const rgbGray = TSColor.rgbcomponents(0.5,0.5,0.5) ;
     const cmykGray = TSColor.cmyk(0,0,0,0.5) ;
@@ -49,12 +49,12 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect1(yellowCMYK.isSimilar(yellowCMYK)).toBeTruthy() ;
         t.expect2(yellowCMYK.isSimilar(yellowRGB)).toBeTruthy() ;
         t.expect3(yellowRGB.isSimilar(yellowCMYK)).toBeTruthy() ;
-        t.expect4(TSColor.rgb('blue').isSimilar(TSColor.blue)).toBeTruthy() ;
-        t.expect5(TSColor.blue.isSimilar(TSColor.rgb('blue'))).toBeTruthy() ;
-        t.expect6(TSColor.rgb('red').isSimilar(TSColor.red)).toBeTruthy() ;
-        t.expect7(TSColor.red.isSimilar(TSColor.rgb('red'))).toBeTruthy() ;
-        t.expect8(TSColor.rgb('green').isSimilar(TSColor.green)).toBeTruthy() ;
-        t.expect9(TSColor.green.isSimilar(TSColor.rgb('green'))).toBeTruthy() ;
+        t.expect4(TSColor.rgb('blue').isSimilar(TSColor.blue())).toBeTruthy() ;
+        t.expect5(TSColor.blue().isSimilar(TSColor.rgb('blue'))).toBeTruthy() ;
+        t.expect6(TSColor.rgb('red').isSimilar(TSColor.red())).toBeTruthy() ;
+        t.expect7(TSColor.red().isSimilar(TSColor.rgb('red'))).toBeTruthy() ;
+        t.expect8(TSColor.rgb('green').isSimilar(TSColor.green())).toBeTruthy() ;
+        t.expect9(TSColor.green().isSimilar(TSColor.rgb('green'))).toBeTruthy() ;
         t.expectA(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).toBeTruthy() ;
         t.expectB(realGray.isSimilar(TSColor.rgb(127,127,127))).toBeTruthy() ;
         t.expectC(realGray.isSimilar(rgbGray)).toBeTruthy() ;
@@ -71,7 +71,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
 
     group.unary("TSColors names", async(t) => {
         t.expect0(TSColor.rgb('red').name).toBe('red') ;
-        t.expect1(TSColor.red.name).toBe('') ;
+        t.expect1(TSColor.red().name).toBe('') ;
         t.expect2(TSColor.rgb('White').name).toBe('white') ;
         t.expect3(TSColor.rgb('#fff').name).toBe('white') ;
         t.expect4(TSColor.rgb('#FFFFFF').name).toBe('white') ;
@@ -82,7 +82,7 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect9(TSColor.rgb(0xffffff).name).toBe('white') ;
         t.expectA(TSColor.rgb(0xffffffff).name).notToBe('white') ;
         t.expectB(TSColor.rgbcomponents(1,1,1).name).toBe('white') ;
-        t.expectC(TSColor.cyan.name).toBe('') ;
+        t.expectC(TSColor.cyan().name).toBe('') ;
         t.expectD(TSColor.rgb('aquamarine').name).toBe('aquamarine') ;
         t.expectE(TSColor.rgb("#7fffd4").name).toBe('aquamarine') ;
     }) ;

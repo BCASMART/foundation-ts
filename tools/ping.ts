@@ -1,42 +1,38 @@
-import { $ok, $unsigned } from "../src/commons";
+import { $ok, $value } from "../src/commons";
+import { $args } from "../src/env";
 import { TSError } from "../src/tserrors";
 import { TSParser, TSParserActionOptions } from "../src/tsparser";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
-import { UINT32_MAX, uint, uint16 } from "../src/types";
-import { $ellapsed, $inbrowser, $logterm, $mark, $writeterm } from "../src/utils";
+import { UINT32_MAX } from "../src/types";
+import { $ellapsed, $exit, $inbrowser, $logheader, $logterm, $mark, $writeterm } from "../src/utils";
 import { EchoStructure, PingStructure, ServiceURL } from "./echoping";
 
-
-const args = process.argv.slice(2) ;
-let servicePort = 3000 as uint16 ;
-let hostURL:string = 'http://localhost' ;
-let pingLimit:number = UINT32_MAX ;
-
-if (args.length) {
-    hostURL = args[0] ;
+if ($inbrowser()) {
+    throw new TSError(`Impossible to launch ping tool inside a browser`) ;
 }
-if (args.length > 1) {
-    const port:number = $unsigned(args[1], 3000 as uint) ;
-    servicePort = Math.max(Math.min(65534, port), 1025) as uint16 ;
-}
+const [decrypted,] = $args({
+    host:  { struct:'string', short:'h' },
+    limit: { struct:'number', short:'l' }
+}) ;
+const args = $value(decrypted, [])
+const hostURL = $value(args['string'], 'http://localhost:8000')
+const pingLimit:number = $value(args['limit'], UINT32_MAX) ;
 
-if (args.length > 2) {
-    pingLimit = $unsigned(args[2], 100 as uint) ;
-}
+const firstURL = new URL(ServiceURL, hostURL) ;
+const commonFirstBase = hostURL.slice(firstURL.origin.length) ;
+const url = new URL(`${commonFirstBase}${ServiceURL}`,`${firstURL.origin}`) ;
 
-const client = new TSRequest(`${hostURL}:${servicePort}`) ;
+const client = new TSRequest(url.origin) ;
+$logheader(`Will ping server '${client.baseURL}'`) ;
 const pingParser = TSParser.define(PingStructure)! ;
 const echoParser = TSParser.define(EchoStructure)! ;
 
 (async () => {
-    const inBrowser = $inbrowser() ;
-    const process = inBrowser ? undefined : require('process') ;
-    const resp = await client.req(ServiceURL) ;
+    const resp = await client.req(url.pathname) ;
     
     if (resp.status !== Resp.OK) {
         $logterm(`&0&R&w Impossible to connect to echo service on server &P ${client.baseURL} &0`) ;
-        process?.exit() ;
-        throw new TSError(`Impossible to connect to echo service on server '${client.baseURL}'`) ;
+        $exit(-1) ;
     }
     for (let i = 1 ; i <= pingLimit; i++) {
         const sendOptions:TSParserActionOptions = { errors:[], context:'json' } ;
@@ -49,8 +45,7 @@ const echoParser = TSParser.define(EchoStructure)! ;
         if (resp.status !== Resp.OK) {
             $logterm(` &0&R&w Error ${resp.status} &0`) ;
             (resp.response as any).info?.errors?.forEach((e:any) => $logterm(`&0&o  - ${e}&0`)) ;
-            process?.exit() ;
-            throw new TSError(`Error. Returned status ${resp.status} on ping ${i}`) ;
+            $exit(-2) ;
         }
         const retOptions:TSParserActionOptions = { errors:[], context:'json' } ;
         const ret = echoParser.interpret(resp.response, retOptions) ;
@@ -65,8 +60,7 @@ const echoParser = TSParser.define(EchoStructure)! ;
                 if (ret?.date?.toISOString() !== isod) { `&0&o returned date ${ret?.date} <> ${d}&0` ; }
                 (resp.response as any).info?.errors?.forEach((e:any) => $logterm(`&0&o  - ${e}&0`)) ;
             }
-            process?.exit() ;
-            throw new TSError(`Echo error on ping '${i}'`) ;
+            $exit(-3) ;
         }
         $logterm(`&0 &G&w OK &0&w in &o${$ellapsed(mark)}&0`) ;
     }

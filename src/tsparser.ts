@@ -88,7 +88,7 @@ export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
 
 export type TSNativeValue = Nullable<string|number|boolean> ;
 
-export type TSParserActionContext = 'URL'|'json' ;
+export type TSParserActionContext = 'URL'|'json'|'vargs' ;
 export interface TSParserActionOptions {
     errors?:Nullable<string[]> ;
     context?:Nullable<TSParserActionContext> ;
@@ -509,18 +509,18 @@ class TSLeafParser extends TSParser {
         'currency':  { valid:_isCurrency, str2v:(s:string) => s, enum:_isCurrency, iskey:true},
         'data' :     { valid:_isData, str2v:_decodeb64, v2nat:_encodeb64},
         'date' :     { valid:_isTsDate, str2v:(s:string) => TSDate.fromIsoString(s), v2nat:(v:any) => v.toIsoString()},
-        'email':     { valid:$isemail, str2v:$email, iskey:true },
-        'hexa':      { valid:_isHexaData, str2v:_decodeHexa, v2nat:$encodeHexa},
-        'int':       { valid:(v:any) => _isInt(v, INT_MIN,  INT_MAX), str2v:_int, enum:(v) => $isint(v, INT_MIN, INT_MAX), iskey:true },
-        'int8':      { valid:(v:any) => _isInt(v, INT8_MIN,  INT8_MAX),  str2v:_int, enum:(v) => $isint(v, INT8_MIN, INT8_MAX), iskey:true },
-        'int16':     { valid:(v:any) => _isInt(v, INT16_MIN, INT16_MAX), str2v:_int, enum:(v) => $isint(v, INT16_MIN, INT16_MAX), iskey:true },
-        'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => $isint(v, INT32_MIN, INT32_MAX), iskey:true },
+        'email':     { valid:(v:any) => $isemail(v), str2v:(s:string) => $email(s), iskey:true },
+        'hexa':      { valid:_isHexaData, str2v:_decodeHexa, v2nat:(v:any) => $encodeHexa(v)},
+        'int':       { valid:(v:any) => _isInt(v, INT_MIN,   INT_MAX),   str2v:_int, enum:(v) => _isInt(v, INT_MIN, INT_MAX), iskey:true },
+        'int8':      { valid:(v:any) => _isInt(v, INT8_MIN,  INT8_MAX),  str2v:_int, enum:(v) => _isInt(v, INT8_MIN, INT8_MAX), iskey:true },
+        'int16':     { valid:(v:any) => _isInt(v, INT16_MIN, INT16_MAX), str2v:_int, enum:(v) => _isInt(v, INT16_MIN, INT16_MAX), iskey:true },
+        'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => _isInt(v, INT32_MIN, INT32_MAX), iskey:true },
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => s, enum:_isLanguage, iskey:true},
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
-        'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:$isnumber},
-        'string':    { valid:$isstring, str2v: (s:string) => s, enum:(v) => $isstring(v) && (v as string).length > 0},
-        'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint,  enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
+        'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
+        'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0},
+        'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
         'uint32':    { valid:(v:any) => _isInt(v, 0, UINT32_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT32_MAX), iskey:true },
         'unsigned':  { valid:(v:any) => _isInt(v, 0), str2v:_uint, enum:(v) => _isInt(v, 0), iskey:true },
@@ -536,7 +536,7 @@ class TSLeafParser extends TSParser {
         const manager =  $isstring(node._type) ? TSLeafParser.__managers[node._type] : undefined ;
         const transformer = $ok(node._transformer) ? node._transformer : ($ok(manager?.trans) ? manager!.trans! : undefined) ;
         const natifier = $ok(node._natifier) ? node._natifier : ($ok(manager?.v2nat) ? manager!.v2nat! : undefined) ;
-        
+
         super(!!node._mandatory, node._checker, transformer, natifier) ;
 
         if (!$ok(manager)) { 

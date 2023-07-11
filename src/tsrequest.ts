@@ -343,7 +343,7 @@ declare global {
 URLSearchParams.prototype.query = function query(this: URLSearchParams): StringDictionary | null {
     const ret:StringDictionary = {} ;
     let total = 0 ;
-
+    // FIXME: do net we need to care about arrays here ?
     for (const [key, value] of this) {
         if (key.length > 0) { ret[key] = value ; total ++ ; }
     }

@@ -109,8 +109,9 @@ export function $normspaces(s: Nullable<string>, opts:$normspacesOpions = {}): s
 }
 
 export function $firstcap(s: Nullable<string>): string { return _capitalize(s, 1); }
-
 export function $capitalize(s: Nullable<string>): string { return _capitalize(s); }
+export function $camelCase(s: Nullable<string>): string { return _camelCase(s) ; } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
+export function $snakeCase(s: Nullable<string>): string { return _snakeCase(s) ; } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
 
 export function $HTML(s: Nullable<string>, reference: string[] = FoundationHTMLEncoding): string {
     const len = $length(s);
@@ -130,6 +131,7 @@ export class HTMLContent extends String {
 declare global {
     export interface String {
         ascii:              (this: string) => string;
+        camelCase:          (this: string) => string;
         capitalize:         (this: string) => string;
         firstCap:           (this: string) => string;
         ftrim:              (this: string) => string;
@@ -147,6 +149,7 @@ declare global {
         right:              (this: string, rightPart?:Nullable<number>) => string;
         rtrim:              (this: string) => string;
         singular:           (this: string) => boolean ;
+        snakeCase:          (this: string) => string;
         toDate:             (this: string) => Date|null ;
         toHTML:             (this: string) => string;
         toHTMLContent:      (this: string) => HTMLContent ;
@@ -161,6 +164,7 @@ declare global {
 
 }
 String.prototype.ascii              = function ascii(this: string): string { return $ascii(this); } ;
+String.prototype.camelCase          = function camelCase(this: string): string { return _camelCase(this) ; }
 String.prototype.capitalize         = function capitalize(this: string): string { return $capitalize(this); } ;
 String.prototype.firstCap           = function firstCap(this: string): string { return $firstcap(this); } ;
 String.prototype.ftrim              = function ftrim(this: string): string { return $ftrim(this); } ;
@@ -178,6 +182,7 @@ String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): st
 String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
 String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
 String.prototype.singular           = function singular(this:string) { return this.toUnsigned() === 1 ; }
+String.prototype.snakeCase          = function snakeCase(this: string): string { return _snakeCase(this) ; }
 String.prototype.toDate             = function toDate(this:string):Date|null { return $isdate(this) ? new Date(this) : null ; }
 String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
 String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
@@ -189,6 +194,42 @@ String.prototype.toUnsigned         = function toUnsigned(this: string, defaultV
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
 
 // ================================== private functions ==============================
+
+function _snakeCase(source: Nullable<string>): string {
+    const s = $ascii($normspaces(source, { strict:true, replacer:''})) ;
+    const len = s.length;
+    let ret = '' ;
+    let lastCharWasDash = false;
+
+    for (let i = 0; i < len; i++) {
+        const c = s.charAt(i) ;
+        if (c === '_' || c === '-') { lastCharWasDash = true ; continue ; }
+        else if (lastCharWasDash) { ret += '_' ; }
+        ret += c.toLowerCase() ;
+        lastCharWasDash = false ;
+    }
+    // we remove trailing dashes
+
+    return ret ;
+}
+
+function _camelCase(source: Nullable<string>): string {
+    const s = $ascii($normspaces(source, { strict:true, replacer:''})) ;
+    const len = s.length;
+    let ret = '' ;
+    let lastCharWasDash = false;
+
+    for (let i = 0; i < len; i++) {
+        const c = s.charAt(i) ;
+        if (c === '_' || c === '-') { lastCharWasDash = true ; continue ; }
+        else if (lastCharWasDash && c >= 'a' && c <= 'z') { ret += c.toUpperCase() ; }
+        else { ret += c ; }
+        lastCharWasDash = false ;
+    }    
+    // we remove trailing dashes
+
+    return ret ;
+}
 
 function _capitalize(s: Nullable<string>, max: number = 0): string {
     const len = $length(s);

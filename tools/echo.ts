@@ -1,16 +1,24 @@
-import { $unsigned } from "../src/commons";
+import { $value } from "../src/commons";
+import { $args } from "../src/env";
 import { TSError } from "../src/tserrors";
 import { Resp } from "../src/tsrequest";
 import { TSServer, TSServerOptions } from "../src/tsserver";
 import { TSEndpointsDefinition, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
-import { TSDictionary, uint, uint16 } from "../src/types";
-import { $inbrowser, $logterm } from "../src/utils";
+import { TSDictionary, uint16 } from "../src/types";
+import { $exit, $inbrowser, $logterm } from "../src/utils";
 
 import { EchoStructure, PingStructure, ServiceURL } from "./echoping";
 
-const args = process.argv.slice(2) ;
-const port:number = $unsigned(args.first(), 3000 as uint) ;
-const servicePort = Math.max(Math.min(65534, port), 1025) as uint16 ;
+if ($inbrowser()) {
+    throw new TSError(`Impossible to launch echo server inside a browser`) ;
+}
+const [decrypted,] = $args({
+    port:  { struct:'number', short:'p', defaultValue:8000 },
+    verbose: { struct:'boolean', short:'v', negative:'silent', negativeShort:'s', defaultValue:true }
+}) ;
+const args = $value(decrypted, [])
+const servicePort = Math.max(Math.min(65534, $value(args['limit'], 8000))) as uint16 ;
+const verbose = $value(args['verbose'], true) ;
 
 const serverEndPoints:TSDictionary<TSEndpointsDefinition> = {} ;
 serverEndPoints[ServiceURL] = { 
@@ -29,24 +37,20 @@ serverEndPoints[ServiceURL] = {
 
 const serverOptions: TSServerOptions = {
     port:servicePort,
-    logInfo:true
+    logInfo:verbose
 } ;
 
 (async () => {
-    const inBrowser = $inbrowser() ;
-    const process = inBrowser ? undefined : require('process') ;
     const startStatus = await TSServer.start(serverEndPoints, serverOptions) ;
     if (startStatus !== TSServerStartStatus.HTTP) {
         $logterm(`&0&R&w Impossible to launch echo server on port &P ${serverOptions.port} &0`) ;
         $logterm('&0&oExiting...&0') ;
-        process?.exit() ;
-        throw new TSError(`Impossible to launch echo server on port '${serverOptions.port}'`) ;
+        $exit(-1)
 
     }
     if (!(await TSServer.isRunning())) {
         $logterm(`&0&R&w Echo server was not properly launch on port &P ${serverOptions.port} &0`) ;
         $logterm('&0&oExiting...&0') ;
-        process?.exit() ;
-        throw new TSError(`Echo server was not properly launch on port '${serverOptions.port}'`) ;
+        $exit(-2)
     }
 })();

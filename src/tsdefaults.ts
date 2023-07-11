@@ -4,7 +4,8 @@ import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os'
 import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
-import { $env, $inbrowser, $logterm } from "./utils";
+import { $inbrowser, $logterm } from "./utils";
+import { $env } from "./env";
 import { $ascii, $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSCharset } from "./tscharset";
