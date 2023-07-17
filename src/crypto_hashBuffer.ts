@@ -5,8 +5,10 @@ import { TSError } from "./tserrors";
 import { Bytes, Nullable, TSDataLike, TSEndianness, uint8 } from "./types";
 import { $hexadump, $logterm } from "./utils";
 
+/** @internal */
 type _TSHashFunction = (hashBlock:number[]) => void ;
 
+/** @internal */
 interface _TSHashBufferOptions {
     integersCount:number ;
     endianness?:TSEndianness ;
@@ -15,6 +17,7 @@ interface _TSHashBufferOptions {
     dataoutput?:Nullable<boolean> ;
 }
 
+/** @internal */
 export class _TSHashBuffer {
     public readonly sourceLength:number ;
     public readonly blocksCount:number ;

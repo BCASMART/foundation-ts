@@ -311,7 +311,7 @@ Uint8Array.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLi
 ArrayBuffer.prototype.XOR         = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
 
 // ===================== private functions ==============================
-export function _toBytesOpts(source:TSDataLike, opts:DataConversionOptions = {}): [Bytes, DataConversionOptions]
+function _toBytesOpts(source:TSDataLike, opts:DataConversionOptions = {}): [Bytes, DataConversionOptions]
 {
     if (source instanceof ArrayBuffer) {
         return [$bufferFromArrayBuffer(source), {...opts, forceCopy: false }] ; // we alreay are forced to do a conversion here, don't do it twice

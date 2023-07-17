@@ -4,6 +4,7 @@ import { TSError } from "./tserrors";
 import { TSResourceMimeChecker, TSWebSiteDefinition } from "./tsserver_types";
 import { Nullable, StringDictionary, UINT32_MAX, uint32 } from "./types";
 
+/** @internal */
 export class TSStaticWebsite {
     public readonly uri:string ;
     public readonly folder:string ;

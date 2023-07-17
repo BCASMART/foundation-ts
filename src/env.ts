@@ -1,12 +1,12 @@
 import { URL } from "url";
 
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, unichar } from "./types";
-import { $isarray, $isstring, $length, $ok, $string, $unsigned, $valueornull } from "./commons";
+import { $count, $isarray, $isstring, $length, $ok, $string, $unsigned, $valueornull } from "./commons";
 import { DefaultsConfigurationOptions } from "./tsdefaults";
-import { $logterm } from "./utils";
+import { $exit, $logheader, $logterm } from "./utils";
 import { $ascii, $ftrim, $lines, $normspaces } from "./strings";
 import { $charset } from "./tscharset";
-import { TSLeafOptionalNode, TSMandatoryLeafNode, TSObjectNode, TSParser } from "./tsparser";
+import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser } from "./tsparser";
 import { TSError } from "./tserrors";
 
 export interface $envOptions extends DefaultsConfigurationOptions  {
@@ -40,11 +40,11 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOpti
     return ret ;
 }
 
-export type TSArgumentDictionary = TSDictionary<TSArgument|TSLeafOptionalNode|TSMandatoryLeafNode> ;
+export type TSArgumentDictionary = TSDictionary<TSArgument|TSLeafNode> ;
 
 // TODO: add description in this argument to generate a usage array with $args()
 export interface TSArgument {
-    struct:TSLeafOptionalNode | TSMandatoryLeafNode ;
+    struct:TSLeafNode ;
     noDoubleDash?:boolean ;
     defaultValue?:any ;
     short?:string ;
@@ -96,11 +96,14 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                 }
             }
             else {
-                const short = $string(d.short) ;
-                const isBoolean = d.struct === 'boolean' || d.struct === 'boolean!' ;
-                const nname = isBoolean ? $string(d.negative) : '' ;
-                const nshort = isBoolean ? $string(d.negativeShort) : '' ;
-                const doubledash = !d.noDoubleDash && prefix.length > 0 ;
+                const ds = $ok((d as any)._type) ? { struct:d as TSExtendedLeafNode } : d as TSArgument ;
+                const short = $string(ds.short) ;
+                const isBoolean = $isstring(ds.struct) ? 
+                                  ds.struct === 'boolean' || ds.struct === 'boolean!' : 
+                                  (ds.struct as TSExtendedLeafNode)._type === 'boolean' ;
+                const nname = isBoolean ? $string(ds.negative) : '' ;
+                const nshort = isBoolean ? $string(ds.negativeShort) : '' ;
+                const doubledash = !ds.noDoubleDash && prefix.length > 0 ;
                 if (nname.length === 1 || (nname.length > 1 && (_normarg(nname) !== nname || nname === name))) {
                     throw new TSError(`$args(): bad definition for negative name version of argument '${name}'`, { name:name, structure:d })
                 }
@@ -118,16 +121,16 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                         (doubledash && nname.length > 1 && ref.has(prefix+prefix+nname)) || 
                         (nshort.length === 1 && ref.has(prefix+nshort)) ;
                 if (!twice) {
-                    parser = TSParser.define(d.struct) ;
+                    parser = TSParser.define(ds.struct) ;
                     if ($ok(parser)) {
                         if (isBoolean && parser?.mandatory && nname.length === 0 && nshort.length === 0) {
                             throw new TSError(`$args(): argument '${name}' cannot be mandatory and have no negative version`, { name:name, structure:d })
                         }
 
                         const def:TSArgumentParser = { name:name, positive:isBoolean ? true : undefined } ;
-                        (parserStructure as any)[name] = d.struct ;
+                        (parserStructure as any)[name] = ds.struct ;
                         nameSet.add(name) ;
-                        if ($ok(d.defaultValue)) { defaults.push({name:name, value:d.defaultValue!}) ; }
+                        if ($ok(ds.defaultValue)) { defaults.push({name:name, value:ds.defaultValue!}) ; }
                         ref.set(prefix+name, def) ; 
                         if (doubledash) { ref.set(prefix+prefix+name, def) ; }
                         if (prefix.length >= 0 && short.length === 1) { ref.set(prefix+short, def) ; }
@@ -149,10 +152,10 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     }
     if (n === 0) { throw new TSError("$args(): no arguments defined", definition) ; }
 
-    const parser = TSParser.define(parserStructure, opts?.errors) ;
+    const parser = TSParser.define(parserStructure) ;
     let dict:TSDictionary|null = null ;
     let args:string[] = [] ;
-    //console.log('\n'+$inspect(parser,15))
+
     if (!$ok(parser)) { throw new TSError("$args(): unable to generate parser", { structure:parserStructure, errors:opts?.errors}) }
     if (isURL) {
         // we parse an URL query
@@ -161,7 +164,17 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     if (isvargs || passedargs) {
         // we parse a process args array
         [dict, args] = _argumentsFromVarArgs(passedargs ? opts?.arguments as string[] : process?.argv?.slice(2), ref, opts?.errors) ;
-        if ($ok(dict)) { dict = $valueornull(parser!.interpret(dict, { errors:opts?.errors, context:'vargs' })) as TSDictionary | null ; }
+        if ($ok(dict)) {
+            const interpretErrors:string[] = [] ; 
+            dict = $valueornull(parser!.interpret(dict, { errors:interpretErrors, context:'vargs' })) as TSDictionary | null ; 
+
+            if (!$ok(dict) && $ok(opts?.errors)) {
+                interpretErrors.forEach(e => {
+                    const m = e.match(/^object\.(\S+)\s+(.+)$/) ;
+                    if ($ok(m)) { opts?.errors?.push(`Argument '-${m![1]}' ${m![2]}`) ; }
+                })
+            }
+        }
     }
     if ($ok(dict)) {
         defaults.forEach(c => { if (!$ok(dict![c.name])) { dict![c.name] = c.value ; }})
@@ -169,6 +182,15 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     return [dict, args] ;
 }
 
+export function $argCheck(exitStatus:number, errors:Nullable<string[]|TSArgsOptions>, process?:Nullable<string>) {
+    const err = $isarray(errors) ? errors as string[] : ($ok(errors) ? (errors as TSArgsOptions).errors : undefined) ;
+    const n = $count(err) ;
+    if (n > 0) {
+        $logheader(`${$length(process)?process:'process'} did encounter ${n > 1 ? 'errors' : 'an error'}`, undefined, '&r', '&o') ;
+        $logterm(`&y${err!.join('.\n')}.&0\n`) ;
+        $exit(exitStatus) ;
+    }
+}
 
 // ====================== private types, interfaces and constants ======================
 interface TSArgumentParser {

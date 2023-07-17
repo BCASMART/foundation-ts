@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, emailRegex, url, UUID, urlRegex, uuidV1Regex, uuidV4Regex, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, UUIDv1, UUIDv4, TSDictionary } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, url, UUID, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, TSDictionary } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -62,8 +62,8 @@ export function $isdate(o:any) : boolean
 export function $isemail(o:any) : boolean
 { return $isstring(o) && $ok($email(o)) ; }
 
-export function $isurl(o:any, opts?:$urlOptions) : boolean
-{ return o instanceof URL || ($isstring(o) && $ok($url(o, opts))) ; }
+export function $isurl(o:any, opts?:Nullable<$urlOptions>) : boolean
+{ return o instanceof URL ? $ok(_validateURL(o, !!opts?.acceptsParameters, opts?.acceptedProtocols)) : $isstring(o) && $ok($URL(o, opts)) ; }
 
 export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
 { return o instanceof TSPhoneNumber || ($isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK) ; }
@@ -106,7 +106,7 @@ export function $int(n:Nullable<string|number|bigint>, defaultValue:int=<int>0) 
 
 export function $email(s:Nullable<string>) : email | null
 {
-    const m = _regexvalidatedstring<email>(emailRegex, s) ;
+    const m = _regexvalidatedstring<email>(__emailRegex, s) ;
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
 
@@ -117,31 +117,32 @@ export function $isophone(s:Nullable<string>, country?:Nullable<TSCountry>): str
 { return $valueornull(TSPhoneNumber.fromString(s, country)?.toString()) ;}
 
 export interface $urlOptions { 
-    acceptsProtocolRelativeUrl?:boolean ;
+    acceptsParameters?:boolean ;
     acceptedProtocols?:string[] ;
 }
 
-export function $url(s:Nullable<string>, opts:$urlOptions = {}) : url | null
-{
-    if (!$length(s)) { return null ;}
-    const m = s!.match(urlRegex) ;
-    if (m?.length !== 2) { return null ; }
-    if ($ok(m![1])) {
-        const protocol = m![1].toLowerCase() ;
-        if (!protocol.length) { return null ; }
-        if ($count(opts.acceptedProtocols)) {
-            return $ok(opts.acceptedProtocols!.find(v => v.toLowerCase() === protocol)) ? s as url : null ;
-        }
-        return protocol === 'http' || protocol === 'https' ? s as url : null  ;
+export function $URL(s:Nullable<string>, opts?:Nullable<$urlOptions>):URL|null {
+
+    try {
+        if (!$length(s)) { return null ; }
+        if (_hasStandardProtocol(s!)) { return _validateURL(new URL(s!), !!opts?.acceptsParameters) ; } 
+        let sl = s!.toLowerCase() ;
+        const sp = opts?.acceptedProtocols?.find(p => { p = p.toLowerCase() ; return sl.startsWith(p+':') ? p : undefined }) ;
+        if (!$ok(sp)) { return null ; }
+        sl = 'http'+s!.slice(sp!.length) ;
+        const u = _validateURL(new URL(s!), !!opts?.acceptsParameters) ;
+        if (!$ok(u)) { return null ; }
+        u!.protocol = sp+':' ;
+        return u! ;
     }
-    return m![1] !== null && opts.acceptsProtocolRelativeUrl ? s as url : null ; 
+    catch { return null ; }
 }
 
+export function $url(s:Nullable<string>, opts?:Nullable<$urlOptions>) : url | null
+{ return $valueornull($URL(s, opts)?.href) as url | null ;}
+
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
-{ 
-    if (!$isstring(s)) { return null ; } 
-    return _regexvalidatedstring<UUID>($value(version, UUIDv1) === UUIDv4 ? uuidV4Regex:uuidV1Regex, s) ; 
-}
+{ return $isstring(s) ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s) : null ; }
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -229,6 +230,7 @@ export function $strings(...values: Array<Nullable<string[] | string>>) : string
         }
     }
 }
+
 
 export function $totype<T>(v:any):T|null { return  $ok(v) ? <T>v : null ; }
 
@@ -381,7 +383,37 @@ export function $encoding(e:Nullable<StringEncoding>):NormativeStringEncoding {
     return $value(FoundationStringEncodingsMap.get(e!), 'utf8') ;
 }
 
+// ===== private exported objects ============================
+/** @internal */
+export const __uuidV1Regex:RegExp   = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i ;
+
+/** @internal */
+export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A-F\d]{3}-[A-F\d]{12}$/i ;
+
 // ===== private functions ===================================
+
+const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
+
+const __standardURLProtocols = ['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:'] ;
+
+function _hasStandardProtocol(s:string):boolean 
+{
+    s = s.toLowerCase() ; 
+    return $ok(__standardURLProtocols.find(p => s.startsWith(p) ? p : undefined )) ; 
+}
+
+function _validateURL(u:URL, acceptsParameters:boolean, acceptedProtocols?:Nullable<string[]>):URL|null {
+
+    if (!acceptsParameters && $length(u.search)) { return null ; }
+    if ($count(acceptedProtocols) > 0) {
+        let p = u.protocol.toLowerCase() ;
+        for (let sp of __standardURLProtocols) { if (p === sp) { return u ; }}
+        if (p.endsWith(':')) { p = p.slice(0, p.length-1)}
+        if (!$ok(acceptedProtocols!.find(ap => ap.toLowerCase() === p ? p : undefined))) { return null ;} 
+    }
+    return u ;
+}
+
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 
 {
 	const v = $ftrim(s) ;

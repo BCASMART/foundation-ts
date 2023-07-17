@@ -212,10 +212,9 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect2(fusion2).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
     }) ;
 
-    group.unary("$isurl() and $url() function", async(t) => {
+    group.unary("$isurl() function", async(t) => {
         t.expect0($isurl('http://example.com')).true() ;
         t.expect1($isurl('//example.com')).false() ;
-        t.expect2($isurl('//example.com', {acceptsProtocolRelativeUrl:true})).true() ;
         t.expect3('example.com'.isUrl()).false() ;
         t.expect4($isurl('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).true() ;
         t.expect5($isurl(null)).false() ;
@@ -223,20 +222,41 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect7($isurl('')).false() ;
         t.expect8($isurl(5)).false() ;
         t.expect9($isurl({})).false() ;
+        t.expectA($isurl('http://example.com/')).true() ;
+        t.expectB($isurl('https://example.com')).true() ;
+        t.expectC($isurl('https://example.com/')).true() ;
+        t.expectD($isurl('http://example.com:8000')).true() ;
+        t.expectE($isurl('http://example.com:8000/')).true() ;
+        t.expectF($isurl('http://example.com:8000/toto')).true() ;
+        t.expectG($isurl('http://example.com:8000/toto', { acceptedProtocols:['file', 'fpt']})).true() ;
+        t.expectH($isurl('http://127.0.0.1')).true() ;
+        t.expectI($isurl('http://127.0.0.1/')).true() ;
+        t.expectJ($isurl('http://localhost')).true() ;
+        t.expectK($isurl('http://localhost/')).true() ;
+        t.expectL($isurl('http://52.33.204.12')).true() ;
+        t.expectM($isurl('http://52.33.2040.12')).false() ;
+        t.expectN($isurl('http://520.33.204.12')).false() ;
+        t.expectO($isurl('http://52.330.204.12')).false() ;
+        t.expectP($isurl('http://52.33.204.1200')).false() ;
+        t.expectQ($isurl('http://localhost/tutu?titi=1')).false() ;
+        t.expectR($isurl('http://localhost/tutu?titi=1', {acceptsParameters:true})).true() ;
 
-        t.expectA($url('http://example.com')).is('http://example.com') ;
-        t.expectB($url('https://example.com')).is('https://example.com') ;
-        t.expectC($url('//example.com', {acceptsProtocolRelativeUrl:true})).is('//example.com') ;
-        t.expectD($url('//example.com')).is(null) ;
-        t.expectE($url('//example')).is(null) ;
-        t.expectF($url('/example.com')).null() ;
-        t.expectG($url('/example')).null() ;
-        t.expectH($url('example')).null() ;
-        t.expectI($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).null() ;
-        t.expectJ($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).is('file://example.com') ;
-        t.expectK($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).is('ftp://example.com') ;
-        t.expectL($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com') ;
     }) ;
+    group.unary("$url() function", async(t) => {
+        t.expect0($url('http://example.com')).is('http://example.com/') ;
+        t.expect1($url('https://example.com')).is('https://example.com/') ;
+        t.expect3($url('//example.com')).is(null) ;
+        t.expect4($url('//example')).is(null) ;
+        t.expect5($url('/example.com')).null() ;
+        t.expect6($url('/example')).null() ;
+        t.expect7($url('example')).null() ;
+        t.expect8($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).is('http://example.com/') ;
+        t.expect9($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).is('file://example.com/') ;
+        t.expectA($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).is('ftp://example.com/') ;
+        t.expectB($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com') ;
+        t.expectC($url('ftps://example.com/', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com/') ;
+        t.expect9($url('file://example.com/titi', {acceptedProtocols:['file', 'fpt']})).is('file://example.com/titi') ;
+    })
 
     group.unary("$isemail() and $email() functions", async(t) => {
         t.expect0($email('a@b.ca')).is('a@b.ca') ;

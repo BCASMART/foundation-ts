@@ -1,5 +1,7 @@
+import { URL } from 'url' ;
+
 import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet } from "./types";
-import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $url, $value, $valueornull } from "./commons";
+import { $URL, $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull } from "./commons";
 import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
 import { $ascii, $ftrim, $trim } from "./strings";
 import { TSColor, TSColorSpace } from "./tscolor";
@@ -8,7 +10,6 @@ import { TSPhoneNumber } from "./tsphonenumber";
 import { $inspect } from "./utils";
 import { TSCountry } from "./tscountry";
 import { TSCharset } from "./tscharset";
-
 
 /*
 
@@ -77,11 +78,11 @@ import { TSCharset } from "./tscharset";
 // WARNING: 'jsdate' represents a Date() object, 'date' a TSDate() object
 export type TSLeafOptionalNode  = 'boolean' | 'charset' | 'color' | 'continent' | 'country' | 'currency' | 
                                   'data' | 'date' | 'email' | 'hexa' | 'int' | 'int8' | 'int16' | 'int32' | 
-                                  'jsdate' | 'language' | 'number' | 'phone' | 'string' |
+                                  'jsdate' | 'language' | 'number' | 'path' | 'phone' | 'string' |
                                   'uint8' | 'uint16' | 'uint32' | 'unsigned' | 'uuid' | 'url' ;
 export type TSMandatoryLeafNode = 'boolean!' | 'charset!' | 'color!' | 'continent!' | 'country!' | 'currency!' | 
                                   'data!' | 'date!' | 'email!' | 'hexa!' | 'int!' | 'int8!' | 'int16!' | 'int32!' | 
-                                  'jsdate!' | 'language!' | 'number!' | 'phone!' | 'string!' |
+                                  'jsdate!' | 'language!' | 'number!' | 'path!' | 'phone!' | 'string!' |
                                   'uint8!' | 'uint16!' | 'uint32!' | 'unsigned!' | 'uuid!' | 'url!' ;
 
 export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
@@ -89,9 +90,13 @@ export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
 export type TSNativeValue = Nullable<string|number|boolean> ;
 
 export type TSParserActionContext = 'URL'|'json'|'vargs' ;
-export interface TSParserActionOptions {
+
+export interface TSParserOptions {
     errors?:Nullable<string[]> ;
     context?:Nullable<TSParserActionContext> ;
+}
+export interface TSParserActionOptions extends TSParserOptions {
+    options?:Nullable<TSDictionary> ;
 }
 export type TSParserAction<T>   = (v:any, opts?:Nullable<TSParserActionOptions>) => T ;
 export type TSParserChecker     = TSParserAction<boolean> ;
@@ -107,7 +112,9 @@ export type TSExtendedLeafNode = {
     _checker?:TSParserChecker ;
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
+    _options?:TSDictionary ;
 } ;
+
 
 export type TSLeafNode = TSLeafOptionalNode | TSMandatoryLeafNode | TSExtendedLeafNode ;
 
@@ -155,18 +162,18 @@ export abstract class TSParser {
     
     public get isValid():boolean { return this.errors.length === 0 ; }
     
-    public validate(value:any, opts?:Nullable<TSParserActionOptions>):boolean { 
+    public validate(value:any, opts?:Nullable<TSParserOptions>):boolean { 
         return this._validate(value, '', opts) ; 
     }
-    public interpret(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public interpret(value:any, opts?:Nullable<TSParserOptions>):any {
         return this._validate(value, '', opts) ? this.rawInterpret(value, opts) : null ;
     }
-    public encode(value:any, opts?:Nullable<TSParserActionOptions>): any {
+    public encode(value:any, opts?:Nullable<TSParserOptions>): any {
         return this._validate(value, '', opts) ? this.rawEncode(value, opts) : null ;
     }
 
     public parse(source:Nullable<string>, errors?:Nullable<string[]>): any {
-        const opts:TSParserActionOptions = { errors:errors, context:'json' }
+        const opts:TSParserOptions = { errors:errors, context:'json' }
         let value = undefined ;
         const s = $trim(source) ;
         if (s.length) {
@@ -181,7 +188,7 @@ export abstract class TSParser {
     }
     
     public stringify(value:any, spaces:string | number | undefined = undefined, errors?:Nullable<string[]>): string | null {
-        const opts:TSParserActionOptions = { errors:errors, context:'json' }
+        const opts:TSParserOptions = { errors:errors, context:'json' }
         if (this._validate(value, '', opts)) {
             try { return JSON.stringify(this.rawEncode(value, opts), undefined, spaces) }
             catch { return null ; }
@@ -191,15 +198,15 @@ export abstract class TSParser {
     }
 
     // WARNING: never use rawInterpret() method directly without using validate() first
-    public abstract rawInterpret(_:any, opts?:Nullable<TSParserActionOptions>):any ;
-    public abstract rawEncode(_:any, opts?:Nullable<TSParserActionOptions>):any ;
+    public abstract rawInterpret(_:any, opts?:Nullable<TSParserOptions>):any ;
+    public abstract rawEncode(_:any, opts?:Nullable<TSParserOptions>):any ;
     public abstract nodeType():TSParserNodeType ;
     public abstract toJSON(): object ;
     
     public toString(): string { return $inspect(this.toJSON(), 15) ; }
 
 
-    protected _validate(value:any, path:string, opts?:Nullable<TSParserActionOptions>):boolean { 
+    protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean { 
         if (this.mandatory && !$ok(value)) {
             return _serror(opts, path, 'is mandatory') ;
         }
@@ -246,7 +253,7 @@ class TSDictionaryParser extends TSParser {
         _valuesStruct: this._valuesParser.toJSON()
     } ; }
 
-    protected _validate(value:any, path:string, opts?:Nullable<TSParserActionOptions>):boolean {
+    protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!super._validate(value, path, opts)) { return false ; }
         if ($ok(value) && ($isarray(value) || !$isobject(value))) { 
             return _serror(opts, path, 'is not a dictionary') ;
@@ -266,7 +273,7 @@ class TSDictionaryParser extends TSParser {
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
-    public rawInterpret(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         const ret:any = {}
         if (!$ok(value) && !this.mandatory) { return value ; }
         const entries = Object.entries(value) ;
@@ -278,7 +285,7 @@ class TSDictionaryParser extends TSParser {
         return this._transform(ret, opts) ;
     }
 
-    public rawEncode(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
@@ -337,7 +344,7 @@ class TSObjectParser extends TSParser {
         return ret ;
     }
 
-    protected _validate(value:any, path:string, opts?:Nullable<TSParserActionOptions>):boolean {
+    protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!super._validate(value, path, opts)) { return false ; }
         if ($ok(value) && ($isarray(value) || !$isobject(value))) { 
             return _serror(opts, path, 'is not an object') ;
@@ -377,7 +384,7 @@ class TSObjectParser extends TSParser {
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
-    public rawInterpret(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:any = {}
         const entries = Object.entries(value) ;
@@ -390,7 +397,7 @@ class TSObjectParser extends TSParser {
         return this._transform(ret, opts) ;
     }
     
-    public rawEncode(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [key, v] of entries) {
@@ -450,7 +457,7 @@ class TSArrayParser extends TSParser {
         _itemsStruct: this._itemsParser.toJSON()
     } ; }
 
-    protected _validate(value:any, path:string, opts?:Nullable<TSParserActionOptions>):boolean {
+    protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!super._validate(value, path, opts)) { return false ; }
         if ($ok(value) && !$isarray(value)) { // TODO: accepts other classes than array (like collections) 
             return _serror(opts, path, 'is not an array') ;
@@ -472,7 +479,7 @@ class TSArrayParser extends TSParser {
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
-    public rawInterpret(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:Array<any> = [] ;
         for (let v of value) { 
@@ -481,7 +488,7 @@ class TSArrayParser extends TSParser {
         return this._transform(ret, opts) ;
     }
 
-    public rawEncode(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         const ret:Array<any> = [] ;
         for (let v of value) { 
             ret.push(this._itemsParser.rawEncode(v, opts)) ;
@@ -499,9 +506,10 @@ class TSLeafParser extends TSParser {
     private _type:TSLeafOptionalNode ;
     private _conversion:TSDictionary<number|string>|undefined ;
     private _enumeration:Set<string|number>|undefined ;
-    
+    private _options:TSDictionary|undefined ;
+
     private static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
-        'boolean' :  { valid:_isBoolean, trans:_booleanTrans, str2v:(s:string, opts?:Nullable<TSParserActionOptions>) => !!_booleanConvertor(s, opts)}, // QUESTION?: should we use v2nat here
+        'boolean' :  { valid:_isBoolean, trans:_valueToBoolean, str2v:_valueToBoolean}, // QUESTION?: should we use v2nat here
         'charset' :  { valid:_isCharset, str2v:(s:string) => TSCharset.charset(s), v2nat:(v:any) => v.name},
         'color':     { valid:_iscolor, str2v:(s:string) => TSColor.fromString(s), v2nat:_color2str},
         'continent': { valid:_isContinent, str2v:(s:string) => s, enum:_isContinent, iskey:true},
@@ -518,13 +526,14 @@ class TSLeafParser extends TSParser {
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => s, enum:_isLanguage, iskey:true},
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
+        'path':      { valid:_isPath, str2v:(s:string) => s },
         'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
         'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0},
         'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
         'uint32':    { valid:(v:any) => _isInt(v, 0, UINT32_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT32_MAX), iskey:true },
         'unsigned':  { valid:(v:any) => _isInt(v, 0), str2v:_uint, enum:(v) => _isInt(v, 0), iskey:true },
-        'url':       { valid:(v:any) => $isurl(v), str2v:(s:string) => $url(s), iskey:true },
+        'url':       { valid:_isURL, str2v:_stringToUrl, v2nat:(v:any) => v.href, iskey:true },
         'uuid':      { valid:(v:any) => $isuuid(v), str2v:(s:string) => $UUID(s), iskey:true },
     }
 
@@ -576,7 +585,7 @@ class TSLeafParser extends TSParser {
         else if ($ok(enumeration)) {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
         }
-
+        if ($ok(node._options)) { this._options = node._options! ;}
         this._type = node._type ;
     }
 
@@ -594,7 +603,14 @@ class TSLeafParser extends TSParser {
         _natify: this._natify
     } ; }
 
-    protected _validate(value:any, path:string, opts?:Nullable<TSParserActionOptions>):boolean {
+    private _localOptions(opts:Nullable<TSParserOptions>):TSParserActionOptions|undefined {
+        let localOptions:TSParserActionOptions|undefined = undefined ;
+        if ($ok(opts)) { localOptions = $ok(this._options) ? {...opts!, options:this._options! } : opts! }
+        else if ($ok(this._options)) { localOptions = { options:this._options! }}
+        return localOptions ;
+    }
+
+    protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!super._validate(value, path, opts)) { return false ; }
         if (this._conversion && $isstring(value)) { 
             const tag = value as string ;
@@ -603,11 +619,12 @@ class TSLeafParser extends TSParser {
                 return _serror(opts, path, `has not a valid enum tag ${tag}`) ;
             }
         }
-        if ($ok(value) && !this._manager.valid(value)) {
+        let lopts = this._localOptions(opts) ;
+        if ($ok(value) && !this._manager.valid(value, lopts)) {
             return _serror(opts, path, `is not a valid ${this._type}`) ;
         }
         if (this._enumeration) {
-            if (!this._enumeration.has(this._convertIfString(value))) {
+            if (!this._enumeration.has(this._convertIfString(value, lopts))) {
                 const s = $isstring(value) ? "'"+value+"'" : value ;
                 return _serror(opts, path, `has not a valid enum value ${s}`) ;
             }
@@ -615,20 +632,20 @@ class TSLeafParser extends TSParser {
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
-    protected _convertIfString(value:any, opts?:Nullable<TSParserActionOptions>):any
+    private _convertIfString(value:any, opts?:Nullable<TSParserActionOptions>):any
     { return this._transform($isstring(value) ? this._manager.str2v(value as string, opts) : value, opts) ; }
     
-    public rawInterpret(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value) && !this.mandatory) { return value ; }
 
         if (this._conversion && $isstring(value)) {
             value = this._conversion![value] ; 
         } 
-        const r = this._convertIfString(value, opts) ;
+        const r = this._convertIfString(value, this._localOptions(opts)) ;
         return r ;
     }
 
-    public rawEncode(value:any, opts?:Nullable<TSParserActionOptions>):any {
+    public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         if (this._conversion && $isstring(value)) {
             value = this._conversion![value] ; 
         } 
@@ -639,7 +656,7 @@ class TSLeafParser extends TSParser {
             case 'bigint':   return Number(value) ;
             case 'boolean':  return value ;
             case 'number':   return value ;
-            case 'object':   return this._natify ? this._natify(value, opts) : $string(value) ;
+            case 'object':   return this._natify ? this._natify(value, this._localOptions(opts)) : $string(value) ;
             case 'string':   return value ;
             case 'symbol':   return $string(value) ;
             default:         return null ;
@@ -657,17 +674,50 @@ interface TSLeafNodeManager {
     enum?:(v:any, opts?:Nullable<TSParserActionOptions>) => boolean ;
     iskey?:boolean ;
 }
+
 function _isCharset(v:any):boolean   { return v instanceof TSCharset || ($isstring(v) && $ok(TSCharset.charset(v))) ; }
 function _isNumber(v:any):boolean    { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
-function _booleanTrans(v:any):any    { return v === 1 ? true : (v === 0 ? false : v)}
 function _isContinent(v:any):boolean { return TSContinentSet.has(v) ; }
 function _isCurrency(v:any):boolean  { return TSCurrencySet.has(v) ; }
 function _isLanguage(v:any):boolean  { return TSLanguageSet.has(v) ; }
 function _isCountry(v:any):boolean   { return v instanceof TSCountry || TSCountrySet.has(v) ; }
 function _countryTrans(v:any):any    { return v instanceof TSCountry ? v.alpha2Code : v ; }
 
+function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
+    s = $ascii($ftrim(s)).toLowerCase() ;
+    if (opts?.context === 'json') { return s === 'true' ? true : (s === 'false' ? false : null) ; }
+    return s === 'true' || s === '1' || s === 'y' || s === 'yes' ? true : ( s === 'false' || s === '0' || s === 'n' || s === 'no' ? false : null) ;
+}
+
+function _valueToBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
+    switch (typeof v) {
+        case 'bigint':   { v = Number(v) ; return !isNaN(v) && v !== 0 ; }
+        case 'boolean':  return v ;
+        case 'number':   return !isNaN(v) && v !== 0 ;
+        case 'string':   return !!_stringToBoolean(v, opts) ;
+        case 'symbol':   return !!_stringToBoolean($string(v), opts) ;
+        default:         return false ;
+    }
+}
+
 function _isBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean   
-{ return $isbool(v) || v === 0 || v === 1 || ($isstring(v) && $ok(_booleanConvertor(v as string, opts))) ;}
+{ return $isbool(v) || v === 0 || v === 1 || ($isstring(v) && $ok(_stringToBoolean(v as string, opts))) ;}
+
+function _isPath(v:any, opts?:Nullable<TSParserActionOptions>):boolean
+{ 
+    if (typeof v === 'string' && $ftrim(v).length > 0) {
+        if (v.toLowerCase().startsWith('file:')) { return false ; }
+        const absolute = v.startsWith('/') ;
+        return (!opts?.options?.absolute || absolute) && $isurl('file://localhost'+(absolute?v:'/'+v)) ;
+    }
+    return false ;
+}
+
+function _isURL(v:any, opts?:Nullable<TSParserActionOptions>):boolean
+{ return $isurl(v, { acceptsParameters:opts?.context !== 'URL' && !!opts?.options?.acceptsParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
+
+function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):URL|null
+{ return $URL(s, { acceptsParameters:opts?.context !== 'URL' && !!opts?.options?.acceptsParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
 
 const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
 const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;
@@ -700,14 +750,10 @@ function _isTsDate(v:any):boolean
 function _iscolor(o:any) : boolean
 { return o instanceof TSColor || ($isstring(o)) && $ok(TSColor.fromString(o)) ; }
 
-function _booleanConvertor(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
-    s = $ascii($ftrim(s)).toLowerCase() ;
-    if (opts?.context === 'json') { return s === 'true' ? true : (s === 'false' ? false : null) ; }
-    return s === 'true' || s === '1' || s === 'y' || s === 'yes' ? true : ( s === 'false' || s === '0' || s === 'n' || s === 'no' ? false : null) ;
-}
+
 function _color2str(v:any):string { return v.toString({ colorSpace:TSColorSpace.RGB, removeAlpha:false, rgbaCSSLike:true, shortestCSS:false, uppercase:false}) ; }
 
-function _serror(opts:Nullable<TSParserActionOptions>, path:string, error:string):false {
+function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):false {
     opts?.errors?.push(`${path.length>0?path:'value'}${error.startsWith('.')?'':' '}${error}${error.endsWith('')?'':'.'}`) ;
     return false ;
 }

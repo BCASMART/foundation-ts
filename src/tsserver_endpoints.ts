@@ -2,7 +2,7 @@ import { Nullable, TSDictionary } from "./types";
 import { $isfunction, $isproperty, $keys, $length, $ok } from "./commons";
 import { $ftrim } from "./strings";
 import { TSError, TSHttpError } from "./tserrors";
-import { TSLeafOptionalNode, TSNode, TSParser, TSParserActionOptions, isLeafParserType } from "./tsparser";
+import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
 import { Resp, Verb } from "./tsrequest";
 import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse } from "./tsserver_types";
 import { $readStreamBuffer } from "./utils";
@@ -236,7 +236,7 @@ class TSServerEndPointManager {
     public async execute(req: TSServerRequest, res: ServerResponse):Promise<void> {
         if ($ok(this._queryParser)) {
             const params = req.url.searchParams.query() ;
-            const options:TSParserActionOptions = { errors:[], context:'URL' } ;
+            const options:TSParserOptions = { errors:[], context:'URL' } ;
             if (!this._queryParser!.validate(params, options)) {
                 throw new TSHttpError(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
@@ -248,7 +248,7 @@ class TSServerEndPointManager {
         }
         if ($ok(this._bodyParser)) {
             let body:any = await $readStreamBuffer(req.message) ;
-            const options:TSParserActionOptions = { errors:[] } ;
+            const options:TSParserOptions = { errors:[] } ;
 
             if (!$ok(body) && this._bodyParser!.mandatory) {
                 throw new TSHttpError(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {

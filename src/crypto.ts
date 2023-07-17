@@ -10,8 +10,8 @@ import {
     randomUUID 
 } from 'crypto';
 
-import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, uuidV1Regex, UUIDv4, uuidV4Regex, UUIDVersion } from './types';
-import { $isstring, $length, $ok, $unsigned, $value } from './commons';
+import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
+import { $isstring, $length, $ok, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
 import { $bufferFromBytes, $bufferFromDataLike, $uint8ArrayFromDataLike } from './data';
 import { $charset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
@@ -62,8 +62,8 @@ export function $slowuuid(convertToLowerCase:boolean = false): UUID {
 export function $uuidVersion(str:Nullable<string>):UUIDVersion | undefined {
     const s = $ftrim(str) ; 
     if (!s.length) { return undefined ; }
-    if (uuidV4Regex.test(s)) { return UUIDv4 ; }
-    if (uuidV1Regex.test(s)) { return UUIDv1 ; }
+    if (__uuidV4Regex.test(s)) { return UUIDv4 ; }
+    if (__uuidV1Regex.test(s)) { return UUIDv1 ; }
     return undefined ;
 }
 

@@ -1,4 +1,5 @@
 
+/** @internal */
 export const __TSCRC16ARCTable: Array<number> = [
     0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241, 
     0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440, 
@@ -34,6 +35,7 @@ export const __TSCRC16ARCTable: Array<number> = [
     0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040
 ];
 
+/** @internal */
 export const __TSCRC32Table: Array<number> = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
     0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988, 0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91,
@@ -70,6 +72,7 @@ export const __TSCRC32Table: Array<number> = [
   ] ;
 
 
+/** @internal */
 export const __TSSHA256KTable: Array<number> = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -81,6 +84,7 @@ export const __TSSHA256KTable: Array<number> = [
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 ] ;
 
+/** @internal */
 export const __TSSHA512KTable: Array<number> = [
     0x428a2f98, 0xd728ae22, 0x71374491, 0x23ef65cd, 0xb5c0fbcf, 0xec4d3b2f, 0xe9b5dba5, 0x8189dbbc,
     0x3956c25b, 0xf348b538, 0x59f111f1, 0xb605d019, 0x923f82a4, 0xaf194f9b, 0xab1c5ed5, 0xda6d8118,
@@ -104,6 +108,7 @@ export const __TSSHA512KTable: Array<number> = [
     0x4cc5d4be, 0xcb3e42b6, 0x597f299c, 0xfc657e2a, 0x5fcb6fab, 0x3ad6faec, 0x6c44198c, 0x4a475817
   ] ;
 
+/** @internal */
 export const _TSSHA224HTable = [
     0xc1059ed8,   // a
     0x367cd507,   // b
@@ -114,6 +119,7 @@ export const _TSSHA224HTable = [
     0x64f98fa7,   // g
     0xbefa4fa4] ; // h
 
+/** @internal */
 export const _TSSHA256HTable = [
     0x6a09e667,   // a
     0xbb67ae85,   // b
@@ -124,6 +130,7 @@ export const _TSSHA256HTable = [
     0x1f83d9ab,   // g
     0x5be0cd19] ; // h
 
+/** @internal */
 export const _TSSHA384HTable: Array<number> = [
     0xcbbb9d5d, 0xc1059ed8,    // a
     0x629a292a, 0x367cd507,    // b
@@ -134,6 +141,7 @@ export const _TSSHA384HTable: Array<number> = [
     0xdb0c2e0d, 0x64f98fa7,    // g
     0x47b5481d, 0xbefa4fa4] ;  // h
 
+/** @internal */
 export const _TSSHA512HTable: Array<number> = [
     0x6a09e667, 0xf3bcc908,    // a
     0xbb67ae85, 0x84caa73b,    // b
@@ -144,6 +152,7 @@ export const _TSSHA512HTable: Array<number> = [
     0x1f83d9ab, 0xfb41bd6b,    // g
     0x5be0cd19, 0x137e2179] ;  // h
 
+/** @internal */
 export const _TSMD5Config:Array<number[]> = [
     [0, 0, 0, 1, 2, 3, 0,  0xd76aa478, 7],
     [3, 0, 3, 0, 1, 2, 1,  0xe8c7b756, 12],

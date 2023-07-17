@@ -1,11 +1,12 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserActionOptions } from "../src/tsparser";
-import { $ok, $phonenumber } from "../src/commons";
+import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserOptions } from "../src/tsparser";
+import { $URL, $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
 import { $inspect, $logterm } from "../src/utils";
 import { $absolute, $filename, $loadJSON } from "../src/fs";
-import { UINT32_MAX } from "../src/types";
+import { UINT32_MAX, UUID } from "../src/types";
+import { $uuid } from "../src/crypto";
 
 const days:TSExtendedArrayNode = {
     _mandatory:false,
@@ -134,6 +135,46 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             v.company.offices[1].officeType = 1 ;   _v(19, v) ;
         }
     }) ;
+    
+    group.unary("TSParser URL array example", async (t) => {
+        const [struct, _v, _i] = _define(t, ['url!'], 'URL array' ) ;
+        if ($ok(struct)) {            
+            const v = ['http://localhost', 'http://localhost/', 'http://localhost:8000', 'http://localhost:8000/toto'] ;
+            const vr = v.map(s => $URL(s)) ;
+            if (_v(2, v)) {
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expect3(res).is(vr)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+            }
+        }
+
+    }) ;
+    group.unary("TSParser UUID array example", async (t) => {
+        const definition:TSExtendedArrayNode = {
+            _mandatory:true,
+            _itemsType:'uuid!',
+            _min:2,
+            _max:4
+        } 
+        const [struct, _v, _i] = _define(t, definition, 'UUID array') ;
+        if ($ok(struct)) {   
+            for (let i = 2 ; i < 8 ; i+=2 ) {
+                const v:UUID[] = [] ;
+                for (let j = 0 ; j < i ; j++) { v.push($uuid()) ; }
+                if (i <= 4 ? _v(i, v) : _i(i, v)) {
+                    if (i <= 4) {
+                        const res = struct!.rawInterpret(v) ;
+                        if (!t.expect(res, 'res'+i).is(v)) {
+                            console.log($inspect(struct!.toJSON(), 10)) ;
+                        }
+                    } 
+                }
+            }    
+        }
+
+    }) ;
+
     group.unary("TSParser example in JSON mode", async(t) => {
         const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example', 'json') ;
         if ($ok(struct)) {            
@@ -309,10 +350,10 @@ function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserAction
 }
 
 function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean, context?:TSParserActionContext):boolean {
-    const opts:TSParserActionOptions = { errors: [], context:context } ;
+    const opts:TSParserOptions = { errors: [], context:context } ;
     const ret = t.expect(struct.validate(v, opts), `val-${n}`).is(res) ;
     if (!ret) {
-        $logterm(`Test[${n}]: struct value should be ${res?"valid":"INVALID"} error:\n&o${opts.errors!.join('\n')}`) ;
+        $logterm(`Test[${n}]: struct value should be ${res?"valid":"INVALID"}. Error:\n&o${opts.errors!.join('\n')}`) ;
     }
     return ret ;
 }

@@ -30,6 +30,7 @@
       "rootDir": "./src",
       "skipLibCheck": false,
       "sourceMap": true,
+      "stripInternal": true,
       "strict": true,
       "strictNullChecks": true,
       "target": "es6",
