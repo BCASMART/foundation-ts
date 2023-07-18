@@ -1,5 +1,5 @@
 import { $URL, $ok } from "../src/commons";
-import { $argCheck, $args } from "../src/env";
+import { $args } from "../src/env";
 import { TSError } from "../src/tserrors";
 import { TSParser, TSParserOptions } from "../src/tsparser";
 import { Resp, RespType, TSRequest, TSResponse, Verb } from "../src/tsrequest";
@@ -10,7 +10,7 @@ import { EchoStructure, PingStructure } from "./echoping";
 if ($inbrowser()) {
     throw new TSError(`Impossible to launch ping tool inside a browser`) ;
 }
-const errors:string[] = []
+
 const [args,] = $args({
     host:  { 
         struct:'url', 
@@ -19,16 +19,18 @@ const [args,] = $args({
     },
     limit: { 
         struct:{
-            _type:'unsigned',
-            _checker:(v:any) => v > 0
+            _type:'uint32',
+            _transformer:(v:any) => v === 0 ? UINT32_MAX : v
         }, 
         short:'l', 
         defaultValue:UINT32_MAX 
     },
     verbose: { struct:'boolean', short:'v', negative:'silent', negativeShort:'s', defaultValue:true }
-}, {errors:errors}) ;
-
-$argCheck(-1, errors, 'ping script') ;
+}, {
+    errors:[],
+    exitError:-1,
+    processName:'ping script'
+}) ;
 
 const pingLimit:number = args!.limit! ;
 

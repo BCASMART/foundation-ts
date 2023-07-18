@@ -1,7 +1,7 @@
 import { URL } from "url";
 
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, unichar } from "./types";
-import { $count, $isarray, $isstring, $length, $ok, $string, $unsigned, $valueornull } from "./commons";
+import { $count, $isarray, $isnumber, $isstring, $length, $ok, $string, $toint, $unsigned, $valueornull } from "./commons";
 import { DefaultsConfigurationOptions } from "./tsdefaults";
 import { $exit, $logheader, $logterm } from "./utils";
 import { $ascii, $ftrim, $lines, $normspaces } from "./strings";
@@ -55,6 +55,8 @@ export interface TSArgument {
 export interface TSArgsOptions {
     errors?:Nullable<string[]> ;
     arguments?:Nullable<URL|string[]> ;
+    processName?:Nullable<string> ;
+    exitError?:Nullable<number> ;
 }
 // if an URL is specfied, we take the arguments from an url
 // if there's nothin we try from the process itself
@@ -172,9 +174,12 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                 interpretErrors.forEach(e => {
                     const m = e.match(/^object\.(\S+)\s+(.+)$/) ;
                     if ($ok(m)) { opts?.errors?.push(`Argument '-${m![1]}' ${m![2]}`) ; }
-                })
+                }) ;
             }
         }
+    }
+    if ($isnumber(opts?.exitError) && opts?.exitError !== 0) {
+        $argCheck($toint(opts?.exitError), opts?.errors, opts?.processName) ;
     }
     if ($ok(dict)) {
         defaults.forEach(c => { if (!$ok(dict![c.name])) { dict![c.name] = c.value ; }})
@@ -188,7 +193,7 @@ export function $argCheck(exitStatus:number, errors:Nullable<string[]|TSArgsOpti
     if (n > 0) {
         $logheader(`${$length(process)?process:'process'} did encounter ${n > 1 ? 'errors' : 'an error'}`, undefined, '&r', '&o') ;
         $logterm(`&y${err!.join('.\n')}.&0\n`) ;
-        $exit(exitStatus) ;
+        if (exitStatus !== 0) { $exit(exitStatus) ; }
     }
 }
 
@@ -255,7 +260,7 @@ function _argumentsFromVarArgs(args:Nullable<string[]>, ref:Map<string, TSArgume
                     finalArgs.push('-'+a[i]) ;
                     fn ++ ;
                 }
-                if (fn < len) {
+                if (fn < len && len > 2) {
                     errors?.push(`Unknown argument '${a}'.`) ; doomed = true ;
                 }
             }

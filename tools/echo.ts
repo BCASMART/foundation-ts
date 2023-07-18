@@ -1,4 +1,4 @@
-import { $argCheck, $args } from "../src/env";
+import { $args } from "../src/env";
 import { TSError } from "../src/tserrors";
 import { Resp } from "../src/tsrequest";
 import { TSServer, TSServerOptions } from "../src/tsserver";
@@ -11,27 +11,26 @@ import { EchoStructure, PingStructure } from "./echoping";
 if ($inbrowser()) {
     throw new TSError(`Impossible to launch echo server inside a browser`) ;
 }
-const errors:string[] = []
 const [args,] = $args({
     port:{ 
         struct:{
-            _type:'number',
+            _type:'uint16',
             _checker:(v:any) => v > 1024 && v < UINT16_MAX
         }, 
         short:'p', 
         defaultValue:8000 
     },
     endpoint:{ 
-        struct:{
-            _type:'path',
-        }, 
+        struct:'path',
         short:'e', 
         defaultValue:'/ping'
     },
     verbose: { struct:'boolean', short:'v', negative:'silent', negativeShort:'s', defaultValue:true }
-}, {errors:errors}) ;
-
-$argCheck(-1, errors, 'echo script') ;
+}, {
+    errors:[],
+    exitError:-1,
+    processName:'echo script'
+}) ;
 
 const serverEndPoints:TSDictionary<TSEndpointsDefinition> = {} ;
 let ep = args!.endpoint ; if (!ep.startsWith('/')) { ep = '/'+ep ; }
