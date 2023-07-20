@@ -1,11 +1,11 @@
 import { Nullable, TSDictionary } from "./types";
-import { $isfunction, $isproperty, $keys, $length, $ok } from "./commons";
+import { $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string } from "./commons";
 import { $ftrim } from "./strings";
 import { TSError, TSHttpError } from "./tserrors";
 import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
 import { Resp, Verb } from "./tsrequest";
 import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse } from "./tsserver_types";
-import { $readStreamBuffer } from "./utils";
+import { $inspect, $logterm, $readStreamBuffer } from "./utils";
 import { TSCharset } from "./tscharset";
 import { ServerResponse } from "http" ;
 
@@ -198,6 +198,7 @@ export class TSServerEndPoint {
              path:$length(req.url.pathname) ? req.url.pathname : '/'
            }, TSServerErrorCodes.MethodNotImplemented) ; 
         }
+        _developerLog(req, 'will execute manager', manager?.developerDesc(req.url.pathname)) ;
         await manager!.execute(req, res) ;
     }
 
@@ -232,12 +233,18 @@ class TSServerEndPointManager {
         this._controller = ep.controller ;
         this._method = m ;
     }
+
+    public developerDesc(msg:string):string { return `${this._method}:${$string(msg)} [queryParser:${_yesNo(this._queryParser)}, bodyParser:${_yesNo(this._bodyParser)}, responseParser:${_yesNo(this._responseParser)}]` ; }
     
     public async execute(req: TSServerRequest, res: ServerResponse):Promise<void> {
+
         if ($ok(this._queryParser)) {
             const params = req.url.searchParams.query() ;
             const options:TSParserOptions = { errors:[], context:'URL' } ;
+            _developerLog(req, 'request query', params) ;                
+
             if (!this._queryParser!.validate(params, options)) {
+                _developerLog(req, 'impossible to validate query') ;                
                 throw new TSHttpError(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -245,12 +252,16 @@ class TSServerEndPointManager {
                   }, TSServerErrorCodes.BadQueryStructure) ; 
             }
             req.query = this._queryParser!.rawInterpret(params) ;
+            _developerLog(req, 'final interpreted query', req.query) ;                
         }
         if ($ok(this._bodyParser)) {
             let body:any = await $readStreamBuffer(req.message) ;
             const options:TSParserOptions = { errors:[] } ;
 
+            _developerLog(req, 'request body', body) ;                
+
             if (!$ok(body) && this._bodyParser!.mandatory) {
+                _developerLog(req, 'missing body content') ;                
                 throw new TSHttpError(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -258,8 +269,10 @@ class TSServerEndPointManager {
             } ;
             
             const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
+            _developerLog(req, 'MIME type', mtype) ;                
 
             if (!mtype.length) {
+                _developerLog(req, 'bad MIME type') ;                
                 throw new TSHttpError(`No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -269,20 +282,25 @@ class TSServerEndPointManager {
 
             if (mtype.startsWith('text/') || TSServerEndPointManager.__textMimes.includes(mtype)) {
                 // we have a string. we consider only UTF8 charsets
+                _developerLog(req, 'text type', true) ;                
                 body = TSCharset.utf8Charset().stringFromBytes(body) ;
                 if (mtype === 'application/json') {
+                    _developerLog(req, 'json type', true) ;                
                     options.context = 'json' ;
                     try { body = JSON.parse(body) ; }
                     catch (e) { 
+                        _developerLog(req, 'impossible to decode JSON body') ;                
                         throw new TSHttpError(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                             method:this._method,
                             path:$length(req.url.pathname) ? req.url.pathname : '/',
                             parsingError:e
                         }, TSServerErrorCodes.BadJSONBody) ;
                     }
+                    _developerLog(req, 'json decoded body', body) ;                
                 }
             }
             if (!this._bodyParser!.validate(body, options)) {
+                _developerLog(req, 'impossible to validate body') ;                
                 throw new TSHttpError(`Bad body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -290,8 +308,12 @@ class TSServerEndPointManager {
                   }, TSServerErrorCodes.BadBodyStructure) ; 
             }
             req.body = this._bodyParser!.rawInterpret(body) ;
+            _developerLog(req, 'final intepreted body', req.body) ;                
         }
+
+        _developerLog(req, 'calling internal controller') ;                
         await this._controller(req, new TSServerResponse(res, this._responseParser)) ; // QUESTION: this method may also throw, so get the stack in the info ?
+        _developerLog(req, 'resumed from internal controller') ;                
     }
 
 }
@@ -319,4 +341,12 @@ function _defineParser(node:Nullable<TSNode>, instanceVar:string, errorOptions:T
         return parser! ;
     }
     return undefined ;
+}
+function _yesNo(v:any):boolean { return $ok(v)?true:false ; }
+function _developerLog(req:TSServerRequest, item:string, value:any = undefined) {
+    if (req.developerMode) {
+        const is = $isstring(value) ;
+        const ok = $ok(value) ;
+        $logterm(`&0&xfoundation-ts[&pDEBUG&x]-${item}:&0${is?' "':(ok?'\n':' ')}&y${$inspect(value)}${is?'&x"':''}&0`) ;
+    }
 }

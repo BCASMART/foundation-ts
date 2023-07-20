@@ -13,6 +13,7 @@ export interface TSServerRequest {
     parameters:TSDictionary,          // a key-value parametric path dictionary
     query:TSDictionary,               // a key-value query dictionary
     body: any,
+    developerMode: boolean
 }
 
 export class TSServerResponse 

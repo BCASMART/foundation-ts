@@ -29,9 +29,10 @@ import { TSStaticWebsite } from "./tsserver_websites";
 export type TSServerLogger = (server:TSServer, req:http.IncomingMessage|undefined, type:TSServerLogType, messages:string) => Promise<void> ;
 
 export enum TSServerLogType {
-    Log     = 'Info',
-    Warning = 'Warning',
-    Error   = 'Error'
+    Developer = 'Dev',
+    Log       = 'Info',
+    Warning   = 'Warning',
+    Error     = 'Error'
 } ;
 
 export interface TSServerOptions {
@@ -41,6 +42,7 @@ export interface TSServerOptions {
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
     logInfo?:boolean ;
+    developer?:boolean ;
     key?:Nullable<Buffer> ;
     certificate?:Nullable<Buffer> ;
     maxHeaderSize?:Nullable<number> ;
@@ -120,6 +122,7 @@ export class TSServer {
     private _connections = new Map<Socket, ConnectionStatus>;
     private _terminating:boolean = false ;
     private _forceCloseTimeout:number ;
+    private _developerMode:boolean ;
 
     // =================== static methods =======================
     public static async start(endPoints:Nullable<TSDictionary<TSEndpointsDefinition>>, opts?:Nullable<TSServerOptions>):Promise<TSServerStartStatus|Error> {
@@ -161,9 +164,9 @@ export class TSServer {
 
     private constructor(endPoints:TSDictionary<TSEndpointsDefinition>, opts:TSServerOptions = {}) {
         this._logger = $ok(opts.logger) ? opts.logger! : _internalLogger ;
-        this._logInfo = !!opts.logInfo ;
+        this._developerMode = !!opts.developer ;
+        this._logInfo = !!opts.logInfo || this._developerMode ;
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
-        
         if (this.isHTTPs) {
             this._serverOptions.cert = opts.certificate! ;
             this._serverOptions.key = opts.key! ;
@@ -264,6 +267,7 @@ export class TSServer {
                         method:method!, 
                         parameters:parameters, 
                         message:req,
+                        developerMode:this._developerMode,
                         query:{}, // the final query will be calculated later
                         body:undefined // the final body will be calculated later
                     }, res) ; 
@@ -424,6 +428,7 @@ const _internalLogger = async (server:TSServer, _:http.IncomingMessage|undefined
 } ;
 
 const __TSServerlogHeaders:StringDictionary = {
+    'Dev':      "&X&w DEVELOP ",
     'Info':     "&C&w LOGGING ",
     'Warning':  "&O&w WARNING ",
     'Error':    "&R&w  ERROR  "

@@ -205,7 +205,7 @@ if (!$inbrowser()) {
                         POST:postEndPoint
                     }
                 } ;
-                const startStatus = await TSServer.start(serverEndPoints, options) ;
+                const startStatus = await TSServer.start(serverEndPoints, {...options, developer:false}) ;
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
                 t.expectA(await TSServer.isRunning()).true() ;
                 t.register('sessionID', sessionID) ;
