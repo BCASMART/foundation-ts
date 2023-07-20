@@ -2,7 +2,7 @@ import * as http from "http";
 import { Resp, Verb } from "./tsrequest";
 import { Nullable, TSDataLike, TSDictionary } from "./types";
 import { TSLeafNode, TSNode, TSParser, TSParserOptions } from "./tsparser" ;
-import { $isdataobject, $isobject, $isstring, $ok, $value } from "./commons";
+import { $isdataobject, $ok, $string, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
 import { TSHttpError } from "./tserrors";
 
@@ -19,46 +19,29 @@ export class TSServerResponse
 {
     constructor(public response:http.ServerResponse, public responseParser:Nullable<TSParser>) {}
     
-    public returnData(data:Nullable<TSDataLike>, type:string = 'application/octet-stream', status:Resp = Resp.OK):void
-    { this.response.writeHead(status, { 'Content-Type': type }) ; this.response.end(_compatibleData(data)) ; }
+    public setHeader(name: string, value: number | string | ReadonlyArray<string>): this { this.response.setHeader(name, value) ; return this ; }
 
-    public returnString(s:Nullable<string>, type:string = 'text/plain', status:Resp = Resp.OK):void 
-    { this.response.writeHead(status, { 'Content-Type': type }) ; this.response.end($value(s, '')) ; }
+    public returnData(data:Nullable<TSDataLike>):void ;
+    public returnData(data:Nullable<TSDataLike>, statusOrType:Resp|string):void ;
+    public returnData(data:Nullable<TSDataLike>, type:string, status:Resp):void ;
+    public returnData():void { _returnData(this, arguments) ; }
+
+    public returnString(s:Nullable<string>):void ;
+    public returnString(s:Nullable<string>, statusOrType:Resp|string):void ;
+    public returnString(s:Nullable<string>, type:string, status:Resp):void ;
+    public returnString():void { _returnString(this, arguments) ; }
 
     public returnObject(v:any):void ; 
-    public returnObject(v:any, type:string):void ; 
-    public returnObject(v:any, status:Resp):void ; 
+    public returnObject(v:any, statusOrType:Resp|string):void ; 
     public returnObject(v:any, type:string, status:Resp):void ;
-    public returnObject():void {
-        switch (arguments.length) {
-            case 0: this.returnEmpty() ; break ;
-            case 1: _responseReturnObject(this, true, arguments[0], 'application/json', Resp.OK) ; break ;
-            case 2:
-                const ty = $isstring(arguments[1]) 
-                _responseReturnObject(this, true, arguments[0], ty?arguments[1]:'application/json', ty?Resp.OK:arguments[1]) ;
-                break ;
-            case 3: _responseReturnObject(this, true, arguments[0], arguments[1], arguments[2]) ; break ;
-            default: throw new TSHttpError('TSServerResponse.returnObject() : Bad arguments', Resp.InternalError) ;
-        }
-    }
+    public returnObject():void { _returnObject(this, arguments) ; }
 
-    public returnEmpty(status:Resp = Resp.OK):void 
-    { this.response.writeHead(status) ; this.response.end() ; }
+    public returnEmpty(status:Resp = Resp.OK):void { this.response.writeHead(status) ; this.response.end() ; }
 
-    public returnError(status:Resp):void ;
-    public returnError(jsonErrorDescription:Nullable<object>):void ;
+    public returnError(jsonErrorDescriptionOrStatus:Nullable<object>|Resp):void ;
     public returnError(jsonErrorDescription:Nullable<object>, status:Resp):void ;
-    public returnError():void {
-        switch (arguments.length) {
-            case 0: this.returnEmpty(Resp.InternalError) ; break ;
-            case 1:
-                const obj = !$ok(arguments[0]) || $isobject(arguments[0]) 
-                _responseReturnObject(this, true, obj?arguments[0]:undefined, 'application/json', obj?Resp.InternalError:arguments[0]) ;
-                break ;
-            case 2: _responseReturnObject(this, true, arguments[0], 'application/json', arguments[1]) ; break ;
-            default: throw new TSHttpError('TSServerResponse.returnError() : Bad arguments', Resp.InternalError) ;
-        }
-    }
+    public returnError():void { _returnError(this, arguments) ; }
+
 }
 
 
@@ -115,23 +98,71 @@ export enum TSServerErrorCodes {
 }
 
 // ================= private functions =======================
+function _returnString(r:TSServerResponse, args:ArrayLike<any>) {
+    _statusAndType(r, 'returnString', 'text/plain', args) ;
+    r.response.end($value($string(args[0]), '')) ;
+}
+
+function _returnData(r:TSServerResponse, args:ArrayLike<any>) {
+    _statusAndType(r, 'returnData', 'application/octet-stream', args) ;
+    r.response.end(_compatibleData(args[0])) ;
+}
+
+function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
+    _statusAndType(r, 'returnObject', 'application/json', args) ;
+    let v = args[0] ;
+    if ($isdataobject(v)) { throw new TSHttpError('TSServerResponse.returnObject() : Impossible to return data as object response', Resp.InternalError, undefined, TSServerErrorCodes.ForbiddenDataResponse) ; }
+    if ($ok(r.responseParser)) {
+        const opts:TSParserOptions = { errors:[], context:'json' }
+        if (!r.responseParser!.validate(v, opts)) { throw new TSHttpError('TSServerResponse.returnObject(): Invalid structured response', Resp.InternalError, { errors: opts.errors}, TSServerErrorCodes.BadResponseStructure) ; }
+        v = r.responseParser!.rawEncode(v, opts) ;
+    } 
+    r.response.end(JSON.stringify(v, undefined, 2)) ;
+}
+
+function _returnError(r:TSServerResponse, args:ArrayLike<any>) {
+    if (args.length > 2) {
+        throw new TSHttpError('TSServerResponse.returnError() : Bad arguments', Resp.InternalError) ;
+    }
+    let v:any = undefined ;
+    let status = Resp.InternalError ;
+    switch (args.length) {
+        case 0: r.returnEmpty(status) ; return ;
+        case 1:
+            if (typeof args[0] === 'number') { r.returnEmpty(args[0] as Resp) ; return ;}
+            v = args[0] ;
+            break ;
+        case 2:
+            v = args[0] ;
+            status = args[1] as Resp ;
+            break ;
+        default: throw new TSHttpError('TSServerResponse.returnError() : Bad arguments', Resp.InternalError) ;
+    }
+
+    r.response.writeHead(status, { 'Content-Type': 'application/json' }) ;
+    r.response.end(JSON.stringify(v, undefined, 2)) ;
+}
+
+function _statusAndType(r:TSServerResponse, fn:string, defaultType:string, args:ArrayLike<any>) {
+    let status = Resp.OK ;
+    let type = defaultType ;
+    switch (args.length) {
+        case 1: break ;
+        case 2:
+            if (typeof args[0] === 'string') { type = args[1] as string }
+            else { status = args[1] as Resp ; }
+            break ;
+        case 3:
+            type = args[1] as string ;
+            status = args[2] as Resp ;
+            break ;
+        default: throw new TSHttpError(`TSServerResponse.${fn}() : Bad arguments`, Resp.InternalError) ;
+    }
+    r.response.writeHead(status, { 'Content-Type': type }) ;
+}
 
 function _compatibleData(data:Nullable<TSDataLike>):Uint8Array|ArrayBuffer {
     if (!$ok(data)) { return Buffer.from('') ; }
     if (data instanceof Uint8Array || data instanceof ArrayBuffer) { return data as Uint8Array }
     return $bufferFromDataLike(data!) ;
-}
-
-function _responseReturnObject(r:TSServerResponse, userResponseParser:boolean, v:any, type:string, status:Resp) {
-    if ($isdataobject(v)) { throw new TSHttpError('TSServerResponse() : Impossible to return data as object response', Resp.InternalError, undefined, TSServerErrorCodes.ForbiddenDataResponse) ; }
-    if (userResponseParser && $ok(r.responseParser)) {
-        const opts:TSParserOptions = { errors:[], context:'json' }
-        if (!r.responseParser!.validate(v, opts)) { throw new TSHttpError('Invalid structured response', Resp.InternalError, { errors: opts.errors}, TSServerErrorCodes.BadResponseStructure) ; }
-        v = r.responseParser!.rawEncode(v, opts) ;
-    } 
-    if ($ok(v)) {
-        r.response.writeHead(status, { 'Content-Type': type });
-        r.response.end(JSON.stringify(v, undefined, 2)) ;
-    }
-    else { r.returnEmpty(status) ; } 
 }

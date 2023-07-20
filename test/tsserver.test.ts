@@ -229,7 +229,7 @@ if (!$inbrowser()) {
                 t.expectD(resp2.status).toBe(Resp.InternalError) ;
                 const r = resp2.response as any ;
                 t.expectE(r.status).is(Resp.InternalError) ;
-                t.expectF(r.error).is('Invalid structured response') ;
+                t.expectF(r.error).is('TSServerResponse.returnObject(): Invalid structured response') ;
                 t.expectG(r.info?.errors).toBeArray() ;
                 t.expectH(r.info?.errors.length).toBe(2) ;
                 t.expectI(r.info?.errors[0]).toBe('value.textColor is mandatory') ;
