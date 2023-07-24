@@ -37,14 +37,14 @@ export class TSServerResponse
     public returnObject(v:any, type:string, status:Resp):void ;
     public returnObject():void { _returnObject(this, arguments) ; }
 
-    public returnEmpty(status:Resp = Resp.OK):void { this.response.writeHead(status) ; this.response.end() ; }
+    public returnEmpty(status:Resp = Resp.NoContent):void 
+    { this.response.writeHead(status) ; this.response.end() ; }
 
     public returnError(jsonErrorDescriptionOrStatus:Nullable<object>|Resp):void ;
     public returnError(jsonErrorDescription:Nullable<object>, status:Resp):void ;
     public returnError():void { _returnError(this, arguments) ; }
 
 }
-
 
 export type TSEndPointController = (req:TSServerRequest, resp:TSServerResponse) => Promise<void> ;
 
@@ -66,6 +66,21 @@ export interface TSEndPoint {
 */
 export type TSEndPointsDefinitionDictionary = { [key in Verb]?: TSEndPoint|TSEndPointController; } ;
 export type TSEndpointsDefinition = TSEndPointsDefinitionDictionary | TSEndPoint | TSEndPointController ;
+
+
+
+// response of OPTIONS preflights requests
+export interface TSPreflightResponse {
+    allowedOrigin:Nullable<string> ; // if not set or empty, allowed origin is '*'
+    allowedMethods:Nullable<string|string[]> ; // allowed methods. if not set or '*', all Verb union
+    allowedHeaders:Nullable<string|string[]> ; // if not set '*'
+    timeout?:Nullable<number> ;  // max age value in seconds
+    // if not set or 0 or >= 86400 (1 day) the response is valid 1 day. if duration > 0 and duration < 10, duration = 10 
+}
+
+// Preflight controller functions are activated when reciving a preflight OPTIONS request
+// if the response is null or undefined, the preflight request returns an error
+export type TSPreflightController = (url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse) => Promise<Nullable<TSPreflightResponse>> ; 
 
 export enum TSServerStartStatus {
     AlreadyRunning = 0,

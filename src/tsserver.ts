@@ -3,16 +3,16 @@ import * as https from "https"
 
 //import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $count, $defined, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $unsigned, $value } from "./commons";
+import { $count, $defined, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $ftrim } from "./strings";
 import { $isabsolutepath } from "./fs";
 import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { Nullable, StringDictionary, TSDictionary, uint16, UINT16_MAX } from "./types";
-import { $inbrowser, $logterm } from "./utils";
+import { Nullable, StringDictionary, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
+import { $inbrowser, $logterm, $mark } from "./utils";
 
 import Socket = NodeJS.Socket;
-import { TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
+import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
 import { TSServerEndPoint } from "./tsserver_endpoints";
 import { TSStaticWebsite } from "./tsserver_websites";
 
@@ -49,6 +49,8 @@ export interface TSServerOptions {
     tlsSecTimeout?:Nullable<number> ; // The number of seconds after which a TLS session will no longer be resumable. default 300.
     handshakeMsTimeout?:Nullable<number> ; // Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
     forceCloseMsTimeout?:Nullable<number> ; // timeout to force remaining connection after server stop. Default is 15000
+    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ;
+    clearCacheInterval?:Nullable<number> ; // default is 900s (15 mn)
 } 
 
 /**
@@ -109,6 +111,8 @@ export class TSServer {
     private static __server:TSServer|undefined = undefined ;
     private static readonly DEFAULT_CLOSE_TIMEOUT = 15000 ;
     private static __methodColors:{[key in Verb]:string} = { GET:'&j', POST:'&u', PUT:'&v', DELETE:'&r', PATCH:'&o' }
+    private static _internalClearTimer:any = undefined ;
+    private static _lastClearTimerInterval:number = 900 ;
     public readonly host:string ;
     public readonly port:number ;
     public readonly rootPath:string = '' ;
@@ -123,6 +127,9 @@ export class TSServer {
     private _terminating:boolean = false ;
     private _forceCloseTimeout:number ;
     private _developerMode:boolean ;
+    private _preflightControler:TSPreflightController ;
+    private _allowedMethodsSet:Set<string> = new Set(Object.values(Verb) as string[]) ;
+    private _preflightResponseCache = new Map<string, TSPreflightResponse>() ; // origin => response
 
     // =================== static methods =======================
     public static async start(endPoints:Nullable<TSDictionary<TSEndpointsDefinition>>, opts?:Nullable<TSServerOptions>):Promise<TSServerStartStatus|Error> {
@@ -146,14 +153,33 @@ export class TSServer {
 
     public static async isRunning() { return $ok(TSServer.__server) ; }
 
-    public static async clearCaches() { if (TSServer.__server) { await TSServer.__server._clearCaches() ; }}
+    public static async clearCaches() { 
+        if (TSServer.__server) { await TSServer.__server._clearCaches() ; }
+        else { TSServer.stopClearCachesInterval() ; }
+    }
+    
+    public static stopClearCachesInterval() {
+        if ($ok(TSServer._internalClearTimer)) { 
+            clearInterval(TSServer._internalClearTimer) ; 
+            TSServer._internalClearTimer = undefined ;
+        } 
+    }
+    public static setClearCachesInterval(seconds?:Nullable<number>) {
+        this.stopClearCachesInterval() ;
+        this._lastClearTimerInterval = Math.max(Math.min($isnumber(seconds) ? seconds! : TSServer._lastClearTimerInterval, 86400), 60) ;
+        TSServer._internalClearTimer = setInterval(__clearCaches, this._lastClearTimerInterval*1000) ;
+    }
 
     // returns undefined if the server is stoped.
     // after that you can do a new server start
     public static async stop():Promise<Error|undefined> {
         if (TSServer.__server) { 
             const e = await TSServer.__server._stop() ; 
-            if (!$ok(e)) { delete TSServer.__server ; return undefined ; }
+            if (!$ok(e)) {
+                TSServer.stopClearCachesInterval() ;
+                delete TSServer.__server ; 
+                return undefined ; 
+            }
             return e ;
         }
         return undefined ;
@@ -167,6 +193,7 @@ export class TSServer {
         this._developerMode = !!opts.developer ;
         this._logInfo = !!opts.logInfo || this._developerMode ;
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
+
         if (this.isHTTPs) {
             this._serverOptions.cert = opts.certificate! ;
             this._serverOptions.key = opts.key! ;
@@ -218,6 +245,10 @@ export class TSServer {
 
         this.host = $ftrim(opts.host) ;
         if (!this.host.length) { this.host = `${this.isHTTPs?'https':'http'}://localhost/` ; }
+        if (!$ok(opts.preflightController) || opts.preflightController === 'default') { this._preflightControler = _defaultPreflightController ; }
+        else if (opts.preflightController === 'permisive') { this._preflightControler = _permisivePreflightController ; }
+        else { this._preflightControler = opts.preflightController! ; }
+        TSServer.setClearCachesInterval(opts?.clearCacheInterval) ;
     }
 
 
@@ -227,9 +258,35 @@ export class TSServer {
         const managementCallBack = async (req: http.IncomingMessage, res: http.ServerResponse) => {
             try {
                 // validating method
-                const sm = $value(req.method?.toUpperCase(), Verb.Get)
-                const method = $length(sm) && Object.values(Verb).includes(sm! as Verb) ? sm as Verb : undefined ;
+                const sm = $value(req.method?.toUpperCase(), Verb.Get) ;
                 const url = new URL($string(req.url), this.host);
+                const originKey = `${url.pathname}[${$value(req.headers["origin"], '*')}]`; 
+                
+                if (sm === 'OPTIONS') {
+                    const preflightResponse = await this._preflightControler(url, req.headers, res) ;
+                    if ($ok(preflightResponse)) {
+                        const npfr = _normalizePreflightResponse(preflightResponse!, this._allowedMethodsSet) ;
+    
+                        res.setHeader("Access-Control-Allow-Origin", npfr.allowedOrigin!);
+                        res.setHeader("Access-Control-Allow-Methods", npfr.allowedMethods!);
+                        res.setHeader("Access-Control-Allow-Headers", npfr.allowedHeaders!);
+                        res.setHeader("Access-Control-Max-Age", $string(npfr.timeout!)) ;                    
+                        res.writeHead(Resp.NoContent) ;
+                        res.end() ;
+                        npfr.timeout = npfr.timeout! + $mark() ; // we change the duration in a moment in time
+                        this._preflightResponseCache.set(originKey, npfr) ;
+
+                        if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`) ; }
+                    }
+                    else {
+                        res.writeHead(Resp.NotAllowed) ;
+                        res.end() ;
+                        await this._logger(this, req, TSServerLogType.Warning, `did refuse preflight request for resource '${url.pathname}'.`) ;
+                    }
+                    return ;
+                }
+
+                const method = this._allowedMethodsSet.has(sm) ? sm as Verb : undefined ;
 
                 if (!$ok(method)) {
                     throw new TSHttpError(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
@@ -248,7 +305,7 @@ export class TSServer {
                         }, TSServerErrorCodes.InnaccessibleRoot) ;    
                     }
                 }
-
+                
                 let sep:TSServerEndPoint|undefined = undefined ;
                 let parameters:TSDictionary = {} ;
                 this._endPoints.forEach(ep => {
@@ -260,8 +317,17 @@ export class TSServer {
                 })
 
                 if ($ok(sep)) {
-                    // we have a potential dynamic resource ;
-        
+                    let preflightResponse = this._preflightResponseCache.get(originKey) ;
+                    if ($ok(preflightResponse) && (!$ok(preflightResponse?.timeout) || preflightResponse!.timeout! >= $mark())) {
+                        this._preflightResponseCache.delete(originKey) ;
+                        preflightResponse = undefined ;
+                    }
+                    if ($ok(preflightResponse?.allowedOrigin)) {
+                        if ($ok(preflightResponse!.timeout) && preflightResponse!.timeout! < $mark()) {
+                            res.setHeader('Access-Control-Allow-Origin', preflightResponse!.allowedOrigin!) ;
+                        }
+                    }
+
                     await sep!.execute({
                         url:url, 
                         method:method!, 
@@ -356,7 +422,14 @@ export class TSServer {
         }
     }
 
-    private async _clearCaches() { for (let s of this._sites) { await s.clearCaches() ; }}
+    private async _clearCaches() {
+        // clearing old preflights
+        const timestamp = $mark() ;
+        this._preflightResponseCache.conditionalClear((_,v) => !$ok(v.timeout) || v.timeout! > timestamp) ;
+
+        // clearing web sites caches
+        for (let s of this._sites) { await s.clearCaches() ; }
+    }
 
     private async _stop():Promise<Error|undefined> { 
         if (this._logInfo) {
@@ -419,8 +492,9 @@ interface ConnectionStatus {
     closeHeaderSent:boolean
 }
 
-
 // ================ private functions =======================
+async function __clearCaches() { TSServer.clearCaches() ; }
+
 let __logIndex:number = 0 ;
 const _internalLogger = async (server:TSServer, _:http.IncomingMessage|undefined, type:TSServerLogType, message:string) => {
     if (!__logIndex) { $logterm('') ; }
@@ -433,4 +507,50 @@ const __TSServerlogHeaders:StringDictionary = {
     'Warning':  "&O&w WARNING ",
     'Error':    "&R&w  ERROR  "
 } ;
+
+function _normalizePreflightResponse(r:TSPreflightResponse, verbSet:Set<string>):Required<TSPreflightResponse> {
+    let origin = $ftrim(r.allowedOrigin) ; if (!origin.length) { origin = '*' ; }
+    let timeout = $unsigned(r.timeout) ;
+    if (!timeout || timeout > 86400) { timeout = 86400 as uint ; }   // one day max
+    if (timeout < 10) { timeout = 10 as uint ; }                      // 10 seconds min
+
+    let methodSet = $strings(r.allowedMethods).filteredSet(m => { 
+        m = $ftrim(m).toUpperCase() ;
+        return verbSet.has(m) ? m : undefined ; 
+    }) ;
+    let methods = methodSet.size && !methodSet.has('*') ? Array.from(methodSet) : Object.values(Verb) ;
+    methods.push('OPTIONS') ;
+
+    let headersSet =  $strings(r.allowedHeaders).filteredSet(h => {
+        h = $ftrim(h).toLowerCase() ;
+        return h.length ? h : undefined ;
+    }) ;
+    let headers:string|string[] ;
+    if (headersSet.has('*')) { headers = '*' ; }
+    else {
+        methodSet.add('content-type') ;
+        methodSet.add('accept') ; // TODO: do we need to keep it here
+        headers = Array.from(headersSet) ;
+    }
+
+    return { allowedOrigin:origin, allowedMethods:methods, allowedHeaders:headers, timeout:timeout}
+
+}
+
+// @ts-ignore
+async function _permisivePreflightController(url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
+    return { allowedOrigin:undefined, allowedHeaders:undefined, allowedMethods:undefined } ;
+}
+
+// @ts-ignore
+async function _defaultPreflightController(url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
+    const acceptedHeaders = $value(headers["access-control-allow-headers"]?.split(',').map(s=>$ftrim(s).toLowerCase()), []) ;
+    //if (!acceptedHeaders.includes('accept')) { acceptedHeaders.push('accept') ; }
+    if (!acceptedHeaders.includes('content-type')) { acceptedHeaders.push('content-type') ; }
+
+    const acceptedMethods = headers["access-control-request-method"]?.split(',').map(s=>$ftrim(s).toUpperCase()) ;
+
+
+    return { allowedOrigin:headers["origin"], allowedHeaders:acceptedHeaders, allowedMethods:acceptedMethods }
+}
 

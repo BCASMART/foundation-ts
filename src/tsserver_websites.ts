@@ -3,6 +3,7 @@ import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
 import { TSError } from "./tserrors";
 import { TSResourceMimeChecker, TSWebSiteDefinition } from "./tsserver_types";
 import { Nullable, StringDictionary, UINT32_MAX, uint32 } from "./types";
+import { $mark } from "./utils";
 
 /** @internal */
 export class TSStaticWebsite {
@@ -14,7 +15,7 @@ export class TSStaticWebsite {
     private _maxCachedFiles:uint32 ;
     private _maxBlacklistedFiles:uint32 ;
 
-    private _cache:Map<string, Buffer> ;
+    private _cache:Map<string, TSResourceCache> ;
     private _cacheMemory:number ;
     private _blacklisted:Set<string> ;
 
@@ -37,7 +38,7 @@ export class TSStaticWebsite {
         this._maxCachedFileSize   = _uint32v(def.maxCachedFileSize, 256*1024) ;
         this._maxBlacklistedFiles = _uint32v(def.maxBlacklistedFiles, 50000) ;
 
-        this._cache = new Map<string,Buffer>() ;
+        this._cache = new Map<string, TSResourceCache>() ;
         this._cacheMemory = 0 ;
         this._blacklisted = new Set<string>() ;
 
@@ -56,8 +57,12 @@ export class TSStaticWebsite {
             if (type.length) {
                 const path = uri.slice(this.uri.length) ;
                 if (!this._blacklisted.has(path)) {
-                    ret = this._cache.get(path) ;
-                    if (!$ok(ret)) {
+                    const cache = this._cache.get(path) ;
+                    if ($ok(cache)) {
+                        ret = cache!.buffer ;
+                        cache!.usage ++ ;
+                    }
+                    else {
                         const file = $path(this.folder, path) ;
                         if ($isfile(file)) {
                             ret = $readBuffer(file) ;
@@ -74,7 +79,7 @@ export class TSStaticWebsite {
 
     private _cacheContent(path:string, b:Buffer) {
         if (this._cache.size < this._maxCachedFiles! && b.length <= this._maxCachedFileSize! && this._cacheMemory + b.length <= this._maxCacheSize!) { 
-            this._cache.set(path, b) ; 
+            this._cache.set(path, { buffer:b, timestamp:$mark(), usage:1} ) ; 
             this._cacheMemory += b.length ;
         }
     }
@@ -85,8 +90,18 @@ export class TSStaticWebsite {
 
     public clearCaches() {
         this._cacheMemory = 0 ;
-        this._cache.clear() ;
-        this._blacklisted.clear() ;
+        
+        if (this._blacklisted.size > this._maxBlacklistedFiles * 0.75) {
+            this._blacklisted.clear() ;
+        }
+
+        // we will clear all web site with no usage and put all other to zero for next clear
+        this._cache.conditionalClear((_,v) => {
+            if (!v.usage) { return true ; }
+            v.usage = 0 ; 
+            this._cacheMemory += v.buffer.length ; 
+            return false ;
+        })
     }
 
     private static readonly __TSServerStandardsTypes:StringDictionary = {
@@ -105,6 +120,12 @@ export class TSStaticWebsite {
     } ;
 
 
+}
+
+interface TSResourceCache {
+    buffer:Buffer ;
+    timestamp:number ;
+    usage:number ;
 }
 
 function _uint32v(v:Nullable<number>, defaultValue:number):uint32 {
