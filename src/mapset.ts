@@ -5,15 +5,15 @@ import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
 
 declare global {
-    export interface Set<T, U=T> extends TSObject, TSFusionEnumeration {
+    export interface Set<T> extends TSObject, TSFusionEnumeration {
         conditionalClear: (this:Set<T>, clearFunction:(element:T)=>boolean) => uint ;
-        map:(this:Set<T>, mapFunction:(element:T)=>Nullable<U>) => Set<U> ;
+        map:(this:Set<T>, mapFunction:(element:T)=>any) => Set<any> ;
         keysArray:(this:Set<T>) => T[] ;
         valuesArray:(this:Set<T>) => T[] ;
     }
-    export interface Map<K,V, U=V> extends TSObject, TSFusionEnumeration {
+    export interface Map<K,V> extends TSObject, TSFusionEnumeration {
         conditionalClear: (this:Map<K,V>, clearFunction:(key:K, value:V)=>boolean) => uint ;
-        map:(this:Map<K,V>, mapFunction:(key:K, value:V)=>Nullable<U>) => Map<K,U> ;
+        map:(this:Map<K,V>, mapFunction:(key:K, value:V)=>any) => Map<K,any> ;
         keysArray:(this:Map<K,V>) => K[] ;
         valuesArray:(this:Map<K,V>) => V[] ;
     }
@@ -27,7 +27,7 @@ Set.prototype.conditionalClear = function conditionalClear<T>(this:Set<T>, clear
     return toBeCleared.length as uint ;
 }
 
-Set.prototype.map = function map<T,U=T>(this:Set<T>, mapFunction:(element:T)=>U):Set<U> {
+Set.prototype.map = function map<T, U=T>(this:Set<T>, mapFunction:(element:T)=>Nullable<U>):Set<U> {
     const ret = new Set<U>() ;
     this.forEach(e => { 
         const u = mapFunction(e) ; if ($ok(u)) { ret.add(u!) ; }
