@@ -5,7 +5,6 @@ import { $normspaces, $ascii } from "./strings";
 import { TSError } from "./tserrors";
 
 // ================== comparison functions =========================
-
 export function $numcompare(a:number, b:number):Comparison {
     if (isNaN(a) || isNaN(b)) { return undefined ; }
     return a === b ? Same : (a < b ? Ascending : Descending) ;
@@ -29,6 +28,19 @@ export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<n
     if (!(a instanceof TSDate)) { a = new TSDate(a as string /* correct cast should be number | string */) ;}
     if (!(b instanceof TSDate)) { b = new TSDate(b as string /* correct cast should be number | string  */) ;}
     return a.compare(b) ;
+}
+
+export function $arraycompare(a:Nullable<any[]>, b:Nullable<any[]>):Comparison {
+    if (!$ok(a) || !$ok(b)) { return undefined ; }
+    if (a === b) { return Same ; }
+    const na = a!.length, nb = b!.length ;
+    let i = 0 ;
+    while (i < na && i < nb) {
+        const c = $compare(a![i], b![i]) ;
+        if (c !== Same) { return c ; }
+        i++ ;
+    }
+    return na === nb ? Same : (i < na ? Descending : Ascending) ;
 }
 
 export function $dateorder(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>):NonNullable<Comparison>
@@ -60,16 +72,6 @@ export function $compare(a:any, b:any):Comparison {
     if ($isstring(a) && $isstring(b)) {
         return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
-	if ($isarray(a) && $isarray(b)) {
-        const na = a.length, nb = b.length ;
-        let i = 0 ;
-        while (i < na && i < nb) {
-            const c = $compare(a[i], b[i]) ;
-            if (c !== Same) { return c ; }
-            i++ ;
-        }
-        return na === nb ? Same : (i < na ? Descending : Ascending) ;
-    }
 	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
 	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytescompare(a, b) ; }
@@ -77,6 +79,7 @@ export function $compare(a:any, b:any):Comparison {
         return $bytescompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
     }
 
+    // Array, Set, Map and URL are now conform to TSObject
     return $ismethod(a, 'compare') ? a.compare(b) : undefined ;
 }
 
@@ -119,32 +122,18 @@ export function $equal(a:any, b:any):boolean {
 	if (a === b) { return true ; }
 	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
 	if (!$ok(a) || !$ok(b)) return false ;
-	if ($isarray(a) && $isarray(b)) {
-		const n = a.length ;
-		if (n !== b.length) return false ;
-		for(let i = 0 ; i < n ; i++) { if (!$equal(a[i], b[i])) return false ; }
-		return true ;
-	}
-	if (a instanceof Date && b instanceof Date) { return a.getTime() === b.getTime() ; }
+
+    if (a instanceof Date && b instanceof Date) { return a.getTime() === b.getTime() ; }
     if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { 
         if (a instanceof Date) { a = new TSDate(a) ; }
         if (b instanceof Date) { b = new TSDate(b) ; }
         return a.isEqual(b) ;
     }
 
+    // URL, Set, Map and Array are now conform to TSObject
     if ($ismethod(a, 'isEqual')) { return a.isEqual(b) ; }
     if ($ismethod(b, 'isEqual')) { return b.isEqual(a) ; }
 
-	if (a instanceof Set && b instanceof Set) { return $setequal(a, b) ; }
-	if (a instanceof Map && b instanceof Map) {
-		const ak = a.keys() ;
-		const bk = b.keys() ;
-		const keys = a.size >= b.size ? ak : bk ;
-		// we may have different expressed keys with undefined as value...
-		// eg: MapA{a:1, b:undefined} equals MapB{a:1} since MapB.get('b') returns undefined 
-		for (let k of keys) { if (!$equal(a.get(k), b.get(k))) return false ; }
-		return true ;
-	}
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
 	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytesequal(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
@@ -163,10 +152,32 @@ export function $equal(a:any, b:any):boolean {
 	return false ; 
 }
 
+export function $arrayequal(a:Nullable<any[]>, b:Nullable<any[]>):boolean {
+    if (a === b) { return true ; }
+    if (!$ok(a) || !$ok(b)) { return false ; }
+    const n = a!.length ;
+    if (n !== b!.length) return false ;
+    for(let i = 0 ; i < n ; i++) { if (!$equal(a![i], b![i])) return false ; }
+    return true ;
+}
+
+export function $mapequal(a:Nullable<Map<any,any>>, b:Nullable<Map<any,any>>): boolean {
+    if (a === b) { return true ; }
+    if (!$ok(a) || !$ok(b)) { return false ; }
+    const ak = a!.keys() ;
+    const bk = b!.keys() ;
+    // we may have different expressed keys with undefined as value...
+    // eg: MapA{a:1, b:undefined} equals MapB{a:1} since MapB.get('b') returns undefined 
+    const keys = a!.size >= b!.size ? ak : bk ;
+    for (let k of keys) { if (!$equal(a!.get(k), b!.get(k))) return false ; }
+    return true ;
+}   
+
 export function $setequal(sa:Nullable<Set<any>>, sb:Nullable<Set<any>>):boolean {
     if (sa === sb) { return true ; }
-    return $ok(sa) && $ok(sb) && sa!.size === sb!.size && [...sa!.keys()].every(e => sb!.has(e)) ;
+    return $ok(sa) && $ok(sb) && sa!.size === sb!.size && sa!.toArray().every(e => sb!.has(e)) ;
 }
+
 
 export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|Set<any>>):boolean {
     if (sa === sb) { return true ; }

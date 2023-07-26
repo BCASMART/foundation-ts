@@ -1,19 +1,19 @@
+import { Comparison, Nullable, Same, uint } from "./types";
 import { $ok } from "./commons";
+import { $mapequal, $setequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
-import { Nullable, uint } from "./types";
+import { TSObject } from "./tsobject";
 
 declare global {
-    export interface Set<T, U=T> extends TSFusionEnumeration {
+    export interface Set<T, U=T> extends TSObject, TSFusionEnumeration {
         conditionalClear: (this:Set<T>, clearFunction:(element:T)=>boolean) => uint ;
         map:(this:Set<T>, mapFunction:(element:T)=>Nullable<U>) => Set<U> ;
-        toArray:(this:Set<T>) => T[] ; 
         keysArray:(this:Set<T>) => T[] ;
         valuesArray:(this:Set<T>) => T[] ;
     }
-    export interface Map<K,V, U=V> extends TSFusionEnumeration {
+    export interface Map<K,V, U=V> extends TSObject, TSFusionEnumeration {
         conditionalClear: (this:Map<K,V>, clearFunction:(key:K, value:V)=>boolean) => uint ;
         map:(this:Map<K,V>, mapFunction:(key:K, value:V)=>Nullable<U>) => Map<K,U> ;
-        toArray:(this:Map<K,V>) => Array<[K,V]> ; 
         keysArray:(this:Map<K,V>) => K[] ;
         valuesArray:(this:Map<K,V>) => V[] ;
     }
@@ -38,6 +38,8 @@ Set.prototype.map = function map<T,U=T>(this:Set<T>, mapFunction:(element:T)=>U)
 Set.prototype.toArray = function toArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; }
 Set.prototype.keysArray = Set.prototype.toArray ;
 Set.prototype.valuesArray = Set.prototype.toArray ;
+Set.prototype.isEqual = function isEqual<T>(this:Set<T>, other:any):boolean { return other instanceof Set && $setequal(this, other) ; }
+Set.prototype.compare = function compare<T>(this:Set<T>, other:any):Comparison { return other instanceof Set && $setequal(this, other) ? Same : undefined ; }
 
 
 Map.prototype.conditionalClear = function conditionalClear<K, V>(this:Map<K, V>, clearFunction:(element:K, value:V)=>boolean):uint {
@@ -64,3 +66,6 @@ Map.prototype.fusionEnumeration = function fusionEnumeration():any[] {
 Map.prototype.toArray = function toArray<K,V>(this:Map<K,V>):Array<[K,V]> { return Array.from(this.entries()) ; }
 Map.prototype.keysArray = function keysArray<K,V>(this:Map<K,V>):K[] { return Array.from(this.keys()) ; }
 Map.prototype.valuesArray = function valuesArray<K,V>(this:Map<K,V>):V[] { return Array.from(this.values()) ; }
+
+Map.prototype.isEqual = function isEqual<K,V>(this:Map<K,V>, other:any):boolean { return other instanceof Map && $mapequal(this, other) ; }
+Map.prototype.compare = function compare<K,V>(this:Map<K,V>, other:any):Comparison { return other instanceof Map && $mapequal(this, other) ? Same : undefined ; }

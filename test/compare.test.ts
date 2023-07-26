@@ -1,4 +1,4 @@
-import { $compare, $datecompare, $equal, $numcompare, $order, $unorderedEqual, $visualcompare, $visualequal } from "../src/compare";
+import { $arrayequal, $compare, $datecompare, $equal, $numcompare, $order, $unorderedEqual, $visualcompare, $visualequal } from "../src/compare";
 import { $arrayBufferFromBytes } from "../src/data";
 import { TSDate } from "../src/tsdate";
 import { TSTest } from "../src/tstester";
@@ -107,6 +107,8 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expectJ($equal(['A', 'B'], ['A', 'BBB'])).toBeFalsy();
         t.expectK($equal(['A', 727], ['A', 727])).true();
         t.expectL($equal([T, D], [D, T])).true();
+        t.expectM($arrayequal([T, D], [D, T])).true();
+        t.expectN($equal(new Set([A, T]), new Set([A, T]))).true();
     }) ;
 
     group.unary("$numcompare() function", async(t) => {

@@ -1,6 +1,7 @@
-import { $count, $defined, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
-import { $compare, $equal, $visualequal } from "./compare";
+import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
+import { $arrayequal, $arraycompare, $compare, $equal, $visualequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
+import { TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types";
 
 
@@ -122,7 +123,7 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
 }
 
 declare global {
-    export interface Array<T> extends TSFusionEnumeration {
+    export interface Array<T> extends TSObject, TSFusionEnumeration {
         average:        (this:T[], opts?: $averageOptions) => number | undefined ;
         filteredMap:    <R = T>(this:T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>) => R[];
         filteredSet:    <R = T>(this:T[], callback?:Nullable<$mapCallback<T,R>>) => Set<R>;
@@ -134,20 +135,22 @@ declare global {
         min:            (this:T[]) => T | undefined;
         sum:            (this:T[]) => number | undefined;
     }
-    // TODO: includesequal for sets?
 }
 
 Array.prototype.average             = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); } ;
+Array.prototype.compare             = function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }
 Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); } ;
 Array.prototype.filteredSet         = function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $mapset(this, callback); } ;
 Array.prototype.includesequal       = function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }
 Array.prototype.includesvisual      = function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }
+Array.prototype.isEqual             = function isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; }
 Array.prototype.first               = function first<T>(this: T[]): T | undefined { return $first(this); } ;
 Array.prototype.fusionEnumeration   = function fusionEnumeration():any[] { return this as any[] ; } ;
 Array.prototype.last                = function first<T>(this: T[]): T | undefined { return $last(this); } ;
 Array.prototype.max                 = function max<T>(this: T[]): T | undefined { return $max(this); } ;
 Array.prototype.min                 = function min<T>(this: T[]): T | undefined { return $min(this); } ;
 Array.prototype.sum                 = function sum<T>(this: T[]): number | undefined { return $sum(this); } ;
+Array.prototype.toArray             = function toArray<T>(this:T[]): T[] { return this ; } // QUESTION: should we take a copy here
 
 // ================================== private functions ==============================
 function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>, includesFn:(source:R[], v?:Nullable<R>)=>boolean) {
