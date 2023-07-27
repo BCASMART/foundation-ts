@@ -1,5 +1,5 @@
 import { $isuuid } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidhash, $uuidVersion, AES128, MD5, SHA1, SHA384, SHA512, SHA224 } from "../src/crypto";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidhash, $uuidVersion, AES128, MD5, SHA1, SHA384, SHA512, SHA224, $password } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
@@ -314,6 +314,21 @@ export const cryptoGroups = [
             t.expectF($isuuid(a3, UUIDv4)).true() ;
         }) ;
 
+        group.unary("$password() function", async (t) => {
+            const p1 = $password(16, { usesDigits:true, usesSpecials:true, usesLowercase:true })
+            t.expect0(p1.length).is(16) ;
+            let digits = 0, specials = 0, lowercases = 0 ;
+            for (let i = 0 ; i < p1.length ; i++) {
+                const c = p1.charCodeAt(i) ;
+                if (c >= 0x61 && c <= 0x7A) { lowercases ++ ; }
+                else if (c >= 0x30 && c <= 0x39) { digits ++ ; }
+                else if ([0x21, 0x23, 0x24, 0x2d, 0x5F, 0x26, 0x2A, 0x40, 0x28, 0x29, 0x2B, 0x2F].includes(c)) { specials ++ ; }
+            }
+            t.expect1(digits).gt(0) ;            
+            t.expect2(specials).gt(0) ;            
+            t.expect3(lowercases).gt(0) ;            
+            t.expect4(digits+specials+lowercases).is(p1.length) ;
+        })
+
     })
 ] ;
-

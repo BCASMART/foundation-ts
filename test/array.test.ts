@@ -82,6 +82,24 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expectV(values3.min()).toBeUndefined() ;
         t.expectW(values3.max()).toBeUndefined() ;
     }) ;
+
+    group.unary("shuffle() method", async (t) => {
+        const N = 127 ;
+        const base:number[] = [] ;
+
+        for (let i = 0 ; i < N ; i++) { base[i] = i ; }
+
+        const res = base.shuffle() ;
+        
+        t.expectA(res.length).is(N) ;
+        
+        const set = new Set<number>() ;
+        for (let i = 0 ; i < N ; i++) { 
+            t.expect(base.includes(res[i]), `b[${i}]`).true() ;
+            set.add(res[i]) ; 
+        }
+        t.expectZ(set.size).is(N) ;
+    }) ;
 }) ;
 
 

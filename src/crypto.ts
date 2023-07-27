@@ -279,55 +279,42 @@ export function $random(max?: Nullable<number>): uint {
 }
 
 export interface $passwordOptions {
-    hasLowercase?: boolean,
-    hasUppercase?: boolean,
-    hasNumeric?: boolean,
-    hasSpecials?: boolean
+    usesLowercase?: boolean,
+    usesUppercase?: boolean,
+    usesDigits?:    boolean,
+    usesSpecials?:  boolean,
 };
 
-export function $password(len: number, opts: $passwordOptions = { hasLowercase: true }): string | null {
-    const MAX_CONSECUTIVE_CHARS = 2;
-    if (!opts.hasLowercase && !opts.hasNumeric && !opts.hasSpecials && !opts.hasUppercase) {
-        opts.hasUppercase = true;
+// QUESTION: do we need to add a max identical chars ?
+export function $password(len:number, opts: $passwordOptions = {}):string 
+{
+    if (!opts.usesLowercase && !opts.usesDigits && !opts.usesSpecials && !opts.usesUppercase) {
+        opts.usesLowercase = true ;
     }
-    if (len < 3 || len > 256) return null;
-    const rand = _randomBytes(3) ;
 
-    let base = '';
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 26
-    if (opts.hasUppercase) { base = base + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; }                          // 52
-    if (opts.hasNumeric) { base = base + "0123456789"; }                                            // 62
-    if (opts.hasLowercase && (rand[0] % 7)) { base = base + "abcdefghijklmnopqrstuvwxyz"; }         // 88
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 114
-    if (opts.hasSpecials) { base = base + "!#$-_&*@()+/"; }                                         // 126
-    if (opts.hasSpecials && (rand[1] % 3)) { base = base + "-#@*!"; }                               // 131
-    if (opts.hasNumeric && (rand[2] % 2)) { base = base + "0123456789"; }                           // 141
-    if (opts.hasNumeric) { base = base + "0123456789"; }                                            // 151
-    if (opts.hasLowercase) { base = base + "abcdefghijklmnopqrstuvwxyz"; }                          // 177
-    const charlen = base.length; // charlen < 256
-    let identicals = 0, i = 0;
-    let last = '', password = '' ;
-    const rbytes = _randomBytes(len) ;
-    
-    while (i < len) {
-        // TODO: here we could avoid 0 as rbyte and in case of 0, make a shift
-        // and try to have a significant number after shifting
-        let c = base.charAt(rbytes[i] % charlen);
-        if (c == last) {
-            if (++identicals == MAX_CONSECUTIVE_CHARS) { identicals--; }
-            else {
-                password = password + c;
-                i++
-            };
-        }
-        else {
-            last = c;
-            identicals = 0;
-            password = password + c;
-            i++;
-        }
+    const minLen = Math.max((!opts.usesLowercase?0:1)+(!opts.usesUppercase?0:1)+(!opts.usesDigits?0:1)+(!opts.usesSpecials?0:1), 3) ; 
+    if (len < minLen) {
+        throw new TSError('$password():asked length is too short for your options', { len:len, ... opts})
     }
-    return password;
+
+    const pwd:string[] = [] ;
+    const rbytes = _randomBytes(len) ;
+    let i = 0 ;
+    const base:string[] = [] ;
+
+    function _randomchar(b:string, idx:number) { return b.charAt(idx % b.length) ; }
+    function _makeBase(b:string) {
+        base.push(b) ;
+        pwd.push(_randomchar(b, rbytes[i++])) ; 
+    }
+    if (!!opts.usesLowercase) { _makeBase('abcdefghijklmnopqrstuvwxyz') ; }
+    if (!!opts.usesUppercase) { _makeBase('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ; }
+    if (!!opts.usesDigits)    { _makeBase('01234567890123456789') ; }
+    if (!!opts.usesSpecials)  { _makeBase('!#$-_&*@()+/-#@*!') ; }
+    
+    while (i < len) { pwd.push(_randomchar(base[$random(base.length)], rbytes[i++])) ; }
+
+    return pwd.shuffle().join('') ;
 }
 
 declare global {

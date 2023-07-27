@@ -1,8 +1,9 @@
-import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
+import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok, $tounsigned } from "./commons";
 import { $arrayequal, $arraycompare, $compare, $equal, $visualequal } from "./compare";
+import { $random } from "./crypto";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types";
+import { Ascending, Comparison, Descending, Nullable, TSUnicity, uint } from "./types";
 
 
 /*
@@ -133,6 +134,7 @@ declare global {
         last:           (this:T[]) => T | undefined;
         max:            (this:T[]) => T | undefined;
         min:            (this:T[]) => T | undefined;
+        shuffle:        (this:T[], max?:number) => T[];
         sum:            (this:T[]) => number | undefined;
     }
 }
@@ -149,6 +151,21 @@ Array.prototype.fusionEnumeration   = function fusionEnumeration():any[] { retur
 Array.prototype.last                = function first<T>(this: T[]): T | undefined { return $last(this); } ;
 Array.prototype.max                 = function max<T>(this: T[]): T | undefined { return $max(this); } ;
 Array.prototype.min                 = function min<T>(this: T[]): T | undefined { return $min(this); } ;
+
+Array.prototype.shuffle             = function shuffle<T>(this:T[], max?:Nullable<number>): T[] {
+    const ret:Array<T> = [] ;
+    let n = this.length ;
+    const m = Math.min(n, $tounsigned(max, n as uint)) ;
+    const source = [...this] ;
+    for (let i = 0 ; i < m ; i++) {
+        const index = $random(n) ;
+        ret.push(source[index]) ;
+        source.splice(index, 1) ; 
+        n-- ;
+    }
+    return ret ;
+}
+
 Array.prototype.sum                 = function sum<T>(this: T[]): number | undefined { return $sum(this); } ;
 Array.prototype.toArray             = function toArray<T>(this:T[]): T[] { return this ; } // QUESTION: should we take a copy here
 

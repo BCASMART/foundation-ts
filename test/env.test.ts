@@ -1,5 +1,6 @@
 import { $string } from "../src/commons";
 import { $args, $env, TSArgument, TSArgumentDictionary } from "../src/env";
+import { $ext, $withoutext } from "../src/fs";
 import { TSTest } from "../src/tstester";
 import { StringDictionary, TSDictionary } from "../src/types";
 import { $inbrowser } from "../src/utils";
@@ -53,6 +54,26 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
         const [d3,] = $args(definition, { errors:errors, arguments:['-H', ...arg2] }) ;
         t.expect7(d3).KO() ;
 
+        const definitionWithNegative:TSArgumentDictionary = {
+            file:  { 
+                struct:{
+                    _type:'path',
+                    _checker:(v:any) => $withoutext(v).length > 0 && $ext(v).toLowerCase() === 'json'
+                }, 
+                short:'f', 
+                defaultValue:"accounts.json" 
+            },
+            save: { struct:'boolean', short:'s', negative:'no-save', negativeShort:'n', defaultValue:true },
+            output: { struct:'path', short:'o', defaultValue:"created-users.json"}
+        } ;
+
+        errors = [] ;
+        const [d4,] = $args(definitionWithNegative, { errors:errors, arguments:["-n"] }) ;
+        if (!t.expect8(d4).is({
+            save:false,
+            file:'accounts.json',
+            output: 'created-users.json'
+        })) { console.log('******************', errors.join('\n')), '******************'} ;
 
     }),
 
