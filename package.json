@@ -1,6 +1,6 @@
 {
   "name": "foundation-ts",
-  "version": "1.5.16",
+  "version": "1.5.17",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",

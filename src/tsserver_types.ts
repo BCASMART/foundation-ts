@@ -6,6 +6,7 @@ import { $isdataobject, $ok, $string, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
 import { TSHttpError } from "./tserrors";
 
+// TODO: update from URL to TSURL
 export interface TSServerRequest {
     message:http.IncomingMessage      // Node object
     method:Verb,                      // request method

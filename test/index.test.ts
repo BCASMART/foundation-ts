@@ -50,6 +50,7 @@ import { phoneGroups } from './tsphonenumber.test';
 import { structureGroups } from './tsparser.test';
 import { envGroups } from './env.test';
 import { mapsetGroups } from './mapset.test';
+import { TSURLGroups } from './tsurl.test';
 
 const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
@@ -83,6 +84,7 @@ tester.addGroups(fusionGroups,      "fusion") ;
 tester.addGroups(phoneGroups,       "phones") ;
 tester.addGroups(structureGroups,   "parser") ;
 tester.addGroups(decoratorGroups,   "decorators") ;
+tester.addGroups(TSURLGroups,       "url") ;
 
 tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
@@ -90,13 +92,13 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "commons", "strings", "numbers", "arrays", 
         "compare", "countries", "crypto", "dates", "decorators",
         "defaults", "env", "intervals", "ranges", "ranges", 
-        "requests", "server", "utils", "data", 
+        "requests", "server", "utils", "data", "url",
         "colors", "geometry", "qualifiers", "errors", "mapset",
         "fs", "fusion", "phones", "parser", "internals"]) ;
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {
-        t.expect0(tester.names.length).is(27) ;
+        t.expect0(tester.names.length).is(28) ;
         t.expect1(setA).is(setB) ;
     }) ;
     

@@ -11,7 +11,7 @@ import {
 } from 'crypto';
 
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
-import { $isstring, $length, $ok, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
+import { $isstring, $length, $ok, $tounsigned, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
 import { $bufferFromBytes, $bufferFromDataLike, $uint8ArrayFromDataLike } from './data';
 import { $charset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
@@ -36,7 +36,7 @@ export const AES256:EncryptionAlgorithm = 'AES256' ;
 
 /* we only generate UUID v4. Note that when internal implementation is unknown, we use our own */
 export function $uuid(internalImplementation: boolean = false): UUID {
-    if (!internalImplementation && typeof randomUUID !== 'undefined') {
+    if (!internalImplementation && typeof randomUUID === 'function') {
         try { return <UUID>(randomUUID as ()=>string)(); }
         catch { $logterm('Warning:crypto.randomUUID() is not available') ; }    
     }
@@ -278,6 +278,24 @@ export function $random(max?: Nullable<number>): uint {
     }
 }
 
+export function $shuffle<T = any>(values:Nullable<ArrayLike<T>|Iterable<T>>, max?:Nullable<number>): T[] {
+    const ret:Array<T> = [] ;
+    if ($ok(values)) {
+        const source = Array.from(values!) ;
+        let n = source.length ;
+        if (n > 0) {
+            const m = Math.min(n, $tounsigned(max, n as uint)) ;
+            for (let i = 0 ; i < m ; i++) {
+                const index = $random(n) ;
+                ret.push(source[index]) ;
+                source.splice(index, 1) ; 
+                n-- ;
+            }    
+        }
+    }
+    return ret ;
+}
+
 export interface $passwordOptions {
     usesLowercase?: boolean,
     usesUppercase?: boolean,
@@ -286,6 +304,9 @@ export interface $passwordOptions {
 };
 
 // QUESTION: do we need to add a max identical chars ?
+// this function is not made to generate arbitrary random buffers, so the
+// generated password length is limited to 64 characters
+export const TS_MAX_PASSWORD_LENGTH = 64
 export function $password(len:number, opts: $passwordOptions = {}):string 
 {
     if (!opts.usesLowercase && !opts.usesDigits && !opts.usesSpecials && !opts.usesUppercase) {
@@ -294,8 +315,11 @@ export function $password(len:number, opts: $passwordOptions = {}):string
 
     const minLen = Math.max((!opts.usesLowercase?0:1)+(!opts.usesUppercase?0:1)+(!opts.usesDigits?0:1)+(!opts.usesSpecials?0:1), 3) ; 
     if (len < minLen) {
-        throw new TSError('$password():asked length is too short for your options', { len:len, ... opts})
+        throw new TSError(`$password(): asked length is too short (${len}<${minLen}) for your gneration options`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
     }
+    else if (len > TS_MAX_PASSWORD_LENGTH) {
+        throw new TSError(`$password(): asked length is too long (${len}>${TS_MAX_PASSWORD_LENGTH})`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
+    } 
 
     const pwd:string[] = [] ;
     const rbytes = _randomBytes(len) ;
@@ -310,11 +334,11 @@ export function $password(len:number, opts: $passwordOptions = {}):string
     if (!!opts.usesLowercase) { _makeBase('abcdefghijklmnopqrstuvwxyz') ; }
     if (!!opts.usesUppercase) { _makeBase('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ; }
     if (!!opts.usesDigits)    { _makeBase('01234567890123456789') ; }
-    if (!!opts.usesSpecials)  { _makeBase('!#$-_&*@()+/-#@*!') ; }
+    if (!!opts.usesSpecials)  { _makeBase('!#$-_&*@()+/-=[]{}^:;,.') ; } // no <,>,", \ or '
     
     while (i < len) { pwd.push(_randomchar(base[$random(base.length)], rbytes[i++])) ; }
 
-    return pwd.shuffle().join('') ;
+    return $shuffle(pwd).join('') ;
 }
 
 declare global {
@@ -338,6 +362,9 @@ declare global {
         slowhash: (this: any, options?:$hashOptions) => string | Buffer ;
         uuidhash: (this: any, version?:Nullable<UUIDVersion>) => string|null;
     }
+    export interface Array<T> {
+        shuffle:        (this:T[], max?:number) => T[];
+    }
 }
 
 String.prototype.crc16         = function crc16(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint16 { return $crc16(this, encoding) ; }
@@ -357,6 +384,7 @@ ArrayBuffer.prototype.hash     = function hash(this: any, method?: Nullable<Hash
 ArrayBuffer.prototype.slowhash = function slowhash(this: any, options?:$hashOptions): string|Buffer { return $slowhash(this, options) ; }
 ArrayBuffer.prototype.uuidhash = function uuidhash(this: any, version?:Nullable<UUIDVersion>): string|null { return $uuidhash(this, version) ; }
 
+Array.prototype.shuffle        = function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
 
 export function $md5(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     let H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476] ;

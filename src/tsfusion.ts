@@ -127,9 +127,7 @@ export abstract class TSFusionTemplate {
             $logterm('&0&x======== &wsource&x: ========&0\n&y'+$inspect(source)+"&0") ;
         }
 
-        if ($equal(sm, em) || $equal(sepa, sm) || $equal(sepa, em)) {
-            throw new TSError('starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
-        }
+        this.validateSeparators(sm, em, sepa) ;
 
         const len = source.length ;
         const smlen = sm.length ;
@@ -695,6 +693,14 @@ export abstract class TSFusionTemplate {
     public set capacity(n:number) { 
         const c = $capacityForCount(n) ;
         if (c > this._capacity) { this._capacity = (this._capacity + $capacityForCount(n)) as uint ; }
+    }
+
+    // You may overwrite this method in subclasses. 
+    // In that case, you would call super() first
+    public validateSeparators(sm:uint8[], em:uint8[], sepa:uint8[]) {
+        if ($equal(sm, em) || $equal(sepa, sm) || $equal(sepa, em)) {
+            throw new TSError('starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
+        }
     }
 
     public variablesForType(type:TSFusionContextType):string[] { 

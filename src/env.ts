@@ -1,5 +1,3 @@
-import { URL } from "url";
-
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, unichar } from "./types";
 import { $count, $isarray, $isnumber, $isstring, $length, $ok, $string, $toint, $unsigned, $valueornull } from "./commons";
 import { DefaultsConfigurationOptions } from "./tsdefaults";
@@ -8,6 +6,7 @@ import { $ascii, $ftrim, $lines, $normspaces } from "./strings";
 import { $charset } from "./tscharset";
 import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser } from "./tsparser";
 import { TSError } from "./tserrors";
+import { TSURL } from "./tsurl";
 
 export interface $envOptions extends DefaultsConfigurationOptions  {
     merge?:Nullable<StringDictionary> ;     // environment to be merged with interpreted variables.
@@ -54,7 +53,7 @@ export interface TSArgument {
 
 export interface TSArgsOptions {
     errors?:Nullable<string[]> ;
-    arguments?:Nullable<URL|string[]> ;
+    arguments?:Nullable<URL|TSURL|string[]> ;
     processName?:Nullable<string> ;
     exitError?:Nullable<number> ;
 }
@@ -62,10 +61,12 @@ export interface TSArgsOptions {
 // if there's nothin we try from the process itself
 export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOptions>):[TSDictionary|null, string[]] {
     const entries = Object.entries(definition) ;
-    let url:Nullable<URL> = undefined ;
+    let url:Nullable<TSURL> = undefined ;
     const ref:Map<string, TSArgumentParser> = new Map() ;
-    let isURL = opts?.arguments instanceof URL ;
-    if (isURL) { url = opts?.arguments as URL ; }
+    let isURL = opts?.arguments instanceof URL || opts?.arguments instanceof TSURL ;
+    if (isURL) { 
+        url = opts?.arguments instanceof TSURL ? opts!.arguments! : TSURL.from(opts!.arguments as URL) ; 
+    }
 
     const vargs:any = process && process !== null && typeof process !== 'undefined' ? process?.argv : undefined ;
     const isvargs = !isURL && $isarray(vargs) ;
@@ -204,7 +205,7 @@ interface TSArgumentParser {
 }
 
 // ====================== private functions ============================================
-function _dictionaryFromURLQuery(url:URL, ref:Map<string, TSArgumentParser>, errors:Nullable<string[]>):TSDictionary|null {
+function _dictionaryFromURLQuery(url:TSURL, ref:Map<string, TSArgumentParser>, errors:Nullable<string[]>):TSDictionary|null {
     let doomed = false ;
     const dict:TSDictionary = {} ;
 

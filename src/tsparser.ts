@@ -1,5 +1,3 @@
-import { URL } from 'url' ;
-
 import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet } from "./types";
 import { $URL, $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull } from "./commons";
 import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
@@ -10,6 +8,7 @@ import { TSPhoneNumber } from "./tsphonenumber";
 import { $inspect } from "./utils";
 import { TSCountry } from "./tscountry";
 import { TSCharset } from "./tscharset";
+import { TSURL } from './tsurl';
 
 /*
 
@@ -714,10 +713,10 @@ function _isPath(v:any, opts?:Nullable<TSParserActionOptions>):boolean
 }
 
 function _isURL(v:any, opts?:Nullable<TSParserActionOptions>):boolean
-{ return $isurl(v, { acceptsParameters:opts?.context !== 'URL' && !!opts?.options?.acceptsParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
+{ return $isurl(v, { refusesParameters:opts?.context === 'URL' || !!opts?.options?.refusesParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
 
-function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):URL|null
-{ return $URL(s, { acceptsParameters:opts?.context !== 'URL' && !!opts?.options?.acceptsParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
+function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):TSURL|null
+{ return $URL(s, { refusesParameters:opts?.context === 'URL' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
 
 const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
 const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;

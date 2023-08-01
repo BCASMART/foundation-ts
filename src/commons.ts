@@ -10,6 +10,7 @@ import { $icast } from "./number";
 import { TSError } from "./tserrors";
 import { TSCountry } from "./tscountry";
 import { PhoneValidity, TSPhoneNumber } from "./tsphonenumber";
+import { TSURL, TSURLParseOptions } from "./tsurl";
 
 export function $defined(o:any):boolean 
 { return o !== undefined && typeof o !== 'undefined' }
@@ -62,8 +63,8 @@ export function $isdate(o:any) : boolean
 export function $isemail(o:any) : boolean
 { return $isstring(o) && $ok($email(o)) ; }
 
-export function $isurl(o:any, opts?:Nullable<$urlOptions>) : boolean
-{ return o instanceof URL ? $ok(_validateURL(o, !!opts?.acceptsParameters, opts?.acceptedProtocols)) : $isstring(o) && $ok($URL(o, opts)) ; }
+export function $isurl(o:any, opts?:Nullable<TSURLParseOptions>) : boolean
+{ return o instanceof URL || o instanceof TSURL ? $ok(_validateURL(o, opts)) : $isstring(o) && $ok($URL(o, opts)) ; }
 
 export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
 { return o instanceof TSPhoneNumber || ($isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK) ; }
@@ -116,29 +117,12 @@ export function $phonenumber(s:Nullable<string>, country?:Nullable<TSCountry>): 
 export function $isophone(s:Nullable<string>, country?:Nullable<TSCountry>): string | null
 { return $valueornull(TSPhoneNumber.fromString(s, country)?.toString()) ;}
 
-export interface $urlOptions { 
-    acceptsParameters?:boolean ;
-    acceptedProtocols?:string[] ;
+export function $URL(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>):TSURL|null {
+    const options = $value(opts, {}) ;
+    return TSURL.url(s, options) ;
 }
 
-export function $URL(s:Nullable<string>, opts?:Nullable<$urlOptions>):URL|null {
-
-    try {
-        if (!$length(s)) { return null ; }
-        if (_hasStandardProtocol(s!)) { return _validateURL(new URL(s!), !!opts?.acceptsParameters) ; } 
-        let sl = s!.toLowerCase() ;
-        const sp = opts?.acceptedProtocols?.find(p => { p = p.toLowerCase() ; return sl.startsWith(p+':') ? p : undefined }) ;
-        if (!$ok(sp)) { return null ; }
-        sl = 'http'+s!.slice(sp!.length) ;
-        const u = _validateURL(new URL(s!), !!opts?.acceptsParameters) ;
-        if (!$ok(u)) { return null ; }
-        u!.protocol = sp+':' ;
-        return u! ;
-    }
-    catch { return null ; }
-}
-
-export function $url(s:Nullable<string>, opts?:Nullable<$urlOptions>) : url | null
+export function $url(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>) : url | null
 { return $valueornull($URL(s, opts)?.href) as url | null ;}
 
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
@@ -394,24 +378,9 @@ export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A
 
 const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
 
-const __standardURLProtocols = ['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:'] ;
-
-function _hasStandardProtocol(s:string):boolean 
-{
-    s = s.toLowerCase() ; 
-    return $ok(__standardURLProtocols.find(p => s.startsWith(p) ? p : undefined )) ; 
-}
-
-function _validateURL(u:URL, acceptsParameters:boolean, acceptedProtocols?:Nullable<string[]>):URL|null {
-
-    if (!acceptsParameters && $length(u.search)) { return null ; }
-    if ($count(acceptedProtocols) > 0) {
-        let p = u.protocol.toLowerCase() ;
-        for (let sp of __standardURLProtocols) { if (p === sp) { return u ; }}
-        if (p.endsWith(':')) { p = p.slice(0, p.length-1)}
-        if (!$ok(acceptedProtocols!.find(ap => ap.toLowerCase() === p ? p : undefined))) { return null ;} 
-    }
-    return u ;
+function _validateURL(u:TSURL|URL, options:Nullable<TSURLParseOptions>):TSURL|null {
+    if (u instanceof TSURL) { return u.isValid($value(options, {})) ? u : null ; }
+    return TSURL.from(u, options) ;
 }
 
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 

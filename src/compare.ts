@@ -69,6 +69,7 @@ export function $compare(a:any, b:any):Comparison {
 	if (a === b) { return Same ; }
 
     if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
+	if (a instanceof URL && b instanceof URL) { a = a.href ; b = b.href ; }
     if ($isstring(a) && $isstring(b)) {
         return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
@@ -79,7 +80,7 @@ export function $compare(a:any, b:any):Comparison {
         return $bytescompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
     }
 
-    // Array, Set, Map and URL are now conform to TSObject
+    // Array, Set, Map are now conform to TSObject
     return $ismethod(a, 'compare') ? a.compare(b) : undefined ;
 }
 
@@ -93,6 +94,7 @@ export function $order(a:any, b:any): NonNullable<Comparison>
 export function $visualcompare(a:any, b:any):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	if (a === b) { return Same ; }
+	if (a instanceof URL && b instanceof URL) { a = a.href ; b = b.href ; }
 
     if (!$isstring(a)) { a = $string(a) ; }
     if (!$isstring(b)) { b = $string(b) ; }
@@ -129,8 +131,9 @@ export function $equal(a:any, b:any):boolean {
         if (b instanceof Date) { b = new TSDate(b) ; }
         return a.isEqual(b) ;
     }
+    if (a instanceof URL && b instanceof URL) { return a.href === b.href ; }
 
-    // URL, Set, Map and Array are now conform to TSObject
+    // Set, Map and Array are now conform to TSObject
     if ($ismethod(a, 'isEqual')) { return a.isEqual(b) ; }
     if ($ismethod(b, 'isEqual')) { return b.isEqual(a) ; }
 

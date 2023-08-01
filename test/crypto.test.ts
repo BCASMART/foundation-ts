@@ -1,5 +1,5 @@
 import { $isuuid } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidhash, $uuidVersion, AES128, MD5, SHA1, SHA384, SHA512, SHA224, $password } from "../src/crypto";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidhash, $uuidVersion, AES128, MD5, SHA1, SHA384, SHA512, SHA224, $password, $shuffle } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
@@ -322,7 +322,7 @@ export const cryptoGroups = [
                 const c = p1.charCodeAt(i) ;
                 if (c >= 0x61 && c <= 0x7A) { lowercases ++ ; }
                 else if (c >= 0x30 && c <= 0x39) { digits ++ ; }
-                else if ([0x21, 0x23, 0x24, 0x2d, 0x5F, 0x26, 0x2A, 0x40, 0x28, 0x29, 0x2B, 0x2F].includes(c)) { specials ++ ; }
+                else if ('!#$-_&*@()+/-=[]{}^:;,.'.includes(p1.charAt(i))) { specials ++ ; }
             }
             t.expect1(digits).gt(0) ;            
             t.expect2(specials).gt(0) ;            
@@ -330,5 +330,37 @@ export const cryptoGroups = [
             t.expect4(digits+specials+lowercases).is(p1.length) ;
         })
 
+        group.unary("$shuffle() function and Array.shuffle() method", async (t) => {
+            let N = 63 ;
+            const base:number[] = [] ;
+    
+            for (let i = 0 ; i < N ; i++) { base[i] = i ; }
+    
+            const res = $shuffle(base) ;
+
+            t.expectA(res.length).is(N) ;
+            
+            const set = new Set<number>() ;
+            for (let i = 0 ; i < N ; i++) { 
+                t.expect(base.includes(res[i]), `b[${i}]`).true() ;
+                set.add(res[i]) ; 
+            }
+            t.expectB(set.size).is(N) ;
+
+            N = 16 ;
+            const base2 = base.slice(0, N) ;
+            const res2 = base2.shuffle(N*2) ;
+            
+            t.expectC(res2.length).is(N) ;
+
+            const set2 = new Set<number>() ;
+            for (let i = 0 ; i < N ; i++) { 
+                t.expect(base.includes(res[i]), `b2[${i}]`).true() ;
+                set2.add(res[i]) ; 
+            }
+            t.expectD(set2.size).is(N) ;
+
+        }) ;
+    
     })
 ] ;

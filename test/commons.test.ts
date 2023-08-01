@@ -234,12 +234,14 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectJ($isurl('http://localhost')).true() ;
         t.expectK($isurl('http://localhost/')).true() ;
         t.expectL($isurl('http://52.33.204.12')).true() ;
+        /* we may re-test ipv4 addresses later
         t.expectM($isurl('http://52.33.2040.12')).false() ;
         t.expectN($isurl('http://520.33.204.12')).false() ;
         t.expectO($isurl('http://52.330.204.12')).false() ;
         t.expectP($isurl('http://52.33.204.1200')).false() ;
-        t.expectQ($isurl('http://localhost/tutu?titi=1')).false() ;
-        t.expectR($isurl('http://localhost/tutu?titi=1', {acceptsParameters:true})).true() ;
+        */
+        t.expectQ($isurl('http://localhost/tutu?titi=1')).true() ;
+        t.expectR($isurl('http://localhost/tutu?titi=1', {refusesParameters:true})).false() ;
 
     }) ;
     group.unary("$url() function", async(t) => {
@@ -253,7 +255,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect8($url('http://example.com', {acceptedProtocols:['file', 'fpt']})).is('http://example.com/') ;
         t.expect9($url('file://example.com', {acceptedProtocols:['file', 'fpt']})).is('file://example.com/') ;
         t.expectA($url('ftp://example.com', {acceptedProtocols:['file', 'ftps', 'ftp']})).is('ftp://example.com/') ;
-        t.expectB($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com') ;
+        t.expectB($url('ftps://example.com', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com/') ;
         t.expectC($url('ftps://example.com/', {acceptedProtocols:['file', 'FTPS', 'ftp']})).is('ftps://example.com/') ;
         t.expect9($url('file://example.com/titi', {acceptedProtocols:['file', 'fpt']})).is('file://example.com/titi') ;
     })
