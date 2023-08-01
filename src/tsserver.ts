@@ -10,6 +10,7 @@ import { TSError, TSHttpError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { Nullable, StringDictionary, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm, $mark } from "./utils";
+import { $conditionalClearMap } from "./mapset";
 
 import Socket = NodeJS.Socket;
 import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
@@ -425,8 +426,7 @@ export class TSServer {
     private async _clearCaches() {
         // clearing old preflights
         const timestamp = $mark() ;
-        this._preflightResponseCache.conditionalClear((_,v) => !$ok(v.timeout) || v.timeout! > timestamp) ;
-
+        $conditionalClearMap(this._preflightResponseCache, (_,v) => !$ok(v.timeout) || v.timeout! > timestamp) ;
         // clearing web sites caches
         for (let s of this._sites) { await s.clearCaches() ; }
     }

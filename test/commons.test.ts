@@ -234,12 +234,10 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectJ($isurl('http://localhost')).true() ;
         t.expectK($isurl('http://localhost/')).true() ;
         t.expectL($isurl('http://52.33.204.12')).true() ;
-        /* we may re-test ipv4 addresses later
         t.expectM($isurl('http://52.33.2040.12')).false() ;
         t.expectN($isurl('http://520.33.204.12')).false() ;
         t.expectO($isurl('http://52.330.204.12')).false() ;
         t.expectP($isurl('http://52.33.204.1200')).false() ;
-        */
         t.expectQ($isurl('http://localhost/tutu?titi=1')).true() ;
         t.expectR($isurl('http://localhost/tutu?titi=1', {refusesParameters:true})).false() ;
 

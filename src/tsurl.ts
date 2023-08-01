@@ -1,8 +1,8 @@
-import { $ok, $value } from "./commons";
+import { $ok, $tounsigned, $value } from "./commons";
 import { $ascii, $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
+import { Ascending, Comparison, Descending, Nullable, Same, UINT8_MAX, UINT_MAX } from "./types";
 
 export interface TSURLParseOptions {
     acceptedProtocols?:Nullable<string[]> ;
@@ -15,7 +15,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     public static AutoEscapeChars = ['{', '}', '|', '\\', '^', '`', "'", '<', '>', '"', '`', ' ', '\r', '\n', '\t'] ;
     public static StandardURLProtocols = new Set(['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:']) ;
     public static AutoEscapeCharSet = new Set(TSURL.AutoEscapeChars) ;
-    public static EndhostCharSet = new Set(['%', '/', '?', ';', '#', ...TSURL.AutoEscapeChars]) 
+    public static EndhostCharSet = new Set(['%', '/', '?', ';', '#', ...TSURL.AutoEscapeChars]) ;
 
     private _auth:string ;
     private _hash:string ;
@@ -76,11 +76,9 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         if (atpos >= 0) {
             auth = decodeURIComponent(url.slice(p, atpos)) ;
             p = atpos + 1 ;
-            //console.log('auth', auth) ;
         }
         hostendpos = p ;
         while (hostendpos < len) {
-            //console.log('examining character', url[hostendpos])
             if (TSURL.EndhostCharSet.has(url[hostendpos])) { break ; } 
             hostendpos++ 
         } 
@@ -94,6 +92,24 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         let ipv6Hostname = hostname.startsWith('[') && hostname.endsWith(']') ;
         if (ipv6Hostname) {
             hostname = hostname.slice(1, hostname.length-1) ;
+        }
+        else {
+            // will test if we have a IPV4 like host name and validate the address if so
+            if (/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/.test(hostname)) {
+                let goodipv4 = false ;
+                const m = hostname.match(/^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$/) ;
+                if ($ok(m)) {
+                    goodipv4 = true ;
+                    for (let i = 1 ; i <= 4 ; i++) { 
+                        const c = $tounsigned(m![i], UINT_MAX) ; 
+                        if (c > UINT8_MAX) { goodipv4 = false ; break ;}
+                    }
+                }
+                if (!goodipv4) {
+                    if (!!opts.throwsError) { new TSError(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
+                    return null ;
+                }
+            }
         }
 
 
