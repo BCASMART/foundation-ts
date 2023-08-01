@@ -1,5 +1,5 @@
 import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet } from "./types";
-import { $URL, $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull } from "./commons";
+import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull } from "./commons";
 import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
 import { $ascii, $ftrim, $trim } from "./strings";
 import { TSColor, TSColorSpace } from "./tscolor";
@@ -9,6 +9,7 @@ import { $inspect } from "./utils";
 import { TSCountry } from "./tscountry";
 import { TSCharset } from "./tscharset";
 import { TSURL } from './tsurl';
+import { TSError } from "./tserrors";
 
 /*
 
@@ -88,7 +89,7 @@ export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
 
 export type TSNativeValue = Nullable<string|number|boolean> ;
 
-export type TSParserActionContext = 'URL'|'json'|'vargs' ;
+export type TSParserActionContext = 'url' | 'json' | 'vargs' ;
 
 export interface TSParserOptions {
     errors?:Nullable<string[]> ;
@@ -532,7 +533,7 @@ class TSLeafParser extends TSParser {
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
         'uint32':    { valid:(v:any) => _isInt(v, 0, UINT32_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT32_MAX), iskey:true },
         'unsigned':  { valid:(v:any) => _isInt(v, 0), str2v:_uint, enum:(v) => _isInt(v, 0), iskey:true },
-        'url':       { valid:_isURL, str2v:_stringToUrl, v2nat:(v:any) => v.href, iskey:true },
+        'url':       { valid:_isURL, trans:_valueToTSURL, str2v:_stringToUrl, v2nat:(v:any) => v.href, iskey:true },
         'uuid':      { valid:(v:any) => $isuuid(v), str2v:(s:string) => $UUID(s), iskey:true },
     }
 
@@ -713,21 +714,29 @@ function _isPath(v:any, opts?:Nullable<TSParserActionOptions>):boolean
 }
 
 function _isURL(v:any, opts?:Nullable<TSParserActionOptions>):boolean
-{ return $isurl(v, { refusesParameters:opts?.context === 'URL' || !!opts?.options?.refusesParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
+{ return $isurl(v, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
 
 function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):TSURL|null
-{ return $URL(s, { refusesParameters:opts?.context === 'URL' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
+{ return TSURL.url(s, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
+
+function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
+    if (v instanceof TSURL) { return v ; }
+    if (!(v instanceof URL)) { throw new TSError('Impossible to convertany object to TSURL')} ;
+    const ret = TSURL.from(v, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols }) ;
+    if (!$ok(ret)) { throw new TSError('Impossible to convert URL to TSURL')} ;
+    return ret! ;
+}
 
 const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
 const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;
 function _isData(v:any, opts?:Nullable<TSParserActionOptions>):boolean      
-{ return $isdataobject(v) || ($isstring(v) && (opts?.context === 'URL' ? _b64URLregex : _b64regex).test(v as string)) ; }
+{ return $isdataobject(v) || ($isstring(v) && (opts?.context === 'url' ? _b64URLregex : _b64regex).test(v as string)) ; }
 
 function _encodeb64(v:any, opts?:Nullable<TSParserActionOptions>)
-{ return opts?.context === 'URL'  ? $encodeBase64URL(v) : $encodeBase64(v) ; }
+{ return opts?.context === 'url'  ? $encodeBase64URL(v) : $encodeBase64(v) ; }
 
 function _decodeb64(s:string, opts?:Nullable<TSParserActionOptions>)
-{ return opts?.context === 'URL' ? $decodeBase64URL(s) : $decodeBase64(s) ; }
+{ return opts?.context === 'url' ? $decodeBase64URL(s) : $decodeBase64(s) ; }
 
 function _decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
 

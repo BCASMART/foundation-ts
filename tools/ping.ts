@@ -1,8 +1,9 @@
-import { $URL, $ok } from "../src/commons";
+import { $ok } from "../src/commons";
 import { $args } from "../src/env";
 import { TSError } from "../src/tserrors";
 import { TSParser, TSParserOptions } from "../src/tsparser";
 import { Resp, RespType, TSRequest, TSResponse, Verb } from "../src/tsrequest";
+import { TSURL } from "../src/tsurl";
 import { UINT32_MAX } from "../src/types";
 import { $ellapsed, $exit, $inbrowser, $logheader, $logterm, $mark, $writeterm } from "../src/utils";
 import { EchoStructure, PingStructure } from "./echoping";
@@ -15,7 +16,7 @@ const [args,] = $args({
     host:  { 
         struct:'url', 
         short:'h', 
-        defaultValue:$URL('http://localhost:8000/ping') 
+        defaultValue:TSURL.url('http://localhost:8000/ping') 
     },
     limit: { 
         struct:{

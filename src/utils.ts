@@ -432,12 +432,12 @@ FoundationHTMLEncodingExtended[13] = "<br/>"
 function _logwriteterm(log:boolean, format:string, args:any[]) {
     format = $length(format) ? $term(format) : '' ;
     if ($inbrowser()) {
-        format = $HTML(format, FoundationHTMLEncodingExtended) ;
-        for (let a of args) {
-            format += $HTML(a.toString(), FoundationHTMLEncodingExtended) ;
-        }
         const c:any = $isfunction(document?.getElementById) ? document!.getElementById("ftsconsole") : undefined ;
         if ($ok(c)) {
+            format = $HTML(format, FoundationHTMLEncodingExtended) ;
+            for (let a of args) {
+                format += $HTML(a.toString(), FoundationHTMLEncodingExtended) ;
+            }
             let content = c.innerHTML ;
             content += format ;
             if (log) { content += '<br/>' ; }
@@ -445,6 +445,7 @@ function _logwriteterm(log:boolean, format:string, args:any[]) {
         }
         else {
             // WARNING: here $writeterm() and $logterm() are the same
+            if ($count(args)) { format += args.join('') ; }
             console.log(format) ;
         }
     }

@@ -240,7 +240,7 @@ class TSServerEndPointManager {
 
         if ($ok(this._queryParser)) {
             const params = req.url.searchParams.query() ;
-            const options:TSParserOptions = { errors:[], context:'URL' } ;
+            const options:TSParserOptions = { errors:[], context:'url' } ;
             _developerLog(req, 'request query', params) ;                
 
             if (!this._queryParser!.validate(params, options)) {

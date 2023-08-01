@@ -1,8 +1,8 @@
-import { $ok, $tounsigned, $value } from "./commons";
+import { Ascending, Comparison, Descending, Nullable, Same, url } from "./types";
+import { $ok, $value } from "./commons";
 import { $ascii, $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Nullable, Same, UINT8_MAX, UINT_MAX } from "./types";
 
 export interface TSURLParseOptions {
     acceptedProtocols?:Nullable<string[]> ;
@@ -26,6 +26,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     private _search:string ;
     private _w3cProtocol:boolean ;
     private _ipv6:boolean ;
+    private _acceptedProtocols:string[] ;
 
     public readonly searchParams:URLSearchParams ;
 
@@ -39,24 +40,27 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         }
         return TSURL.url(source.href, options!)
     }
+    
+    public static compose(origin:Nullable<string>, path:string, options?:Nullable<TSURLParseOptions>):TSURL|null {
+        let o = $ftrim(origin) ;
+        let p = $ftrim(path) ;
+        if (!o.length) { o = 'http://localhost/' ; }
+        if (!o.endsWith('/')) { o += '/' ; }
+        if (p.startsWith('/')) { p = p.slice(1) ; }
+        return this.url(o+p, options) ;
+    }
 
-    public static url(source:Nullable<string>, opts:TSURLParseOptions = {}):TSURL|null {
+    public static url(source:Nullable<string>, options?:Nullable<TSURLParseOptions>):TSURL|null {
+        const opts = $value(options, {}) ;
         const url = _normalizeURLString(source) ;
         const len = url.length ;
-        const protocol = _completeProtocol(_findProtocol(url)) ;
-        if (protocol instanceof TSError) { 
-            if (!!opts.throwsError) { throw protocol ; }
+        const [protocol, w3c, aps] = _validateProtocolInfo(_findProtocol(url), opts.acceptedProtocols) ;
+        let p = protocol.length ;
+        if (!p) {
+            if (!!opts.throwsError) { new TSError(`TSURL: bad protocol in '${url}'`) ; }
             return null ;
         }
-        const w3c = TSURL.StandardURLProtocols.has(protocol) ;
-        if (!w3c) {
-            if (!_validateProtocol(protocol, opts.acceptedProtocols)) {
-                if (!!opts.throwsError) { new TSError(`TSURL: unknown protocol in '${url}'`) ; }
-                return null ;
-            }
-        }
 
-        let p = protocol.length ;
         if (url[p] !== '/' || url[p+1] !== '/') {
             if (!!opts.throwsError) { new TSError(`TSURL: unable to find // before hostname in url '${url}'`) ; }
             return null ;
@@ -92,23 +96,15 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         let ipv6Hostname = hostname.startsWith('[') && hostname.endsWith(']') ;
         if (ipv6Hostname) {
             hostname = hostname.slice(1, hostname.length-1) ;
+            if (!_checkIPV6HostName(hostname)) {
+                if (!!opts.throwsError) { new TSError(`TSURL: bad ipv6 hostname in url '${url}'`) ; }
+                return null ;
+            }
         }
         else {
-            // will test if we have a IPV4 like host name and validate the address if so
-            if (/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/.test(hostname)) {
-                let goodipv4 = false ;
-                const m = hostname.match(/^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$/) ;
-                if ($ok(m)) {
-                    goodipv4 = true ;
-                    for (let i = 1 ; i <= 4 ; i++) { 
-                        const c = $tounsigned(m![i], UINT_MAX) ; 
-                        if (c > UINT8_MAX) { goodipv4 = false ; break ;}
-                    }
-                }
-                if (!goodipv4) {
-                    if (!!opts.throwsError) { new TSError(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
-                    return null ;
-                }
+            if (!_checkIPV4HostName(hostname)) {
+                if (!!opts.throwsError) { new TSError(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
+                return null ;
             }
         }
 
@@ -141,11 +137,11 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         }
         if (!path.length) { path = '/' ; }
 
-        return new TSURL(protocol, hostname, port, path, hash, auth, search, ipv6Hostname, w3c) ;
+        return new TSURL(protocol, hostname, port, path, hash, auth, search, ipv6Hostname, w3c, aps) ;
 
     }
     
-    private constructor (protocol:string, hostname:string, port:string, pathname:string, hash:string, auth:string, search:string, ipv6:boolean, w3c:boolean) {
+    private constructor (protocol:string, hostname:string, port:string, pathname:string, hash:string, auth:string, search:string, ipv6:boolean, w3c:boolean, protocols:string[]) {
         this._auth = auth ;
         this._hash = hash ;
         this._hostname = hostname ;
@@ -156,6 +152,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         this.searchParams = new URLSearchParams(search) ; 
         this._w3cProtocol = w3c ;
         this._ipv6 = ipv6 ;
+        this._acceptedProtocols = protocols ;
     }
     
     public get w3c():boolean { return this._w3cProtocol ; }
@@ -167,7 +164,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         if (this._port.length) { ret += ':' ; ret += this._port ; }
         return ret ; 
     }
-    public get href():string {
+    public get href():url {
         let auth = this._auth ;
         if (auth.length) {
             auth = encodeURIComponent(auth) ;
@@ -182,7 +179,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         if (search.length && search.charAt(0) !== '?') { search = '?' + search; }
         let pathname = this._pathname ;
         if (!pathname.startsWith('/')) { pathname = '/' + pathname ; }
-        return this._protocol + '//' + auth + this.host + pathname + search + hash ; 
+        return (this._protocol + '//' + auth + this.host + pathname + search + hash) as url ; 
     }
 
     public get auth():string { return this._auth ; }
@@ -195,28 +192,29 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     // TODO: set search(s:string) ??
 
     public get pathname():string { return this._pathname ; }
-    public get hostname():string { return this._hostname ; }
-    public set hostname(h:string) { 
-        const hn = $ascii($ftrim(h)).toLowerCase() ;
-        if (!hn.length) { new TSError('TSURL: trying to set empry hostname') ; }
-        if (hn.length > TSURL.HostMaxLength) { new TSError('TSURL: trying to set a too large hostname') ; }
-        this._hostname = hn ;
+    public set pathname(s:string) {
+        // TODO: verify we don't have any end path characters 
+        let path = '' ;
+        for (const c of s) {
+            if (c === "'") { path += '%27' ; }
+            else { path += TSURL.AutoEscapeCharSet.has(c) ? encodeURIComponent(c) : c ; }
+        }
+        if (!path.length) { path = '/' ; }
+        this.pathname = path ;
     }
+
+    public get hostname():string { return this._hostname ; }
+    // TODO: public set hostname(h:string) 
 
     public get port():string { return this._port ; }
     public set port(p:string) { this._port = p ; }
     
     public get protocol():string { return this._protocol ; }
     public set protocol(s:string) { 
-        const v = _completeProtocol(s) ;
-        if (v instanceof TSError) { throw v } ;
-        this._protocol = v ; 
-    }
-
-    public isValid(opts:TSURLParseOptions = {}):boolean {
-        if (!!opts.refusesParameters && this._search.length > 0) { return false ; }
-        this._w3cProtocol = TSURL.StandardURLProtocols.has(this.protocol) ;
-        return this._w3cProtocol || _validateProtocol(this.protocol, opts.acceptedProtocols) ;
+        const [protocol, w3c,] = _validateProtocolInfo(s, this._acceptedProtocols) ;
+        if (!protocol.length) { throw new TSError(`TSURL.protocol = value. Impossible to set new protocol '${s}'.`) ; }
+        this._w3cProtocol = w3c ;
+        this._protocol = protocol ;
     }
 
     // ============ TSObject conformance ==================
@@ -236,7 +234,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
 
     // =============== TSClone protocol ====================
     public clone(): TSURL {
-        return new TSURL(this._protocol, this._hostname, this._port, this._pathname, this._hash, this._auth, this._search, this._ipv6, this._w3cProtocol) ;
+        return new TSURL(this._protocol, this._hostname, this._port, this._pathname, this._hash, this._auth, this._search, this._ipv6, this._w3cProtocol, this._acceptedProtocols) ;
     }
 
 }
@@ -247,6 +245,18 @@ const __protocolRegex = /^([a-z0-9.+-]+:)/i ;
 const __protocolCompleteRegex = /^([a-z0-9.+-]+:)$/i ;
 const __backslashRegex = /\\/g ;
 const __portRegex = /:[0-9]*$/ ;
+const __IPV6Regex = /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/
+const __IPV4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+
+function _checkIPV4HostName(hostname:string):boolean {
+    // will test if we have a IPV4 like host name and validate the address if so, test it
+    if (/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/.test(hostname)) {
+        return __IPV4Regex.test(hostname) 
+    }
+    return true ;
+}
+
+function _checkIPV6HostName(hostname:string):boolean { return __IPV6Regex.test(hostname) ; }
 
 function _normalizeURLString(source:Nullable<string>):string {
     const s = $ftrim(source) ;
@@ -257,19 +267,22 @@ function _normalizeURLString(source:Nullable<string>):string {
     return parts.join(splitchar) ;
 }
 
-function _completeProtocol(s:string|null|TSError):string|TSError {
-    if (s instanceof TSError) { return s ; }
+function _validateProtocolInfo(s:Nullable<string>, acceptedProtocols?:Nullable<string[]>):[string, boolean, string[]] {
+    const aps = $ok(acceptedProtocols) ? [...acceptedProtocols!] : [] ;
     const p = $ftrim(s).toLowerCase() ;
-    if (!p.length || !p.match(__protocolCompleteRegex)) { return _protocolError(p) ; }
-    return p ;
+    if (p.length > 0 && p.match(__protocolCompleteRegex)) { 
+        const w3c = TSURL.StandardURLProtocols.has(p) ;
+
+        if (w3c || _validateOtherProtocol(p, aps)) { return [p, w3c, aps] ; }
+    }
+    return ['', false, aps] ; 
 }
 
-function _findProtocol(s:string):string|TSError {
+function _findProtocol(s:string):string|null {
     const m = __protocolRegex.exec(s) ;
-    return $ok(m) ? m![0] : _protocolError(s) ;
+    return $ok(m) ? m![0] : null ;
 }
 
-function _protocolError(p:string) { return new TSError(`TSURL: impossible to set protocol '${p}'`) ; }
 
 function _parseHostAndPort(s:string):[string, string] {
     s = $ascii($ftrim(s)).toLowerCase()
@@ -281,8 +294,7 @@ function _parseHostAndPort(s:string):[string, string] {
     return [s, ''] ;
 }
 
-function _validateProtocol(protocol:string, acceptedProtocols:Nullable<string[]>) {
-    acceptedProtocols = $value(acceptedProtocols, []) ;
+function _validateOtherProtocol(protocol:string, acceptedProtocols:string[]):boolean {
     let found = acceptedProtocols.find(a => { 
         let p = $ftrim(a).toLowerCase() ;
         if (!p.endsWith(':')) { p += ':' ; }

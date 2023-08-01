@@ -133,6 +133,7 @@ declare global {
         ascii:              (this: string) => string;
         camelCase:          (this: string) => string;
         capitalize:         (this: string) => string;
+        doubleEscape:       (this: string, char:string) => string ;
         firstCap:           (this: string) => string;
         ftrim:              (this: string) => string;
         left:               (this: string, leftPart?:Nullable<number>) => string;
@@ -145,7 +146,7 @@ declare global {
         isWhiteSpace:       (this: string) => boolean;
         lines:              (this: string, useOnlyASCIISeparators?:boolean) => string[];
         ltrim:              (this: string) => string;
-        normalizeSpaces:    (this: string) => string;
+        normalizeSpaces:    (this: string, opts?: $normspacesOpions) => string;
         right:              (this: string, rightPart?:Nullable<number>) => string;
         rtrim:              (this: string) => string;
         singular:           (this: string) => boolean ;
@@ -166,6 +167,7 @@ declare global {
 String.prototype.ascii              = function ascii(this: string): string { return $ascii(this); } ;
 String.prototype.camelCase          = function camelCase(this: string): string { return _camelCase(this) ; }
 String.prototype.capitalize         = function capitalize(this: string): string { return $capitalize(this); } ;
+String.prototype.doubleEscape       = function doubleEscape(this:string, c:string) { return _doubleEscape(this, c) ; }
 String.prototype.firstCap           = function firstCap(this: string): string { return $firstcap(this); } ;
 String.prototype.ftrim              = function ftrim(this: string): string { return $ftrim(this); } ;
 String.prototype.isDate             = function isDate(this: string): boolean { return $ok($isodate(this)); } ;
@@ -178,7 +180,7 @@ String.prototype.isWhiteSpace       = function isWhiteSpace(this: string): boole
 String.prototype.left               = function left(this: string, leftPart?:Nullable<number>): string { return $left(this, leftPart) ; }
 String.prototype.lines              = function lines(this: string, useOnlyASCIISeparators?:boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
 String.prototype.ltrim              = function ltrim(this: string): string { return $ltrim(this); }
-String.prototype.normalizeSpaces    = function normalizeSpaces(this: string): string { return $normspaces(this); }
+String.prototype.normalizeSpaces    = function normalizeSpaces(this: string, opts?: $normspacesOpions): string { return $normspaces(this, opts); }
 String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
 String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
 String.prototype.singular           = function singular(this:string) { return this.toUnsigned() === 1 ; }
@@ -194,6 +196,11 @@ String.prototype.toUnsigned         = function toUnsigned(this: string, defaultV
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
 
 // ================================== private functions ==============================
+function _doubleEscape(source:string, doubbler:string):string {
+    let ret = '' ;
+    for (let c of source) { ret += (c === doubbler) ? c+c : c ; }
+    return ret ;
+}
 
 function _snakeCase(source: Nullable<string>): string {
     const s = $ascii($normspaces(source, { strict:true, replacer:''})) ;

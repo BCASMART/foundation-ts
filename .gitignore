@@ -6,3 +6,4 @@ browser
 package-lock.json
 .DS_Store
 __*
+.vscode

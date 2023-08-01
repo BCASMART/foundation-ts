@@ -57,7 +57,7 @@ export interface TSArgsOptions {
     processName?:Nullable<string> ;
     exitError?:Nullable<number> ;
 }
-// if an URL is specfied, we take the arguments from an url
+// if an url is specfied, we take the arguments from it
 // if there's nothin we try from the process itself
 export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOptions>):[TSDictionary|null, string[]] {
     const entries = Object.entries(definition) ;
@@ -161,8 +161,8 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
 
     if (!$ok(parser)) { throw new TSError("$args(): unable to generate parser", { structure:parserStructure, errors:opts?.errors}) }
     if (isURL) {
-        // we parse an URL query
-        dict = parser!.interpret(_dictionaryFromURLQuery(url!, ref, opts?.errors), { errors:opts?.errors, context:'URL' }) ;
+        // we parse an url query
+        dict = parser!.interpret(_dictionaryFromURLQuery(url!, ref, opts?.errors), { errors:opts?.errors, context:'url' }) ;
     }
     if (isvargs || passedargs) {
         // we parse a process args array

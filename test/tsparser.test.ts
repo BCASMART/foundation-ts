@@ -1,12 +1,13 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
 import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserOptions } from "../src/tsparser";
-import { $URL, $ok, $phonenumber } from "../src/commons";
+import { $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
 import { $inspect, $logterm } from "../src/utils";
 import { $absolute, $filename, $loadJSON } from "../src/fs";
 import { UINT32_MAX, UUID } from "../src/types";
 import { $uuid } from "../src/crypto";
+import { TSURL } from "../src/tsurl";
 
 const days:TSExtendedArrayNode = {
     _mandatory:false,
@@ -136,11 +137,11 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         }
     }) ;
     
-    group.unary("TSParser URL array example", async (t) => {
-        const [struct, _v, _i] = _define(t, ['url!'], 'URL array' ) ;
+    group.unary("TSParser url array example", async (t) => {
+        const [struct, _v, _i] = _define(t, ['url!'], 'url array' ) ;
         if ($ok(struct)) {            
             const v = ['http://localhost', 'http://localhost/', 'http://localhost:8000', 'http://localhost:8000/toto'] ;
-            const vr = v.map(s => $URL(s)) ;
+            const vr = v.map(s => TSURL.url(s)) ;
             if (_v(2, v)) {
                 const res = struct!.rawInterpret(v) ;
                 if (!t.expect3(res).is(vr)) {

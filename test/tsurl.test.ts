@@ -525,7 +525,7 @@ export const TSURLGroups = [
           
         };
         Object.entries(parseTests).forEach(([url, res]) => {
-            group.unary(`Parsing URL '${url}'`, async (t) => {
+            group.unary(`Parsing url '${url}'`, async (t) => {
                 const u = TSURL.url(url, { acceptedProtocols:localProtocols }) ;
                 if (t.expect0(u).OK()) {
                     t.expect1(u?.protocol).is(res.protocol) ;

@@ -64,7 +64,7 @@ export function $isemail(o:any) : boolean
 { return $isstring(o) && $ok($email(o)) ; }
 
 export function $isurl(o:any, opts?:Nullable<TSURLParseOptions>) : boolean
-{ return o instanceof URL || o instanceof TSURL ? $ok(_validateURL(o, opts)) : $isstring(o) && $ok($URL(o, opts)) ; }
+{ return (o instanceof TSURL) || (o instanceof URL && $ok(TSURL.from(o, opts))) || ($isstring(o) && $ok(TSURL.url(o, opts))) ; }
 
 export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
 { return o instanceof TSPhoneNumber || ($isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK) ; }
@@ -117,13 +117,8 @@ export function $phonenumber(s:Nullable<string>, country?:Nullable<TSCountry>): 
 export function $isophone(s:Nullable<string>, country?:Nullable<TSCountry>): string | null
 { return $valueornull(TSPhoneNumber.fromString(s, country)?.toString()) ;}
 
-export function $URL(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>):TSURL|null {
-    const options = $value(opts, {}) ;
-    return TSURL.url(s, options) ;
-}
-
 export function $url(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>) : url | null
-{ return $valueornull($URL(s, opts)?.href) as url | null ;}
+{ return $valueornull(TSURL.url(s, opts)?.href); }
 
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
 { return $isstring(s) ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s) : null ; }
@@ -377,11 +372,6 @@ export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A
 // ===== private functions ===================================
 
 const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
-
-function _validateURL(u:TSURL|URL, options:Nullable<TSURLParseOptions>):TSURL|null {
-    if (u instanceof TSURL) { return u.isValid($value(options, {})) ? u : null ; }
-    return TSURL.from(u, options) ;
-}
 
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 
 {

@@ -11,6 +11,7 @@ import { Resp, Verb } from "./tsrequest";
 import { Nullable, StringDictionary, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm, $mark } from "./utils";
 import { $conditionalClearMap } from "./mapset";
+import { TSURL } from "./tsurl";
 
 import Socket = NodeJS.Socket;
 import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
@@ -260,11 +261,18 @@ export class TSServer {
             try {
                 // validating method
                 const sm = $value(req.method?.toUpperCase(), Verb.Get) ;
-                const url = new URL($string(req.url), this.host);
+                const potentialUrl = TSURL.compose(this.host, $string(req.url)) ;
+                if (!$ok(potentialUrl)) {
+                    throw new TSHttpError('Bad request url endpoint', Resp.NotFound, {
+                        host:this.host,
+                        path:$string(req.url),
+                    }, TSServerErrorCodes.BadEndPointPath) ;    
+                }
+                const url = potentialUrl! ;
                 const originKey = `${url.pathname}[${$value(req.headers["origin"], '*')}]`; 
                 
                 if (sm === 'OPTIONS') {
-                    const preflightResponse = await this._preflightControler(url, req.headers, res) ;
+                    const preflightResponse = await this._preflightControler(url!, req.headers, res) ;
                     if ($ok(preflightResponse)) {
                         const npfr = _normalizePreflightResponse(preflightResponse!, this._allowedMethodsSet) ;
     
@@ -538,12 +546,12 @@ function _normalizePreflightResponse(r:TSPreflightResponse, verbSet:Set<string>)
 }
 
 // @ts-ignore
-async function _permisivePreflightController(url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
+async function _permisivePreflightController(url:TSURL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
     return { allowedOrigin:undefined, allowedHeaders:undefined, allowedMethods:undefined } ;
 }
 
 // @ts-ignore
-async function _defaultPreflightController(url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
+async function _defaultPreflightController(url:TSURL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
     const acceptedHeaders = $value(headers["access-control-allow-headers"]?.split(',').map(s=>$ftrim(s).toLowerCase()), []) ;
     //if (!acceptedHeaders.includes('accept')) { acceptedHeaders.push('accept') ; }
     if (!acceptedHeaders.includes('content-type')) { acceptedHeaders.push('content-type') ; }

@@ -5,12 +5,13 @@ import { TSLeafNode, TSNode, TSParser, TSParserOptions } from "./tsparser" ;
 import { $isdataobject, $ok, $string, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
 import { TSHttpError } from "./tserrors";
+import { TSURL } from "./tsurl";
 
-// TODO: update from URL to TSURL
+
 export interface TSServerRequest {
     message:http.IncomingMessage      // Node object
     method:Verb,                      // request method
-    url:URL,                          // request URL
+    url:TSURL,                        // request url
     parameters:TSDictionary,          // a key-value parametric path dictionary
     query:TSDictionary,               // a key-value query dictionary
     body: any,
@@ -58,7 +59,7 @@ export interface TSEndPoint {
 
 /** 
  * TSEndpointsDefinition is used to define what kind of end-point we
- * have on a specific URL :
+ * have on a specific url :
  * 1) a unique controller on a GET method: use a TSEndPointController
  * 2) a unique end point on a  GET method: use a TSEndPoint
  * 3) several methods (GET, POST, ...): use [key in Verb]?: TSEndPoint|TSEndPointController; }
@@ -81,7 +82,7 @@ export interface TSPreflightResponse {
 
 // Preflight controller functions are activated when reciving a preflight OPTIONS request
 // if the response is null or undefined, the preflight request returns an error
-export type TSPreflightController = (url:URL, headers:http.IncomingHttpHeaders, res:http.ServerResponse) => Promise<Nullable<TSPreflightResponse>> ; 
+export type TSPreflightController = (url:TSURL, headers:http.IncomingHttpHeaders, res:http.ServerResponse) => Promise<Nullable<TSPreflightResponse>> ; 
 
 export enum TSServerStartStatus {
     AlreadyRunning = 0,
@@ -111,7 +112,8 @@ export enum TSServerErrorCodes {
     MissingBody = 10008,
     BadResponseStructure = 10009,
     ForbiddenDataResponse = 10010,
-    BadJSONBody = 10011
+    BadJSONBody = 10011,
+    BadEndPointPath = 10012
 }
 
 // ================= private functions =======================

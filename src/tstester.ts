@@ -157,7 +157,7 @@ export class TSGenericTest {
     public stopOnFirstFail:boolean = false ;
     
     protected constructor(s:string, f:testFN, opts?:TSGenericTestOptions) {
-        this.desc = s ;
+        this.desc = s.doubleEscape('&').normalizeSpaces() ;
         this.fn = f ;
         if (opts?.focus) { this.focused = true ; }
         if (opts?.silent) { this.silent = true ; }
