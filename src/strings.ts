@@ -196,9 +196,10 @@ String.prototype.toUnsigned         = function toUnsigned(this: string, defaultV
 HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
 
 // ================================== private functions ==============================
-function _doubleEscape(source:string, doubbler:string):string {
+function _doubleEscape(source:string, esc:string):string {
     let ret = '' ;
-    for (let c of source) { ret += (c === doubbler) ? c+c : c ; }
+    const esc2 = esc + esc ;
+    for (let c of source) { ret += c === esc ? esc2 : c ; }
     return ret ;
 }
 

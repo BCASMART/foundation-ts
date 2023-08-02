@@ -84,6 +84,19 @@ export function $isproperty(obj:any, prop:string):boolean
 export function $ismethod(obj:any, meth:Nullable<string|symbol>):boolean
 { return (typeof meth === 'symbol' || $length(meth) > 0) && $ok(obj) && $isfunction(obj![meth!]) ; }
 
+export function $isipv4(obj:any):boolean
+{ return typeof obj === 'string' && __IPV4Regex.test($ftrim(obj)) ; }
+
+export function $isipv6(obj:any):boolean
+{ return typeof obj === 'string' && __IPV6Regex.test($ftrim(obj)) ; }
+
+export function $isipaddress(obj:any):boolean
+{ 
+    if (typeof obj !== 'string') { return false ; }
+    obj = $ftrim(obj) ; 
+    return __IPV4Regex.test(obj) || __IPV6Regex.test(obj) ; 
+}
+
 export function $hasproperties(obj:any, properties:Nullable<string[]>)
 {
     if (!$isobject(obj) || !$count(properties)) { return false ; }
@@ -415,6 +428,8 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
     }
     return ret ;
 }
+const __IPV6Regex = /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/
+const __IPV4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
 
 const __capacitiesForCounts = [
     /* 000 */   2,   2,   4,   4,   8,   8,   8,   8,

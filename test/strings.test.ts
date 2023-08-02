@@ -154,6 +154,8 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect8("1".isStrictWhiteSpace()).false() ;
         t.expect9("0.9".singular()).false() ;
         t.expectA("1.0".singular()).true() ;
+        t.expectB('This is a "new world"'.doubleEscape('"')).is('This is a ""new world""') ;
+        t.expectC('\n&Y&b  REGISTERED ITEMS  &0'.doubleEscape('&')).is('\n&&Y&&b  REGISTERED ITEMS  &&0') ;
     }) ;
 
 }) ;

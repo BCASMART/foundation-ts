@@ -1,5 +1,5 @@
 import { Ascending, Comparison, Descending, Nullable, Same, url } from "./types";
-import { $ok, $value } from "./commons";
+import { $isipv4, $isipv6, $ok, $value } from "./commons";
 import { $ascii, $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSClone, TSObject } from "./tsobject";
@@ -96,13 +96,13 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         let ipv6Hostname = hostname.startsWith('[') && hostname.endsWith(']') ;
         if (ipv6Hostname) {
             hostname = hostname.slice(1, hostname.length-1) ;
-            if (!_checkIPV6HostName(hostname)) {
+            if (!$isipv6(hostname)) {
                 if (!!opts.throwsError) { new TSError(`TSURL: bad ipv6 hostname in url '${url}'`) ; }
                 return null ;
             }
         }
         else {
-            if (!_checkIPV4HostName(hostname)) {
+            if (!_checkPotentialIPV4HostName(hostname)) {
                 if (!!opts.throwsError) { new TSError(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
                 return null ;
             }
@@ -245,21 +245,15 @@ const __protocolRegex = /^([a-z0-9.+-]+:)/i ;
 const __protocolCompleteRegex = /^([a-z0-9.+-]+:)$/i ;
 const __backslashRegex = /\\/g ;
 const __portRegex = /:[0-9]*$/ ;
-const __IPV6Regex = /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/
-const __IPV4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+const __mayBeIPV4Regex = /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ ;
 
-function _checkIPV4HostName(hostname:string):boolean {
-    // will test if we have a IPV4 like host name and validate the address if so, test it
-    if (/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/.test(hostname)) {
-        return __IPV4Regex.test(hostname) 
-    }
-    return true ;
+function _checkPotentialIPV4HostName(hostname:string):boolean {
+    return !__mayBeIPV4Regex.test(hostname) || $isipv4(hostname) ;
 }
 
-function _checkIPV6HostName(hostname:string):boolean { return __IPV6Regex.test(hostname) ; }
-
 function _normalizeURLString(source:Nullable<string>):string {
-    const s = $ftrim(source) ;
+    let s = $ftrim(source) ;
+    if (s.startsWith('file:///')) { s = 'file://localhost/' + s.slice(8) ; }
     const index = s.indexOf('?') ;
     const splitchar = index > -1 && index < s.indexOf('#') ? '?' : '#' ;
     const parts = s.split(splitchar) ;

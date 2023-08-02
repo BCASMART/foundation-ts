@@ -247,7 +247,15 @@ export const TSURLGroups = [
               path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
             },
           
-          
+            'file:///etc/passwd': {
+                href: 'file://localhost/etc/passwd',
+                protocol: 'file:',
+                pathname: '/etc/passwd',
+                hostname: 'localhost',
+                host: 'localhost',
+                path: '/etc/passwd'
+              },
+
             'file://localhost/etc/passwd': {
               href: 'file://localhost/etc/passwd',
               protocol: 'file:',
@@ -266,6 +274,14 @@ export const TSURLGroups = [
               path: '/etc/passwd'
             },
           
+            'file:///etc/node/': {
+                href: 'file://localhost/etc/node/',
+                protocol: 'file:',
+                pathname: '/etc/node/',
+                hostname: 'localhost',
+                host: 'localhost',
+                path: '/etc/node/'
+              },
           
             'file://localhost/etc/node/': {
               href: 'file://localhost/etc/node/',
@@ -511,6 +527,7 @@ export const TSURLGroups = [
               path: '%0D%0Ad/e?f',
               href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
             },
+            
           
             /*// git urls used by npm
             'git+ssh://git@github.com:npm/npm': {
