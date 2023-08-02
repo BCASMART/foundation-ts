@@ -3,6 +3,32 @@ import { TSDictionary } from "../src/types";
 import { TSURL } from "../src/tsurl";
 import { $length } from "../src/commons";
 
+/**
+ * Since this tests are inspired from the node-url package by defunctzombie
+ * (https://github.com/defunctzombie/node-url.git),
+ * here is the copyright notice included in the test/index.js original file :
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit
+ * persons to whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * 
+ */
+
 interface URLTestDefinition {
     protocol: string,
     port?:string,
@@ -528,8 +554,7 @@ export const TSURLGroups = [
               href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
             },
             
-          
-            /*// git urls used by npm
+            // git urls used by npm
             'git+ssh://git@github.com:npm/npm': {
               protocol: 'git+ssh:',
               auth: 'git',
@@ -538,7 +563,7 @@ export const TSURLGroups = [
               pathname: '/:npm/npm',
               path: '/:npm/npm',
               href: 'git+ssh://git@github.com/:npm/npm'
-            }*/
+            }
           
         };
         Object.entries(parseTests).forEach(([url, res]) => {
