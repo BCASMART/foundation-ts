@@ -33,7 +33,7 @@ let posixTestDB:FSTestDB|undefined = undefined ;
  */
 
 function isWindows():boolean {
-    if (!$defined(isWindowsOS)) { isWindowsOS = !$inbrowser() && process?.platform === "win32" ; }
+    if (!$defined(isWindowsOS)) { isWindowsOS = !$inbrowser() && process && process?.platform === "win32" ; }
     return isWindowsOS! ;
 }
 

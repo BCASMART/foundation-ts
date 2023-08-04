@@ -188,11 +188,11 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     return [dict, args] ;
 }
 
-export function $argCheck(exitStatus:number, errors:Nullable<string[]|TSArgsOptions>, process?:Nullable<string>) {
+export function $argCheck(exitStatus:number, errors:Nullable<string[]|TSArgsOptions>, processName?:Nullable<string>) {
     const err = $isarray(errors) ? errors as string[] : ($ok(errors) ? (errors as TSArgsOptions).errors : undefined) ;
     const n = $count(err) ;
     if (n > 0) {
-        $logheader(`${$length(process)?process:'process'} did encounter ${n > 1 ? 'errors' : 'an error'}`, undefined, '&r', '&o') ;
+        $logheader(`${$length(processName)?processName:'process'} did encounter ${n > 1 ? 'errors' : 'an error'}`, undefined, '&r', '&o') ;
         $logterm(`&y${err!.join('.\n')}.&0\n`) ;
         if (exitStatus !== 0) { $exit(exitStatus) ; }
     }
