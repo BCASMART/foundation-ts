@@ -24,14 +24,14 @@ export function $inbrowser():boolean {
 export function $exit(errorCode?:number) {
     if (!$isint(errorCode)) { errorCode = 0 ; }
     
-    if (process && typeof process?.exit === 'function') {
+    if (!$inbrowser() && process && typeof process?.exit === 'function') {
         process.exit(errorCode) ; // if it does not work, we throw an exception anyway
     }
     throw new TSError(`Premature exit with code ${errorCode}`, undefined, errorCode) ;
 }
 
 export function $mark():number {
-    if (process && typeof process?.hrtime === 'function') {
+    if (!$inbrowser() && process && typeof process?.hrtime === 'function') {
         const [seconds, nanoSeconds] = process!.hrtime() ;
         return seconds + nanoSeconds / 1000000000.0 ;
     }
@@ -53,6 +53,8 @@ export function $ellapsed(previousMark:number):string {
         ignoreMinimalUnitDecimals:true
     }) ;
 }
+
+export async function $sleep(ms:number) { new Promise(res => setTimeout(res, ms)) ; }
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;
