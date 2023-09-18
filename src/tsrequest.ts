@@ -177,12 +177,17 @@ export interface TSRequestOptions {
 }
 
 export class TSRequest {
-	public channel:AxiosInstance ;
+    public static readonly DefaultURL = 'http://localhost/' ;
 	public token:string = '' ;
 	public basicAuth:string = '' ;
 	public defaultTimeOut = 1000 ;
-    public baseURL:string = '' ;
     public commonHeaders:RequestHeaders={} ;
+
+    private _baseURL:string = TSRequest.DefaultURL ;
+    private _managesCredential:boolean ;
+
+    // @ts-ignore (_channel is defined in _resetChannel() private method)
+    private _channel:AxiosInstance ;
 
     public constructor(baseURL:string='', opts:TSRequestOptions = {}) {
         this.baseURL = baseURL ;
@@ -209,8 +214,26 @@ export class TSRequest {
         
 		const commonTimeout = $tounsigned(opts.timeout) ;
 		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
-		this.channel = axios.create({baseURL:baseURL, withCredentials:!!opts.managesCredentials}) ;
+        this._managesCredential = !!opts.managesCredentials ;
+        this._baseURL = baseURL.length > 0 ? baseURL : TSRequest.DefaultURL ;
+        this._resetChannel() ;
 	} 
+    public get baseURL():string { return this._baseURL ; }
+    public set baseURL(s:string) {
+        if (!s.length) { s = TSRequest.DefaultURL ; }
+        if (s !== this._baseURL) {
+            this._baseURL = s ;
+            this._resetChannel() ;
+        }
+    } 
+
+    public get managesCredential():boolean { return this._managesCredential ; }
+    public set managesCredential(flag:boolean) {
+        if ((flag && !this._managesCredential) || (!flag && this._managesCredential)) {
+            this._managesCredential = flag ;
+            this._resetChannel() ;
+        }
+    }
 
 	public setAuth(auth?:Nullable<RequestAuth>) {
 		if ($ok(auth) && $length(auth!.login)) {
@@ -297,17 +320,20 @@ export class TSRequest {
 
 		const timeoutError = TSUniqueError.timeoutError() ;
 		try {
-			const response = await $timeout(this.channel(config), timeout, timeoutError)
+			const response = await $timeout(this._channel(config), timeout, timeoutError)
 			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;
 			status = response.status ;
             headers = response.headers ;
 		}
 		catch (e) {
-			if (e === timeoutError || (e as TSRequestError).code === 'ECONNABORTED' || (e as TSRequestError).code === 'ETIMEDOUT') { 
-				// AxiosError contains a 'code' field
+			if (e === timeoutError || (e as TSRequestError).code === 'ECONNABORTED' || (e as TSRequestError).code === 'ETIMEDOUT' || (e as TSRequestError).code === 'ERR_PARSE_TIMEOUT') { 
 				ret = null ;
 				status = Resp.TimeOut ;
 			}
+            else if ((e as TSRequestError).code === 'ECONNREFUSED') {
+                ret = null ;
+                status = Resp.Misdirected ;
+            }
 			else if ($isnumber((e as TSRequestError).statusCode)) {
 				ret = null ;
 				status = (e as TSRequestError).statusCode as number ;
@@ -323,6 +349,12 @@ export class TSRequest {
 		}
 		return { status:status, response:ret, headers:headers}  ;
 	}
+
+    // ============== private methods ======================
+    private _resetChannel() {
+        this._channel = axios.create({baseURL:this._baseURL, withCredentials:!!this._managesCredential}) ;
+    }
+
 }
 
 function _standardHeaders(headers:Nullable<RequestHeaders>):RequestHeaders {

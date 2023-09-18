@@ -1,4 +1,5 @@
 import { $isint, $isunsigned, $ok } from "./commons";
+import { $ftrim } from "./strings";
 import { TSLeafInspect } from "./tsobject";
 import { Resp } from "./tsrequest";
 import { Nullable, TSDictionary } from "./types";
@@ -31,13 +32,31 @@ export class TSUniqueError extends Error implements TSLeafInspect {
 }
 export class TSError extends Error {
     public readonly info:TSDictionary|undefined ;
+    public static readonly DefaultMessage = "TSError generic message" ;
 
     private _errorCode:number = NaN ;
 
-    public constructor(message:string, info?:Nullable<TSDictionary>, errorCode?:Nullable<number>) {
-        super(message) ;
-        if ($ok(info)) { this.info = info! } ;
-        this.errorCode = errorCode ;
+	public constructor(message:string) ;
+    public constructor(message:string, errorCode:Nullable<number>) ;
+    public constructor(message:string, info:Nullable<TSDictionary>) ;
+    public constructor(message:string, info:Nullable<TSDictionary>, errorCode:Nullable<number>) ;
+	public constructor() {
+		const n = arguments.length ;
+        const s = n>0?$ftrim(arguments[0] as string):"" ;
+        super(s.length?s:TSError.DefaultMessage) ;
+        switch (n) {
+			case 1: break ;
+            case 2:
+                if (typeof arguments[1] === 'number') { this.errorCode = arguments[1] ; }
+                else if ($ok(arguments[1])) { this.info = arguments[1] as TSDictionary ; }
+                break ;
+            case 3:
+                if ($ok(arguments[1])) { this.info = arguments[1] as TSDictionary ; }
+                if ($ok(arguments[2])) { this.errorCode = arguments[2] as number ; } 
+                break ;
+            default:
+                break ;
+        }
     }
 
     public static assertIntParam(v:Nullable<number>, fn:string, param:string) {

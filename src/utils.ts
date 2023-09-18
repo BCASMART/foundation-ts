@@ -25,9 +25,9 @@ export function $exit(errorCode?:number) {
     if (!$isint(errorCode)) { errorCode = 0 ; }
     
     if (!$inbrowser() && process && typeof process?.exit === 'function') {
-        process.exit(errorCode) ; // if it does not work, we throw an exception anyway
+        process.exit(errorCode!) ; // if it does not work, we throw an exception anyway
     }
-    throw new TSError(`Premature exit with code ${errorCode}`, undefined, errorCode) ;
+    throw new TSError(`Premature exit with code ${errorCode}`, errorCode!) ;
 }
 
 export function $mark():number {

@@ -17,6 +17,7 @@ interface _TSHashBufferOptions {
     dataoutput?:Nullable<boolean> ;
 }
 
+
 /** @internal */
 export class _TSHashBuffer {
     public readonly sourceLength:number ;
@@ -71,9 +72,9 @@ export class _TSHashBuffer {
     }
 
     private _getBlock(blockIndex:number, debug:boolean):number[] {
-        if (blockIndex >= this.blocksCount) {
-            throw '_TSHashBuffer._getBlock index overflow' ; 
-        }
+        if (blockIndex < 0) { throw '_TSHashBuffer._getBlock index underflow' ; }
+        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getBlock index overflow' ; }
+
         let i = blockIndex * this.blockSize, j = 0 ;
         const endBlock = i + this.blockSize ;
         const end = Math.min(endBlock, this.sourceLength) ;
@@ -113,9 +114,17 @@ export class _TSHashBuffer {
 
     public hash(fn:_TSHashFunction, printBlocks?:Nullable<boolean>) {
         const debug = !!printBlocks
-        for (let i = 0 ; i < this.blocksCount; i++) { 
-            fn(this._getBlock(i, debug)) ; 
-        }
+        for (let i = 0 ; i < this.blocksCount; i++) { fn(this._getBlock(i, debug)) ; }
+    }
+
+    public partialHash(fn:_TSHashFunction, printBlocks?:Nullable<boolean>) {
+        const debug = !!printBlocks
+        const n = this.blocksCount - 1 ;
+        for (let i = 0 ; i < n; i++) { fn(this._getBlock(i, debug)) ; }
+    }
+    
+    public lastBlock(printBlocks?:Nullable<boolean>):number[] {
+        return this._getBlock(this.blocksCount - 1, !!printBlocks)
     }
 
     public output(h:number[]):Buffer|string {
@@ -130,3 +139,4 @@ export class _TSHashBuffer {
         return !this.dataoutput ? buf.toString('hex') : buf ;
     }
 } 
+

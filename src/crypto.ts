@@ -457,6 +457,23 @@ export function $sha256(buf:Nullable<TSDataLike>, separator?:Nullable<string>, d
     return HB.output(H) ;
 
 }
+export interface PartialHash {
+    partial:string|Buffer ;
+    calculatedBlocks:number ;
+    lastBlock:string|Buffer ;
+} ;
+
+export function $sha256partial(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):PartialHash {
+    let H = [... _TSSHA256HTable] ;
+    let W = new Array<number>(64);
+    const HB = new _TSHashBuffer(buf, {integersCount:16, separator:separator, dataoutput:dataoutput}) ;
+    HB.partialHash(_insideHash256(H,W)) ;
+    return {
+        partial:HB.output(H),
+        calculatedBlocks:HB.blocksCount - 1,
+        lastBlock:HB.output(HB.lastBlock())
+    }
+}
 
 export function $sha384(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     // H vector contains a high bytes, a low butes, b high bytes, b low bytes, ...

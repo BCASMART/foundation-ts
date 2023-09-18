@@ -264,10 +264,18 @@ if (!$inbrowser()) {
                 t.expect2(startStatus).toBe(TSServerStartStatus.HTTPS) ;
                 t.expect3(TSServer.isRunning()).true() ;
 
-                const client = new TSRequest(`https://localhost:9654/`) ;
-                const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
-                if (t.expectA(status).toBe(Resp.OK)) {
-                    t.expectB(ret).toBe(content) ;
+                const client = new TSRequest('https://localhost:9655/') ;
+                let [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
+                
+                // since we cannot connect, we should have a misdirected error
+                t.expectA(status).toBe(Resp.Misdirected) ;
+                
+                client.baseURL = 'https://localhost:9654/' ; // this should assert a new channel
+                
+                [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
+
+                if (t.expectB(status).toBe(Resp.OK)) {
+                    t.expectC(ret).toBe(content) ;
                 }
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;    
