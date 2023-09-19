@@ -30,4 +30,16 @@ export const mapsetGroups = TSTest.group("Commons map and set additions", async 
         t.expect5(map.valuesArray().join('')).is(vstring) ;
     }) ;
 
+    group.unary("testing Map.dictionary() methods", async(t) => {
+        const map = new Map<string,string>() ;
+        ['T', 'E', 'A'].forEach(e => map.set(e,e)) ;
+        t.expect0(map.keysArray().join('')).is('TEA') ;
+        t.expect1(map.valuesArray().join('')).is('TEA') ;
+        t.expect3(map.dictionary()).is({ T:'T', E:'E', A:'A' })
+        t.expect4(map.dictionary((k,v) => [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', e:'-E-', a:'-A-' })
+        t.expect5(map.dictionary((k,v) => k === 'E' ? [null, null] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
+        t.expect6(map.dictionary((k,v) => k === 'E' ? [k, null] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
+        t.expect7(map.dictionary((k,v) => k === 'E' ? [null, v] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
+        t.expect8(map.dictionary((k,v) => k === 'E' ? ['', v] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
+    }) ;
 }) ;

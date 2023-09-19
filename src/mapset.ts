@@ -1,5 +1,5 @@
-import { Comparison, Nullable, Same, UINT_MIN, uint } from "./types";
-import { $ok } from "./commons";
+import { Comparison, Nullable, Same, UINT_MIN, uint, TSDictionary } from "./types";
+import { $length, $ok, $string } from "./commons";
 import { $mapequal, $setequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
@@ -36,6 +36,17 @@ export function $conditionalClearMap<K,V>(map:Nullable<Map<K,V>>, clearFunction:
     return UINT_MIN ;
 }
 
+export function $dictionaryFromMap<K,V, U=V>(map:Nullable<Map<K,V>>, mapFunction?:Nullable<(key:K, value:V)=>[Nullable<string>,Nullable<U>]>):TSDictionary<U> {
+    const ret:TSDictionary<U> = {} ;
+    const fn = $ok(mapFunction) ? mapFunction! : _simpleConvert ;
+    map?.forEach((v0,k0) => { 
+        const [k,u] = fn(k0, v0) ; 
+        if ($ok(u) && $length(k) > 0) { ret[k!] = u! ; }
+    }) ;
+    return ret ;
+}
+
+function _simpleConvert<K,V, U=V>(key:K, value:V):[Nullable<string>, Nullable<U>] { return [$string(key), value as any] }
 declare global {
     export interface Set<T> extends TSObject, TSFusionEnumeration {
         conditionalClear: (this:Set<T>, clearFunction:(element:T)=>boolean) => uint ;
@@ -48,6 +59,7 @@ declare global {
         map:(this:Map<K,V>, mapFunction:(key:K, value:V)=>any) => Map<K,any> ;
         keysArray:(this:Map<K,V>) => K[] ;
         valuesArray:(this:Map<K,V>) => V[] ;
+        dictionary:(this:Map<K,V>, mapFunction?:Nullable<(key:K, value:V)=>[Nullable<string>, any]>) => TSDictionary<any> ;
     }
 }
 
@@ -63,6 +75,9 @@ Set.prototype.compare = function compare<T>(this:Set<T>, other:any):Comparison {
 
 Map.prototype.conditionalClear = function conditionalClear<K, V>(this:Map<K, V>, clearFunction:(element:K, value:V)=>boolean):uint { return $conditionalClearMap(this, clearFunction) ; }
 Map.prototype.map = function map<K,V,U=V>(this:Map<K,V>, mapFunction:(key:K, value:V)=>Nullable<U>):Map<K,U> { return $mapmap(this, mapFunction) ; }
+Map.prototype.dictionary = function dictionary<K,V,U=V>(this:Map<K,V>, mapFunction?:Nullable<(key:K, value:V)=>[Nullable<string>, Nullable<U>]>):TSDictionary<U> { 
+    return $dictionaryFromMap(this, mapFunction) ; 
+}
 
 Map.prototype.fusionEnumeration = function fusionEnumeration():any[] {
     const ret:any[] = [] ;
