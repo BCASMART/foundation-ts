@@ -1,5 +1,5 @@
 import { $defined, $length, $value } from "./commons";
-import { $uint8ArrayFromArrayBuffer } from "./data";
+import { $bufferFromBytes, $uint8ArrayFromArrayBuffer } from "./data";
 import { TSData } from "./tsdata";
 import { TSError } from "./tserrors";
 import { Bytes, Nullable, TSDataLike, TSEndianness, uint8 } from "./types";
@@ -70,6 +70,17 @@ export class _TSHashBuffer {
         }
         if (this.paddingLength > 0) { this._padding = opts.padding! ; }
     }
+    
+    private _getSourcedBloc(blockIndex:number):Buffer {
+        if (blockIndex < 0) { throw '_TSHashBuffer._getSourcedBloc index underflow' ; }
+        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getSourcedBloc index overflow' ; }
+
+        let i = blockIndex * this.blockSize ;
+        const endBlock = i + this.blockSize ;
+        const end = Math.min(endBlock, this.sourceLength) ;
+
+        return $bufferFromBytes(this._source!, { start:i, end:end, forceCopy:true }) ;
+    }
 
     private _getBlock(blockIndex:number, debug:boolean):number[] {
         if (blockIndex < 0) { throw '_TSHashBuffer._getBlock index underflow' ; }
@@ -123,8 +134,8 @@ export class _TSHashBuffer {
         for (let i = 0 ; i < n; i++) { fn(this._getBlock(i, debug)) ; }
     }
     
-    public lastBlock(printBlocks?:Nullable<boolean>):number[] {
-        return this._getBlock(this.blocksCount - 1, !!printBlocks)
+    public lastPartialBlock():Buffer {
+        return this._getSourcedBloc(this.blocksCount - 1) ;
     }
 
     public output(h:number[]):Buffer|string {

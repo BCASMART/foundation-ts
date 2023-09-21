@@ -460,7 +460,7 @@ export function $sha256(buf:Nullable<TSDataLike>, separator?:Nullable<string>, d
 export interface PartialHash {
     partial:string|Buffer ;
     calculatedBlocks:number ;
-    lastBlock:string|Buffer ;
+    lastBlock:Buffer ;
 } ;
 
 export function $sha256partial(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):PartialHash {
@@ -471,7 +471,7 @@ export function $sha256partial(buf:Nullable<TSDataLike>, separator?:Nullable<str
     return {
         partial:HB.output(H),
         calculatedBlocks:HB.blocksCount - 1,
-        lastBlock:HB.output(HB.lastBlock())
+        lastBlock:HB.lastPartialBlock()
     }
 }
 
