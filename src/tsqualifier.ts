@@ -333,7 +333,20 @@ String.prototype.sqlLike = function sqlLike(this:string, like:string) {
     like = like.replace(/%/g, '.*').replace(/_/g, '.');
     return RegExp('^' + like + '$', 'gi').test(this);
 }
-Array.prototype.filterWithQualifier = function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
+
+/**
+ * since some modules like pdfjs require to use for ... in on Array.prototype
+ * we did decide to use a functional way to declare our new methods on array
+ * For now we limit this modification to Array class 
+ */
+_addArrayMethod('filterWithQualifier', function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }) ;
+
+function _addArrayMethod(name:string, method:Function) {
+    Object.defineProperty(Array.prototype, name, { value:method, enumerable:false }) ;      
+}
+
+// Array.prototype.filterWithQualifier = function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
+
 
 export function $sqllike(a:any, b:string) {
     if (!$ok(a)) return false ;

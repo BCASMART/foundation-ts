@@ -347,7 +347,7 @@ function _validateOtherProtocol(protocol:string, acceptedProtocols:string[]):boo
     let found = acceptedProtocols.find(a => { 
         let p = $ftrim(a).toLowerCase() ;
         if (!p.endsWith(':')) { p += ':' ; }
-        return p === protocol ? protocol : undefined ;
+        return p === protocol ;
     }) ;
     return $ok(found) ;
 }

@@ -71,9 +71,9 @@ export class _TSHashBuffer {
         if (this.paddingLength > 0) { this._padding = opts.padding! ; }
     }
     
-    private _getSourcedBloc(blockIndex:number):Buffer {
-        if (blockIndex < 0) { throw '_TSHashBuffer._getSourcedBloc index underflow' ; }
-        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getSourcedBloc index overflow' ; }
+    private _getSourcedBlock(blockIndex:number):Buffer {
+        if (blockIndex < 0) { throw '_TSHashBuffer._getSourcedBlock index underflow' ; }
+        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getSourcedBlock index overflow' ; }
 
         let i = blockIndex * this.blockSize ;
         const endBlock = i + this.blockSize ;
@@ -135,7 +135,7 @@ export class _TSHashBuffer {
     }
     
     public lastPartialBlock():Buffer {
-        return this._getSourcedBloc(this.blocksCount - 1) ;
+        return this._getSourcedBlock(this.blocksCount - 1) ;
     }
 
     public output(h:number[]):Buffer|string {

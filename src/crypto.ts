@@ -384,7 +384,18 @@ ArrayBuffer.prototype.hash     = function hash(this: any, method?: Nullable<Hash
 ArrayBuffer.prototype.slowhash = function slowhash(this: any, options?:$hashOptions): string|Buffer { return $slowhash(this, options) ; }
 ArrayBuffer.prototype.uuidhash = function uuidhash(this: any, version?:Nullable<UUIDVersion>): string|null { return $uuidhash(this, version) ; }
 
-Array.prototype.shuffle        = function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
+/**
+ * since some modules like pdfjs require to use for ... in on Array.prototype
+ * we did decide to use a functional way to declare our new methods on array
+ * For now we limit this modification to Array class 
+ */
+_addArrayMethod('shuffle', function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }) ;
+
+function _addArrayMethod(name:string, method:Function) {
+    Object.defineProperty(Array.prototype, name, { value:method, enumerable:false }) ;      
+}
+
+//Array.prototype.shuffle        = function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
 
 export function $md5(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     let H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476] ;

@@ -137,6 +137,29 @@ declare global {
     }
 }
 
+/**
+ * since some modules like pdfjs require to use for ... in on Array.prototype
+ * we did decide to use a functional way to declare our new methods on array
+ * For now we limit this modification to Array class 
+ */
+
+_addArrayMethod('average',           function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); }) ;
+_addArrayMethod('compare',           function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }) ;
+_addArrayMethod('filteredMap',       function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); }) ;
+_addArrayMethod('filteredSet',       function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $mapset(this, callback); }) ;
+_addArrayMethod('includesequal',     function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }) ;
+_addArrayMethod('includesvisual',    function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }) ;
+_addArrayMethod('isEqual',           function isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; }) ;
+_addArrayMethod('first',             function first<T>(this: T[]): T | undefined { return $first(this); }) ;
+_addArrayMethod('fusionEnumeration', function fusionEnumeration<T>(this: T[]):any[] { return this as any[] ; }) ;
+_addArrayMethod('last',              function first<T>(this: T[]): T | undefined { return $last(this); }) ;
+_addArrayMethod('max',               function max<T>(this: T[]): T | undefined { return $max(this); }) ;
+_addArrayMethod('min',               function min<T>(this: T[]): T | undefined { return $min(this); }) ;
+_addArrayMethod('sum',               function sum<T>(this: T[]): number | undefined { return $sum(this); }) ;
+_addArrayMethod('toArray',           function toArray<T>(this:T[]): T[] { return this ; }) ; // QUESTION: should we take a copy here
+
+/*
+
 Array.prototype.average             = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); } ;
 Array.prototype.compare             = function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }
 Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); } ;
@@ -152,7 +175,12 @@ Array.prototype.min                 = function min<T>(this: T[]): T | undefined 
 Array.prototype.sum                 = function sum<T>(this: T[]): number | undefined { return $sum(this); } ;
 Array.prototype.toArray             = function toArray<T>(this:T[]): T[] { return this ; } // QUESTION: should we take a copy here
 
+*/
 // ================================== private functions ==============================
+function _addArrayMethod(name:string, method:Function) {
+    Object.defineProperty(Array.prototype, name, { value:method, enumerable:false }) ;      
+}
+
 function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>, includesFn:(source:R[], v?:Nullable<R>)=>boolean) {
     const set = new Set<R>() ;
     let index = 0;
