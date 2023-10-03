@@ -11,6 +11,8 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
     const F = new TSRect(A.origin, A.size) ;
     const G = new TSRect(0, 0, TSmm2Pixels(210), TSmm2Pixels(297)) ;
     const H = new TSRect('a4') ;
+    const FA = new TSRect({x:10.5, y:20.5, w:3.5, h:7.2})
+    const FB = new TSRect(B.frame)
 
     group.unary("TSRect creation", async(t) => {
         t.expect0(A).toBe(B) ;
@@ -19,6 +21,8 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect3(A).toBe(E) ;
         t.expect4(A).toBe(F) ;
         t.expect5(G).toBe(H) ;
+        t.expect6(FA).toBe(A) ;
+        t.expect7(FB).toBe(B) ;
     }) ;
 
     group.unary("TSRect.closedPolygon()", async(t) => {

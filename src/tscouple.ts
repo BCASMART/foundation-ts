@@ -29,6 +29,7 @@ export class TSCouple<T,U> implements TSObject, TSClone<TSCouple<T,U>> {
 	public toString():string { return $json(this) ; }
 	public toJSON():any { return {first:$jsonobj(this.first), second:$jsonobj(this.second)} ; }
 	public toArray():any[] { return [this.first, this.second] ; }
+    
 }
 
 export interface TSCoupleConstructor<T,U> {

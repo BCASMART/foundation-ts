@@ -256,7 +256,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     /**
      @deprecated use toEpoch() instead
     */
-    public toEpochTimestamp() : number { return this.toEpoch() ; }
+    toEpochTimestamp = this.toEpoch ;
 
     public toDate() : Date { return $components2date($components(this._timestamp)) ; }
 	public toIsoString(format:IsoDateFormat=TSDateForm.ISO8601) : isodate { 
@@ -284,7 +284,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return this._toString(true, format, locale) ;
     }
 
-    public toJSON() : string { return this.toIsoString() ; }
+    public toJSON(): string { return this.toIsoString() ; }
 	public toArray():TSDate[] { return [this] ; }
 
     // ============ TSLeafInspect conformance =============== 

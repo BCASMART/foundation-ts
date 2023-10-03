@@ -3,6 +3,7 @@ dist
 exe
 tdist
 browser
+local
 package-lock.json
 .DS_Store
 __*

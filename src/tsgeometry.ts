@@ -54,14 +54,22 @@ export const  TSDocumentFormats:{[key in TSDocumentFormat]:TSSize} = {
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
-export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone<TSRect> {
+export interface TSFrame extends TSPoint, TSSize {} // the 'interface' version of a TSRect
+
+export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect> {
+    // ignoring affectation warnings because setting is made in this._setInternalValues()
+    // @ts-ignore
     public x:number ;
+    // @ts-ignore
     public y:number ;
+    // @ts-ignore
     public w:number ;
+    // @ts-ignore
     public h:number ;
 
 	public constructor() ;
 	public constructor(rect:TSRect) ;
+	public constructor(frame:TSFrame) ;
     public constructor(format:TSDocumentFormat) ;
     public constructor(arrayRect:number[]) ;
     public constructor(x:number, y:number, w:number, h:number) ;
@@ -76,100 +84,56 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
                 break ;
             case 1:{
                 if ($isstring(arguments[0])) {
-                    const size = TSDocumentFormats[arguments[0] as TSDocumentFormat] ;
-                    if ($ok(size)) {
-                        this.x = this.y = 0 ;
-                        this.w = size!.w ; this.h = size!.h ;
-                    }
-                    else {
-                        throw new TSError('TSRect.constructor() : bad document format parameter', { arguments:Array.from(arguments)}) ;
-                    }
+                    const s = TSDocumentFormats[arguments[0] as TSDocumentFormat] ;
+                    this._setInternalValues('bad document format parameter', 0, 0, s?.w, s?.h, $ok(s)) ;
                 }
                 else if ($isarray(arguments[0])) {
                     const a = arguments[0] as Array<number> ;
-                    if (a.length === 4 && $isnumber(a[0]) && $isnumber(a[1]) && $isnumber(a[2]) && $isnumber(a[3]) && a[2] >= 0 && a[3] >= 0) {
-                        this.x = a[0] ; this.y = a[1] ;
-                        this.w = a[2] ; this.h = a[3] ;
-                    }
-                    else {
-                        throw new TSError('TSRect.constructor() : bad rect definition array', { arguments:Array.from(arguments)}) ;
-                    }
+                    this._setInternalValues('bad rect definition array parameter', a[0], a[1], a[2], a[3], a.length === 4) ;
                 }
                 else if ((arguments[0] instanceof TSRect)) {
                     const r = arguments[0] as TSRect ;
-                    const x = r.minX ; const y = r.minY ;
-                    const w = r.width ; const h = r.height ;
-                    if ($isnumber(x) && $isnumber(y) && $isnumber(w) && $isnumber(h) && w >= 0 && h >= 0) {
-                        this.x = x ; this.y = y ;
-                        this.w = w ; this.h = h ;    
-                    }
-                    else {
-                        throw new TSError('TSRect.constructor() : bad TSRect parameter', { arguments:Array.from(arguments)}) ;
-                    }
+                    this._setInternalValues('bad TSRect parameter', r.minX, r.minY, r.width, r.height) ;
+                }
+                else if ($conformsToFrame(arguments[0])) {
+                    const f = arguments[0] as TSFrame ;
+                    this._setInternalValues('bad TSFrame parameter', f.x, f.y, f.w, f.h) ;
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : should have a TSRect or a document format parameter', { arguments:Array.from(arguments)}) ;
+                    throw new TSError('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             }
             case 2:
                 if ($comformsToPoint(arguments[0])) {
-                    const size = $isstring(arguments[1]) ? TSDocumentFormats[arguments[1] as TSDocumentFormat] : arguments[1] as TSSize ;
-                    if ($conformsToSize(size) && $isnumber(size.w) && $isnumber(size.h) && size.w >= 0 && size.h >= 0) {
-                        this.x = (arguments[0] as TSPoint).x ;
-                        this.y = (arguments[0] as TSPoint).y ;
-                        this.w = (size as TSSize).w ;
-                        this.h = (size as TSSize).h ;
+                    const s = $isstring(arguments[1]) ? TSDocumentFormats[arguments[1] as TSDocumentFormat] : arguments[1] as TSSize ;
+                    if ($conformsToSize(s)) {
+                        const p = arguments[0] as TSPoint ;
+                        this._setInternalValues('bad TSPoint+(TSSize or TSDocumentFormat) 2 parameters', p.x, p.y, s.w, s.h) ;
                     }
                     else {
-                        throw new TSError('TSRect.constructor() : bad TSSize parameter', { arguments:Array.from(arguments)}) ;
+                        throw new TSError('TSRect.constructor() : 2nd parameeter is not a TSSize', { arguments:Array.from(arguments)}) ;
                     }
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : bad TSPoint as origin parameter', { arguments:Array.from(arguments)}) ;
+                    throw new TSError('TSRect.constructor() : 1st parameter is not a TSPoint', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             case 3:
-                if ($isnumber(arguments[0]) && $isnumber(arguments[1]) && 
-                    ($isstring(arguments[2]) || $conformsToSize(arguments[2]))) {
-                    const size = $isstring(arguments[2]) ? TSDocumentFormats[arguments[2] as TSDocumentFormat] : arguments[2] as TSSize ;
-                    if ($ok(size) && $isnumber(size.w) && $isnumber(size.h) && size.w >= 0 && size.h >= 0) {
-                        this.x = arguments[0] as number ;
-                        this.y = arguments[1] as number ;
-                        this.w = (size as TSSize).w ;
-                        this.h = (size as TSSize).h ;
-                    }
-                    else {
-                        throw new TSError('TSRect.constructor() : bad TSSize parameter', { arguments:Array.from(arguments)}) ;
-                    }
+                if ($isnumber(arguments[0]) && $isnumber(arguments[1]) && ($isstring(arguments[2]) || $conformsToSize(arguments[2]))) {
+                    const s = $isstring(arguments[2]) ? TSDocumentFormats[arguments[2] as TSDocumentFormat] : arguments[2] as TSSize ;
+                    this._setInternalValues('bad [number, number, size or format] parameters', arguments[0], arguments[1], s.w, s.h) ;
                 }
-                else if ($comformsToPoint(arguments[0]) && 
-                         $isnumber(arguments[1]) && $isnumber(arguments[2]) && arguments[1] >= 0 && arguments[2] >= 0) {
-                    const origin = (arguments[0] as TSPoint) ;
-                    if ($isnumber(origin.x) && $isnumber(origin.y)) {
-                        this.x = origin.x ;
-                        this.y = origin.y ;
-                        this.w = arguments[1] as number ;
-                        this.h = arguments[2] as number ;        
-                    }
-                    else {
-                        throw new TSError('TSRect.constructor() : bad TSPoint origin parameter', { arguments:Array.from(arguments)}) ;
-                    }
+                else if ($comformsToPoint(arguments[0]) && $isnumber(arguments[1]) && $isnumber(arguments[2])) {
+                    const p = (arguments[0] as TSPoint) ;
+                    this._setInternalValues('bad [point, number, number] parameters', p.x, p.y, arguments[1], arguments[2]) ;
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : bad TSPoint, TSSize or number parameter parameter', { arguments:Array.from(arguments)}) ;
+                    throw new TSError('TSRect.constructor() : bad TSPoint, TSSize or number parameter', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             case 4:
-                if (!$isnumber(arguments[0]) || !$isnumber(arguments[1]) || 
-                    !$isnumber(arguments[2]) || !$isnumber(arguments[3]) || 
-                    arguments[2] < 0 || arguments[3] < 0) {
-                    throw new TSError('TSRect.constructor() : bad number parameter', { arguments:Array.from(arguments)}) ;
-                }
-                this.x = arguments[0] as number ;
-                this.y = arguments[1] as number ;
-                this.w = arguments[2] as number ;
-                this.h = arguments[3] as number ;
+                this._setInternalValues('one or more bad number parameter', arguments[0], arguments[1], arguments[2], arguments[3]) ;
                 break ;
 
             default:
@@ -181,6 +145,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
     public get size():TSSize    { return { w:this.width, h:this.height } ; }
     public get width():number   { return this.maxX - this.minX ; }
     public get height():number  { return this.maxY - this.minY ; }
+    public get frame():TSFrame  { return { x:this.minX, y:this.minY, w:this.width, h:this.height } ; }
 
     public get minX():number    { return this.x ; }
     public get minY():number    { return this.y ; }
@@ -224,7 +189,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
 
         return r.contains(this) ;
     }
-    public containedInRect(r:Nullable<TSRect|number[]>):boolean { return this.containedIn(r) ; }
+    containedInRect = this.containedIn ;
 
     public intersects(r:Nullable<TSRect|number[]>):boolean {
         if (!$ok(r)) { return false ; }
@@ -234,7 +199,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
 
         return this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty ? false : true ;
     }
-    public intersectsRect(r:Nullable<TSRect|number[]>):boolean { return this.intersects(r) ; }
+    intersectsRect = this.intersects ;
 
     public intersection(r:Nullable<TSRect|number[]>):TSRect {
         let rect = new TSRect() ;
@@ -253,7 +218,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
 
         return rect ;
     }
-    public intersectionRect(r:Nullable<TSRect|number[]>):TSRect { return this.intersection(r) ; }
+    intersectionRect = this.intersection ;
 
     public union(r:Nullable<TSRect|number[]>):TSRect {
         if (!$ok(r))      { return this.clone() ; }
@@ -271,7 +236,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
 
         return rect ;
     }
-    public unionRect(r:Nullable<TSRect|number[]>):TSRect { return this.union(r) ; }
+    unionRect = this.union ;
 
     public offset(xOffset:number, yOffset:number):TSRect {
         if (!$isnumber(xOffset) || !$isnumber(yOffset)) {
@@ -279,7 +244,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
         }
         return new TSRect(this.minX+xOffset, this.minY+yOffset, this.width, this.height) ;
     }
-    public offsetRect(dx:number, dy:number):TSRect { return this.offset(dx, dy) ; }
+    offsetRect = this.offset ;
 
     public inset(insetWidth:number, insetHeight:number):TSRect {
         if (!$isnumber(insetWidth) || !$isnumber(insetHeight)) {
@@ -287,7 +252,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
         }
         return new TSRect(this.minX-insetWidth, this.minY-insetHeight, this.width + insetWidth*2, this.height + insetHeight*2) ;
     }
-    public insetRect(dw:number, dh:number):TSRect { return this.inset(dw, dh) ; }
+    insetRect = this.inset ;
 
     public integral():TSRect {
         let rect = new TSRect() ;
@@ -300,7 +265,7 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
         
         return rect ;
     }
-    public integralRect():TSRect { return this.integral() ; }
+    integralRect = this.integral ;
 
     /**
      * 
@@ -339,11 +304,10 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
                 throw new TSError('TSRect.divide() : bad edge parameter', { amount:amount, edge:edge}) ;
         }
     }
-    public divideRect(amount:number, edge:TSRectEdge):[TSRect,TSRect] { return this.divide(amount, edge) ; }
+    divideRect = this.divide ;
 
-    public clone():TSRect {
-        return new TSRect(this.minX, this.minY, this.width, this.height) ; 
-    }
+    public clone():TSRect
+    { return new TSRect(this.minX, this.minY, this.width, this.height) ; }
    
     // this method returns 5 points
     public closedPolygon(updatesYCoordinatesfirst:boolean = false):TSPoint[] {
@@ -375,10 +339,9 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
         }
         return area < otherArea ? Ascending : Descending ;
     }
-
-    public toJSON():object { 
-        return { x:this.minX, y:this.minY, w:this.width, h:this.height } ; 
-    }
+    
+    public toJSON():TSFrame { return this.frame ; } 
+    
     public toString(): string { 
         return `{ x = ${this.minX}, y = ${this.minY}), w:${this.width}, h:${this.height} }` ; 
     }
@@ -388,13 +351,24 @@ export class TSRect implements TSPoint, TSSize, TSObject, TSLeafInspect, TSClone
     public toArray(): number[] { return [this.minX, this.minY, this.maxX, this.maxY] ; }
 
     // ============ TSLeafInspect conformance =============== 
-    public leafInspect(): string { return this.toString() ; }
+    leafInspect = this.toString ;
 
     // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
         return this.leafInspect()
     }
     
+    // ============ private methods ===============
+    _setInternalValues(message:string, x:any, y:any, w:any, h:any, _moreTest:boolean = true) {
+        if (!!_moreTest && $isnumber(x) && $isnumber(y) && $isnumber(w) && $isnumber(h) && w >= 0 && h >= 0) {
+            this.x = x ; this.y = y ;
+            this.w = w ; this.h = h ;    
+        }
+        else {
+            throw new TSError(`TSRect.constructor() : ${message}`, { x:x, y:y, w:w, h:h}) ;
+        }
+
+    }
 }
 
 
@@ -465,3 +439,6 @@ export function $comformsToPoint(v:any):boolean
 const LocalSizeProperties = ['w', 'h'] ;
 export function $conformsToSize(v:any):boolean
 { return v instanceof TSRect || $hasproperties(v, LocalSizeProperties) ; }
+
+export function $conformsToFrame(v:any):boolean
+{ return $comformsToPoint(v) && $conformsToSize(v) ; }
