@@ -57,8 +57,7 @@ export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<
     return ret;
 }
 
-
-export function $mapset<T, R = T>(values: Nullable<Iterable<T>>, callback?:Nullable<$mapCallback<T,R>>): Set<R> {
+export function $arrayset<T, R = T>(values: Nullable<Iterable<T>>, callback?:Nullable<$mapCallback<T,R>>): Set<R> {
     if (!$ok(callback)) { callback = function(v:any, _:number){ return v as R ; } ; }
     const ret = new Set<R>() ;
     if ($ok(values)) {
@@ -70,6 +69,9 @@ export function $mapset<T, R = T>(values: Nullable<Iterable<T>>, callback?:Nulla
     }
     return ret ;
 }
+
+// $mapset() function is deprecated. use $arrayset() instead
+export { $arrayset as $mapset }
 
 export function $includesequal<T = any>(values: Nullable<Iterable<T>>, object:any): boolean {
     if ($ok(values)) {
@@ -146,7 +148,7 @@ declare global {
 _addArrayMethod('average',           function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); }) ;
 _addArrayMethod('compare',           function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }) ;
 _addArrayMethod('filteredMap',       function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); }) ;
-_addArrayMethod('filteredSet',       function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $mapset(this, callback); }) ;
+_addArrayMethod('filteredSet',       function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $arrayset(this, callback); }) ;
 _addArrayMethod('includesequal',     function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }) ;
 _addArrayMethod('includesvisual',    function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }) ;
 _addArrayMethod('isEqual',           function isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; }) ;
@@ -163,7 +165,7 @@ _addArrayMethod('toArray',           function toArray<T>(this:T[]): T[] { return
 Array.prototype.average             = function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); } ;
 Array.prototype.compare             = function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }
 Array.prototype.filteredMap         = function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); } ;
-Array.prototype.filteredSet         = function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $mapset(this, callback); } ;
+Array.prototype.filteredSet         = function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $arrayset(this, callback); } ;
 Array.prototype.includesequal       = function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }
 Array.prototype.includesvisual      = function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }
 Array.prototype.isEqual             = function isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; }

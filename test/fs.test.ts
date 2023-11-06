@@ -1,5 +1,5 @@
 import { $defined, $length, $ok } from '../src/commons';
-import { $absolute, $createDirectory, $currentdirectory, $dir, $ext, $filename, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeBuffer, $writeString } from '../src/fs';
+import { $absolute, $createDirectory, $currentdirectory, $dir, $ext, $extset, $filename, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isfile, $isreadable, $iswritable, $loadJSON, $normalizepath, $path, $readString, $writeBuffer, $writeString } from '../src/fs';
 import { TSTest, TSTestGroup } from '../src/tstester';
 import { Nullable } from '../src/types';
 import { $inbrowser, $logterm } from "../src/utils";
@@ -176,7 +176,27 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expectK($iswritable(file)).true() ;
                 t.expectL(hash).is(memhash) ;
             }) ;    
-    
+
+            group.unary('$extset() function', async (t) => {
+                const ns = new Set<string>() ;
+                const jns = new Set<string>(['json']) ;
+                const exts = new Set(['jsonb', 'json', 'geojs']) ; 
+                t.expect0($extset(null)).is(ns) ;
+                t.expect1($extset(undefined)).is(ns) ;
+                t.expect2($extset('')).is(ns) ;
+                t.expect3($extset([])).is(ns) ;
+                t.expect4($extset([''])).is(ns) ;
+                t.expect5($extset('json')).is(jns) ;
+                t.expect6($extset('.json')).is(jns) ;
+                t.expect7($extset('.JSON')).is(jns) ;
+                t.expect8($extset(['json'])).is(jns) ;
+                t.expect9($extset('JSon')).is(jns) ;
+                t.expectA($extset(['JSON'])).is(jns) ;
+                t.expectB($extset(['JSON', '.jSon'])).is(jns) ;
+                t.expectC($extset(['   ','JSON', '.jSon', ''])).is(jns) ;
+                t.expectD($extset(['json', 'jsonB', 'GEOJs', ''])).is(exts) ;
+                t.expectE($extset(['.JSON', 'json', 'jsonB', 'GEOJs', '.geojs'])).is(exts) ;
+            }) ;    
         })) ;
     }
 }

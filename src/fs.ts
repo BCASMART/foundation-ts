@@ -37,7 +37,7 @@ import {
 
 import { homedir } from 'os';
 
-import { $isbool, $isstring, $isunsigned, $length, $ok } from './commons';
+import { $isbool, $isstring, $isunsigned, $length, $ok, $strings } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser } from './utils';
@@ -46,6 +46,7 @@ import { TSError } from './tserrors';
 import { Nullable, StringEncoding, TSDataLike } from './types';
 import { $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
+import { $arrayset } from './array';
 
 /**
  * WARNING: paths functions internalImplementation does not exist on Windows,
@@ -280,6 +281,15 @@ export function $ext(s: Nullable<string>, internalImplementation: boolean = fals
     return '';
 }
 
+export function $extset(extensions:Nullable<string|string[]>, transform:(s:string) => string = s => s.toLowerCase()):Set<string> {
+    return $arrayset($strings(extensions), (e) => { 
+        e = $ftrim(e) ; 
+        if (e[0] === '.') { e = e.slice(1) ; }
+        if (e.length > 0) { e = transform(e) ; }
+        return e.length > 0 ? e : null ; 
+    }) ;
+}
+
 export function $withoutext(s: Nullable<string>, internalImplementation?: boolean): string {
     if (!$length(s)) { return ''; }
     const e = $ext(s, internalImplementation);
@@ -334,20 +344,25 @@ export function $filename(s: Nullable<string>, internalImplementation: boolean =
 }
 
 // JSON buffer is always considered as UTF8 buffer
-export function $loadJSON(source: Nullable<string | TSDataLike>): any
+export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): any
 {
     let ret = null ;
     let json:string|null = null ;
 
     if ($isstring(source)) {
         TSError.assertNotInBrowser('$loadJSON') ;
-        json = (source as string)!.length ? $readString(source as string, TSCharset.utf8Charset()) : '' ;
+        const s = source as string ;
+        if (s.length > 0) {
+            const extensions = $extset(acceptedExtensions) ;
+            if (extensions.size === 0) { extensions.add('json') ; } // if no extensions, we accept json
+            json = extensions.has($ext(s)) ? $readString(s, TSCharset.utf8Charset()) : '' ;    
+        }
     }
     else {
         json = TSCharset.utf8Charset().stringFromData(source as TSDataLike) ;
     }
 
-    if ($length(json)) {
+    if ($length(json) > 0 ) {
         try {
             ret = JSON.parse(json as string);
             ret = $ok(ret) ? ret : null;

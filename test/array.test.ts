@@ -1,10 +1,10 @@
-import { $average, $first, $includesequal, $includesvisual, $last, $map, $mapset, $max, $min, $sum } from "../src/array";
+import { $average, $first, $includesequal, $includesvisual, $last, $map, $arrayset, $max, $min, $sum } from "../src/array";
 import { $count, $defined, $ok } from "../src/commons";
 import { TSTest } from "../src/tstester";
 import { TSUnicity } from "../src/types";
 
 export const arrayGroups = TSTest.group("Commons array functions", async (group) => {
-    group.unary("functions $map(), $mapset(), $includesequal(), $includesvisual", async(t) => {
+    group.unary("functions $map(), $arrayset(), $includesequal(), $includesvisual", async(t) => {
         let array:string[] = [] ;
         array[3] = '3' ;
         array[5] = '5' ;
@@ -33,7 +33,7 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expectV($includesvisual(source, "1")).true();
         t.expectW($includesvisual(source, "5")).true();
 
-        t.expectZ($mapset(source)).is(new Set([1, 5, 6, 'A', "1"])) ;
+        t.expectZ($arrayset(source)).is(new Set([1, 5, 6, 'A', "1"])) ;
     }) ;
 
     group.unary("functions $count(), $min(), $max(), $sum(), $average(), $first() and $last()", async(t) => {

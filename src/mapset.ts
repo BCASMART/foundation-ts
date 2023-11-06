@@ -4,7 +4,10 @@ import { $mapequal, $setequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
 
-export function $mapset<T, U=T>(set:Nullable<Set<T>>, mapFunction:(element:T)=>Nullable<U>):Set<U> {
+// $mapset() function was similar to $mapset(<iterable>,...) in array.ts. 
+// name change was mandatory this function, so it goes to $setmap() which
+// is consistant with $mapmap()
+export function $setmap<T, U=T>(set:Nullable<Set<T>>, mapFunction:(element:T)=>Nullable<U>):Set<U> {
     const ret = new Set<U>() ;
     set?.forEach(e => { const u = mapFunction(e) ; if ($ok(u)) { ret.add(u!) ; }}) ;
     return ret ;
@@ -65,7 +68,7 @@ declare global {
 
 Set.prototype.fusionEnumeration = function fusionEnumeration():any[] { return Array.from(this) ; }
 Set.prototype.conditionalClear = function conditionalClear<T>(this:Set<T>, clearFunction:(element:T)=>boolean):uint { return $conditionalClearSet(this, clearFunction) ; }
-Set.prototype.map = function map<T, U=T>(this:Set<T>, mapFunction:(element:T)=>Nullable<U>):Set<U> { return $mapset(this, mapFunction) ; }
+Set.prototype.map = function map<T, U=T>(this:Set<T>, mapFunction:(element:T)=>Nullable<U>):Set<U> { return $setmap(this, mapFunction) ; }
 Set.prototype.toArray = function toArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; }
 Set.prototype.keysArray = Set.prototype.toArray ;
 Set.prototype.valuesArray = Set.prototype.toArray ;
