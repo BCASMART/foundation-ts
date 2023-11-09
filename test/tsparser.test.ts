@@ -1,5 +1,5 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserOptions } from "../src/tsparser";
+import { $bool, TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserOptions } from "../src/tsparser";
 import { $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
@@ -106,8 +106,48 @@ export function parserStructureTestInterpretation() {
         }
     } ;
 } 
+interface BoolTestEntry {
+    v:any ;
+    b:boolean ;
+} ;
+
+const boolTestEntries:BoolTestEntry[] = [
+    {v:null, b:false},
+    {v:undefined, b:false},
+    {v:true, b:true},
+    {v:false, b:false},
+    {v:1, b:true},
+    {v:-1, b:true},
+    {v:NaN, b:false},
+    {v:-1.25665, b:true},
+    {v:Number.POSITIVE_INFINITY, b:true},
+    {v:Number.NEGATIVE_INFINITY, b:true},
+    {v:0, b:false},
+    {v:0.0, b:false},
+    {v:'1', b:true},
+    {v:'0', b:false},
+    {v:'  1 ', b:true},
+    {v:'2', b:false},
+    {v:'', b:false},
+    {v:'    ', b:false},
+    {v:'false', b:false},
+    {v:'true', b:true},
+    {v:' True ', b:true},
+    {v:' YES ', b:true},
+    {v:' y ', b:true},
+    {v:'yes', b:true},
+    {v:new Date(), b:false},
+    {v:{}, b:false},
+    {v:[], b:false}
+] ;
 
 export const structureGroups = TSTest.group("TSParser class ", async (group) => {
+    group.unary("$bool() function", async(t) => {
+        for (let i = 0, n = boolTestEntries.length ; i < n ; i++) {
+            const entry = boolTestEntries[i] ;
+            t.expect($bool(entry.v), `BT-${i}`).is(entry.b) ;
+        }
+    }) ;
     group.unary("TSParser example", async(t) => {
         const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example') ;
         if ($ok(struct)) {    

@@ -511,7 +511,7 @@ class TSLeafParser extends TSParser {
     private _options:TSDictionary|undefined ;
 
     private static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
-        'boolean' :  { valid:_isBoolean, trans:_valueToBoolean, str2v:_valueToBoolean}, // QUESTION?: should we use v2nat here
+        'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
         'charset' :  { valid:_isCharset, str2v:(s:string) => TSCharset.charset(s), v2nat:(v:any) => v.name},
         'color':     { valid:_iscolor, str2v:(s:string) => TSColor.fromString(s), v2nat:_color2str},
         'continent': { valid:_isContinent, str2v:(s:string) => s, enum:_isContinent, iskey:true},
@@ -669,6 +669,18 @@ class TSLeafParser extends TSParser {
     }
 
 }
+// ========================== EXPORTED FUNCTIONS ==============================================================
+export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
+    switch (typeof v) {
+        case 'bigint':   { v = Number(v) ; return !isNaN(v) && v !== 0 ; }
+        case 'boolean':  return v ;
+        case 'number':   return !isNaN(v) && v !== 0 ;
+        case 'string':   return !!_stringToBoolean(v, opts) ;
+        case 'symbol':   return !!_stringToBoolean($string(v), opts) ;
+        default:         return false ;
+    }
+}
+
 // ========================== PRIVATE CONSTANTS, TYPES AND FUNCTIONS ==========================================
 
 interface TSLeafNodeManager {
@@ -695,17 +707,6 @@ function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boole
     s = $ascii($ftrim(s)).toLowerCase() ;
     if (opts?.context === 'json') { return s === 'true' ? true : (s === 'false' ? false : null) ; }
     return s === 'true' || s === '1' || s === 'y' || s === 'yes' ? true : ( s === 'false' || s === '0' || s === 'n' || s === 'no' ? false : null) ;
-}
-
-function _valueToBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
-    switch (typeof v) {
-        case 'bigint':   { v = Number(v) ; return !isNaN(v) && v !== 0 ; }
-        case 'boolean':  return v ;
-        case 'number':   return !isNaN(v) && v !== 0 ;
-        case 'string':   return !!_stringToBoolean(v, opts) ;
-        case 'symbol':   return !!_stringToBoolean($string(v), opts) ;
-        default:         return false ;
-    }
 }
 
 function _isBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean   
