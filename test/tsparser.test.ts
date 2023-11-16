@@ -1,5 +1,5 @@
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { $bool, TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContext, TSParserOptions } from "../src/tsparser";
+import { $bool, TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSParserActionContextType, TSParserOptions } from "../src/tsparser";
 import { $ok, $phonenumber } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
@@ -374,7 +374,7 @@ function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
     }
 }
 
-function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserActionContext):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
+function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserActionContextType):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
     let errors:string[] = [] ;
     const struct = TSParser.define(def, errors) ;
     if (t.expect0(struct).OK() && t.expect1(errors.length).is(0)) { 
@@ -390,7 +390,7 @@ function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserAction
     return [null, _vfalse, _vfalse]
 }
 
-function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean, context?:TSParserActionContext):boolean {
+function _valid(t:TSUnaryTest, struct:TSParser, v:any, n:number, res:boolean, context?:TSParserActionContextType):boolean {
     const opts:TSParserOptions = { errors: [], context:context } ;
     const ret = t.expect(struct.validate(v, opts), `val-${n}`).is(res) ;
     if (!ret) {
