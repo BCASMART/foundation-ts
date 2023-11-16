@@ -1,0 +1,514 @@
+{
+    "application/calendar+xml": {
+        "type": "calendar",
+        "zip": true,
+        "extensions": ["xcs"]
+    },
+    "application/epub+zip": {
+        "type": "ebook",
+        "zip": false,
+        "extensions": ["epub"]
+    },
+    "application/geo+json": {
+        "type": "gis",
+        "zip": true,
+        "extensions": ["geojson"]
+    },
+    "application/gml+xml": {
+        "type": "xml",
+        "zip": true,
+        "extensions": ["gml"]
+    },
+    "application/gzip": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["gz"]
+    },
+    "application/java-archive": {
+        "type": "java",
+        "zip": false,
+        "extensions": ["jar","war","ear"]
+    },
+    "application/java-serialized-object": {
+        "type": "java",
+        "zip": false,
+        "extensions": ["ser"]
+    },
+    "application/java-vm": {
+        "type": "java",
+        "zip": false,
+        "extensions": ["class"]
+    },
+    "application/javascript": {
+        "code": "javascript",
+        "zip": true,
+        "extensions": ["js","mjs"]
+    },                            
+    "application/json": {
+        "type": "json",
+        "zip": true,
+        "default": true,
+        "extensions": ["json"]
+    },
+    "application/json5": {
+        "type": "json",
+        "extensions": ["json5"]
+    },
+    "application/msword": {
+        "type": "word",
+        "zip": false,
+        "extensions": ["doc","dot"]
+    },
+    "application/node": {
+        "type": "javascript",
+        "extensions": ["cjs"]
+    },
+    "application/octet-stream": {
+        "type": "binary",
+        "zip": false
+    },        
+    "application/pdf": {
+        "type": "pdf",
+        "zip": false,
+        "extensions": ["pdf"]
+    },
+    "application/pgp-keys": {
+        "type": "key",
+        "extensions": ["asc"]
+    },
+    "application/pgp-signature": {
+        "type": "signature",
+        "extensions": ["asc","sig"]
+    },
+    "application/pkcs7-signature": {
+        "type": "signature",
+        "extensions": ["p7s"]
+    },
+    "application/pkcs8": {
+        "type": "certificate",
+        "extensions": ["p8"]
+    },
+    "application/postscript": {
+        "type": "postscript",
+        "zip": true,
+        "extensions": ["ai","eps","ps"]
+    },
+    "application/rtf": {
+        "type": "word",
+        "zip": true,
+        "default": true,
+        "extensions": ["rtf"]
+    },
+    "application/vnd.amazon.ebook": {
+        "type": "ebook",
+        "extensions": ["azw"]
+    },
+    "application/vnd.android.package-archive": {
+        "type": "package",
+        "zip": false,
+        "extensions": ["apk"]
+    },
+    "application/vnd.apple.installer+xml": {
+        "type": "package",
+        "zip": true,
+        "extensions": ["mpkg"]
+    },
+    "application/vnd.apple.keynote": {
+        "type": "presentation",
+        "extensions": ["key"]
+    },
+    "application/vnd.apple.numbers": {
+        "type": "spreadsheet",
+        "extensions": ["numbers"]
+    },
+    "application/vnd.apple.pages": {
+        "type": "word",
+        "extensions": ["pages"]
+    },
+    "application/vnd.cups-ppd": {
+        "type": "pdf",
+        "extensions": ["ppd"]
+    },
+    "application/vnd.dbf": {
+        "type": "gis",
+        "extensions": ["dbf"]
+    },
+    "application/vnd.google-apps.document": {
+        "type": "word",
+        "zip": false,
+        "extensions": ["gdoc"]
+    },
+      "application/vnd.google-apps.presentation": {
+        "type": "presentation",
+        "zip": false,
+        "extensions": ["gslides"]
+    },
+    "application/vnd.google-apps.spreadsheet": {
+        "type": "spreadsheet",
+        "zip": false,
+        "extensions": ["gsheet"]
+    },
+    "application/vnd.google-earth.kml+xml": {
+        "type": "gis",
+        "zip": true,
+        "extensions": ["kml"]
+    },
+    "application/vnd.google-earth.kmz": {
+        "type": "gis",
+        "zip": false,
+        "extensions": ["kmz"]
+    },
+    "application/vnd.ms-excel": {
+        "type": "spreadsheet",
+        "zip": false,
+        "extensions": ["xls","xlm","xla","xlc","xlt","xlw"]
+    },
+    "application/vnd.ms-excel.addin.macroenabled.12": {
+        "type": "spreadsheet",
+        "extensions": ["xlam"]
+    },
+    "application/vnd.ms-excel.sheet.binary.macroenabled.12": {
+        "type": "spreadsheet",
+        "extensions": ["xlsb"]
+    },
+    "application/vnd.ms-excel.sheet.macroenabled.12": {
+        "type": "spreadsheet",
+        "extensions": ["xlsm"]
+    },
+    "application/vnd.ms-excel.template.macroenabled.12": {
+        "type": "spreadsheet",
+        "extensions": ["xltm"]
+    },
+    "application/vnd.ms-fontobject": {
+        "type": "font",
+        "zip": true,
+        "extensions": ["eot"]
+    },
+    "application/vnd.ms-outlook": {
+        "type": "mail",
+        "zip": false,
+        "extensions": ["msg"]
+    },
+    "application/vnd.ms-powerpoint": {
+        "type": "presentation",
+        "zip": false,
+        "extensions": ["ppt","pps","pot"]
+    },
+    "application/vnd.ms-powerpoint.addin.macroenabled.12": {
+        "type": "presentation",
+        "extensions": ["ppam"]
+    },
+    "application/vnd.ms-powerpoint.presentation.macroenabled.12": {
+        "type": "presentation",
+        "extensions": ["pptm"]
+    },
+    "application/vnd.ms-powerpoint.slide.macroenabled.12": {
+        "type": "presentation",
+        "extensions": ["sldm"]
+    },
+    "application/vnd.ms-powerpoint.slideshow.macroenabled.12": {
+        "type": "presentation",
+        "extensions": ["ppsm"]
+    },
+    "application/vnd.ms-powerpoint.template.macroenabled.12": {
+        "type": "presentation",
+        "extensions": ["potm"]
+    },
+    "application/vnd.ms-word.document.macroenabled.12": {
+        "type": "word",
+        "extensions": ["docm"]
+    },
+    "application/vnd.ms-word.template.macroenabled.12": {
+        "type": "word",
+        "extensions": ["dotm"]
+    },
+    "application/vnd.oasis.opendocument.presentation": {
+        "type": "presentation",
+        "zip": false,
+        "extensions": ["odp"]
+    },
+    "application/vnd.oasis.opendocument.presentation-template": {
+        "type": "presentation",
+        "extensions": ["otp"]
+    },
+    "application/vnd.oasis.opendocument.spreadsheet": {
+        "type": "spreadsheet",
+        "zip": false,
+        "extensions": ["ods"]
+    },
+    "application/vnd.oasis.opendocument.spreadsheet-template": {
+        "type": "spreadsheet",
+        "extensions": ["ots"]
+    },
+    "application/vnd.oasis.opendocument.text": {
+        "type": "word",
+        "zip": false,
+        "extensions": ["odt"]
+    },
+    "application/vnd.oasis.opendocument.text-master": {
+        "type": "word",
+        "extensions": ["odm"]
+    },
+    "application/vnd.oasis.opendocument.text-template": {
+        "type": "word",
+        "extensions": ["ott"]
+    },
+    "application/vnd.oasis.opendocument.text-web": {
+        "type": "word",
+        "extensions": ["oth"]
+    },
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+        "type": "presentation",
+        "zip": false,
+        "extensions": ["pptx"]
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.slide": {
+        "type": "presentation",
+        "extensions": ["sldx"]
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.slideshow": {
+        "type": "presentation",
+        "extensions": ["ppsx"]
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.template": {
+        "type": "presentation",
+        "extensions": ["potx"]
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        "type": "spreadsheet",
+        "zip": false,
+        "extensions": ["xlsx"]
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template": {
+        "type": "spreadsheet",
+        "extensions": ["xltx"]
+    },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+        "type": "word",
+        "zip": false,
+        "extensions": ["docx"]
+    },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.template": {
+        "type": "word",
+        "extensions": ["dotx"]
+    },
+    "application/xml": {
+        "type": "xml",
+        "zip": true,
+        "extensions": ["xml", "xsl", "xsd"]
+    },
+    "application/xml-dtd": {
+        "type": "xml",
+        "zip": true,
+        "extensions": ["dtd"]
+    },
+    "text/xml": {
+        "type": "xml",
+        "default": true,
+        "extensions": ["xml"]
+    },
+    "application/x-apple-diskimage": {
+        "type": "package",
+        "extensions": ["dmg"]
+    },
+    "application/x-bzip": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["bz"]
+    },
+    "application/x-bzip2": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["bz2","boz"]
+    },
+    "application/x-latex": {
+        "type": "text",
+        "zip": false,
+        "extensions": ["latex"]
+    },
+    "application/x-pkcs12": {
+        "type": "certificate",
+        "zip": false,
+        "extensions": ["p12","pfx"]
+    },
+    "application/x-pkcs7-certificates": {
+        "source": "certificate",
+        "extensions": ["p7b","spc"]
+    },
+    "application/x-rar-compressed": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["rar"]
+    },
+    "application/x-redhat-package-manager": {
+        "type": "package",
+        "extensions": ["rpm"]
+    },
+    "application/x-stuffit": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["sit"]
+    },
+    "application/x-stuffitx": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["sitx"]
+    },
+    "application/x-tar": {
+        "type": "binary",
+        "zip": true,
+        "extensions": ["tar"]
+    },
+    "application/x-x509-ca-cert": {
+        "source": "certificate",
+        "extensions": ["der","crt","pem"]
+    },
+    "application/xhtml+xml": {
+        "type": "html",
+        "zip": true,
+        "extensions": ["xhtml","xht"]
+    },
+    "application/zip": {
+        "type": "binary",
+        "zip": false,
+        "extensions": ["zip"]
+    },
+    "font/otf": {
+        "type": "font",
+        "zip": true,
+        "extensions": ["otf"]
+    },
+    "font/ttf": {
+        "type": "font",
+        "zip": true,
+        "extensions": ["ttf"]
+    },
+    "font/woff": {
+        "type": "font",
+        "extensions": ["woff"]
+    },
+    "font/woff2": {
+        "type": "font",
+        "extensions": ["woff2"]
+    },
+    "image/bmp": {
+        "type": "image",
+        "zip": true,
+        "default": true,
+        "extensions": ["bmp"]
+    },
+    "image/gif": {
+        "type": "image",
+        "zip": false,
+        "extensions": ["gif"]
+    },
+    "image/heif": {
+        "type": "image",
+        "extensions": ["heif"]
+    },
+    "image/heif-sequence": {
+        "type": "image",
+        "extensions": ["heifs"]
+    },
+    "image/jp2": {
+        "type": "image",
+        "zip": false,
+        "extensions": ["jp2","jpg2"]
+    },
+    "image/jpeg": {
+        "type": "image",
+        "zip": false,
+        "extensions": ["jpeg","jpg","jpe"]
+    },
+    "image/png": {
+        "type": "image",
+        "zip": false,
+        "extensions": ["png"]
+    },
+    "image/svg+xml": {
+        "type": "image",
+        "zip": true,
+        "extensions": ["svg","svgz"]
+    },
+    "image/tiff-fx": {
+        "type": "image",
+        "extensions": ["tfx"]
+    },
+    "image/vnd.adobe.photoshop": {
+        "type": "image",
+        "zip": true,
+        "extensions": ["psd"]
+    },
+    "image/vnd.dwg": {
+        "type": "image",
+        "extensions": ["dwg"]
+    },
+    "image/vnd.dxf": {
+        "type": "image",
+        "extensions": ["dxf"]
+    },
+    "image/vnd.microsoft.icon": {
+        "type": "image",
+        "zip": true,
+        "extensions": ["ico"]
+    },
+    "image/x-icon": {
+        "type": "image",
+        "zip": true,
+        "default":true,
+        "extensions": ["ico"]
+    },
+    "image/x-ms-bmp": {
+        "type": "image",
+        "zip": true,
+        "extensions": ["bmp"]
+    },
+    "text/calendar": {
+        "type": "calendar",
+        "extensions": ["ics","ifb"]
+    },
+    "text/css": {
+        "type": "style",
+        "zip": true,
+        "extensions": ["css"]
+    },
+    "text/csv": {
+        "type": "text",
+        "zip": true,
+        "extensions": ["csv"]
+    },
+    "text/html": {
+        "type": "html",
+        "zip": true,
+        "default": true,
+        "extensions": ["html","htm","shtml"]
+    },
+    "text/javascript": {
+        "type": "javascript",
+        "zip": true
+    },
+    "text/plain": {
+        "type": "text",
+        "zip": true,
+        "extensions": ["txt","text", "log"]
+    },
+    "text/rtf": {
+        "type": "word",
+        "zip": true,
+        "extensions": ["rtf"]
+    },
+    "text/vcard": {
+        "type": "vcard",
+        "zip": true,
+        "extensions": ["vcard"]
+    },
+    "text/x-java-source": {
+        "type": "java",
+        "extensions": ["java"]
+    },
+    "text/yaml": {
+        "type": "text",
+        "compressible": true,
+        "extensions": ["yaml","yml"]
+    }                                                                                                                          
+}

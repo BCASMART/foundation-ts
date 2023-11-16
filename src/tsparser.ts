@@ -91,11 +91,18 @@ export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
 
 export type TSNativeValue = Nullable<string|number|boolean> ;
 
-export type TSParserActionContext = 'url' | 'json' | 'vargs' ;
+export enum TSParserActionContext {
+    url = 'url', 
+    json = 'json', 
+    vargs = 'vargs',
+    env = 'env'
+} ;
 
+export type TSParserActionContextType = keyof typeof TSParserActionContext ;
 export interface TSParserOptions {
     errors?:Nullable<string[]> ;
-    context?:Nullable<TSParserActionContext> ;
+    context?:Nullable<TSParserActionContextType> ;
+    acceptsUncheckedItems?:Nullable<boolean> ;
 }
 export interface TSParserActionOptions extends TSParserOptions {
     options?:Nullable<TSDictionary> ;
@@ -142,6 +149,7 @@ export enum TSCase {
 export type TSObjectNode = { [key: string]: TSNode } | {
     _keysType?:TSLeafOptionalNode ;
     _valueItemsType?:TSNode ; 
+    _acceptsUncheckedItems?:boolean ;
     _checker?:TSParserChecker ;
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
@@ -175,7 +183,7 @@ export abstract class TSParser {
     }
 
     public parse(source:Nullable<string>, errors?:Nullable<string[]>): any {
-        const opts:TSParserOptions = { errors:errors, context:'json' }
+        const opts:TSParserOptions = { errors:errors, context:TSParserActionContext.json }
         let value = undefined ;
         const s = $trim(source) ;
         if (s.length) {
@@ -190,7 +198,7 @@ export abstract class TSParser {
     }
     
     public stringify(value:any, spaces:string | number | undefined = undefined, errors?:Nullable<string[]>): string | null {
-        const opts:TSParserOptions = { errors:errors, context:'json' }
+        const opts:TSParserOptions = { errors:errors, context:TSParserActionContext.json }
         if (this._validate(value, '', opts)) {
             try { return JSON.stringify(this.rawEncode(value, opts), undefined, spaces) }
             catch { return null ; }
@@ -305,8 +313,9 @@ class TSObjectParser extends TSParser {
     private _count:number ;
     private _keyTransform:(s:string)=>string = (s:string) => s ;
     private _keysCase:TSCase = TSCase.standard ;
+    private _acceptsUncheckedItems:boolean ;
 
-    public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>) {
+    public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>, acceptsUncheckedItems:boolean) {
         const m = node._mandatory ;
         super(!!m, node._checker as any, node._transformer as any, node._natifier as any) ;
 
@@ -321,7 +330,7 @@ class TSObjectParser extends TSParser {
             this._keyTransform = kt ; 
             this._keysCase = l ;
         }
-
+        this._acceptsUncheckedItems = acceptsUncheckedItems ;
         this._itemsParsers = itemsParsers ;
         this._count = $objectcount(itemsParsers) ;
     }
@@ -334,7 +343,8 @@ class TSObjectParser extends TSParser {
             _mandatory:this.mandatory,
             _check: this._check,
             _transform: this._transform,
-            _natify: this._natify
+            _natify: this._natify,
+            _acceptsUncheckedItems: this._acceptsUncheckedItems
         } ;
         if (this._keysCase !== 'standard') { ret._keysCase = this._keysCase ; }
 
@@ -364,7 +374,7 @@ class TSObjectParser extends TSParser {
                 doomed = true ; continue ;
             }
             const struct = this._itemsParsers[k] ;
-            if (!$ok(struct)) {
+            if (!$ok(struct) && !this._acceptsUncheckedItems) {
                 _serror(opts, path, `.${k} is unknown`) ;
                 doomed = true ; continue ;
             }
@@ -393,8 +403,13 @@ class TSObjectParser extends TSParser {
         for (let [key, v] of entries) {
             const k = this._keyTransform(key) ;
             const struct = this._itemsParsers[k] ;
-            const res = struct.rawInterpret(v, opts) ; 
-            if ($ok(res)) { ret[k] = res ; }
+            if ($ok(struct)) {
+                const res = struct.rawInterpret(v, opts) ; 
+                if ($ok(res)) { ret[k] = res ; }    
+            }
+            else {
+                ret[k] = v ; // if this just a non described item, we keep it as it was
+            }
         }
         return this._transform(ret, opts) ;
     }
@@ -705,7 +720,7 @@ function _countryTrans(v:any):any    { return v instanceof TSCountry ? v.alpha2C
 
 function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
     s = $ascii($ftrim(s)).toLowerCase() ;
-    if (opts?.context === 'json') { return s === 'true' ? true : (s === 'false' ? false : null) ; }
+    if (opts?.context === TSParserActionContext.json) { return s === 'true' ? true : (s === 'false' ? false : null) ; }
     return s === 'true' || s === '1' || s === 'y' || s === 'yes' ? true : ( s === 'false' || s === '0' || s === 'n' || s === 'no' ? false : null) ;
 }
 
@@ -723,18 +738,18 @@ function _isPath(v:any, opts?:Nullable<TSParserActionOptions>):boolean
 }
 
 function _isURL(v:any, opts?:Nullable<TSParserActionOptions>):boolean
-{ return $isurl(v, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
+{ return $isurl(v, { refusesParameters:opts?.context === TSParserActionContext.url || !!opts?.options?.refusesParameters, acceptedProtocols:opts?.options?.acceptedProtocols }) ; }
 
 function _isStringURL(v:any, opts?:Nullable<TSParserActionOptions>):boolean
 { return typeof v === 'string' && _isURL(v, opts) ; }
 
 function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):TSURL|null
-{ return TSURL.url(s, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
+{ return TSURL.url(s, { refusesParameters:opts?.context === TSParserActionContext.url || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols })}
 
 function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
     if (v instanceof TSURL) { return v ; }
     if (!(v instanceof URL)) { throw new TSError('Impossible to convertany object to TSURL')} ;
-    const ret = TSURL.from(v, { refusesParameters:opts?.context === 'url' || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols }) ;
+    const ret = TSURL.from(v, { refusesParameters:opts?.context === TSParserActionContext.url || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols }) ;
     if (!$ok(ret)) { throw new TSError('Impossible to convert URL to TSURL')} ;
     return ret! ;
 }
@@ -742,13 +757,13 @@ function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
 const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
 const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;
 function _isData(v:any, opts?:Nullable<TSParserActionOptions>):boolean      
-{ return $isdataobject(v) || ($isstring(v) && (opts?.context === 'url' ? _b64URLregex : _b64regex).test(v as string)) ; }
+{ return $isdataobject(v) || ($isstring(v) && (opts?.context === TSParserActionContext.url ? _b64URLregex : _b64regex).test(v as string)) ; }
 
 function _encodeb64(v:any, opts?:Nullable<TSParserActionOptions>)
-{ return opts?.context === 'url'  ? $encodeBase64URL(v) : $encodeBase64(v) ; }
+{ return opts?.context === TSParserActionContext.url  ? $encodeBase64URL(v) : $encodeBase64(v) ; }
 
 function _decodeb64(s:string, opts?:Nullable<TSParserActionOptions>)
-{ return opts?.context === 'url' ? $decodeBase64URL(s) : $decodeBase64(s) ; }
+{ return opts?.context === TSParserActionContext.url ? $decodeBase64URL(s) : $decodeBase64(s) ; }
 
 function _decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
 
@@ -781,7 +796,7 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 // this is the function wich convert you data model definition
 // into a tree of structures
 const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/g
-const InternalFieldsSet = new Set(['_mandatory', '_keysCase', '_checker', '_transformer', '_natifier']) ;
+const InternalFieldsSet = new Set(['_mandatory', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
     'lowercase':(s:string)=> s.toLowerCase(),
@@ -829,6 +844,7 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSParser
         }
         else if ($ok((node as TSObjectNode)._keysType) || $ok((node as TSObjectNode)._valueItemsType)) {
             // this is a dictionary    
+            if ($ok((node as TSObjectNode)._acceptsUncheckedItems)) {errors?.push('_acceptsUncheckedItems field cannot be set for a dictionary node definition') ; }
             if (!$ok((node as TSObjectNode)._keysType)) { errors?.push('_keysType field is not set for dictionary node definition') ; }
             const keysParser = _structureConstruction((node as TSObjectNode)._keysType!, errors) ;
             if (!keysParser?.isValid) { 
@@ -881,7 +897,7 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSParser
                 errors?.push('empty object node definition') ;
                 return null ;
             }
-            return new TSObjectParser(node as TSObjectNode, itemsParsers) ;
+            return new TSObjectParser(node as TSObjectNode, itemsParsers, !!((node as TSObjectNode)._acceptsUncheckedItems)) ;
         }
     }
     return null ;

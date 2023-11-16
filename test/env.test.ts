@@ -1,6 +1,8 @@
 import { $string } from "../src/commons";
-import { $args, $env, TSArgument, TSArgumentDictionary } from "../src/env";
+import { $args, $env, $parsedenv, TSArgument, TSArgumentDictionary } from "../src/env";
 import { $ext, $withoutext } from "../src/fs";
+import { TSDate } from "../src/tsdate";
+import { TSLeafNode } from "../src/tsparser";
 import { TSTest } from "../src/tstester";
 import { StringDictionary, TSDictionary } from "../src/types";
 import { $inbrowser } from "../src/utils";
@@ -125,4 +127,27 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
             } 
         }
     }) ;
+
+    group.unary("$parsedEnv() function", async (t) => {
+        const check:TSDictionary<TSLeafNode> = {
+            ONE:'uint32!',
+            TITLE:'string!',
+            APP:'string!',
+            DATE:'date!'
+        }
+        const source = [
+            'ONE=1',
+            'APP="My application"',
+            'TITLE="This is ${APP}"',
+            'DATE=2023-04-01T10:21:32'
+        ].join('\n') ;
+        t.expect($parsedenv(source, { debug:true, parser:check})).toBe({
+            ONE:1, 
+            APP:'My application', 
+            TITLE:'This is My application',
+            DATE:new TSDate(2023,4,1,10,21,32)
+        }) ;
+
+    }) ;
+
 }) ;

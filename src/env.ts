@@ -1,10 +1,10 @@
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, unichar } from "./types";
-import { $count, $isarray, $isnumber, $isstring, $length, $ok, $string, $toint, $unsigned, $valueornull } from "./commons";
+import { $count, $defined, $isarray, $isnumber, $isstring, $length, $ok, $string, $toint, $unsigned, $value, $valueornull } from "./commons";
 import { DefaultsConfigurationOptions } from "./tsdefaults";
 import { $exit, $logheader, $logterm } from "./utils";
 import { $ascii, $ftrim, $lines, $normspaces } from "./strings";
 import { $charset } from "./tscharset";
-import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser } from "./tsparser";
+import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser, TSParserActionContext } from "./tsparser";
 import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
@@ -19,12 +19,57 @@ export interface $envOptions extends DefaultsConfigurationOptions  {
  * any value NOT surrounded by simple quotes ('').
 */
 export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOptions>):StringDictionary|null {
+    return _parsenv('$env', source, null, true, $value(opts, {})) as StringDictionary|null ;
+}
+export interface $parsedEnvOptions extends DefaultsConfigurationOptions {
+    parser:Nullable<TSDictionary<TSLeafNode>>
+    merge?:Nullable<TSDictionary> ;     // environment to be merged with interpreted variables.
+    reference?:Nullable<TSDictionary> ;
+    parseAll?:Nullable<boolean> ;
+}
+
+export function $parsedenv(source:Nullable<string|TSDataLike>, opts:$parsedEnvOptions):TSDictionary|null {
+    const tmp = {...opts} ;
+    delete tmp['parser'] ;
+    delete tmp['parseAll'] ;
+    return _parsenv('$parsedenv', source, opts.parser, !opts.parseAll, {...tmp}) ;
+}
+
+function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinition:Nullable<TSDictionary<TSLeafNode>>, acceptsUncheckedItems:boolean, opts:$envOptions):TSDictionary|null {
     const debug = !!opts?.debug ;
-    const ret:StringDictionary = $ok(opts?.merge) ? opts!.merge! : {} ;
-    const ref:StringDictionary = $ok(opts?.reference) ? opts!.reference! : {} ;
+    const parse = $ok(parserDefinition) ;
+    const parserStructure:TSObjectNode = { _mandatory: true, _acceptsUncheckedItems:acceptsUncheckedItems } ;
+    let parser:Nullable<TSParser> = undefined ;
+    
+    if (parse) {
+        const entries = Object.entries(parserDefinition!) ;
+        const nameSet = new Set<string>() ;
+        let n = 0 ;
+        for (let [name, d] of entries) {
+            name = $ftrim(name) ;
+            if (name.length === 0) { throw new TSError(`${fn}(): found empty name definition`, parserDefinition!) ; }
+            if (_normarg(name) !== name || name.length < 2) { throw new TSError(`${fn}(): found bad name for env var '${name}'`, parserDefinition) ; }
+            if (nameSet.has(name)) { throw new TSError(`${fn}(): found duplicate name definition '${name}'`, parserDefinition!) ; }
+            let localParser:Nullable<TSParser> = undefined ;
+            if ($isstring(d) || $ok((d as any)._type)) {
+                localParser = TSParser.define(d) ;
+            }
+            if (!$ok(localParser)) { throw new TSError(`${fn}(): bad parser definition for env var '${name}'`, parserDefinition!) ; }
+            (parserStructure as any)[name] = d ; 
+            n++ ;
+        }
+        if (n === 0) { throw new TSError(`${fn}(): no definition found in environment parser`, parserDefinition) ; }
+        parser = TSParser.define(parserStructure) ;
+        if (!$ok(parser)) { throw new TSError(`${fn}(): impossible to define environment parser structure`, parserDefinition) ; }
+    }
+    const merge = $ok(opts?.merge) ;
+    const ret:TSDictionary = merge ? opts!.merge! : {} ;
+    const previous:Array<{k:string, p:any}> = [] ;
+    const toBeDeleted:string[] = [] ;
+    const ref:TSDictionary = $ok(opts?.reference) ? opts!.reference! : {} ;
+    const unary:TSDictionary = {} ;
     const variableMax = Math.min(Math.max(1, $unsigned(opts?.variableMax, 64 as uint)), 256) as uint ;
     const underscoreMax = Math.min(Math.max(1, $unsigned(opts?.underscoreMax, 2 as uint)), 8, variableMax) as uint ;
-    //if (debug) { $logterm('') ; }
     if (!$ok(source)) { 
         if (debug) { $logterm("&R&w $env(): called with a null or undefined source  &0") ; }
         return ret ;
@@ -34,7 +79,23 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOpti
         const [key, value] = _interpretEnvLine(ret, lines[i].rtrim(), i + 1, ref, underscoreMax, variableMax, debug) ;
         if (key === 'void') { continue ; }
         if (!key.length) { return null ; }
+        if (merge) {
+            if ($defined(ret[key])) { previous.push({k:key!, p: ret[key]}); }
+            else { toBeDeleted.push(key) ; }    
+        }
         ret[key] = value ;
+        if (parse) { unary[key] = value ; }
+    }
+    if (parse) {
+        const errors:string[]|undefined = debug ? [] : undefined ;
+        const parsedUnary = parser!.interpret(unary, { context:TSParserActionContext.env, errors:errors }) ;
+        if (!$ok(parsedUnary) && merge) { 
+            // restore our previous environment before merging
+            toBeDeleted.forEach(k => delete opts!.merge![k]) ;
+            previous.forEach(def => opts!.merge![def.k] = def.p) ;
+            return null ; 
+        }
+        return {...ret, ...parsedUnary!}
     }
     return ret ;
 }
@@ -79,6 +140,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     
     let n = 0 ;
     for (let [name, d] of entries) {
+        name = $ftrim(name) ;
         if (name.length === 0) { throw new TSError('$arg(): found empty name definition', definition) ; }
         if (_normarg(name) !== name || name.length < 2) { throw new TSError(`$arg(): found bad name for argument '${name}'`, definition) ; }
         let twice = nameSet.has(name) ;
@@ -169,7 +231,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
         [dict, args] = _argumentsFromVarArgs(passedargs ? opts?.arguments as string[] : process?.argv?.slice(2), ref, opts?.errors) ;
         if ($ok(dict)) {
             const interpretErrors:string[] = [] ; 
-            dict = $valueornull(parser!.interpret(dict, { errors:interpretErrors, context:'vargs' })) as TSDictionary | null ; 
+            dict = $valueornull(parser!.interpret(dict, { errors:interpretErrors, context:TSParserActionContext.vargs })) as TSDictionary | null ; 
 
             if (!$ok(dict) && $ok(opts?.errors)) {
                 interpretErrors.forEach(e => {
@@ -301,8 +363,9 @@ function _argumentsFromVarArgs(args:Nullable<string[]>, ref:Map<string, TSArgume
 
 function _normarg(s:Nullable<string>):string { return $ascii($normspaces(s, {strict:true, replacer:''})) ; }
 
-function _interpretEnvLine(env:StringDictionary, line:string, index:number, reference:StringDictionary, underscoreMax:uint, variableMax:uint, debug:boolean):[string, string] {
+function _interpretEnvLine(env:TSDictionary, line:string, index:number, reference:TSDictionary, underscoreMax:uint, variableMax:uint, debug:boolean):[string, string] {
     const len = line.length ;
+
     let p = 0 ;
     
     while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // space at start of line
@@ -449,8 +512,9 @@ function _interpretEnvLine(env:StringDictionary, line:string, index:number, refe
                 if (c === RCB) {
                     const variable = line.slice(p0, p) ;
                     //$logterm(`&ysubstitution variable='&p${variable}&y'&0`)
-                    let variableValue:string|undefined = env[variable] ;
+                    let variableValue:any = env[variable] ;
                     if (!$ok(variableValue)) { variableValue = reference[variable] ; }
+                    variableValue = $string(variableValue) ;
                     //$logterm(`&ysubstitution value='&p${variableValue}&y'&0`)
                     if ($length(variableValue) > 0) { v += variableValue! ; }
                     state = State.Text ;
