@@ -116,7 +116,8 @@ export type TSParserNatifier    = TSParserAction<TSNativeValue> ;
 
 export type TSExtendedLeafNode = { 
     _type: TSLeafOptionalNode ; 
-    _mandatory?:boolean ;
+    _mandatory?:boolean ; // you can have mandatory 
+    _default?:any ;       // or default but not both
     _enum?:TSDictionary<number|string> | Array<string|number> ;
     _checker?:TSParserChecker ;
     _transformer?:TSParserTransformer ; 
@@ -524,6 +525,7 @@ class TSLeafParser extends TSParser {
     private _conversion:TSDictionary<number|string>|undefined ;
     private _enumeration:Set<string|number>|undefined ;
     private _options:TSDictionary|undefined ;
+    private _defaultValue:any = undefined ;
 
     private static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
         'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
@@ -565,8 +567,9 @@ class TSLeafParser extends TSParser {
         const manager =  $isstring(node._type) ? TSLeafParser.__managers[node._type] : undefined ;
         const transformer = $ok(node._transformer) ? node._transformer : ($ok(manager?.trans) ? manager!.trans! : undefined) ;
         const natifier = $ok(node._natifier) ? node._natifier : ($ok(manager?.v2nat) ? manager!.v2nat! : undefined) ;
+        const mandatory = !!node._mandatory ;
 
-        super(!!node._mandatory, node._checker, transformer, natifier) ;
+        super(mandatory, node._checker, transformer, natifier) ;
 
         if (!$ok(manager)) { 
             this.errors.push(`Invalid parser type '${node._type}'`) ;
@@ -606,6 +609,15 @@ class TSLeafParser extends TSParser {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
         }
         if ($ok(node._options)) { this._options = node._options! ;}
+        if ($ok(node._default)) {
+            if (mandatory) {
+                this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
+            }
+            else {
+                this._defaultValue = node._default ;
+            }
+        }
+        
         this._type = node._type ;
     }
 
@@ -631,6 +643,7 @@ class TSLeafParser extends TSParser {
     }
 
     protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
+        if (!$ok(value)) { value = this._defaultValue ; }
         if (!super._validate(value, path, opts)) { return false ; }
         if (this._conversion && $isstring(value)) { 
             const tag = value as string ;
@@ -656,6 +669,7 @@ class TSLeafParser extends TSParser {
     { return this._transform($isstring(value) ? this._manager.str2v(value as string, opts) : value, opts) ; }
     
     public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
+        if (!$ok(value)) { value = this._defaultValue ; }
         if (!$ok(value) && !this.mandatory) { return value ; }
 
         if (this._conversion && $isstring(value)) {
@@ -796,7 +810,7 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 // this is the function wich convert you data model definition
 // into a tree of structures
 const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/g
-const InternalFieldsSet = new Set(['_mandatory', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems']) ;
+const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
     'lowercase':(s:string)=> s.toLowerCase(),

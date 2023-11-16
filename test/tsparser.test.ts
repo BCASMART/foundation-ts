@@ -44,7 +44,10 @@ export const parserStructureTestDefinition = {
     mail:   'email!',
     mobile: 'phone',
     bgcolor: 'color',
-    language: 'language',
+    language: { 
+        _type:'language',
+        _default: 'en'
+    },
     company: {
         _mandatory: true,
         name: 'string!',
@@ -165,15 +168,24 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             v.plus = '+' ;                          _i(13, v) ;
 
             v = parserStructureTestValue() ;
-            v.language = null ;                     _v(14, v) ;
-            v.company.tags.push('other') ;          _v(15, v) ;
-            v.company.tags = [] ;                   _v(16, v) ;
-            delete v.company.tags ;                 _v(17, v) ;
+            v.language = null ;
+            if (_v(14, v)) {
+                const r = parserStructureTestInterpretation() ;
+                r.language = 'en' ;
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expectA(res).is(r)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+            }
+
+            v.company.tags.push('other') ;          _v(20, v) ;
+            v.company.tags = [] ;                   _v(21, v) ;
+            delete v.company.tags ;                 _v(22, v) ;
             v.company.offices.push({
                 officeType:'unknown',
                 name:'Bad office'
-            }) ;                                    _i(18,v) ;
-            v.company.offices[1].officeType = 1 ;   _v(19, v) ;
+            }) ;                                    _i(23, v) ;
+            v.company.offices[1].officeType = 1 ;   _v(24, v) ;
         }
     }) ;
     
