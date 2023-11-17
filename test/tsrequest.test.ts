@@ -18,6 +18,6 @@ export const requestGroups = TSTest.group("Testing static request functions", as
     const s = $query(uri, dict) ;
 
     group.unary(`$query() function`, async (t) => {
-        t.expect(s).toBe('https://example.com?foo1=1&foo2=2&foo3=1966-04-13T12%3A05%3A22&foo6=1&foo6=2&foo6=3&foo6=A&foo6=B') ;
+        t.expect(s).is('https://example.com?foo1=1&foo2=2&foo3=1966-04-13T12%3A05%3A22&foo6=1&foo6=2&foo6=3&foo6=A&foo6=B') ;
     }) ;
 }) ;

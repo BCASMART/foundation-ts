@@ -24,8 +24,8 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
         catch(e) {
             if (e instanceof TSError) { info = e.info ; }
         }
-        t.expect0(info?.object?.identifier).toBe(identifier) ;
-        t.expect1(info?.method?.name).toBe('method') ;
+        t.expect0(info?.object?.identifier).is(identifier) ;
+        t.expect1(info?.method?.name).is('method') ;
     }) ;
     group.unary("TSError constructor", async (t) => {
         let e = new TSError("") ;

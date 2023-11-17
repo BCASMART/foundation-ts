@@ -12,8 +12,8 @@ export const dataGroups = [
         group.unary('$bufferFromArrayBuffer() and $arrayBufferFromBytes() functions', async(t) => {
             const b = $bufferFromArrayBuffer(a) ;
             const d = $arrayBufferFromBytes(c) ;
-            t.expect0(b).toBe(c) ;
-            t.expect1(d).toBe(a) ;
+            t.expect0(b).is(c) ;
+            t.expect1(d).is(a) ;
         }) ;
 
         group.unary('$bufferFromBytes(), $uint8ArrayFromBytes(), $arrayFromBytes() functions', async(t) => {
@@ -21,10 +21,10 @@ export const dataGroups = [
             const u8a = $uint8ArrayFromBytes(a, { forceCopy:true }) ;
             const bytes = $arrayFromBytes(a) ;
 
-            t.expect0(buf).toBe(a) ;
-            t.expect1(u8a).toBe(a) ;
-            t.expect2($arrayFromBytes(buf)).toBe(bytes) ;
-            t.expect3($arrayFromBytes(u8a)).toBe(bytes) ;
+            t.expect0(buf).is(a) ;
+            t.expect1(u8a).is(a) ;
+            t.expect2($arrayFromBytes(buf)).is(bytes) ;
+            t.expect3($arrayFromBytes(u8a)).is(bytes) ;
             t.expect4(buf.isGenuineUint8Array()).false() ;
             t.expect5(u8a.isGenuineUint8Array()).true() ;
         }) ;

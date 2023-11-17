@@ -104,17 +104,17 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
 
     group.unary("$term() && $termclean() functions()", async (t) => {
         if ($inbrowser()) {
-            t.expect0($term(vl)).toBe(v0);
-            t.expect0($term(vl2)).toBe(v0);
+            t.expect0($term(vl)).is(v0);
+            t.expect0($term(vl2)).is(v0);
         }
         else {
-            t.expect0($term(vl)).toBe(v2);
-            t.expect1($term(vl2)).toBe(v2);
+            t.expect0($term(vl)).is(v2);
+            t.expect1($term(vl2)).is(v2);
         }
-        t.expect2($termclean(v2)).toBe(v0);
-        t.expect3($termclean(vl)).toBe(v0);
-        t.expect4($termclean(v3)).toBe(v4);
-        t.expect5($termclean(v5)).toBe(v6);
+        t.expect2($termclean(v2)).is(v0);
+        t.expect3($termclean(vl)).is(v0);
+        t.expect4($termclean(v3)).is(v4);
+        t.expect5($termclean(v5)).is(v6);
     });
 
     group.description("==========================================");
@@ -128,7 +128,7 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
 
         // we don't run this test in browser mode because $insp() and $inspect() are the same in this context
         group.unary("$insp() function", async (t) => {
-            t.expect($insp(tree).normalizeSpaces()).toBe(inspect(tree, false, 10).normalizeSpaces());
+            t.expect($insp(tree).normalizeSpaces()).is(inspect(tree, false, 10).normalizeSpaces());
             t.description("-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.");
         });
     }

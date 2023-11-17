@@ -147,12 +147,12 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.register("Folder", folder) ;
                 t.expect0($createDirectory(folder)).true() ;
                 t.expect1($isdirectory(folder)).true() ;
-                t.expect2($isfile(folder)).toBeFalsy() ;
+                t.expect2($isfile(folder)).false() ;
 
                 const fileb = $path(folder, 'sc0.txt') ;
                 const source = Buffer.from([0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39]) ;
                 t.expect3($writeBuffer(fileb, source, { attomically:true })).true() ;
-                t.expect4($readString(fileb)).toBe('0123456789') ;
+                t.expect4($readString(fileb)).is('0123456789') ;
 
                 const str = "Sursum" ;                
                 const file = $path(folder, 'sc.txt') ;
@@ -161,7 +161,7 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 const str2 = str + ' Corda' ;
                 const [wres2, prec2] = $fullWriteString(file,  str2, { attomically:true, removePrecedentVersion:true }) ;
                 t.expectC(wres2).true() ;
-                t.expectD(prec2).toBeNull() ;
+                t.expectD(prec2).null() ;
                 t.expectE($readString(file)).is(str2) ;
         
                 const str3 = str2 + ' 2' ;

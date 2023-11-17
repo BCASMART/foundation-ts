@@ -102,21 +102,21 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expect1(setA).is(setB) ;
     }) ;
     
-    group.unary("t.expect(...).toBeEmpty()", async (t) => {
+    group.unary("t.expect(...).empty()", async (t) => {
         t.expect0([]).empty() ;
         t.expect1(new Set()).empty() ;
         t.expect2(new Map()).empty() ;
         t.expect3(Buffer.from('')).empty() ;
-        t.expect4('').toBeEmpty() ;
+        t.expect4('').empty() ;
         t.expect5(new TSData()).empty() ;
         t.expect6(new TSList()).empty() ;
         t.expect7(TSEmptyRange()).empty() ;
         t.expect8(new TSRangeSet()).empty() ;
         t.expect9(new TSInterval(date, date)).empty() ;
-        t.expectA([]).toBeEmpty() ;
+        t.expectA([]).empty() ;
     }) ;
 
-    group.unary("t.expect(...).toBeNotEmpty()", async (t) => {
+    group.unary("t.expect(...).filled()", async (t) => {
         t.expect0(["eee"]).filled() ;
         t.expect1(new Set([1])).filled() ;
         t.expect2(new Map([['key', 1]])).filled() ;
@@ -128,7 +128,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expect9(new TSInterval(date, date.dateByAddingHours(1))).filled() ;
         t.expectA(new TSInterval(date, null)).filled() ;
         t.expectB(new TSInterval(null, date)).filled() ;
-        t.expectC(["eee"]).toBeNotEmpty() ;
+        t.expectC(["eee"]).filled() ;
     }) ;
 
     if (args.length > 0 && !dumper) {

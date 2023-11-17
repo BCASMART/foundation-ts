@@ -75,10 +75,10 @@ export const serverGroups = [
             objects.push(ep);
         }
         group.unary(`api '/sessions/callBack'`, async (t) => {
-            t.expect(objects[0]).toBeDefined();
+            t.expect(objects[0]).def();
         });
         group.unary(`api '/v{vers}/session/{sid}/signature/{ssid}/updatestatus'`, async (t) => {
-            t.expect(objects[1]).toBeDefined();
+            t.expect(objects[1]).def();
         });
         group.unary(`api '/v{vers}/session/{sid/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[2]).toBeUndefined();
@@ -87,25 +87,25 @@ export const serverGroups = [
             t.expect(objects[3]).toBeUndefined();
         });
         group.unary(`api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/updatestatus'`, async (t) => {
-            t.expect(objects[4]).toBeDefined();
+            t.expect(objects[4]).def();
         });
         group.unary(`api '/v{vers}/session/{sid01_0-2.4}/signature/{ssid}/deleteStatus'`, async (t) => {
-            t.expect(objects[5]).toBeDefined();
+            t.expect(objects[5]).def();
         });
         group.unary(`api '/v{vers}/session/{sid01_0-2.$4}/signature/{ssid}/updatestatus'`, async (t) => {
             t.expect(objects[6]).toBeUndefined();
         });
         group.unary(`api '/v{vers}/session2/{sid}'`, async (t) => {
-            t.expect(objects[7]).toBeDefined();
+            t.expect(objects[7]).def();
         });
         group.unary(`api '/v{vers}/session2/{sid:date}'`, async (t) => {
-            t.expect(objects[8]).toBeDefined();
+            t.expect(objects[8]).def();
         });
         group.unary(`api '/v{vers}/session2/{sid:identifier}'`, async (t) => {
             t.expect(objects[9]).toBeUndefined();
         });
         group.unary(`api '/v{vers}/session2/{sid:boolean}'`, async (t) => {
-            t.expect(objects[10]).toBeDefined();
+            t.expect(objects[10]).def();
         });
     })
 ];
@@ -126,7 +126,7 @@ if (!$inbrowser()) {
         
         group.unary('Unparametrized server launch', async(t) => {
             const e = await TSServer.start({}) ;
-            t.expect(e instanceof TSError).toBeTruthy() ;
+            t.expect(e instanceof TSError).true() ;
         }) ;
 
         group.unary('Simple web page service', async (t) => {
@@ -134,13 +134,13 @@ if (!$inbrowser()) {
             t.register('localDirectory', localDirectory) ;
             if (t.expect0(content).OK() && t.expect1(content!.length).gt(0)) {
                 const startStatus = await TSServer.start(null, options) ;
-                t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
+                t.expect2(startStatus).is(TSServerStartStatus.HTTP) ;
                 t.expect3(TSServer.isRunning()).true() ;
 
                 const client = new TSRequest(`http://localhost:${port}/`) ;
                 const [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
-                if (t.expectA(status).toBe(Resp.OK)) {
-                    t.expectB(ret).toBe(content) ;
+                if (t.expectA(status).is(Resp.OK)) {
+                    t.expectB(ret).is(content) ;
                 }
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;    
@@ -206,7 +206,7 @@ if (!$inbrowser()) {
                     }
                 } ;
                 const startStatus = await TSServer.start(serverEndPoints, {...options, developer:false}) ;
-                t.expect2(startStatus).toBe(TSServerStartStatus.HTTP) ;
+                t.expect2(startStatus).is(TSServerStartStatus.HTTP) ;
                 t.expectA(await TSServer.isRunning()).true() ;
                 t.register('sessionID', sessionID) ;
                 const client = new TSRequest(`http://localhost:${port}/`) ;
@@ -216,7 +216,7 @@ if (!$inbrowser()) {
                     RespType.Json, 
                     parserStructureTestValue()
                 ) ;
-                t.expectB(resp.status).toBe(Resp.OK) ;
+                t.expectB(resp.status).is(Resp.OK) ;
                 const r0 = returnedResponseParser!.interpret(resp.response) ;
                 t.expectC(r0).is(returnedResponse) ; 
 
@@ -226,15 +226,15 @@ if (!$inbrowser()) {
                     RespType.Json, 
                     parserStructureTestValue()
                 ) ;
-                t.expectD(resp2.status).toBe(Resp.InternalError) ;
+                t.expectD(resp2.status).is(Resp.InternalError) ;
                 const r = resp2.response as any ;
                 t.expectE(r.status).is(Resp.InternalError) ;
                 t.expectF(r.error).is('TSServerResponse.returnObject(): Invalid structured response') ;
                 t.expectG(r.info?.errors).toBeArray() ;
-                t.expectH(r.info?.errors.length).toBe(2) ;
-                t.expectI(r.info?.errors[0]).toBe('value.textColor is mandatory') ;
-                t.expectJ(r.info?.errors[1]).toBe('value.country is mandatory') ;
-                t.expectK(r.errorCode).toBe(TSServerErrorCodes.BadResponseStructure) ;
+                t.expectH(r.info?.errors.length).is(2) ;
+                t.expectI(r.info?.errors[0]).is('value.textColor is mandatory') ;
+                t.expectJ(r.info?.errors[1]).is('value.country is mandatory') ;
+                t.expectK(r.errorCode).is(TSServerErrorCodes.BadResponseStructure) ;
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;   
             } 
@@ -261,21 +261,21 @@ if (!$inbrowser()) {
                 const opts = {...options, certificate:cert, key:key, port:9654 }
                 const startStatus = await TSServer.start(null, opts as TSServerOptions) ;
                 t.register('options', opts) ;            
-                t.expect2(startStatus).toBe(TSServerStartStatus.HTTPS) ;
+                t.expect2(startStatus).is(TSServerStartStatus.HTTPS) ;
                 t.expect3(TSServer.isRunning()).true() ;
 
                 const client = new TSRequest('https://localhost:9655/') ;
                 let [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
                 
                 // since we cannot connect, we should have a misdirected error
-                t.expectA(status).toBe(Resp.Misdirected) ;
+                t.expectA(status).is(Resp.Misdirected) ;
                 
                 client.baseURL = 'https://localhost:9654/' ; // this should assert a new channel
                 
                 [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
 
-                if (t.expectB(status).toBe(Resp.OK)) {
-                    t.expectC(ret).toBe(content) ;
+                if (t.expectB(status).is(Resp.OK)) {
+                    t.expectC(ret).is(content) ;
                 }
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;    

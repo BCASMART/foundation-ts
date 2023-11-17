@@ -9,11 +9,11 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         array[3] = '3' ;
         array[5] = '5' ;
         t.register("array", array) ;
-        t.expect1($map([1, 5, null, 6, 'A', undefined], e => e)).toBe([1, 5, 6, 'A']);
-        t.expect2([1, 5, null, 6, 'A', undefined].filteredMap(e => $ok(e) ? e!.toString() : undefined)).toBe(['1', '5', '6', 'A']);
-        t.expect3(array.filteredMap(e => e)).toBe(['3','5']) ;
+        t.expect1($map([1, 5, null, 6, 'A', undefined], e => e)).is([1, 5, 6, 'A']);
+        t.expect2([1, 5, null, 6, 'A', undefined].filteredMap(e => $ok(e) ? e!.toString() : undefined)).is(['1', '5', '6', 'A']);
+        t.expect3(array.filteredMap(e => e)).is(['3','5']) ;
         t.expect4(array.filteredMap((e,i) => $defined(e) ? null : `<undef ${i}>`))
-         .toBe(['<undef 0>','<undef 1>', '<undef 2>','<undef 4>']) ;
+         .is(['<undef 0>','<undef 1>', '<undef 2>','<undef 4>']) ;
         
         const source = [1, 5, null, 6, 'A', undefined, 5, "1"] ;
         t.expectA($map(source, e => e)).is([1, 5, 6, 'A', 5, "1"]);
@@ -47,36 +47,36 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.register('values2', values2) ;
         t.register('values3', values2) ;
 
-        t.expect0(values.first()).toBe(1) ;
-        t.expect1(values.last()).toBe(7) ;
-        t.expect2($sum(values)).toBe(24) ;
-        t.expect3($average(values)).toBe(3) ;
-        t.expect4([].sum()).toBe(0) ;
+        t.expect0(values.first()).is(1) ;
+        t.expect1(values.last()).is(7) ;
+        t.expect2($sum(values)).is(24) ;
+        t.expect3($average(values)).is(3) ;
+        t.expect4([].sum()).is(0) ;
         t.expect5([].average()).toBeUndefined() ;
-        t.expect7(values2.last()).toBeNull() ;
+        t.expect7(values2.last()).null() ;
         t.expect8(values2.sum()).toBeUndefined() ;
         t.expect9(values2.average()).toBeUndefined() ;
-        t.expectA($sum(null)).toBe(0) ;
-        t.expectB($sum(undefined)).toBe(0) ;
+        t.expectA($sum(null)).is(0) ;
+        t.expectB($sum(undefined)).is(0) ;
         t.expectA($average(null)).toBeUndefined() ;
         t.expectB($average(undefined)).toBeUndefined() ;
-        t.expectC($first(null)).toBe(undefined) ;
-        t.expectD($first(undefined)).toBe(undefined) ;
-        t.expectE($first([])).toBe(undefined) ;
-        t.expectF($last(null)).toBe(undefined) ;
-        t.expectG($last(undefined)).toBe(undefined) ;
-        t.expectH($last([])).toBe(undefined) ;
-        t.expectI($count(null)).toBe(0) ;
-        t.expectJ($count(undefined)).toBe(0) ;
-        t.expectK($count([])).toBe(0) ;
+        t.expectC($first(null)).undef() ;
+        t.expectD($first(undefined)).undef() ;
+        t.expectE($first([])).undef() ;
+        t.expectF($last(null)).undef() ;
+        t.expectG($last(undefined)).undef() ;
+        t.expectH($last([])).undef() ;
+        t.expectI($count(null)).is(0) ;
+        t.expectJ($count(undefined)).is(0) ;
+        t.expectK($count([])).is(0) ;
         t.expectL(values.min()).toBeUndefined() ;
         t.expectM(values.max()).toBeUndefined() ;
-        t.expectN(values1.sum()).toBe(values.sum()) ;
-        t.expectO(values1.average()).toBe(4) ;
-        t.expectP(values.average({countsOnlyOKItems:true})).toBe(values1.average())
-        t.expectQ(values1.average({countsOnlyOKItems:true})).toBe(values1.average())
-        t.expectR(values1.min()).toBe(-4) ;
-        t.expectS(values1.max()).toBe(10) ;
+        t.expectN(values1.sum()).is(values.sum()) ;
+        t.expectO(values1.average()).is(4) ;
+        t.expectP(values.average({countsOnlyOKItems:true})).is(values1.average())
+        t.expectQ(values1.average({countsOnlyOKItems:true})).is(values1.average())
+        t.expectR(values1.min()).is(-4) ;
+        t.expectS(values1.max()).is(10) ;
         t.expectT($min(values2)).toBeUndefined() ;
         t.expectU($max(values2)).toBeUndefined() ;
         t.expectV(values3.min()).toBeUndefined() ;

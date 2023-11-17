@@ -87,43 +87,43 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
         const longvar = "__abcdefghijklmnopqrstuvwxyz_0123456789_" ;
         function _var(k:string,v:string):StringDictionary { const d:StringDictionary = {} ; d[k] = v ; return d ; }
         function _b(s:string) { return b+"\n"+s ; }
-        t.expect0($env(b, debug)).toBe({}) ;
-        t.expect1($env(_b("export#toto"))).toBeNull() ;
-        t.expect2($env(_b(" export    #toto"))).toBeNull() ;
-        t.expect3($env(_b( " export    \n"))).toBeNull() ;
-        t.expect4($env(_b("a="), debug)).toBe({a:''});
-        t.expect5($env(_b("a=\n"), debug)).toBe({a:''});
-        t.expect6($env(_b("a= \t   \n"), debug)).toBe({a:''}) ;
-        t.expect7($env(_b("a=1"), debug)).toBe({a:'1'}) ;
-        t.expect8($env(_b("export a= \t   \nb=1"), debug)).toBe({a:'', b:'1'}) ;
-        t.expect9($env(_b("exporta= \t   \n"))).toBeNull() ;
-        t.expectA($env(_b("_a=1"), debug)).toBe({"_a":'1'}) ;
-        t.expectB($env(_b("__a=1"), debug)).toBe({"__a":'1'}) ;
-        t.expectC($env(_b("___a=1"))).toBeNull() ;
-        t.expectD($env(_b("____a=1"), { underscoreMax:8 })).toBe({"____a":'1'}) ; ;
-        t.expectE($env(_b("_____________a=1"), { underscoreMax:8 })).toBeNull() ; ;
-        t.expectF($env(_b(longvar+"=myValue is marvelous  \t\t\n"))).toBe(_var(longvar, 'myValue is marvelous')) ;
-        t.expectG($env(_b(longvar+"=1"), { variableMax:16 })).toBeNull() ;
-        t.expectH($env(_b("first=1\n\r export second=0${first}23"), debug)).toBe({first:'1', second:"0123"}) ;
-        t.expectI($env(_b('first=1\n\r export second="0${first}23"  # commentary\n'), debug)).toBe({first:'1', "second":"0123"}) ;
-        t.expectJ($env(_b("first=1\n\r export second='0${first}23'  # commentary\n"), debug)).toBe({first:'1', "second":"0${first}23"}) ;
-        t.expectK($env(_b("first=1\n\r export second=0${first}23"), { reference:{ first:'2' }, ...debug})).toBe({first:'1', second:"0123"}) ;
+        t.expect0($env(b, debug)).is({}) ;
+        t.expect1($env(_b("export#toto"))).null() ;
+        t.expect2($env(_b(" export    #toto"))).null() ;
+        t.expect3($env(_b( " export    \n"))).null() ;
+        t.expect4($env(_b("a="), debug)).is({a:''});
+        t.expect5($env(_b("a=\n"), debug)).is({a:''});
+        t.expect6($env(_b("a= \t   \n"), debug)).is({a:''}) ;
+        t.expect7($env(_b("a=1"), debug)).is({a:'1'}) ;
+        t.expect8($env(_b("export a= \t   \nb=1"), debug)).is({a:'', b:'1'}) ;
+        t.expect9($env(_b("exporta= \t   \n"))).null() ;
+        t.expectA($env(_b("_a=1"), debug)).is({"_a":'1'}) ;
+        t.expectB($env(_b("__a=1"), debug)).is({"__a":'1'}) ;
+        t.expectC($env(_b("___a=1"))).null() ;
+        t.expectD($env(_b("____a=1"), { underscoreMax:8 })).is({"____a":'1'}) ; ;
+        t.expectE($env(_b("_____________a=1"), { underscoreMax:8 })).null() ; ;
+        t.expectF($env(_b(longvar+"=myValue is marvelous  \t\t\n"))).is(_var(longvar, 'myValue is marvelous')) ;
+        t.expectG($env(_b(longvar+"=1"), { variableMax:16 })).null() ;
+        t.expectH($env(_b("first=1\n\r export second=0${first}23"), debug)).is({first:'1', second:"0123"}) ;
+        t.expectI($env(_b('first=1\n\r export second="0${first}23"  # commentary\n'), debug)).is({first:'1', "second":"0123"}) ;
+        t.expectJ($env(_b("first=1\n\r export second='0${first}23'  # commentary\n"), debug)).is({first:'1', "second":"0${first}23"}) ;
+        t.expectK($env(_b("first=1\n\r export second=0${first}23"), { reference:{ first:'2' }, ...debug})).is({first:'1', second:"0123"}) ;
         const mergeBase = { first:'2', third:'3' } ;
         const mergeResult = $env(_b("first=1\n\r export second=0${first}23"), { merge:mergeBase, ...debug}) ;
-        t.expectL(mergeResult).toBe({first:'1', second:"0123", third:"3"}) ;
-        t.expectM(mergeBase === mergeResult).toBeTruthy() ;
-        t.expectN($env(_b("first=1\n\r export second=0${third}23"), { reference:{ first:'2', third:'3' }, ...debug})).toBe({first:'1', second:"0323"}) ;
-        t.expectO($env(_b("a='1'   hello"))).toBeNull() ;
-        t.expectP($env(_b('a="1"   hello'))).toBeNull() ;
-        t.expectQ($env(_b('a=1   hello'))).toBe({"a":'1   hello'}) ;
+        t.expectL(mergeResult).is({first:'1', second:"0123", third:"3"}) ;
+        t.expectM(mergeBase === mergeResult).OK() ;
+        t.expectN($env(_b("first=1\n\r export second=0${third}23"), { reference:{ first:'2', third:'3' }, ...debug})).is({first:'1', second:"0323"}) ;
+        t.expectO($env(_b("a='1'   hello"))).null() ;
+        t.expectP($env(_b('a="1"   hello'))).null() ;
+        t.expectQ($env(_b('a=1   hello'))).is({"a":'1   hello'}) ;
 
         if (!$inbrowser()) {
             const env = process.env as StringDictionary ;
             const PATH = `${env.PATH}` ;
             const result = $env('NEWPATH=${PATH};/usr/src\nBB="${A}B"', { merge:env, reference:{ A:"B"}, ...debug }) ;
-            if (t.expectX(result).toBe(process.env)) {
-                t.expectY(process.env.NEWPATH).toBe(PATH+';/usr/src') ;
-                t.expectZ(process.env.BB).toBe('BB') ;                
+            if (t.expectX(result).is(process.env)) {
+                t.expectY(process.env.NEWPATH).is(PATH+';/usr/src') ;
+                t.expectZ(process.env.BB).is('BB') ;                
             } 
         }
     }) ;
@@ -133,7 +133,11 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
             ONE:'uint32!',
             TITLE:'string!',
             APP:'string!',
-            DATE:'date!'
+            DATE:'date!',
+            XLANG:{
+                _type:'language',
+                _default:'en'
+            }
         }
         const source = [
             'ONE=1',
@@ -141,12 +145,39 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
             'TITLE="This is ${APP}"',
             'DATE=2023-04-01T10:21:32'
         ].join('\n') ;
-        t.expect($parsedenv(source, { debug:true, parser:check})).toBe({
+        const date = new TSDate(2023,4,1,10,21,32) ;
+        const parsed1 = {
             ONE:1, 
             APP:'My application', 
             TITLE:'This is My application',
-            DATE:new TSDate(2023,4,1,10,21,32)
+            DATE:date,
+            XLANG:'en'
+        } ;
+
+        t.expect1($parsedenv(source, { debug:true, parser:check})).is(parsed1) ;
+        t.expect2($parsedenv(`${source}\nTUTU=ABCDEF`, { debug:true, parser:check})).KO() ;
+
+        t.expect3($parsedenv(`${source}\nTUTU=TEST`, { debug:true, parser:check, acceptsUnparsed:true})).is({
+            ...parsed1,
+            TUTU:'TEST'
+        })
+
+        t.expect4($parsedenv(`${source}\nXLANG=1`, { debug:true, parser:check})).KO() ;
+        t.expect5($parsedenv(`${source}\nXLANG=`, { debug:true, parser:check})).KO() ;
+
+        t.expect6($parsedenv(`${source}\nXLANG=fr`, { debug:true, parser:check})).is({
+            ...parsed1,
+            XLANG:'fr'
+        })
+
+        t.expect7($parsedenv(source, { debug:true, parser:check, merge:{a:1,b:2, ONE:4, x:'YES', y:undefined, z:null}})).is({
+            ...parsed1,
+            a:1,
+            b:2,
+            x:'YES',
+            z:null
         }) ;
+
 
     }) ;
 

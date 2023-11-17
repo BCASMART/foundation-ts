@@ -11,19 +11,19 @@ export const dateCompGroups = [
     
     
         group.unary('$durationcomponents() function', async (t) => {
-            t.expect0(Z).toBeDefined() ;
-            t.expect1(Z.days).toBe(0) ;
-            t.expect2(Z.hours).toBe(0) ;
-            t.expect3(Z.minutes).toBe(0) ;
-            t.expect4(Z.seconds).toBe(0) ;
+            t.expect0(Z).def() ;
+            t.expect1(Z.days).is(0) ;
+            t.expect2(Z.hours).is(0) ;
+            t.expect3(Z.minutes).is(0) ;
+            t.expect4(Z.seconds).is(0) ;
     
             const n = $duration(A) ;
             const N = $durationcomponents(n) ;
-            t.expectA(N).toBeDefined() ;
-            t.expectB(N.days).toBe(3) ;
-            t.expectC(N.hours).toBe(2) ;
-            t.expectD(N.minutes).toBe(25) ;
-            t.expectE(N.seconds).toBe(10) ;
+            t.expectA(N).def() ;
+            t.expectB(N.days).is(3) ;
+            t.expectC(N.hours).is(2) ;
+            t.expectD(N.minutes).is(25) ;
+            t.expectE(N.seconds).is(10) ;
         }) ;
     
         const B:TSDurationComp = { days:0 as uint, hours:2 as uint, minutes:25 as uint, seconds: 10 as uint} ;
@@ -35,14 +35,14 @@ export const dateCompGroups = [
         const H:TSDurationComp = { days:0 as uint, hours:0 as uint, minutes:0 as uint, seconds: 10 as uint} ;
     
         group.unary('Date standard format', async (t) => {
-            t.expect0($duration2String(A)).toBe("3-02:25:10") ;
-            t.expect1($duration2String(B)).toBe("02:25:10") ;
-            t.expect2($duration2String(D)).toBe("02:25") ;
-            t.expect3($duration2String(E)).toBe("02:00") ;
-            t.expect4($duration2String(F)).toBe("3-00:00") ;
-            t.expect5($duration2String(G)).toBe("00:25") ;
-            t.expect6($duration2String(H)).toBe("00:00:10") ;
-            t.expect7($duration2String(Z)).toBe("00:00") ;
+            t.expect0($duration2String(A)).is("3-02:25:10") ;
+            t.expect1($duration2String(B)).is("02:25:10") ;
+            t.expect2($duration2String(D)).is("02:25") ;
+            t.expect3($duration2String(E)).is("02:00") ;
+            t.expect4($duration2String(F)).is("3-00:00") ;
+            t.expect5($duration2String(G)).is("00:25") ;
+            t.expect6($duration2String(H)).is("00:00:10") ;
+            t.expect7($duration2String(Z)).is("00:00") ;
         }) ;
     
         const F1 = "%(%d jours%[, %]%)%[%≤%h heures%≥%<%≤%{,%b et%} %≥%m minutes%{ et %s secondes%}%>%]" ;
@@ -50,15 +50,15 @@ export const dateCompGroups = [
         group.unary('Date complex format', async (t) => {
         
             t.register('format', F1) ;
-            t.expect0($duration2String(A, F1)).toBe("3 jours, 2 heures, 25 minutes et 10 secondes") ;
-            t.expect1($duration2String(B, F1)).toBe("2 heures, 25 minutes et 10 secondes") ;
-            t.expect2($duration2String(C, F1)).toBe("3 jours, 2 heures et 25 minutes") ;
-            t.expect3($duration2String(D, F1)).toBe("2 heures et 25 minutes") ;
-            t.expect4($duration2String(E, F1)).toBe("2 heures") ;
-            t.expect5($duration2String(F, F1)).toBe("3 jours") ;
-            t.expect6($duration2String(G, F1)).toBe("25 minutes") ; 
-            t.expect7($duration2String(H, F1)).toBe("0 minutes et 10 secondes") ;
-            t.expect8($duration2String(Z, F1)).toBe("") ; 
+            t.expect0($duration2String(A, F1)).is("3 jours, 2 heures, 25 minutes et 10 secondes") ;
+            t.expect1($duration2String(B, F1)).is("2 heures, 25 minutes et 10 secondes") ;
+            t.expect2($duration2String(C, F1)).is("3 jours, 2 heures et 25 minutes") ;
+            t.expect3($duration2String(D, F1)).is("2 heures et 25 minutes") ;
+            t.expect4($duration2String(E, F1)).is("2 heures") ;
+            t.expect5($duration2String(F, F1)).is("3 jours") ;
+            t.expect6($duration2String(G, F1)).is("25 minutes") ; 
+            t.expect7($duration2String(H, F1)).is("0 minutes et 10 secondes") ;
+            t.expect8($duration2String(Z, F1)).is("") ; 
         }) ;
     }),
     TSTest.group("Complex iso string output function", async (group) => {
@@ -73,8 +73,8 @@ export const dateCompGroups = [
     
         group.unary(`Milliseconds output"`, async (t) => {
             const p = s.lastIndexOf('.') ;
-            t.expect0(s.slice(p)).toBe('.000Z') ;
-            t.expect1(s2.slice(p)).toBe('.000+00:00') ;
+            t.expect0(s.slice(p)).is('.000Z') ;
+            t.expect1(s2.slice(p)).is('.000+00:00') ;
         }) ;
     })
 ] ;

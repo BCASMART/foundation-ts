@@ -23,16 +23,21 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOpti
 }
 export interface $parsedEnvOptions extends DefaultsConfigurationOptions {
     parser:Nullable<TSDictionary<TSLeafNode>>
-    merge?:Nullable<TSDictionary> ;     // environment to be merged with interpreted variables.
+    merge?:Nullable<TSDictionary> ;
     reference?:Nullable<TSDictionary> ;
-    parseAll?:Nullable<boolean> ;
+    acceptsUnparsed?:Nullable<boolean> ;
 }
 
+/* WARNING: dont pass process.env in merge here, 
+            because it's not a real Dictionary 
+            and all values will turn as strings
+            even parsed onces 
+*/
 export function $parsedenv(source:Nullable<string|TSDataLike>, opts:$parsedEnvOptions):TSDictionary|null {
     const tmp = {...opts} ;
     delete tmp['parser'] ;
-    delete tmp['parseAll'] ;
-    return _parsenv('$parsedenv', source, opts.parser, !opts.parseAll, {...tmp}) ;
+    delete tmp['acceptsUnparsed'] ;
+    return _parsenv('$parsedenv', source, opts.parser, !!opts.acceptsUnparsed, {...tmp}) ;
 }
 
 function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinition:Nullable<TSDictionary<TSLeafNode>>, acceptsUncheckedItems:boolean, opts:$envOptions):TSDictionary|null {
@@ -40,7 +45,7 @@ function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinitio
     const parse = $ok(parserDefinition) ;
     const parserStructure:TSObjectNode = { _mandatory: true, _acceptsUncheckedItems:acceptsUncheckedItems } ;
     let parser:Nullable<TSParser> = undefined ;
-    
+
     if (parse) {
         const entries = Object.entries(parserDefinition!) ;
         const nameSet = new Set<string>() ;
@@ -89,10 +94,12 @@ function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinitio
     if (parse) {
         const errors:string[]|undefined = debug ? [] : undefined ;
         const parsedUnary = parser!.interpret(unary, { context:TSParserActionContext.env, errors:errors }) ;
-        if (!$ok(parsedUnary) && merge) { 
-            // restore our previous environment before merging
-            toBeDeleted.forEach(k => delete opts!.merge![k]) ;
-            previous.forEach(def => opts!.merge![def.k] = def.p) ;
+        if (!$ok(parsedUnary)) {
+            if (merge) { 
+                // restore our previous environment before merging
+                toBeDeleted.forEach(k => delete opts!.merge![k]) ;
+                previous.forEach(def => opts!.merge![def.k] = def.p) ;
+            }
             return null ; 
         }
         return {...ret, ...parsedUnary!}

@@ -97,10 +97,10 @@ const peoples:People[] = [
 export const qualifierGroups = [
     TSTest.group("Testing $valuesForKeyPath()", async (group) => {
         group.unary('On single possible value', async(t) => {
-            t.expect($valuesForKeyPath<People>(peoples[0], 'office.address.zipCode')).toBe(['75015']) ;
+            t.expect($valuesForKeyPath<People>(peoples[0], 'office.address.zipCode')).is(['75015']) ;
         }) ;
         group.unary('On multiple possible values', async(t) => {
-            t.expect($valuesForKeyPath<People>(peoples[7], 'homes.address.city')).toBe(['Lyon', 'Paris']) ;
+            t.expect($valuesForKeyPath<People>(peoples[7], 'homes.address.city')).is(['Lyon', 'Paris']) ;
         }) ;
     }),
     TSTest.group("Filtering with TSQualifier()", async (group) => {
@@ -113,15 +113,15 @@ export const qualifierGroups = [
             
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeTruthy() ;
-            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect0(qualifier.isComposite).true() ;
+            t.expect1(qualifier.isKeyValue).false() ;
+            t.expect2(qualifier.keyArray()).is([]) ;
             t.expect3(qualifier.key()).toBeUndefined() ;
             t.expect4(qualifier.value()).toBeUndefined() ;
-            t.expect5(qualifier.conditions().length).toBe(3) ;
+            t.expect5(qualifier.conditions().length).is(3) ;
             
 
-            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([
+            t.expectA(peoples.filterWithQualifier(qualifier)).is([
                 peoples[2],
                 peoples[3],
                 peoples[4],
@@ -135,30 +135,30 @@ export const qualifierGroups = [
             ) ;
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeTruthy() ;
-            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect0(qualifier.isComposite).true() ;
+            t.expect1(qualifier.isKeyValue).false() ;
+            t.expect2(qualifier.keyArray()).is([]) ;
             t.expect3(qualifier.key()).toBeUndefined() ;
             t.expect4(qualifier.value()).toBeUndefined() ;
-            t.expect5(qualifier.conditions().length).toBe(2) ;
+            t.expect5(qualifier.conditions().length).is(2) ;
 
 
-            t.expectA(peoples.filterWithQualifier(qualifier)).toBe([peoples[1]]) ;
+            t.expectA(peoples.filterWithQualifier(qualifier)).is([peoples[1]]) ;
         }) ;
 
         group.unary("Single existence filter OK()", async(t) => {
             const qualifier = TSQualifier.OK<People>('selection') ;
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeFalsy() ;
-            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect2(qualifier.keyArray()).toBe(['selection']) ;
-            t.expect3(qualifier.key()).toBe('selection') ;
+            t.expect0(qualifier.isComposite).false() ;
+            t.expect1(qualifier.isKeyValue).false() ;
+            t.expect2(qualifier.keyArray()).is(['selection']) ;
+            t.expect3(qualifier.key()).is('selection') ;
             t.expect4(qualifier.value()).toBeUndefined() ;
-            t.expect5(qualifier.conditions()).toBe([]) ;
+            t.expect5(qualifier.conditions()).is([]) ;
 
 
-            t.expectA(TSQualifier.OK<People>('selection').filterValues(peoples)).toBe([peoples[6]]) ;
+            t.expectA(TSQualifier.OK<People>('selection').filterValues(peoples)).is([peoples[6]]) ;
 
         }) ;
 
@@ -166,15 +166,15 @@ export const qualifierGroups = [
             const qualifier = TSQualifier.EQ<People>('homes.address.city', 'Lyon') ; 
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeFalsy() ;
-            t.expect1(qualifier.isKeyValue).toBeTruthy() ;
-            t.expect2(qualifier.keyArray()).toBe(['homes', 'address', 'city']) ;
-            t.expect3(qualifier.key()).toBe('homes.address.city') ;
-            t.expect4(qualifier.value()).toBe('Lyon') ;
-            t.expect5(qualifier.conditions()).toBe([]) ;
+            t.expect0(qualifier.isComposite).false() ;
+            t.expect1(qualifier.isKeyValue).true() ;
+            t.expect2(qualifier.keyArray()).is(['homes', 'address', 'city']) ;
+            t.expect3(qualifier.key()).is('homes.address.city') ;
+            t.expect4(qualifier.value()).is('Lyon') ;
+            t.expect5(qualifier.conditions()).is([]) ;
 
 
-            t.expectA(qualifier.filterValues(peoples)).toBe([peoples[7]]) ;
+            t.expectA(qualifier.filterValues(peoples)).is([peoples[7]]) ;
         }) ;
 
         group.unary("Single equalifty filter LIKE()", async(t) => {
@@ -182,15 +182,15 @@ export const qualifierGroups = [
 
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeFalsy() ;
-            t.expect1(qualifier.isKeyValue).toBeTruthy() ;
-            t.expect2(qualifier.keyArray()).toBe(['description']) ;
-            t.expect3(qualifier.key()).toBe('description') ;
-            t.expect4(qualifier.value()).toBe('%che_in%') ;
-            t.expect5(qualifier.conditions()).toBe([]) ;
+            t.expect0(qualifier.isComposite).false() ;
+            t.expect1(qualifier.isKeyValue).true() ;
+            t.expect2(qualifier.keyArray()).is(['description']) ;
+            t.expect3(qualifier.key()).is('description') ;
+            t.expect4(qualifier.value()).is('%che_in%') ;
+            t.expect5(qualifier.conditions()).is([]) ;
 
     
-            t.expectA(qualifier.filterValues(peoples)).toBe([
+            t.expectA(qualifier.filterValues(peoples)).is([
                 peoples[4],
                 peoples[6],
                 peoples[8]                                    
@@ -209,16 +209,16 @@ export const qualifierGroups = [
             
             t.register('qualifier', qualifier) ;
 
-            t.expect0(qualifier.isComposite).toBeTruthy() ;
-            t.expect1(qualifier.isKeyValue).toBeFalsy() ;
-            t.expect2(qualifier.keyArray()).toBe([]) ;
+            t.expect0(qualifier.isComposite).true() ;
+            t.expect1(qualifier.isKeyValue).false() ;
+            t.expect2(qualifier.keyArray()).is([]) ;
             t.expect3(qualifier.key()).toBeUndefined() ;
             t.expect4(qualifier.value()).toBeUndefined() ;
-            t.expect5(qualifier.conditions().length).toBe(3) ; // 2 for the inRange(), 1 for the or()
-            t.expect6(qualifier.conditions()[2]?.conditions()?.length).toBe(3) ;
+            t.expect5(qualifier.conditions().length).is(3) ; // 2 for the inRange(), 1 for the or()
+            t.expect6(qualifier.conditions()[2]?.conditions()?.length).is(3) ;
 
 
-            t.expectA(qualifier.filterValues(peoples)).toBe([peoples[2], peoples[6]]) ;
+            t.expectA(qualifier.filterValues(peoples)).is([peoples[2], peoples[6]]) ;
 
         }) ;
 

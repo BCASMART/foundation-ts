@@ -422,8 +422,8 @@ export class TSExpectAgent {
     public toBeUnordered(aValue:Set<any>|Array<any>)
     { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._step.pass() ; }
 
-    public eq(aValue:any):boolean       { return this.toBe(aValue) ; }
-    public neq(aValue:any):boolean      { return this.notToBe(aValue) ; }
+    public eq = this.toBe ;
+    public neq = this.notToBe ;
 
     public gt(aValue:any):boolean       { return $compare(aValue, this._value) !== Ascending  ? this._compfail(aValue, '>') : this._step?.pass() ; }
     public gte(aValue:any):boolean      { return $compare(aValue, this._value) === Descending ? this._compfail(aValue, '≥') : this._step?.pass() ; }

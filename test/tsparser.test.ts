@@ -71,7 +71,6 @@ export function parserStructureTestValue():any {
     return {
         name:   "Monserat",
         firstName: "Henry",
-        language: 'fr',
         mail:   'h.monserat@orange.fr',
         mobile: '+(33 1) 45 24 70 00',
         bgcolor: '#ff0000',
@@ -93,7 +92,7 @@ export function parserStructureTestInterpretation() {
     return {
         name:   "Monserat",
         firstname: "Henry",
-        language: 'fr',
+        language: 'en',
         mail:   'h.monserat@orange.fr',
         mobile: $phonenumber(v.mobile),
         bgcolor: TSColor.fromString(v.bgcolor),
@@ -168,15 +167,34 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             v.plus = '+' ;                          _i(13, v) ;
 
             v = parserStructureTestValue() ;
-            v.language = null ;
+            v.language = 'fr' ;
             if (_v(14, v)) {
                 const r = parserStructureTestInterpretation() ;
-                r.language = 'en' ;
+                r.language = 'fr' ;
                 const res = struct!.rawInterpret(v) ;
                 if (!t.expectA(res).is(r)) {
                     console.log($inspect(struct!.toJSON(), 10)) ;
                 }
             }
+            v = parserStructureTestValue() ;
+            v.language = null ;
+            if (_v(15, v)) {
+                const r = parserStructureTestInterpretation() ;
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expectB(res).is(r)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+            }
+            v = parserStructureTestValue() ;
+            v.language = undefined ;
+            if (_v(16, v)) {
+                const r = parserStructureTestInterpretation() ;
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expectC(res).is(r)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+            }
+
 
             v.company.tags.push('other') ;          _v(20, v) ;
             v.company.tags = [] ;                   _v(21, v) ;

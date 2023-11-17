@@ -6,20 +6,20 @@ export const countriesGroups = TSTest.group("Testing TSCountry class", async (gr
     const C = TSCountry.countries() ;
 
     group.unary('EEC countries', async (t) => {
-        t.expect(C.filter(c => c.EEC).length).toBe(27) ;
+        t.expect(C.filter(c => c.EEC).length).is(27) ;
     })
 
     group.unary("Continents' countries", async (t) => {
         const NA_countries = 4 ; // for now USA, Canada, Greenland and Mexico
         const SA_countries = 1 ; // for now BRAZIL
-        t.expect0(C.filter(c => c.continent === Continents.EU).length).toBe(C.length-NA_countries-SA_countries) ;
-        t.expect1(C.filter(c => c.continent === Continents.NA).length).toBe(NA_countries) ;
-        t.expect2(C.filter(c => c.continent === Continents.SA).length).toBe(SA_countries) ;
+        t.expect0(C.filter(c => c.continent === Continents.EU).length).is(C.length-NA_countries-SA_countries) ;
+        t.expect1(C.filter(c => c.continent === Continents.NA).length).is(NA_countries) ;
+        t.expect2(C.filter(c => c.continent === Continents.SA).length).is(SA_countries) ;
     })
 
     group.unary('Countries accepting EURO as currency', async (t) => {
-        t.expect0(C.filter(c => c.currency === Currencies.EUR).length).toBe(26) ;
-        t.expect1(C.filter(c => c.EEC && c.currency === Currencies.EUR).length).toBe(20) ;
+        t.expect0(C.filter(c => c.currency === Currencies.EUR).length).is(26) ;
+        t.expect1(C.filter(c => c.EEC && c.currency === Currencies.EUR).length).is(20) ;
         t.expect2(TSCountry.country("croatia")?.currency).is(Currencies.EUR) ;
     }) ;
 

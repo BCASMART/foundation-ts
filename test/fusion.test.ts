@@ -81,12 +81,12 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
     group.unary("String untouched", async(t) => {
         const s = ' Ceci est une belle chaîne de {\n caractères}' ;
         const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
-        if (t.expect0(template).toBeOK()) {
+        if (t.expect0(template).OK()) {
             let errors:string[] = [] ;
             const res = template!.fusionWithDataContext({myData:1}, {}, errors) ;
             t.register('template', $inspect(template?.source)) ;
             t.register('errors', $inspect(errors)) ;
-            t.expect1(res).toBe(s) ;
+            t.expect1(res).is(s) ;
         }
     }) ;
     group.unary("Simple vars replacement", async(t) => {
@@ -95,37 +95,37 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         const r = 'Cette lettre est adressée à M. John Smith (Consultant) [0, 1]' ;
         const template = TSFusionTemplate.fromString(q, { debugParsing:false }) ;
         const data = {title:'M.', firstName:'John', lastName:'Smith'} ;
-        if (t.expect0(template).toBeOK()) {
+        if (t.expect0(template).OK()) {
             let errors:string[] = [] ;
             const res = template!.fusionWithDataContext(data, glob, errors) ;
             t.register('errors', $inspect(errors)) ;
-            t.expect1(res).toBe(r) ;
+            t.expect1(res).is(r) ;
 
-            t.expectA(template?.globalVariables).toBe(['job']) ;
-            t.expectB(template?.userVariables).toBe([]) ;
+            t.expectA(template?.globalVariables).is(['job']) ;
+            t.expectB(template?.userVariables).is([]) ;
             t.expectC(template?.systemVariables).toBeUnordered(['count', 'index']) ;
             t.expectD(template?.rootVariables).toBeUnordered(['title', 'lastName']) ;
-            t.expectE(template?.localVariables).toBe(['firstName']) ;
+            t.expectE(template?.localVariables).is(['firstName']) ;
             t.expectY(template?.variables).toBeUnordered(['title', 'firstName', 'lastName', 'job', 'index', 'count']) ;
             t.expectZ(template?.variables).toBeUnordered(['job', 'index', 'firstName', 'title', 'lastName', 'count']) ; // this one is for testing the tester
         }
 
         const template2 = TSFusionTemplate.fromString(s) ;
-        if (t.expect2(template2).toBeOK()) {
+        if (t.expect2(template2).OK()) {
             let errors1:string[] = [] ;
             const res = template2!.fusionWithDataContext(data, glob, errors1) ;
             t.register('errors(1)', $inspect(errors1)) ;
-            t.expect3(res).toBe(r) ;
+            t.expect3(res).is(r) ;
 
             let errors2:string[] = [] ;
             const res2 = template2?.fusionWithDataContext(new P('M.', 'John', 'Smith'), glob, errors2) ;
             t.register('errors(2)', $inspect(errors2)) ;
-            t.expect4(res2).toBe(r) ;
+            t.expect4(res2).is(r) ;
 
             let errors3:string[] = [] ;
             const res3 = template2?.fusionWithDataContext(p, glob, errors3) ;
             t.register('errors(3)', $inspect(errors3)) ;
-            t.expect5(res3).toBe(r) ;
+            t.expect5(res3).is(r) ;
         }
 
     }) ;
@@ -151,7 +151,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         const s = "{{starter}} le {{toto.date.toString('%A, %e %B %Y à %Hh%M')}}. Le fil fait {{streamLen#:{{$meters(current,0)}}}}." ;
 
         const template = TSFusionTemplate.fromString(s, { debugParsing:false, addStandardGlobalFunctions:true }) ;
-        if (t.expect0(template).toBeOK()) {
+        if (t.expect0(template).OK()) {
             let errors:string[] = [] ;
             const res = template?.fusionWithDataContext(context, glob, errors) ;
             t.register('errors', $inspect(errors)) ;
@@ -161,7 +161,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         const sA = "Nous sommes le {{toto.date.dateByAdding(0,0,1,0,2)#:{{self.toString('%A, %e %B %Y à \\\"%Hh%M\\\"')}}}}." ;
         const templateA = TSFusionTemplate.fromString(sA, { debugParsing:false }) ;
         const expResA = "Nous sommes le mercredi, 9 mai 1945 à \"23h03\"." ; 
-        if (t.expectA(templateA).toBeOK()) {
+        if (t.expectA(templateA).OK()) {
             let errors:string[] = [] ;
             const resA = templateA?.fusionWithDataContext({ toto:{ date: D}}, glob, errors) ;
             t.register('errors{A}', $inspect(errors)) ;
@@ -169,7 +169,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         }
         const sX = "Nous sommes le {{toto.date.dateByAdding(0,0,1,0,2,6)#:{{toString('%A, %e %B %Y \\U00e0 \\\"%Hh%M\\\"')}}}}." ;
         const templateX = TSFusionTemplate.fromString(sX, { debugParsing:false }) ;
-        if (t.expectX(templateA).toBeOK()) {
+        if (t.expectX(templateA).OK()) {
             let errors:string[] = [] ;
             const resX = templateX?.fusionWithDataContext({ toto:{ date: D}}, glob, errors) ;
             t.register('errors{X}', $inspect(errors)) ;
@@ -182,26 +182,26 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         const s = 'Cette lettre est adressée à {{.title}} {{@firstName}} {{.self.lastName}}{{collaborators.length?:\nCollaborators:\n{{.collaborators#:{{_position}} - {{title}} {{self.firstName}} {{.lastName}} [{{..test}}]{{_remaining?:,}}\n}}}}' ;
         const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
         const resC = 'Cette lettre est adressée à M. John Smith\nCollaborators:\n1 - M. John Adams [T],\n2 - gal Georges Washington [T]\n' ;
-        if (t.expect0(template).toBeOK()) {
+        if (t.expect0(template).OK()) {
             let errors:string[] = [] ;
             const res4 = template?.fusionWithDataContext(p, glob, errors) ;
             t.register('errors{0}', $inspect(errors)) ;
-            t.expect1(res4).toBe(resC) ;
+            t.expect1(res4).is(resC) ;
         }
         const d = TSData.fromString(s, mac) ;
-        if (t.expect2(d).toBeOK()) {
+        if (t.expect2(d).OK()) {
             const templateA = TSFusionTemplate.fromData(d!, mac, { debugParsing:false })
-            if (t.expectA(templateA).toBeOK()) {
+            if (t.expectA(templateA).OK()) {
                 let errors:string[] = [] ;
                 const resA = templateA?.fusionWithDataContext(p, glob, errors) ;
                 t.register('errors{A}', $inspect(errors)) ;
-                t.expectB(resA).toBeOK() ;
-                t.expectC(resA?.toString(mac)).toBe(resC) ;
+                t.expectB(resA).OK() ;
+                t.expectC(resA?.toString(mac)).is(resC) ;
                 let errorsBis:string[] = [] ;
                 const resAM = templateA?.fusionStringWithDataContext(p, glob, errorsBis) ;
                 t.register('errors{A-bis}', $inspect(errorsBis)) ;
-                t.expectD(resAM).toBeOK() ;
-                t.expectE(resAM).toBe(resC) ;
+                t.expectD(resAM).OK() ;
+                t.expectE(resAM).is(resC) ;
             }
         }
     }) ;
@@ -215,16 +215,16 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             debugParsing:false, 
             procedures:{ name:richTextName } 
         }) ;
-        if (t.expect0(template).toBeOK()) {
+        if (t.expect0(template).OK()) {
             let errors:string[] = [] ;
             const res = template?.fusionWithDataContext(p, glob, errors) ;
             t.register('errors/0', $inspect(errors)) ;
-            t.expect1(res).toBe(resC) ;
+            t.expect1(res).is(resC) ;
 
-            t.expectA(template?.globalVariables).toBe([]) ;
-            t.expectB(template?.userVariables).toBe([]) ;
+            t.expectA(template?.globalVariables).is([]) ;
+            t.expectB(template?.userVariables).is([]) ;
             t.expectC(template?.variables).toBeUnordered(['title', 'firstName', 'lastName', 'collaborators', 'position', 'remaining', 'name']) ;
-            t.expectD(template?.procedures).toBe(['name']) ;
+            t.expectD(template?.procedures).is(['name']) ;
             t.expectE(template?.localVariables).toBeUnordered(['firstName', 'lastName', 'title', 'collaborators']) ;
             t.expectF(template?.systemVariables).toBeUnordered(['remaining', 'position']) ;
         }
@@ -235,11 +235,11 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             endingMark:']=',
             separator:'&&'
         }) ;
-        if (t.expect2(template2).toBeOK()) {
+        if (t.expect2(template2).OK()) {
             let errors:string[] = [] ;
             const res = template2?.fusionWithDataContext(p, glob, errors) ;
             t.register('errors/2', $inspect(errors)) ;
-            t.expect3(res).toBe(resC) ;
+            t.expect3(res).is(resC) ;
         }
         const template4 = TSFusionTemplate.fromString(s4, {
             debugParsing:false, 
@@ -254,12 +254,12 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             debugParsing:false, 
             procedures:{ richTextName:richTextName }, // richTextName procedure will never be called since we exepect a '*name' proc in template
         }) ;
-        if (t.expect5(template5).toBeOK()) {
+        if (t.expect5(template5).OK()) {
             const errors:string[] = [] ;
             const res = template5?.fusionWithDataContext(p, glob, errors) ;
             const truncatedResult = '&0Cette lettre est adressée à M. John Smith\nCollaborators:\n1 - ,\n2 - \n' ;
-            t.expect6(res).toBe(truncatedResult) ;
-            if (!t.expect7(errors.length).toBe(4)) {
+            t.expect6(res).is(truncatedResult) ;
+            if (!t.expect7(errors.length).is(4)) {
                 const print = errors.map(s => s.includes('!ERROR!:') ? '&R&w ERROR &0&o'+s.slice(7)+'&0' : '&a'+s+'&0')
                 group.description('Errors and warnings from &0&pexpect7()&y:\n&o'+print.join('\n')) ;
             }
@@ -275,7 +275,7 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         p1.addCollaborator({title:'Général', firstName:'Charles', lastName:'de Gaulle'}) ;
         const r = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à M. John Smith</div><div style="background:red;"><h2>Collaborators:</h2><ul><li>[1] M. John ADAMS,</li><li>[2] Gal Georges WASHINGTON,</li><li>[3] G&eacute;n&eacute;ral Charles DE GAULLE</li></ul></body></html>' ;
 
-        if (t.expect0(d).toBeOK()) {
+        if (t.expect0(d).OK()) {
             const template = TSFusionTemplate.fromHTMLData(d!, { 
                 debugParsing:false, 
                 procedures:{ name:htmlName } 
@@ -283,56 +283,56 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
             
             t.expectZ(template).OK() ;
 
-            if (t.expect1(template?.source.toString(mac)).toBe(i)) {
+            if (t.expect1(template?.source.toString(mac)).is(i)) {
                 let errors:string[] = [] ;
                 const res = template?.fusionStringWithDataContext(p1, glob, errors) ;
                 t.register('errors[1]', $inspect(errors)) ;
-                t.expect2(res).toBe(r) ;
+                t.expect2(res).is(r) ;
             }        
         }
 
         const s2 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à {{title}} {{firstName}} {{lastName}}</div><fusion type="if" path="collaborators.length"><div style="background:red;"><h2>Collaborators:</h2><ul><fusion type="enum" path="collaborators"><li>[{{_position}}] <fusion context="function" path="name">{{_remaining?:,}}</li></fusion></ul></fusion></body></html>' ;
         const d2 = TSData.fromString(s2, mac) ;
-        if (t.expect4(d2).toBeOK()) {
+        if (t.expect4(d2).OK()) {
             const template = TSFusionTemplate.fromHTMLData(d2!, { 
                 debugParsing:false, 
                 procedures:{ name:htmlName } 
             }) ;
-            t.expect5(template?.source.toString(mac)).toBe(i) ;
+            t.expect5(template?.source.toString(mac)).is(i) ;
         }
 
         const s3 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à <fusion path=title> <fusion path = "firstName"  / > <fusion   path   =   lastName    /></div><fusion type="if" path="collaborators.length"><div style="background:red;"><h2>Collaborators:</h2><ul><fusion type="enum" path="collaborators"><li>[<fusion context="system" path="position" />] <fusion context="function" path="name"><fusion context="sys" path="remaining" type="test">,</fusion></li></fusion  ></ul></fusion ></body></html>' ;
         const d3 = TSData.fromString(s3, ansi) ;
-        if (t.expect6(d3).toBeOK()) {
+        if (t.expect6(d3).OK()) {
             const i3 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à {{.title}} {{.firstName}} {{.lastName}}</div>{{.collaborators.length?:<div style="background:red;"><h2>Collaborators:</h2><ul>{{.collaborators#:<li>[{{_position}}] {{*name}}{{_remaining?:,}}</li>}}</ul>}}</body></html>' ;
             const template = TSFusionTemplate.fromHTMLData(d3!, { 
                 debugParsing:false, 
                 procedures:{ name:htmlName } 
             }) ;
-            if (t.expect7(template?.source.toString(ansi)).toBe(i3)) {
+            if (t.expect7(template?.source.toString(ansi)).is(i3)) {
                 let errors:string[] = [] ;
                 const res = template?.fusionWithDataContext(p1, glob, errors) ;
                 t.register('errors[3]', $inspect(errors)) ;
-                t.expect8(res).toBeOK() ;
-                t.expect9(res?.toString(ansi)).toBe(r) ;
+                t.expect8(res).OK() ;
+                t.expect9(res?.toString(ansi)).is(r) ;
             }
         }
 
         const s4 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à <fusion path=title> <fusion path = "firstName"  / > <fusion   path   =   lastName    /></div><fusion type="if" path="collaborators.length"><div style="background:red;"><h2>Collaborators:</h2><ul><fusion type="enum" path="collaborators"><li>[<fusion context="system" path="position" />] <fusion context="function" path="name"><fusion context="sys" path="remaining" type="test">,</fusion></li></fusion  ></ul></fusion ><fusion path="insideHTML.toHTMLContent"></body></html>' ;
         const d4 = TSData.fromString(s4, ansi) ;
-        if (t.expectA(d4).toBeOK()) {
+        if (t.expectA(d4).OK()) {
             const i4 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à {{.title}} {{.firstName}} {{.lastName}}</div>{{.collaborators.length?:<div style="background:red;"><h2>Collaborators:</h2><ul>{{.collaborators#:<li>[{{_position}}] {{*name}}{{_remaining?:,}}</li>}}</ul>}}{{.insideHTML.toHTMLContent}}</body></html>' ;
             const r4 = '<!doctype html><html><head><meta charset="MacRoman"></head><body><div>Lettre adressée à M. John Smith</div><div style="background:red;"><h2>Collaborators:</h2><ul><li>[1] M. John ADAMS,</li><li>[2] Gal Georges WASHINGTON,</li><li>[3] G&eacute;n&eacute;ral Charles DE GAULLE</li></ul><div style="background:#FF00">Ceci est assur&eacute;ment une r&eacute;ussite</div></body></html>' ;
             const template = TSFusionTemplate.fromHTMLData(d4!, { 
                 debugParsing:false, 
                 procedures:{ name:htmlName } 
             }) ;
-            if (t.expectB(template?.source.toString(ansi)).toBe(i4)) {
+            if (t.expectB(template?.source.toString(ansi)).is(i4)) {
                 let errors:string[] = [] ;
                 const res = template?.fusionWithDataContext(p1, glob, errors) ;
                 t.register('errors[4]', $inspect(errors)) ;
-                t.expectC(res).toBeOK() ;
-                t.expectD(res?.toString(ansi)).toBe(r4) ;
+                t.expectC(res).OK() ;
+                t.expectD(res?.toString(ansi)).is(r4) ;
             }
         }
 

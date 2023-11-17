@@ -215,7 +215,7 @@ export abstract class TSParser {
     public abstract toJSON(): object ;
     
     public toString(): string { return $inspect(this.toJSON(), 15) ; }
-
+    public includedDefaultValue():any { return undefined ; }
 
     protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean { 
         if (this.mandatory && !$ok(value)) {
@@ -244,7 +244,9 @@ class TSDictionaryParser extends TSParser {
         if (!(keysParser instanceof TSLeafParser) || !keysParser.isKey) {
             this.errors.push('_keysType field is not a valid node key definition') 
         }
-
+        if ($ok(keysParser.includedDefaultValue()) || $ok(valuesParser.includedDefaultValue())) {
+            this.errors.push(`_keysParser or _valuesParser cannot contain a default value`) ;
+        }
         if ($defined(m) && !$isbool(m)) { this.errors.push(`_mandatory field should be a boolean`) ; }
         if ($ok(node._keysCase)) { this.errors.push(`_keysCase field should not be set for a dictionary`) ; }
         
@@ -315,6 +317,7 @@ class TSObjectParser extends TSParser {
     private _keyTransform:(s:string)=>string = (s:string) => s ;
     private _keysCase:TSCase = TSCase.standard ;
     private _acceptsUncheckedItems:boolean ;
+    private _defaultValueKeys:string[] = [] ; 
 
     public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>, acceptsUncheckedItems:boolean) {
         const m = node._mandatory ;
@@ -334,6 +337,12 @@ class TSObjectParser extends TSParser {
         this._acceptsUncheckedItems = acceptsUncheckedItems ;
         this._itemsParsers = itemsParsers ;
         this._count = $objectcount(itemsParsers) ;
+        
+        const entries = Object.entries(itemsParsers) ;
+        for (let [k, p] of entries) {
+            if ($ok(p.includedDefaultValue())) { this._defaultValueKeys.push(k) ; }
+        }
+
     }
 
     public nodeType():TSParserNodeType { return 'object' ; }
@@ -375,12 +384,15 @@ class TSObjectParser extends TSParser {
                 doomed = true ; continue ;
             }
             const struct = this._itemsParsers[k] ;
-            if (!$ok(struct) && !this._acceptsUncheckedItems) {
-                _serror(opts, path, `.${k} is unknown`) ;
-                doomed = true ; continue ;
+            if (!$ok(struct)) {
+                if (!this._acceptsUncheckedItems) {
+                    _serror(opts, path, `.${k} is unknown`) ;
+                    doomed = true ; 
+                }
+                continue ;
             }
             // @ts-ignore
-            if (!struct._validate(v, `${p}.${k}`, opts)) { doomed = true ; continue ; }
+            if (!struct!._validate(v, `${p}.${k}`, opts)) { doomed = true ; continue ; }
             founds.add(k) ;
         }
         if (founds.size < this._count) {
@@ -410,6 +422,12 @@ class TSObjectParser extends TSParser {
             }
             else {
                 ret[k] = v ; // if this just a non described item, we keep it as it was
+            }
+        }
+        for (let k of this._defaultValueKeys) {
+            const kf = this._keyTransform(k) ;
+            if (!$ok(ret[kf])) {
+                ret[kf] = this._itemsParsers[k].includedDefaultValue() ;
             }
         }
         return this._transform(ret, opts) ;
@@ -452,6 +470,10 @@ class TSArrayParser extends TSParser {
         if (min > max) {
             errors.push(`maximal size < minimal size for array node`) ;
         }
+        if ($ok(itemParser.includedDefaultValue())) {
+            errors.push(`_itemsParser cannot contain a default value`) ;
+        }
+
         super($ok(m) ? !!m : min > 0, node._checker, node._transformer, node._natifier as any) ;
 
         if ($defined(m) && !$isbool(m)) { this.errors.push(`_mandatory field should be a boolean`) ; }
@@ -624,6 +646,7 @@ class TSLeafParser extends TSParser {
     public get isKey() { return !!this._manager.iskey ; }
 
     public nodeType():TSParserNodeType { return this._type ; }
+    public includedDefaultValue():any { return this._defaultValue ; }
 
     public toJSON():object { return {
         _type: this._type,
@@ -632,7 +655,8 @@ class TSLeafParser extends TSParser {
         _conversion:  $value(this._conversion as any, 'none'),
         _check: this._check,
         _transform: this._transform,
-        _natify: this._natify
+        _natify: this._natify,
+        _defaultValue: this._defaultValue
     } ; }
 
     private _localOptions(opts:Nullable<TSParserOptions>):TSParserActionOptions|undefined {
