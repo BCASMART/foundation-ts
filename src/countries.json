@@ -447,7 +447,6 @@
             "French Republic",
             "Γαλλική Δημοκρατία",
             "Französische Republik",
-            "República Francesa",
             "República Francesa"
         ],
         "currency": "EUR",
@@ -525,7 +524,7 @@
             "el": "Ηνωμένο Βασίλειο"
         },
         "aliases":[
-            "UK", "United Kingdom of Great Britain and Northern Ireland",
+            "UK", "U.K.", "U.K", "United Kingdom of Great Britain and Northern Ireland",
             "Angleterre", "England", "Inglaterra", "Inghilterra", "Inglaterra", "Engeland", 
             "Britain", "Great Britain", "Grande Bretagne", "Großbritannien", "Gran Bretaña", "Gran Bretagna", "Grã-Bretanha", "Brittannië",
             "Αγγλία", "Βρετανία"
@@ -1149,7 +1148,7 @@
         "names":{
             "fr": "Serbie",
             "en": "Serbia",
-            "de": "Serbisch", 
+            "de": "Serbien", 
             "es": "Serbio",
             "it": "Serbo",
             "pt": "Sérvio",
@@ -1336,6 +1335,7 @@
             "Verenigde Staten",
             "United States",
             "USA",
+            "U.S.A",
             "U.S.A.",
             "Ηνωμένες πολιτείες"
         ],
@@ -1365,7 +1365,7 @@
         "aliases":[
             "El Vaticano",
             "Città del Vaticano", "Città Vaticano", "Cité du Vatican", "Vatican City", "Vatican City State", "Vaticaanstad", "Ciudad del Vaticano", 
-            "Staat der Vatikanstadt", "Vatikanstadt", "Stato della Città del Vaticano", "Estado de la Ciudad del Vaticano", "Vatican State", "État du Vatican", "Etat de la Cité du Vatican",
+            "Staat der Vatikanstadt", "Vatikanstadt", "Stato della Città del Vaticano", "Estado de la Ciudad del Vaticano", "Vatican State", "État du Vatican", "État de la Cité du Vatican",
             "Heilige stoel", "Holy See", "Santa Sede", "Saint-Siège", "Saint Siège",
             "Colina do Vaticano", "Vatican Hill", "Colle Vaticano"
         ],
