@@ -1,5 +1,5 @@
-import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned } from "./commons";
-import { $default, $locales, Locales } from "./tsdefaults";
+import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned, $value } from "./commons";
+import { $default, $locales, $unitDefinition, Locales, UnitDefinition } from "./tsdefaults";
 import { 
     $dayisvalid, 
     $timeisvalid, 
@@ -532,6 +532,56 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
     return $durationNumber2StringFormat($duration(comps), format) ;
+}
+
+export function $durationDescription(
+    comps:TSDurationComp|number, 
+    depth?:Nullable<'days'|'hours'|'minutes'|'seconds'>, 
+    locale?:Nullable<language|country|TSCountry|Locales>):string 
+{
+    // we reexport in number before constructing the string in order
+    // to normalize the number of days, hours, minutes and seconds
+    let duration = typeof comps === 'number' ? comps as number : $duration(comps) ;
+    let c = $isunsigned(duration) ? $durationcomponents(duration) : null ;
+    if ($ok(c)) {
+        switch (depth) {
+            case 'days':
+                if ((duration % TSDay) >= TSDay/2) { c!.days ++ ; } 
+                c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                break ;
+            case 'hours':
+                if ((duration % TSHour) >= TSHour/2) {
+                    c!.hours++ ; if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
+                }
+                c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                break ;
+            case 'minutes':
+                if (c!.seconds >= 30) {
+                    c!.minutes++ ;
+                    if (c!.minutes === 60) { c!.hours ++ ; c!.minutes = UINT_MIN ; }
+                    if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
+                }
+                c!.seconds = UINT_MIN ;
+                break ;
+            default:
+                // full depth = seconds
+                break ;
+        }
+        const a:string[] = [] ;
+        
+        function _addRep(key:string, value:number, defaultDefinition:UnitDefinition) {
+            const def = $value($unitDefinition(key, locale), defaultDefinition) ;
+            a.push(`${value} ${value===1?def?.singular:def.plural}`) ;
+        }
+
+        if (c!.days > 0)    { _addRep('day',    c!.days,    { singular:'day', plural:'days', unit:'' }) ; }
+        if (c!.hours > 0)   { _addRep('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }) ; }
+        if (c!.minutes > 0) { _addRep('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }) ; }
+        if (c!.seconds > 0) { _addRep('second', c!.seconds, { singular:'second', plural:'seconds', unit:'' }) ; }
+
+        return a.join(' ') ;
+    }
+    return '' ;
 }
 
 

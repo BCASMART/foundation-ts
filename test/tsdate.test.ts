@@ -13,11 +13,43 @@ import {
     TSMaxTimeStamp,
     TSWeek
 } from "../src/tsdate";
-import { TSDateForm } from "../src/tsdatecomp";
+import { $durationDescription, TSDateForm } from "../src/tsdatecomp";
 import { Ascending, Descending, Same } from "../src/types";
 import { TSTest } from '../src/tstester';
 
 export const dateGroups = [
+    TSTest.group("Testing $durationDescription() function", async (group) => {
+        const D = new TSDate(1945, 5, 8, 23, 1, 0) ; // armistice signature
+        const T = 5*TSDay+31*TSHour+59*TSMinute+1 ;
+        const R = D.dateByAddingTime(T) ;
+        group.unary('asserting base data is correct', async (t) => {
+            t.expect1($timeBetweenDates(D, R)).is(T) ;
+            t.expect2($timeBetweenDates(R, D)).is(-T) ;
+        }) ;
+        group.unary('asserting common errors', async(t) => {
+            t.expect1($durationDescription(-T)).toBe('') ;
+            t.expect2($durationDescription(0)).toBe('') ;
+            t.expect3($durationDescription(NaN)).toBe('') ;
+            t.expect4($durationDescription(1.56)).toBe('') ;
+            t.expect5($durationDescription(Number.POSITIVE_INFINITY)).toBe('') ;
+            t.expect6($durationDescription(Number.NEGATIVE_INFINITY)).toBe('') ;
+        }) ;
+        group.unary('asserting representation is correct', async(t) => {
+            t.expect1($durationDescription(T)).toBe('6 jours 7 heures 59 minutes 1 seconde') ;
+            t.expect2($durationDescription(T, 'days')).toBe('6 jours') ;
+            t.expect2($durationDescription(T, 'hours')).toBe('6 jours 8 heures') ;
+            t.expect3($durationDescription(T, 'minutes')).toBe('6 jours 7 heures 59 minutes') ;
+            t.expect4($durationDescription(T+29, 'minutes')).toBe('6 jours 8 heures') ;
+            t.expect5($durationDescription(T+89, 'minutes')).toBe('6 jours 8 heures 1 minute') ;
+            
+            t.expectA($durationDescription(T, undefined, "en")).toBe('6 days 7 hours 59 minutes 1 second') ;
+            t.expectB($durationDescription(T, 'days', "en")).toBe('6 days') ;
+            t.expectC($durationDescription(T, 'hours', "en")).toBe('6 days 8 hours') ;
+            t.expectD($durationDescription(T, 'minutes', "en")).toBe('6 days 7 hours 59 minutes') ;
+            
+            t.expectZ($durationDescription(T, undefined, "el")).toBe('6 ημέρες 7 ώρες 59 λεπτά 1 δευτερόλεπτο') ;
+        }) ;
+    }),
     TSTest.group("Testing code $dayOfWeek() function", async (group) => {
         const T = $timestamp(2022,3,28) ;
         for (let i = 0 ; i < 7 ; i++) {

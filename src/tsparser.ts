@@ -243,6 +243,7 @@ class TSDictionaryParser extends TSParser {
 
         if (!(keysParser instanceof TSLeafParser) || !keysParser.isKey) {
             this.errors.push('_keysType field is not a valid node key definition') 
+            //this.errors.push(`_keysType instance is ${keysParser?.constructor.name}`) 
         }
         if ($ok(keysParser.includedDefaultValue()) || $ok(valuesParser.includedDefaultValue())) {
             this.errors.push(`_keysParser or _valuesParser cannot contain a default value`) ;
@@ -572,7 +573,7 @@ class TSLeafParser extends TSParser {
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
         'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
-        'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0},
+        'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0, iskey:true},
         'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
         'uint32':    { valid:(v:any) => _isInt(v, 0, UINT32_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT32_MAX), iskey:true },

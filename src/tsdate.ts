@@ -185,6 +185,9 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     public get timestamp():number { return this._timestamp ; }
 
     public isLeap() : boolean { return $isleap($components(this._timestamp).year); }
+    public isFuture() : boolean { return this._timestamp >= TSMaxTimeStamp ; }
+    public isPast() : boolean { return this._timestamp <= -TSSecsFrom00010101To20010101 ; }
+    public isFinite() : boolean { return !this.isPast() && !this.isFuture() ; }
 
 	public dateWithoutTime() { return new TSDate($timestampWithoutTime(this._timestamp)) ; }
     public timeSinceDate(d:TSDate) : number { return this._timestamp - d.timestamp ; }

@@ -1,4 +1,4 @@
-import { $fpad, $meters, $octets, $round, $unit } from "../src/number";
+import { $bytes, $fpad, $meters, $round, $unit } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UINT32_MAX, UINT_MAX } from "../src/types";
 
@@ -61,18 +61,21 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectM(UINT32_MAX.fpad2('-')).is(UINT32_MAX.toString()) ;
     }) ;
 
-    group.unary("$octets() function", async(t) => {
+    group.unary("$bytes() function", async(t) => {
         const s = 1324756810 ;
-        t.expect0($octets(1324)).is("1.32 ko") ;
-        t.expect1($octets(132475)).is("132.47 ko") ;
-        t.expect2($octets(132475.1)).is("132.48 ko") ;
-        t.expect3($octets(1324756)).is("1.32 Mo") ;
-        t.expect4($octets(13247568)).is("13.25 Mo") ;
-        t.expect5($octets(132475681)).is("132.48 Mo") ;
-        t.expect6($octets(1324756810, 3)).is("1.325 Go") ;
-        t.expect7(s.octets(3)).is("1.325 Go") ;
-        t.expect8($octets(12)).is("12 octets") ;
-        t.expect9($octets(0)).is("0 octets") ;
+        t.expect0($bytes(1324)).is("1.32 ko") ;
+        t.expect1($bytes(132475)).is("132.47 ko") ;
+        t.expect2($bytes(132475.1)).is("132.48 ko") ;
+        t.expect3($bytes(1324756)).is("1.32 Mo") ;
+        t.expect4($bytes(13247568)).is("13.25 Mo") ;
+        t.expect5($bytes(132475681)).is("132.48 Mo") ;
+        t.expect6($bytes(1324756810, 3)).is("1.325 Go") ;
+        t.expect7(s.bytes(3)).is("1.325 Go") ;
+        t.expect8($bytes(12)).is("12 octets") ;
+        t.expect9($bytes(0)).is("0 octets") ;
+        t.expectA($bytes(1324756810, 3, 'en')).is("1.325 GB") ;
+        t.expectB($bytes(1324756810, 3, 'GB')).is("1.325 GB") ;
+        t.expectC($bytes(1324756810, 3, 'de')).is("1.325 GB") ;
     }) ;
 
     group.unary("$meters() function", async(t) => {

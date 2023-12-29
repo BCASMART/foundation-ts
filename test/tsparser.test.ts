@@ -317,7 +317,12 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 shortDays:['string!', 7, 7],
                 shortMonths:['string!', 12, 12],
                 startingWeekDay:'uint8!',
-                timeFormat: 'string!'
+                timeFormat: 'string!',
+                unitNames:{
+                    _mandatory:true,
+                    _keysType:'string',
+                    _valueItemsType:['string!',2,3] /* 0 = singulat unit name, 1 = plural unit name, 2 = optional translated SI abbreviation */
+                }
             }
         } ;
         _validateJSON(t, def, 'tdist/src/locales.json') ;

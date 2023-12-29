@@ -1,4 +1,4 @@
-import { $country, $currency, $language, TSDefaults } from "../src/tsdefaults";
+import { $country, $currency, $language, $unitDefinition, TSDefaults } from "../src/tsdefaults";
 import { Countries, Currencies, Languages } from "../src/types";
 
 import { TSTest } from '../src/tstester';
@@ -67,5 +67,24 @@ export const defaultsGroups = [
             t.expectD($currency('kosovo')).is(Currencies.EUR) ;
             t.expectE($currency('saint siège')).is(Currencies.EUR) ;
         }) ;
+    }),
+    TSTest.group("Testing units", async (group) => {
+        group.unary('$unitDefinition() function', async (t) => {
+            t.expect0($unitDefinition('byte')?.unit).toBe('o') ;
+            t.expect1($unitDefinition('byte', 'en')?.unit).toBe('B') ;
+            t.expect2($unitDefinition('byte', 'el')?.singular).toBe('byte') ;
+            t.expect3($unitDefinition('byte', 'de')?.plural).toBe('Bytes') ;
+            t.expect4($unitDefinition('hour')?.unit).toBe('h') ;
+            t.expect5($unitDefinition('minute')?.unit).toBe('mn') ;
+            t.expect6($unitDefinition('hour', 'GB')?.unit).toBe('h') ;
+            t.expect7($unitDefinition('minute', 'GB')?.unit).toBe('m') ;
+            t.expect8($unitDefinition('hour', 'el')?.unit).toBe('') ;
+            t.expect9($unitDefinition('minute', 'el')?.unit).toBe('') ;
+            t.expectA($unitDefinition('hour', 'GR')?.plural).toBe('ώρες') ;
+            t.expectB($unitDefinition('minute', $country('grece'))?.singular).toBe('λεπτό') ;
+            t.expectC($unitDefinition('unknown')?.singular).KO() ;
+        }) ;
     })
+
+
 ] ;

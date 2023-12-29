@@ -1,4 +1,4 @@
-import { $isobject, $isstring, $length, $ok, $value, $valueornull } from "./commons";
+import { $isarray, $isobject, $isstring, $length, $ok, $value, $valueornull } from "./commons";
 import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os'
@@ -28,8 +28,16 @@ export interface Locales {
     partialTimeFormat:string;
     ampm:string[];
     continentNames:ContinentNames;
-    currencies?:CurrenciesInfo
+    currencies?:CurrenciesInfo;
+    unitNames:TSDictionary<Array<string>>;
 }
+
+export interface UnitDefinition {
+    singular:string ;
+    plural:string ;
+    unit:string ;
+}
+
 export interface DefaultsConfigurationOptions {
     encoding?:Nullable<StringEncoding|TSCharset> ;
     debug?:Nullable<boolean>
@@ -277,3 +285,21 @@ export function $config(path?:Nullable<string>, opts?:Nullable<DefaultsConfigura
 export function $default(key:string):any { return TSDefaults.defaults().getValue(key) ; }
 export function $setdefault(key:string, value:any=undefined) { TSDefaults.defaults().setValue(key, value) ; }
 export function $removedefault(key:string) { TSDefaults.defaults().setValue(key, undefined) ; }
+
+export function $unitDefinition(key:string, locale?:Nullable<language|country|TSCountry|Locales>):Nullable<UnitDefinition> {
+    const loc = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
+    const a = loc.unitNames[key] ;
+    if ($ok(a)) {
+        if ($isarray(a)) {
+            if ($isstring(a[0]) && $isstring(a[1])) {
+                const s = $ftrim(a[0]) ;
+                const p = $ftrim(a[1]) ;
+                if (s.length > 0 && p.length > 0) {
+                    return { singular:s, plural:p, unit:$isstring(a[2]) ? $ftrim(a[2]) : ''} ;
+                }
+            }
+        }
+        return null ;
+    }
+    return undefined ;
+}

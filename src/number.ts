@@ -1,8 +1,10 @@
-import { $isnumber, $isunsigned, $length, $ok, $toint, $tounsigned } from "./commons";
+import { $isnumber, $isunsigned, $length, $ok, $toint, $tounsigned, $value } from "./commons";
 import { $ftrim } from "./strings";
 import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
+import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
-import { int, INT32_MIN, Nullable, uint, UINT32_MAX } from "./types";
+import { $unitDefinition, Locales } from "./tsdefaults";
+import { country, int, INT32_MIN, language, Nullable, uint, UINT32_MAX } from "./types";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
 
@@ -24,6 +26,7 @@ export function $fpad(v: number, pad:number, failedChar?:string) : string {
 
 export interface $unitOptions {
     unitName?:string ;
+    pluralUnitName?:string ;
     unit?:string ;
     minimalUnit?: number ;
     maximalUnit?: number ;
@@ -40,26 +43,46 @@ export function $unit(n: Nullable<number>, opts:$unitOptions = {}) {
     const v = $ok(n) ? n! : 0 ;
     const sn = $ftrim(opts.unitName) ;
     const su = $ftrim(opts.unit) ;
+    const sp = $ftrim(opts.pluralUnitName) ;
 
     const unitName = sn.length ? sn : (su.length ? su : 'm') ;
+    const pluralUnitName = sp.length ? sp : unitName ;
     const minU = $ok(opts.minimalUnit) ? Math.min(0, Math.max(-8, opts.minimalUnit!)) : -8 ;
     const maxU = $ok(opts.maximalUnit) ? Math.min(8, Math.max(0, opts.maximalUnit!)) : 8 ;
     let   dm = $isunsigned(opts.decimalPlaces) ? opts.decimalPlaces as number : 2 ;
     if (v === 0) {
-        if (dm === 0 || opts.ignoreZeroDecimals || (minU === 0 && opts.ignoreMinimalUnitDecimals)) { return '0 ' + unitName ; }
-        return '0.'.padEnd(2+dm, '0') + ' ' + unitName ;
+        if (dm === 0 || opts.ignoreZeroDecimals || (minU === 0 && opts.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
+        return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
     }
     const unit = su.length ? su : unitName.charAt(0) ;
     const i = Math.max(minU, Math.min(maxU, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
     if (i === minU && opts.ignoreMinimalUnitDecimals) { dm = 0 ;}
-    return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?unitName:unit) ;
+    return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?(v===1?unitName:pluralUnitName):unit) ;
 }
 
+export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:Nullable<language|country|TSCountry|Locales>) {
+    const unit = $value($unitDefinition('byte', locale), { singular:'byte', plural:'bytes', unit:'B'}) ;
+    if (unit.unit.length === 0) { unit.unit = 'B' ; }
+    return $unit(n, { 
+        decimalPlaces:decimalPlaces, 
+        unit:unit.unit, 
+        unitName:unit.singular,
+        pluralUnitName:unit.plural, 
+        minimalUnit:0, 
+        ignoreZeroDecimals:true,
+        ignoreMinimalUnitDecimals:true
+    }) ;
+}
+
+/**
+ @deprecated use $bytes() instead
+*/
 export function $octets(n: Nullable<number>, decimalPlaces:number = 2) {
     return $unit(n, { 
         decimalPlaces:decimalPlaces, 
         unit:'o', 
-        unitName:'octets', 
+        unitName:'octet',
+        pluralUnitName:'octets', 
         minimalUnit:0, 
         ignoreZeroDecimals:true,
         ignoreMinimalUnitDecimals:true
@@ -75,6 +98,7 @@ const FoundationHexaLowerChars = '0123456789abcdef' ;
 
 declare global {
     export interface Number {
+        bytes:              (this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>) => string ;
         fpad:               (this:number, pad:number, failedChar?:string) => string ;
         fpad2:              (this:number, failedChar?:string) => string ;
         fpad3:              (this:number, failedChar?:string) => string ;
@@ -85,6 +109,10 @@ declare global {
         isWhiteSpace:       (this:number) => boolean ;
         isStrictWhiteSpace: (this:number) => boolean ;
         meters:             (this:number, decimalPlaces?:number) => string ;
+
+/**
+     @deprecated use bytes() instead
+*/
         octets:             (this:number, decimalPlaces?:number) => string ;
         round:              (this:number, decimalPlaces?:number) => number ;
         singular:           (this:number) => boolean ;
@@ -100,6 +128,9 @@ declare global {
     }
 }
 
+Number.prototype.bytes              = function bytes(this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>):string { 
+    return $bytes(this, decimalPlaces, locale) ; 
+}
 Number.prototype.fpad               = function fpad(this:number, pad:number, failedChar?:string) { return $fpad(this, pad, failedChar) ; }
 Number.prototype.fpad2              = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
 Number.prototype.fpad3              = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }

@@ -19,7 +19,16 @@
             "GBP": { "unit": "Pfund", "units":"Pfund", "subunit":"Penny", "subunits": "Pence" },
             "USD": { "unit": "Dollar", "units":"Dollar", "subunit":"Cent", "subunits": "Cent"}
         },
-        "continentNames": { "AF": "Afrika", "AN": "Antarktis", "AS": "Asien", "EU": "Europa", "NA": "Nordamerika", "OC": "Ozeanien", "SA": "Südamerika"}
+        "continentNames": { "AF": "Afrika", "AN": "Antarktis", "AS": "Asien", "EU": "Europa", "NA": "Nordamerika", "OC": "Ozeanien", "SA": "Südamerika"},
+        "unitNames": { 
+            "byte":["Byte", "Bytes", "B"],
+            "second":["Sekunde", "Sekunden", "s"], 
+            "minute":["Minute", "Minuten", "m"], 
+            "hour":["Stunde", "Stunden", "h"], 
+            "day":["Tag", "Tage", "t"], 
+            "month":["Monat", "Monate"], 
+            "year":["Jahr", "Jahre"]
+        }
     },
     {
         "language": "en",
@@ -36,7 +45,16 @@
         "partialTimeFormat":"%H:%M",
         "names": { "fr": "anglais", "en": "english", "de": "Englisch", "it": "inglese", "es": "inglés", "pt": "inglês", "nl":"Engels", "el":"αγγλικά" },
         "ampm": ["AM", "PM"],
-        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Asia", "EU": "Europe", "NA": "North America", "OC": "Oceania", "SA": "South America"}
+        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Asia", "EU": "Europe", "NA": "North America", "OC": "Oceania", "SA": "South America"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["second", "seconds", "s"], 
+            "minute":["minute", "minutes", "m"], 
+            "hour":["hour", "hours", "h"], 
+            "day":["day", "days", "d"], 
+            "month":["month", "months"], 
+            "year":["year", "years"]
+        }
     },
     {
         "language": "es",
@@ -58,7 +76,16 @@
             "GBP": { "unit": "libra", "units":"libras", "subunit":"penique", "subunits": "peniques" },
             "USD": { "units":"dolares", "subunit":"centavo", "subunits": "centavos"}
         },
-        "continentNames": { "AF": "África", "AN": "Antártida", "AS": "Asia", "EU": "Europa", "NA": "América del norte", "OC": "Oceanía", "SA": "Sudamerica"}
+        "continentNames": { "AF": "África", "AN": "Antártida", "AS": "Asia", "EU": "Europa", "NA": "América del norte", "OC": "Oceanía", "SA": "Sudamerica"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["segundo", "segundos", "s"], 
+            "minute":["minuto", "minutos", "m"], 
+            "hour":["hora", "horas", "h"], 
+            "day":["dia", "dias", "d"], 
+            "month":["mes", "meses"], 
+            "year":["año", "años"]
+        }
     },
     {
         "language": "fr",
@@ -79,7 +106,16 @@
             "EUR": { "units":"euros", "subunit":"centime", "subunits": "centimes" },
             "GBP": { "unit":"livre", "units":"livres" }
         },
-        "continentNames": { "AF": "Afrique", "AN": "Antartique", "AS": "Asie", "EU": "Europe", "NA": "Amérique du Nord", "OC": "Océanie", "SA": "Amérique du Sud"}
+        "continentNames": { "AF": "Afrique", "AN": "Antartique", "AS": "Asie", "EU": "Europe", "NA": "Amérique du Nord", "OC": "Océanie", "SA": "Amérique du Sud"},
+        "unitNames": { 
+            "byte":["octet", "octets", "o"],
+            "second":["seconde", "secondes", "s"], 
+            "minute":["minute", "minutes", "mn"], 
+            "hour":["heure", "heures", "h"], 
+            "day":["jour", "jours", "j"], 
+            "month":["mois", "mois"], 
+            "year":["an", "ans"]
+        }
     },
     {
         "language": "it",
@@ -101,7 +137,16 @@
             "GBP": { "unit":"sterlina", "units":"sterline", "subunit":"penny", "subunits": "penny" },
             "USD": { "unit": "dollaro", "units":"dollari", "subunit":"centesimo", "subunits": "centesimi"}
         },
-        "continentNames": { "AF": "Africa", "AN": "Antartide", "AS": "Asia", "EU": "Europa", "NA": "Nord America", "OC": "Oceania", "SA": "Sud America"}
+        "continentNames": { "AF": "Africa", "AN": "Antartide", "AS": "Asia", "EU": "Europa", "NA": "Nord America", "OC": "Oceania", "SA": "Sud America"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["secondo", "secondi", "s"], 
+            "minute":["minuto", "minuti", "m"], 
+            "hour":["ora", "ore", "o"], 
+            "day":["giorno", "giorni", "g"], 
+            "month":["mese", "mesi"], 
+            "year":["anno", "anni"]
+        }
     },
     {
         "language": "nl",
@@ -122,7 +167,16 @@
             "GBP": { "unit":"pond", "units":"pond" },
             "USD": { "units":"dollar", "subunits": "cent"}
         },
-        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Azië", "EU": "Europa", "NA": "Noord Amerika", "OC": "Oceanië", "SA": "Zuid-Amerika"}
+        "continentNames": { "AF": "Africa", "AN": "Antarctica", "AS": "Azië", "EU": "Europa", "NA": "Noord Amerika", "OC": "Oceanië", "SA": "Zuid-Amerika"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["seconde", "seconden", "s"], 
+            "minute":["minuut", "minuten", "m"], 
+            "hour":["uur", "uur", "u"], 
+            "day":["dag", "dagen", "d"], 
+            "month":["maand", "maanden"], 
+            "year":["jaar", "jaar"]
+        }
     },
     {
         "language": "pt",
@@ -144,7 +198,16 @@
             "GBP": { "unit":"libra", "units":"libras", "subunit":"centavo", "subunits": "centavos" },
             "USD": { "unit":"dólar", "units":"dólares", "subunit":"centavo", "subunits": "centavos"}
         },
-        "continentNames": { "AF": "África", "AN": "Antártica", "AS": "Ásia", "EU": "Europa", "NA": "América do Norte", "OC": "Oceânia", "SA": "América do Sul"}
+        "continentNames": { "AF": "África", "AN": "Antártica", "AS": "Ásia", "EU": "Europa", "NA": "América do Norte", "OC": "Oceânia", "SA": "América do Sul"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["segundo", "segundos", "s"], 
+            "minute":["minuto", "minutos", "m"], 
+            "hour":["hora", "horas", "h"], 
+            "day":["dia", "dias", "d"], 
+            "month":["mês", "meses"], 
+            "year":["ano", "anos"]
+        }
     },
     {
         "language":"el",
@@ -167,6 +230,15 @@
             "GBP": { "unit":"λίρα", "units":"λίρες", "subunit":"δεκάρα", "subunits": "πένες" },
             "USD": { "unit":"δολάριο", "units":"δολάρια", "subunit":"σεντ", "subunits": "σεντς"}
         },
-        "continentNames": { "AF": "Αφρική", "AN": "Ανταρκτική", "AS": "Ασία", "EU": "Ευρώπη", "NA": "Βόρεια Αμερική", "OC": "Ωκεανία", "SA": "Νότια Αμερική"}
+        "continentNames": { "AF": "Αφρική", "AN": "Ανταρκτική", "AS": "Ασία", "EU": "Ευρώπη", "NA": "Βόρεια Αμερική", "OC": "Ωκεανία", "SA": "Νότια Αμερική"},
+        "unitNames": { 
+            "byte":["byte", "bytes", "B"],
+            "second":["δευτερόλεπτο", "δευτερόλεπτα", "s"], 
+            "minute":["λεπτό", "λεπτά"], 
+            "hour":["ώρα", "ώρες"], 
+            "day":["ημέρα", "ημέρες"], 
+            "month":["μήνα", "μήνες"], 
+            "year":["χρόνο", "χρόνια"]
+        }
     }    
 ]

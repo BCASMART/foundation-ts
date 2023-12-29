@@ -39,7 +39,16 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         timeFormat:"%H:%M:%S",
         partialTimeFormat:"%H:%M",
         ampm: ['AM', 'PM'],
-        continentNames:{ 'AF': 'Africa', 'AN': 'Antartica', 'AS': 'Asia', 'EU': 'Europe', 'NA': 'North America', 'OC': 'Oceania', 'SA': 'South America'}
+        continentNames:{ 'AF': 'Africa', 'AN': 'Antartica', 'AS': 'Asia', 'EU': 'Europe', 'NA': 'North America', 'OC': 'Oceania', 'SA': 'South America'},
+        unitNames: { 
+            byte:['Byte', 'Bytes', 'B'],
+            second:['second', 'seconds', 's'], 
+            minute:['minute', 'minutes', 'm'], 
+            hour:['hour', 'hours', 'h'], 
+            day:['day', 'days', 'd'], 
+            month:['month', 'months'], 
+            year:['year', 'years']
+        }
     }
     public readonly continent:continent ;
     public readonly alpha2Code:country;
