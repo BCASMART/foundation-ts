@@ -142,17 +142,23 @@ export function $equal(a:any, b:any):boolean {
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
         return $bytesequal(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
 	}
+    return $objectsequal(a, b) ;
+}
+
+export function $objectsequal(a:Nullable<object>, b:Nullable<object>) {
+	if (a === b) { return true ; }
+	if (!$ok(a) || !$ok(b)) return false ;
 
 	if (Object.getPrototypeOf(a) === Object.prototype && Object.getPrototypeOf(b) === Object.prototype) {
 		const ak = Object.getOwnPropertyNames(a) ;
-		const bk = Object.getOwnPropertyNames(a) ;
+		const bk = Object.getOwnPropertyNames(b) ;
 		const keys = ak.length >= bk.length ? ak : bk ;
 		// we may have different expressed keys with undefined as value...
 		// eg: {a:1, b:undefined} equals {a:1}
-		for (let k of keys) { if (!$equal(a[k], b[k])) return false ; }
+		for (let k of keys) { if (!$equal((a as any)[k], (b as any)[k])) return false ; }
 		return true ;
-	}
-	return false ; 
+    }
+    return false ;
 }
 
 export function $arrayequal(a:Nullable<any[]>, b:Nullable<any[]>):boolean {

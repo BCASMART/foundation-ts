@@ -6,6 +6,7 @@ import { TSTest } from '../src/tstester';
 import { $uuid } from "../src/crypto";
 import { FoundationWhiteSpaces } from "../src/string_tables";
 import { TSDateForm } from "../src/tsdatecomp";
+import { $equal, $objectsequal } from "../src/compare";
 
 export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
@@ -321,5 +322,166 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect8($strings([])).is([]) ;
         t.expect9($strings(null, [], undefined, null,[])).is([]) ;
     }) ;
+
+    group.unary('$objectsequal() function', async(t) => {
+        const a = {
+            ammo: 100000,
+            contact: {
+              birthday: "1966-04-13T00:00:00.000Z",
+              completeName: 'John Doe',
+              firstName: 'John',
+              lang: 'en',
+              lastName: 'Doe'
+            },
+            kind: 'four',
+            name: 'A test object'
+        } ;
+        const b = {
+            name: 'A test object',
+            contact: {
+              lastName: 'Doe',
+              firstName: 'John',
+              lang: 'en',
+              birthday: "1966-04-13T00:00:00.000Z",
+              completeName: 'John Doe'
+            },
+            ammo: 100000            
+        }
+        t.expect0($objectsequal(undefined,undefined)).true() ;
+        t.expect1($objectsequal(null,null)).true() ;
+
+        t.expect2($objectsequal(undefined,null)).false() ;
+        t.expect3($objectsequal(null,undefined)).false() ;
+
+        t.expect4($objectsequal(a,a)).true() ;
+        t.expect5($objectsequal(b,b)).true() ;
+
+        t.expect6($objectsequal(a,b)).false() ;
+        t.expect7($objectsequal(b,a)).false() ;
+
+        t.expectA($objectsequal({},{})).true() ;
+        t.expectB($objectsequal({},undefined)).false() ;
+        t.expectC($objectsequal({},null)).false() ;
+        t.expectD($objectsequal(undefined,{})).false() ;
+        t.expectE($objectsequal(null,{})).false() ;
+                
+        t.expectF($objectsequal(a,null)).false() ;
+        t.expectG($objectsequal(a,undefined)).false() ;
+        t.expectH($objectsequal(a,{})).false() ;
+        t.expectI($objectsequal(null,a)).false() ;
+        t.expectJ($objectsequal(undefined,a)).false() ;
+        t.expectK($objectsequal({},a)).false() ;
+
+        (b as any).kind = 'four' ;
+        t.expectL($objectsequal(a,b)).true() ;
+        t.expectM($objectsequal(b,a)).true() ;
+
+        (b as any).kind = null ;
+        t.expectN($objectsequal(a,b)).false() ;
+        t.expectO($objectsequal(b,a)).false() ;
+
+        (b as any).kind = undefined ;
+        t.expectP($objectsequal(a,b)).false() ;
+        t.expectQ($objectsequal(b,a)).false() ;
+
+        (a as any).kind = null ;
+        t.expectR($objectsequal(a,b)).false() ;
+        t.expectS($objectsequal(b,a)).false() ;
+
+        (a as any).kind = undefined ;
+        t.expectT($objectsequal(a,b)).true() ;
+        t.expectU($objectsequal(b,a)).true() ;
+
+        delete (a as any).kind ;
+        t.expectV($objectsequal(a,b)).true() ;
+        t.expectW($objectsequal(b,a)).true() ;
+        
+        delete (b as any).kind ;
+        t.expectX($objectsequal(a,b)).true() ;
+        t.expectY($objectsequal(b,a)).true() ;
+
+    }) ;
+
+    group.unary('$equal() function used as $objectequals()', async(t) => {
+        const a = {
+            ammo: 100000,
+            contact: {
+              birthday: "1966-04-13T00:00:00.000Z",
+              completeName: 'John Doe',
+              firstName: 'John',
+              lang: 'en',
+              lastName: 'Doe'
+            },
+            kind: 'four',
+            name: 'A test object'
+        } ;
+        const b = {
+            name: 'A test object',
+            contact: {
+              lastName: 'Doe',
+              firstName: 'John',
+              lang: 'en',
+              birthday: "1966-04-13T00:00:00.000Z",
+              completeName: 'John Doe'
+            },
+            ammo: 100000            
+        }
+        t.expect0($equal(undefined,undefined)).true() ;
+        t.expect1($equal(null,null)).true() ;
+
+        t.expect2($equal(undefined,null)).false() ;
+        t.expect3($equal(null,undefined)).false() ;
+
+        t.expect4($equal(a,a)).true() ;
+        t.expect5($equal(b,b)).true() ;
+
+        t.expect6($equal(a,b)).false() ;
+        t.expect7($equal(b,a)).false() ;
+
+        t.expectA($equal({},{})).true() ;
+        t.expectB($equal({},undefined)).false() ;
+        t.expectC($equal({},null)).false() ;
+        t.expectD($equal(undefined,{})).false() ;
+        t.expectE($equal(null,{})).false() ;
+                
+        t.expectF($equal(a,null)).false() ;
+        t.expectG($equal(a,undefined)).false() ;
+        t.expectH($equal(a,{})).false() ;
+        t.expectI($equal(null,a)).false() ;
+        t.expectJ($equal(undefined,a)).false() ;
+        t.expectK($equal({},a)).false() ;
+
+        (b as any).kind = 'four' ;
+        t.expectL($equal(a,b)).true() ;
+        t.expectM($equal(b,a)).true() ;
+
+        (b as any).kind = null ;
+        t.expectN($equal(a,b)).false() ;
+        t.expectO($equal(b,a)).false() ;
+
+        (b as any).kind = undefined ;
+        t.expectP($equal(a,b)).false() ;
+        t.expectQ($equal(b,a)).false() ;
+
+        (a as any).kind = null ;
+        t.expectR($equal(a,b)).false() ;
+        t.expectS($equal(b,a)).false() ;
+
+        (a as any).kind = undefined ;
+        t.expectT($equal(a,b)).true() ;
+        t.expectU($equal(b,a)).true() ;
+
+        delete (a as any).kind ;
+        t.expectV($equal(a,b)).true() ;
+        t.expectW($equal(b,a)).true() ;
+        
+        delete (b as any).kind ;
+        t.expectX($equal(a,b)).true() ;
+        t.expectY($equal(b,a)).true() ;
+
+    })
+
+
+
 
 }) ;
