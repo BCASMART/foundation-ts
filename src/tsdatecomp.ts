@@ -536,8 +536,9 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
 
 export function $durationDescription(
     comps:TSDurationComp|number, 
-    depth?:Nullable<'days'|'hours'|'minutes'|'seconds'>, 
-    locale?:Nullable<language|country|TSCountry|Locales>):string 
+    depth?:Nullable<'days'|'hours'|'minutes'|'seconds'|'days-cut'|'hours-cut'|'minutes-cut'>, 
+    locale?:Nullable<language|country|TSCountry|Locales>,
+    noDays?:boolean):string 
 {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
@@ -549,10 +550,16 @@ export function $durationDescription(
                 if ((duration % TSDay) >= TSDay/2) { c!.days ++ ; } 
                 c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
                 break ;
+            case 'days-cut':
+                c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                break ;
             case 'hours':
                 if ((duration % TSHour) >= TSHour/2) {
                     c!.hours++ ; if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
                 }
+                c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                break ;
+            case 'hours-cut':
                 c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
                 break ;
             case 'minutes':
@@ -561,6 +568,9 @@ export function $durationDescription(
                     if (c!.minutes === 60) { c!.hours ++ ; c!.minutes = UINT_MIN ; }
                     if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
                 }
+                c!.seconds = UINT_MIN ;
+                break ;
+            case 'minutes-cut':
                 c!.seconds = UINT_MIN ;
                 break ;
             default:
@@ -573,7 +583,10 @@ export function $durationDescription(
             const def = $value($unitDefinition(key, locale), defaultDefinition) ;
             a.push(`${value} ${value===1?def?.singular:def.plural}`) ;
         }
-
+        if (!!noDays && c!.days > 0) { 
+            c!.hours = (c!.hours + 24 * c!.days) as uint ; 
+            c!.days = UINT_MIN ;
+        }
         if (c!.days > 0)    { _addRep('day',    c!.days,    { singular:'day', plural:'days', unit:'' }) ; }
         if (c!.hours > 0)   { _addRep('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }) ; }
         if (c!.minutes > 0) { _addRep('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }) ; }

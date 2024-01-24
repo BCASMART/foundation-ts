@@ -41,7 +41,11 @@ export const dateGroups = [
             t.expect3($durationDescription(T, 'minutes')).toBe('6 jours 7 heures 59 minutes') ;
             t.expect4($durationDescription(T+29, 'minutes')).toBe('6 jours 8 heures') ;
             t.expect5($durationDescription(T+89, 'minutes')).toBe('6 jours 8 heures 1 minute') ;
-            
+            t.expect6($durationDescription(T, 'hours-cut')).toBe('6 jours 7 heures') ;
+            t.expect7($durationDescription(T, 'hours', undefined, true)).toBe('152 heures') ;
+            t.expect8($durationDescription(T, 'hours-cut', undefined, true)).toBe('151 heures') ;
+            t.expect9($durationDescription(T, undefined, undefined, true)).toBe('151 heures 59 minutes 1 seconde') ;
+
             t.expectA($durationDescription(T, undefined, "en")).toBe('6 days 7 hours 59 minutes 1 second') ;
             t.expectB($durationDescription(T, 'days', "en")).toBe('6 days') ;
             t.expectC($durationDescription(T, 'hours', "en")).toBe('6 days 8 hours') ;

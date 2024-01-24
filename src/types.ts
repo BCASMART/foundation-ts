@@ -53,6 +53,9 @@ export type email 	= Opaque<string> ;
 export type url 	= Opaque<string> ; 
 export type isodate = Opaque<string> ; 
 
+export const UUID_LENGTH = 36 ;
+export const EMAIL_MIN_LENGTH = 6 ;
+
 export type GUID    = UUID ; // just an alias
 
 // to have a NormativeStringEncoding from a StringEncoding, use the $encoding() function  

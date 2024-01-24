@@ -266,6 +266,9 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect4($email('\"myEmail;toto\"@yahoo.fr')).is('\"myemail;toto\"@yahoo.fr') ;
         t.expect5($email('myEmailtoto@yah:oo.fr')).is('myemailtoto@yah:oo.fr') ;
         t.expect6($email('myEmailtoto@yahoo.c;om')).null() ;
+        t.expect7($email('a@b.c')).null() ;
+        t.expect8($email('a@b.')).null() ;
+        t.expect9($email('a@b')).null() ;
         t.expectA($isemail('a@b.ca')).true() ;
         t.expectB($isemail('A@B.CA')).true() ;
         t.expectC($isemail('@b')).false() ;
@@ -278,6 +281,9 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectJ($isemail('')).false() ;
         t.expectK($isemail(5)).false() ;
         t.expectL($isemail({})).false() ;
+        t.expectM($isemail('a@b.c')).false() ;
+        t.expectN($isemail('a@b.')).false() ;
+        t.expectO($isemail('a@b')).false() ;
     }) ;
 
     group.unary("$isuuid() and $UUID() functions", async(t) => {

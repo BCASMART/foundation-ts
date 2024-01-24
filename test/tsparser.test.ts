@@ -206,7 +206,75 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             v.company.offices[1].officeType = 1 ;   _v(24, v) ;
         }
     }) ;
-    
+    group.unary("TSParser example with aliases", async(t) => {
+        const ma = new Map<string,string>() ;
+        const ca = new Map<string,string>() ;
+        const mao = new Map<string,string>() ;
+        const cao = new Map<string,string>() ;
+        const aliasParserDefinition = {
+            ...parserStructureTestDefinition,
+            company:{
+                ...parserStructureTestDefinition.company,
+                _aliases:ca,
+                _outputAliases:cao
+            },
+            _aliases:ma,
+            _outputAliases:mao
+        } ;
+        ma.set('lastName', 'name') ;
+        ma.set('last-name', 'name') ;
+        ma.set('color', 'bgColor') ;
+        ma.set('phone', 'mobile') ;
+        ma.set('tel', 'mobile') ;
+        ma.set('mobile-phone', 'mobile') ;
+        ma.set('color', 'bgColor') ;
+        ma.set('background-color', 'bgColor') ;
+        ma.set('email', 'mail') ;
+        ma.set('e-mail', 'mail') ;
+
+        ca.set('situation', 'position') ;
+        ca.set('job', 'position') ;
+        
+        mao.set('name', 'lastName') ;
+        mao.set('bgcolor', 'background-color') ;
+
+        cao.set('position', 'job') ;
+
+        const [struct, _v, _i] = _define(t, aliasParserDefinition, 'example with aliases') ;
+
+        if ($ok(struct)) {    
+            let v = parserStructureTestValue() ;
+            v.lastName = v.name ; delete v.name ;
+            v['mobile-phone'] = v.mobile ; delete v.mobile ;
+            v['color'] = v.bgcolor ; delete v.bgcolor ;
+            v.company.job = v.company.position ; delete v.company.position ;
+            
+            if (_v(2, v)) {
+                const r = parserStructureTestInterpretation() ;
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expect3(res).is(r)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+
+                let out = parserStructureTestValue() ;
+                out.firstname = out.firstName ; delete out.firstName ;
+                out.lastName = out.name ; delete out.name ;
+                out['background-color'] = out.bgcolor+'ff' ; delete out.bgcolor ; // TODO: export as HTML ?
+                out.language = 'en' ;
+                out.mobile = $phonenumber(out.mobile)?.standardNumber ;
+                out.company.hiringDate = out.company.hiringDate+'T00:00:00' ; // TODO: export short day values if there's no time ?
+                out.company.job = out.company.position ; delete out.company.position ;
+                out.company.offices[0].officeType = 2 ; // TODO: export the enum value ?
+
+                if (!t.expect4(struct!.rawEncode(res)).is(out)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+
+            }
+        }
+
+    }) ;
+
     group.unary("TSParser url array example", async (t) => {
         const [struct, _v, _i] = _define(t, ['url!'], 'url array' ) ;
         if ($ok(struct)) {            

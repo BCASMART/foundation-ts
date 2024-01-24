@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, url, UUID, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, TSDictionary } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, url, UUID, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, TSDictionary, EMAIL_MIN_LENGTH, UUID_LENGTH } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -120,7 +120,7 @@ export function $int(n:Nullable<string|number|bigint>, defaultValue:int=<int>0) 
 
 export function $email(s:Nullable<string>) : email | null
 {
-    const m = _regexvalidatedstring<email>(__emailRegex, s) ;
+    const m = _regexvalidatedstring<email>(__emailRegex, s, EMAIL_MIN_LENGTH) ; // smallest email is a@b.xx where xx is the domain name
     return $ok(m) ? m!.toLowerCase() as email : null ;
 }
 
@@ -134,7 +134,7 @@ export function $url(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>) : ur
 { return $valueornull(TSURL.url(s, opts)?.href); }
 
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
-{ return $isstring(s) ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s) : null ; }
+{ return $isstring(s) ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s, UUID_LENGTH, UUID_LENGTH) : null ; }
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -386,10 +386,12 @@ export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A
 
 const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
 
-function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>) : T | null 
+function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:Nullable<number>, maxLength?:number) : T | null 
 {
 	const v = $ftrim(s) ;
-	if (!v.length || !regex.test(<string>v)) { return null ; }
+    const min = $value(minLength, 1) ;
+    const max = $value(maxLength, UINT_MAX) ;
+	if (v.length < min || v.length > max || !regex.test(<string>v)) { return null ; }
 	return <T><unknown>v ;
 }
 

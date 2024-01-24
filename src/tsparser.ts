@@ -156,10 +156,14 @@ export type TSObjectNode = { [key: string]: TSNode } | {
     _natifier?:TSParserNatifier ;
     _mandatory?:boolean ;
     _keysCase?:Nullable<TSCase> ;
+    _aliases?:Nullable<Map<string, string>> ;
+    _outputAliases?:Nullable<Map<string, string>> ;
 }
 
 export type TSNode = TSLeafNode | TSObjectNode | TSArrayNode | TSExtendedArrayNode ;
 
+// FIXME: the default value on a node is used as it is without any check (so it seems)
+// TODO: activate alias in parser in order to have input fields different from final fields
 export abstract class TSParser {
     public readonly errors:string[] = [] ;
     public readonly mandatory:boolean ;
@@ -319,6 +323,8 @@ class TSObjectParser extends TSParser {
     private _keysCase:TSCase = TSCase.standard ;
     private _acceptsUncheckedItems:boolean ;
     private _defaultValueKeys:string[] = [] ; 
+    private _aliases:Map<string, string> ;
+    private _outputAliases:Map<string, string> ;
 
     public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>, acceptsUncheckedItems:boolean) {
         const m = node._mandatory ;
@@ -338,12 +344,14 @@ class TSObjectParser extends TSParser {
         this._acceptsUncheckedItems = acceptsUncheckedItems ;
         this._itemsParsers = itemsParsers ;
         this._count = $objectcount(itemsParsers) ;
-        
+
+        this._aliases = $ok(node._aliases) ? new Map(node._aliases as Map<string,string>) : new Map() ;
+        this._outputAliases = $ok(node._outputAliases) ? new Map(node._outputAliases as Map<string,string>) : new Map() ;
+
         const entries = Object.entries(itemsParsers) ;
         for (let [k, p] of entries) {
             if ($ok(p.includedDefaultValue())) { this._defaultValueKeys.push(k) ; }
         }
-
     }
 
     public nodeType():TSParserNodeType { return 'object' ; }
@@ -358,6 +366,8 @@ class TSObjectParser extends TSParser {
             _acceptsUncheckedItems: this._acceptsUncheckedItems
         } ;
         if (this._keysCase !== 'standard') { ret._keysCase = this._keysCase ; }
+        if (this._aliases.size > 0) { ret._aliases = this._aliases ; }
+        if (this._outputAliases.size > 0) { ret._outputAliases = this._outputAliases ; }
 
         const structEntries = Object.entries(this._itemsParsers) ;
         for (let [k, struct] of structEntries) {
@@ -379,7 +389,7 @@ class TSObjectParser extends TSParser {
         let doomed = false ;
 
         for (let [key, v] of entries) {
-            const k = this._keyTransform(key) ;
+            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
             if (founds.has(k)) {
                 _serror(opts, path, `.${k} is present several times`) ;
                 doomed = true ; continue ;
@@ -414,8 +424,9 @@ class TSObjectParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:any = {}
         const entries = Object.entries(value) ;
+
         for (let [key, v] of entries) {
-            const k = this._keyTransform(key) ;
+            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
             const struct = this._itemsParsers[k] ;
             if ($ok(struct)) {
                 const res = struct.rawInterpret(v, opts) ; 
@@ -425,12 +436,14 @@ class TSObjectParser extends TSParser {
                 ret[k] = v ; // if this just a non described item, we keep it as it was
             }
         }
+        
         for (let k of this._defaultValueKeys) {
-            const kf = this._keyTransform(k) ;
+            const kf = this._keyTransform($value(this._aliases.get(k), k)) ;
             if (!$ok(ret[kf])) {
                 ret[kf] = this._itemsParsers[k].includedDefaultValue() ;
             }
         }
+
         return this._transform(ret, opts) ;
     }
     
@@ -438,10 +451,10 @@ class TSObjectParser extends TSParser {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [key, v] of entries) {
-            const k = this._keyTransform(key) ;
+            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
             const struct = this._itemsParsers[k] ;
             const res = struct.rawEncode(v) ; 
-            if ($ok(res)) { ret[k] = res ; }
+            if ($ok(res)) { ret[$value(this._outputAliases.get(k), k)] = res ; }
         }
         return this._natify ? this._natify(ret, opts) : ret ;
     }
@@ -835,7 +848,7 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 // this is the function wich convert you data model definition
 // into a tree of structures
 const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/g
-const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems']) ;
+const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
     'lowercase':(s:string)=> s.toLowerCase(),
