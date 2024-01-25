@@ -54,14 +54,14 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         let n = arguments.length;
         if (n >= 3) {
             if (!$dayisvalid(arguments[0], arguments[1], arguments[2])) { 
-                throw new TSError(`TSDate.constructor() : Bad year, month or day argument`, { arguments:Array.from(arguments)}) ; 
+                TSError.throw(`TSDate.constructor() : Bad year, month or day argument`, { arguments:Array.from(arguments)}) ; 
             }
             if (n !== 3 && n !== 6 ) { 
-                throw new TSError(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
+                TSError.throw(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
             }
             if (n === 6) {
                 if (!$timeisvalid(arguments[3], arguments[4], arguments[5])) { 
-                    throw new TSError(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:Array.from(arguments)}) ; 
+                    TSError.throw(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:Array.from(arguments)}) ; 
                 }
                 this._timestamp = _insetTimeStamp($timestamp(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5])) ;
             }
@@ -70,7 +70,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
             }
         }
         else if (n === 2) { 
-            throw new TSError(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
+            TSError.throw(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
         }
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
@@ -101,7 +101,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 				else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
 
 				if (!$ok(comps)) { 
-                    throw new TSError(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
+                    TSError.throw(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
                 }
 				this._timestamp = _insetTimeStamp($components2timestamp(<TSDateComp>comps)) ;
 			}
@@ -206,7 +206,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
 	public dateByAdding(years:number, months:number=0, days:number=0, hours:number=0, minutes:number=0, seconds:number=0) : TSDate {
         if (!$isint(years) || !$isint(months) || !$isint(days) || !$isint(hours) || !$isint(minutes) || !$isint(seconds)) { 
-            throw new TSError(`TSDate.dateByAdding() has at lease one non integer argument`, { years:years, months:months, days:days, hours:hours, minutes:minutes, seconds:seconds}) ; 
+            TSError.throw(`TSDate.dateByAdding() has at lease one non integer argument`, { years:years, months:months, days:days, hours:hours, minutes:minutes, seconds:seconds}) ; 
         }
         let ts = this._timestamp+days*TSDay+hours*TSHour+minutes*TSMinute+seconds ;
 
@@ -344,10 +344,10 @@ export function $timeisvalid(hour: number, minute: number, second: number) : boo
 export function $timestamp(year: number, month: number, day: number, hours:number = 0, minutes:number=0, seconds:number=0) : number {
 
     if (!$dayisvalid(year, month, day)) { 
-        throw new TSError(`$timestamp(${year}, ${month}, ${day}): wrong day definition arguments`, { arguments:Array.from(arguments) }) ;
+        TSError.throw(`$timestamp(${year}, ${month}, ${day}): wrong day definition arguments`, { arguments:Array.from(arguments) }) ;
      }
     if (!$timeisvalid(hours, minutes, seconds)) { 
-        throw new TSError(`$timestamp(${year}, ${month}, ${day}, ${hours}, ${minutes}, ${seconds}): wrong time arguments`, { arguments:Array.from(arguments) }) ;
+        TSError.throw(`$timestamp(${year}, ${month}, ${day}, ${hours}, ${minutes}, ${seconds}): wrong time arguments`, { arguments:Array.from(arguments) }) ;
     }
 
 	if (month < 3) { month += 12; year--; }

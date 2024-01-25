@@ -184,26 +184,26 @@ export abstract class TSFusionTemplate {
         }
 
         if (!len || !smlen || !sepalen || !emlen || smlen+emlen+sepalen > len) {
-            throw new TSError('template string to small', { startingMark:sm, endingMark:em, separator:sepa, source:source}) ;
+            TSError.throw('template string to small', { startingMark:sm, endingMark:em, separator:sepa, source:source}) ;
         }
 
         FUSION_SPECIAL_CHARS.forEach(c => {
             if (sm.includes(c) || em.includes(c) || sepa.includes(c)) {
-                throw new TSError(`starting mark, ending mark and seperator must not containe ${tohex(c)} ('${tochar(c)}') character`, { startingMark:sm, endingMark:em, separator:sepa, character:c}) ;
+                TSError.throw(`starting mark, ending mark and seperator must not containe ${tohex(c)} ('${tochar(c)}') character`, { startingMark:sm, endingMark:em, separator:sepa, character:c}) ;
             }
         }) ;
 
         if (sm[0] === COMMA) {
-            throw new TSError('first character of starting mark cannot be a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+            TSError.throw('first character of starting mark cannot be a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
         if (em[0] === LPAR || em[0] === COMMA) {
-            throw new TSError('first character of ending mark cannot be a left parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+            TSError.throw('first character of ending mark cannot be a left parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
         if (sepa[0] === LPAR || sepa[0] === RPAR || sepa[0] === COMMA) {
-            throw new TSError('first character of separator cannot be a parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
+            TSError.throw('first character of separator cannot be a parenthesis or a comma', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
         if (sm[0] === em[0] || sm[0] === sepa[0] || em[0] === sepa[0]) {
-            throw new TSError('first character of starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
+            TSError.throw('first character of starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
 
         enum State {
@@ -292,7 +292,7 @@ export abstract class TSFusionTemplate {
                             state = characterRole === TSCharRole.UnsignificantStarterChar ? State.StartDecodingVariable : State.DecodingVariable ;
                         }
                         else {
-                            throw new TSError(`Malformed var : found forbidden initial variable character ${tohex(c)} ('${tochar(c)}') at position ${i}'.`, {
+                            TSError.throw(`Malformed var : found forbidden initial variable character ${tohex(c)} ('${tochar(c)}') at position ${i}'.`, {
                                 source:source,
                                 character:c,
                                 position:i,
@@ -309,7 +309,7 @@ export abstract class TSFusionTemplate {
                             state = State.DecodingVariable ;
                         }
                         else {
-                            throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                            TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
                                 source:source,
                                 character:c,
                                 position:i,
@@ -347,7 +347,7 @@ export abstract class TSFusionTemplate {
                         tokenPos = 0 ;
                     }
                     else if (variableCharacterRole(c) === TSCharRole.ForbiddenChar) {
-                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                        TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
                             source:source,
                             character:c,
                             position:i,
@@ -381,7 +381,7 @@ export abstract class TSFusionTemplate {
                             state = State.ConstantParameter ;
                         }
                         else if (!isVariableSpace(c)) {
-                            throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                            TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
                                 source:source,
                                 character:c,
                                 position:i,
@@ -402,7 +402,7 @@ export abstract class TSFusionTemplate {
                         state = State.DecodingParameters ;
                     }
                     else if (!isVariableSpace(c)) {
-                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                        TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
                             source:source,
                             character:c,
                             position:i,
@@ -421,7 +421,7 @@ export abstract class TSFusionTemplate {
                     }
                     else {
                         // ERROR: wrong constant character
-                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (wrong parameter constant).`, {
+                        TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (wrong parameter constant).`, {
                             source:source,
                             character:c,
                             position:i,
@@ -439,7 +439,7 @@ export abstract class TSFusionTemplate {
                         i-- ;
                     }
                     else if (!isVariableNum(c) && c !== DOT) {
-                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (parameter is not numeric).`, {
+                        TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (parameter is not numeric).`, {
                             source:source,
                             character:c,
                             position:i,
@@ -454,7 +454,7 @@ export abstract class TSFusionTemplate {
                         if (stringEnder === PIPE) {
                             try { currentParameter =  JSON.parse(<string>currentParameter) ; }
                             catch (e) {
-                                throw new TSError(`Malformed JSON structure terminating at position ${i}. Impossible to parse. See 'parsingError' in complement infos.`, { 
+                                TSError.throw(`Malformed JSON structure terminating at position ${i}. Impossible to parse. See 'parsingError' in complement infos.`, { 
                                     source:source,
                                     position:i,
                                     state:state,
@@ -492,7 +492,7 @@ export abstract class TSFusionTemplate {
                                 const neededChars:uint8[] = [] ;
                                 for (let nc = 32 ; nc < 128 ; nc++) { neededChars.push(nc as uint8) ; }
                                 
-                                throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need to have an ASCII character after backslash in string parameter interpretation).`, { 
+                                TSError.throw(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need to have an ASCII character after backslash in string parameter interpretation).`, { 
                                     source:source,
                                     character:c,
                                     position:i,
@@ -514,7 +514,7 @@ export abstract class TSFusionTemplate {
                         }
                     }
                     else {
-                        throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need hexa character in string parameter unicode \\u sequence).`, { 
+                        TSError.throw(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need hexa character in string parameter unicode \\u sequence).`, { 
                             source:source,
                             character:c,
                             position:i,
@@ -542,7 +542,7 @@ export abstract class TSFusionTemplate {
                     }
                     else {
                         // we should have a fusion node type or a space here
-                        throw new TSError(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
+                        TSError.throw(`Malformed var : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i}.`, {
                             source:source,
                             character:c,
                             position:i,
@@ -553,7 +553,7 @@ export abstract class TSFusionTemplate {
                 case State.PostVariableSpace:
                     if (c === em[0]) {
                         if (current.isContainerVariable) {
-                            throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need to have a separator for a container variable).`, { 
+                            TSError.throw(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Need to have a separator for a container variable).`, { 
                                 source:source,
                                 character:c,
                                 position:i,
@@ -568,7 +568,7 @@ export abstract class TSFusionTemplate {
                     }
                     else if (c === sepa[0]) { 
                         if (!current.isContainerVariable) {
-                            throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Separator forbidden for non container variable).`, { 
+                            TSError.throw(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (Separator forbidden for non container variable).`, { 
                                 source:source,
                                 character:c,
                                 position:i,
@@ -582,7 +582,7 @@ export abstract class TSFusionTemplate {
                         break ;
                     }
                     else if (!isVariableSpace(c)) {
-                        throw new TSError(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (needed separator or ending mark start').`, { 
+                        TSError.throw(`Malformed template structure : found forbidden character ${tohex(c)} ('${tochar(c)}') at position ${i} (needed separator or ending mark start').`, { 
                             source:source,
                             character:c,
                             position:i,
@@ -595,7 +595,7 @@ export abstract class TSFusionTemplate {
                 case State.DecodingSeparator:
                     comp = sepa[tokenPos++] ;
                     if (c !== comp) {
-                        throw new TSError(`Malformed template structure on variable separator. Unatended character  ${tohex(c)} ('${tochar(c)}') at position ${i} while decoding separator.`, {
+                        TSError.throw(`Malformed template structure on variable separator. Unatended character  ${tohex(c)} ('${tochar(c)}') at position ${i} while decoding separator.`, {
                             source:source,
                             character:c,
                             position:i,
@@ -614,7 +614,7 @@ export abstract class TSFusionTemplate {
                 case State.DecodingClosingVariable:
                     comp = em[tokenPos++] ;
                     if (c !== comp) {
-                        throw new TSError(`Malformed template structure on closing variable. Unatended character  ${tohex(c)} ('${tochar(c)}') at position ${i} while decoding ending mark.`, {
+                        TSError.throw(`Malformed template structure on closing variable. Unatended character  ${tohex(c)} ('${tochar(c)}') at position ${i} while decoding ending mark.`, {
                             source:source,
                             character:c,
                             position:i,
@@ -647,7 +647,7 @@ export abstract class TSFusionTemplate {
                             beginText = i + 1 ;
                         }
                         else {
-                            throw new TSError(`Malformed template structure. We have found a supernumerary ending mark at position ${i}.`, {
+                            TSError.throw(`Malformed template structure. We have found a supernumerary ending mark at position ${i}.`, {
                                 source:source,
                                 position:i - emlen + 1 ,
                                 endingMark:em,
@@ -664,7 +664,7 @@ export abstract class TSFusionTemplate {
         }
 
         if ($ok(current.parent)) {
-            throw new TSError(`Malformed template structure. Template is not properly closed.`, {
+            TSError.throw(`Malformed template structure. Template is not properly closed.`, {
                 source:source,
                 state:state
             }) ;
@@ -673,7 +673,7 @@ export abstract class TSFusionTemplate {
             if (beginText >= 0 && beginText < i) { current.pushData(source.slice(beginText, i)) ; }
         }
         else {
-            throw new TSError(`Malformed template structure. Template is not properly closed (automat in wrong state '${state}').`, {
+            TSError.throw(`Malformed template structure. Template is not properly closed (automat in wrong state '${state}').`, {
                 source:source,
                 state:state
             }) ;
@@ -699,7 +699,7 @@ export abstract class TSFusionTemplate {
     // In that case, you would call super() first
     public validateSeparators(sm:uint8[], em:uint8[], sepa:uint8[]) {
         if ($equal(sm, em) || $equal(sepa, sm) || $equal(sepa, em)) {
-            throw new TSError('starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
+            TSError.throw('starting mark, ending mark and seperator must be distinct', { startingMark:sm, endingMark:em, separator:sepa}) ;
         }
     }
 

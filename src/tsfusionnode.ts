@@ -73,7 +73,7 @@ export class TSFusionTreeNode {
     }
 
     public pushData(data:Bytes) {
-        if (this.type === TSFusionNodeType.Data) { throw new TSError('Impossible to add subnode to a text FusionTreeNode', { text:this.value} ) ; }
+        if (this.type === TSFusionNodeType.Data) { TSError.throw('Impossible to add subnode to a text FusionTreeNode', { text:this.value} ) ; }
         if (data.length) {
             if (!$ok(this.nodes)) { this.nodes = [] ; }
             this.nodes!.push(new TSFusionTreeNode(TSFusionNodeType.Data, data, this)) ;    
@@ -81,10 +81,10 @@ export class TSFusionTreeNode {
     }
 
     public pushVariable(name:string, type:TSFusionNodeType, contextType:TSFusionContextType, parameters?:any[]):TSFusionTreeNode {
-        if (this.type === TSFusionNodeType.Data) { throw new TSError('Impossible to add subnode to a text FusionTreeNode', { text:this.value} ) ; }
-        if (!$length(name)) { throw new TSError (`Impossible to add an unamed fusion variable to ${this.label} variable.`)}
+        if (this.type === TSFusionNodeType.Data) { TSError.throw('Impossible to add subnode to a text FusionTreeNode', { text:this.value} ) ; }
+        if (!$length(name)) { TSError.throw(`Impossible to add an unamed fusion variable to ${this.label} variable.`)}
         if (type === TSFusionNodeType.Root || type === TSFusionNodeType.Data) {
-            throw new TSError(`Impossible to add fusion variable '${name}' as a ${type} variable`, { name:name, type:type } ) ;
+            TSError.throw(`Impossible to add fusion variable '${name}' as a ${type} variable`, { name:name, type:type } ) ;
         }
         if (!$ok(this.nodes)) { this.nodes = [] ; }
         let node = new TSFusionTreeNode(type, name, this) ;
@@ -98,7 +98,7 @@ export class TSFusionTreeNode {
     public fusion(template:TSFusionTemplate, data:any, options:TSFusionOptions = {}):boolean {
 
         if (this.type !== TSFusionNodeType.Root) { 
-            throw new TSError('Impossible invoque fusion() method on non-root FusionNodeType', { label:this.label, type:this.type } ) ; 
+            TSError.throw('Impossible invoque fusion() method on non-root FusionNodeType', { label:this.label, type:this.type } ) ; 
         }
         try {
             

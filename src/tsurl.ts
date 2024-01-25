@@ -242,7 +242,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     public get protocol():string { return this._protocol ; }
     public set protocol(s:string) { 
         const [protocol, w3c,] = _validateProtocolInfo(s, this._acceptedProtocols) ;
-        if (!protocol.length) { throw new TSError(`TSURL.protocol = value. Impossible to set new protocol '${s}'.`) ; }
+        if (!protocol.length) { TSError.throw(`TSURL.protocol = value. Impossible to set new protocol '${s}'.`) ; }
         this._w3cProtocol = w3c ;
         this._protocol = protocol ;
         this._href = undefined ;

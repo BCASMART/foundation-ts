@@ -4,7 +4,7 @@ import { Nullable, TSDataLike, TSDictionary } from "./types";
 import { TSLeafNode, TSNode, TSParser, TSParserOptions } from "./tsparser" ;
 import { $isdataobject, $ok, $string, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
-import { TSHttpError } from "./tserrors";
+import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
 
@@ -130,10 +130,19 @@ function _returnData(r:TSServerResponse, args:ArrayLike<any>) {
 function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
     _statusAndType(r, 'returnObject', 'application/json', args) ;
     let v = args[0] ;
-    if ($isdataobject(v)) { throw new TSHttpError('TSServerResponse.returnObject() : Impossible to return data as object response', Resp.InternalError, undefined, TSServerErrorCodes.ForbiddenDataResponse) ; }
+    if ($isdataobject(v)) { 
+        TSError.throw('TSServerResponse.returnObject() : Impossible to return data as object response', {
+            serverError:TSServerErrorCodes.ForbiddenDataResponse
+        }) ; 
+    }
     if ($ok(r.responseParser)) {
         const opts:TSParserOptions = { errors:[], context:'json' }
-        if (!r.responseParser!.validate(v, opts)) { throw new TSHttpError('TSServerResponse.returnObject(): Invalid structured response', Resp.InternalError, { errors: opts.errors}, TSServerErrorCodes.BadResponseStructure) ; }
+        if (!r.responseParser!.validate(v, opts)) { 
+            TSError.throw('TSServerResponse.returnObject(): Invalid structured response', { 
+                errors: opts.errors,
+                serverError:TSServerErrorCodes.BadResponseStructure
+            }) ; 
+        }
         v = r.responseParser!.rawEncode(v, opts) ;
     } 
     r.response.end(JSON.stringify(v, undefined, 2)) ;
@@ -141,7 +150,7 @@ function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
 
 function _returnError(r:TSServerResponse, args:ArrayLike<any>) {
     if (args.length > 2) {
-        throw new TSHttpError('TSServerResponse.returnError() : Bad arguments', Resp.InternalError) ;
+        TSError.throw('TSServerResponse.returnError() : Bad arguments') ;
     }
     let v:any = undefined ;
     let status = Resp.InternalError ;
@@ -155,7 +164,8 @@ function _returnError(r:TSServerResponse, args:ArrayLike<any>) {
             v = args[0] ;
             status = args[1] as Resp ;
             break ;
-        default: throw new TSHttpError('TSServerResponse.returnError() : Bad arguments', Resp.InternalError) ;
+        default: 
+            TSError.throw('TSServerResponse.returnError() : Bad arguments') ;
     }
 
     r.response.writeHead(status, { 'Content-Type': 'application/json' }) ;
@@ -175,7 +185,8 @@ function _statusAndType(r:TSServerResponse, fn:string, defaultType:string, args:
             type = args[1] as string ;
             status = args[2] as Resp ;
             break ;
-        default: throw new TSHttpError(`TSServerResponse.${fn}() : Bad arguments`, Resp.InternalError) ;
+        default: 
+            TSError.throw(`TSServerResponse.${fn}() : Bad arguments`) ;
     }
     r.response.writeHead(status, { 'Content-Type': type }) ;
 }

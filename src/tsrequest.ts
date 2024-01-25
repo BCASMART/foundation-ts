@@ -199,7 +199,7 @@ export class TSRequest {
         else if ($isarray(opts.auth)) {
             for (let v of opts.auth as any[]) {
                 if (!$isunsigned(v, UINT8_MAX)) {
-                    throw new TSError('TSRequest.constructor(): malformed authentification token', { baseURL:baseURL, options:opts}) ;
+                    TSError.throw('TSRequest.constructor(): malformed authentification token', { baseURL:baseURL, options:opts}) ;
                 }
             } 
             this.setToken(opts.auth as TSDataLike) ;
@@ -209,7 +209,7 @@ export class TSRequest {
         }
 
         if ($ok(opts.timeout) && opts.timeout! < 0) { 
-            throw new TSError('TSRequest.constructor(): if set, timeout option should be positive', { baseURL:baseURL, options:opts}) ; 
+            TSError.throw('TSRequest.constructor(): if set, timeout option should be positive', { baseURL:baseURL, options:opts}) ; 
         }
         
 		const commonTimeout = $tounsigned(opts.timeout) ;
@@ -302,7 +302,7 @@ export class TSRequest {
         } ;
 		
         if ($ok(timeout) && timeout! < 0) { 
-            throw new TSError('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
+            TSError.throw('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
                 relativeURL:relativeURL, 
                 method:method, 
                 responseType:responseType, 

@@ -119,6 +119,7 @@ export type TSExtendedLeafNode = {
     _mandatory?:boolean ; // you can have mandatory 
     _default?:any ;       // or default but not both
     _enum?:TSDictionary<number|string> | Array<string|number> ;
+    _exportAsEnum?:boolean ;
     _checker?:TSParserChecker ;
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
@@ -559,9 +560,11 @@ class TSLeafParser extends TSParser {
     private _manager:TSLeafNodeManager ;
     private _type:TSLeafOptionalNode ;
     private _conversion:TSDictionary<number|string>|undefined ;
+    private _reverse:Map<string|number, string>|undefined ;
     private _enumeration:Set<string|number>|undefined ;
     private _options:TSDictionary|undefined ;
     private _defaultValue:any = undefined ;
+    private _exportAsEnum:boolean = false ;
 
     private static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
         'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
@@ -629,10 +632,12 @@ class TSLeafParser extends TSParser {
             const entries = Object.entries(enumeration as TSDictionary<string|number>) ;
             
             this._enumeration = new Set<string|number>() ;
+            this._reverse = new Map() ;
             for (let [key, item] of entries) {
                 if (!key.length || !key.match(IsFielOrEnumdRegex)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
                 if (manager!.enum!(item)) {
                     this._enumeration.add(item) ;
+                    this._reverse.set(item, key) ;
                 }
                 else {
                     this.errors.push(`Enumeration value '${item}' for key '${key}' is invalid for type '${node._type}'`) ;
@@ -640,6 +645,7 @@ class TSLeafParser extends TSParser {
             }
             if (!this._enumeration.size) { this.errors.push(`Empty enumeration definition dictionary for type '${node._type}'`) ; }
             this._conversion = enumeration as TSDictionary<string|number> ;
+            this._exportAsEnum = !!node._exportAsEnum ;
         }
         else if ($ok(enumeration)) {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
@@ -719,8 +725,11 @@ class TSLeafParser extends TSParser {
 
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         if (this._conversion && $isstring(value)) {
-            value = this._conversion![value] ; 
-        } 
+            value = $value(this._conversion![value], value) ; 
+        }
+        if (this._exportAsEnum && $ok(this._reverse)) {
+            value = $value(this._reverse!.get(value), value) ;
+        }
 
         if (!$ok(value)) { return value ; }
 
@@ -800,9 +809,9 @@ function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):TSURL|nul
 
 function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
     if (v instanceof TSURL) { return v ; }
-    if (!(v instanceof URL)) { throw new TSError('Impossible to convertany object to TSURL')} ;
+    if (!(v instanceof URL)) { TSError.throw('Impossible to convertany object to TSURL')} ;
     const ret = TSURL.from(v, { refusesParameters:opts?.context === TSParserActionContext.url || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols }) ;
-    if (!$ok(ret)) { throw new TSError('Impossible to convert URL to TSURL')} ;
+    if (!$ok(ret)) { TSError.throw('Impossible to convert URL to TSURL')} ;
     return ret! ;
 }
 

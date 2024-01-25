@@ -69,23 +69,23 @@ export class TSQualifier<T> {
     public static LIKE<T>(key:KeyPath<T>, value:QualifierOperand):TSQualifier<T> { return new this<T>('LIKE', [_split(key), value]) ; }
 
 	public static IN<T>(key:KeyPath<T>, values:QualifierOperand[]):TSQualifier<T> {
-        if (values.length === 0) { throw new TSError('TSQualifier.IN(): Allways returns false with empty values', { key:key, values:values}) ; }
+        if (values.length === 0) { TSError.throw('TSQualifier.IN(): Allways returns false with empty values', { key:key, values:values}) ; }
 		return values.length === 1 ? this.EQ<T>(key, values[0]) : new this<T>('IN', [_split(key), values])
     }
 
     public static NIN<T>(key:KeyPath<T>, values:QualifierOperand[]):TSQualifier<T> {
-        if (values.length === 0) { throw new TSError('TSQualifier.NIN(): Allways returns true with empty values', { key:key, values:values}) ; }
+        if (values.length === 0) { TSError.throw('TSQualifier.NIN(): Allways returns true with empty values', { key:key, values:values}) ; }
 		return values.length === 1 ? this.NEQ<T>(key, values[0]) : new this<T>('NIN', [_split(key), values])
     }
 
     public static INCLUDES<T>(key1:KeyPath<T>, key2:KeyPath<T>, value:QualifierOperand):TSQualifier<T> {
-        if (!$ok(value)) { throw new TSError('TSQualifier.INCLUDING(): should have a not null and not undefined comparison value', { key1:key1, key2:key2, value:value}) ; }
+        if (!$ok(value)) { TSError.throw('TSQualifier.INCLUDING(): should have a not null and not undefined comparison value', { key1:key1, key2:key2, value:value}) ; }
         return this.AND<T>([this.LTE<T>(key1, value), this.GT<T>(key2, value)]) ;
     }
 
 	public static INCLUDED<T>(key:KeyPath<T>, value1:QualifierOperand, value2:QualifierOperand, canUnspecify:boolean=false, strict:boolean=LAZY_INTERSECTION):TSQualifier<T> {
 		let target = this.intersectionQualifiers<T>(value1, value2, key, key, strict, canUnspecify) ;
-		if (!target.length) { throw new TSError('TSQualifier.INCLUDED(): Bad parameters.', { parameters:Array.from(arguments)}) ; }
+		if (!target.length) { TSError.throw('TSQualifier.INCLUDED(): Bad parameters.', { parameters:Array.from(arguments)}) ; }
 		return target.length === 1 ? target[0] : this.AND<T>(target) ;
 	}
 
@@ -97,7 +97,7 @@ export class TSQualifier<T> {
     public static INRANGE<T>(key:KeyPath<T>, range:TSRange|number[]):TSQualifier<T> { 
         if (!(range instanceof TSRange)) { range = new TSRange(range) ; }
         if (!range.isValid || range.isEmpty) {
-            throw new TSError('TSQualifier.prototype.addRange(): trying to add an empty or invalid range value', { key:key, range:range}) ;
+            TSError.throw('TSQualifier.prototype.addRange(): trying to add an empty or invalid range value', { key:key, range:range}) ;
         }
         return range.length === 1 ? this.EQ(key, range.location) : this.AND<T>([this.GTE(key, range.location), this.LT(key, range.maxRange)]) ;
 	}
@@ -105,7 +105,7 @@ export class TSQualifier<T> {
 	public static intersectionQualifiers<T>(A:QualifierOperand, B:QualifierOperand, C:KeyPath<T>, D:KeyPath<T>, strict:boolean, canUnspecify:boolean):Array<TSQualifier<T>> {
 		let target:TSQualifier<T>[] = [] ;
 		if (!$ok(A) && !$ok(B)) {
-            throw new TSError('TSQualifier.intersectionQualifiers() must at least have one research millestone', 
+            TSError.throw('TSQualifier.intersectionQualifiers() must at least have one research millestone', 
             { A:A, B:B, C:C, D:D, strict:strict, canUnspecify:canUnspecify}
             ) ;
         }
@@ -195,7 +195,7 @@ export class TSQualifier<T> {
                     if (cond instanceof TSQualifier) { if (!cond.validateValue(value)) return false ; }
                     else if ($ok(validateValueForCondition)) { if (!validateValueForCondition!(value, cond)) return false ; }
                     else {
-                        throw new TSError('need a validateValueForCondition() callback to interpret a specific AND condition', { value:value, condition:validateValueForCondition }) ;
+                        TSError.throw('need a validateValueForCondition() callback to interpret a specific AND condition', { value:value, condition:validateValueForCondition }) ;
                     }
                 }
                 return true ;
@@ -204,7 +204,7 @@ export class TSQualifier<T> {
                     if (cond instanceof TSQualifier) { if (cond.validateValue(value)) return true ; }
                     else if ($ok(validateValueForCondition)) { if (validateValueForCondition!(value, cond)) return true ; }
                     else {
-                        throw new TSError('need a validateValueForCondition() callback to interpret a specific OR condition', { value:value, condition:validateValueForCondition }) ;
+                        TSError.throw('need a validateValueForCondition() callback to interpret a specific OR condition', { value:value, condition:validateValueForCondition }) ;
                     }
                 }
                 return false ;
@@ -212,7 +212,7 @@ export class TSQualifier<T> {
                 const cond = this._operands[0] ;
                 if (cond instanceof TSQualifier) { return !cond.validateValue(value) ; }
                 else if ($ok(validateValueForCondition)) { return !validateValueForCondition!(value, cond) ; }
-                throw new TSError('need a validateValueForCondition() callback to interpret a specific NOT condition', { value:value, condition:validateValueForCondition }) ;
+                TSError.throw('need a validateValueForCondition() callback to interpret a specific NOT condition', { value:value, condition:validateValueForCondition }) ;
             case 'OK':
                 return _valuesForKeyPath(value, this._operands[0]).length > 0 ;
             case 'KO':
@@ -283,7 +283,7 @@ export class TSQualifier<T> {
 
     private _assertAndOr(method:string) {
         if (this.operator !== 'OR' && this.operator !== 'AND') {
-            throw new TSError(`TSQualifier.${method}(): trying to add condition on ${this.operator} qualifier`, {
+            TSError.throw(`TSQualifier.${method}(): trying to add condition on ${this.operator} qualifier`, {
                 
             }) ;
         }

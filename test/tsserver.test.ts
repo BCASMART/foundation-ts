@@ -234,7 +234,7 @@ if (!$inbrowser()) {
                 t.expectH(r.info?.errors.length).is(2) ;
                 t.expectI(r.info?.errors[0]).is('value.textColor is mandatory') ;
                 t.expectJ(r.info?.errors[1]).is('value.country is mandatory') ;
-                t.expectK(r.errorCode).is(TSServerErrorCodes.BadResponseStructure) ;
+                t.expectK(r.info?.serverError).is(TSServerErrorCodes.BadResponseStructure) ;
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;   
             } 

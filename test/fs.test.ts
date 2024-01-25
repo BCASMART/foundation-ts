@@ -5,6 +5,7 @@ import { Nullable } from '../src/types';
 import { $inbrowser, $logterm } from "../src/utils";
 import { sep } from 'path';
 import { $hash, $hashfile } from '../src/crypto';
+import { TSError } from '../src/tserrors';
 interface FSTestPath {
     path: string ;
     absolute: boolean ;
@@ -57,7 +58,7 @@ function fsTestDatabase(forcePosix:boolean = false):FSTestDB {
     const db = $loadJSON(fileName) ;
     if (!$ok(db)) {
         $logterm(`&R  &wUnable to load file JSON test file ${fileName}  &0`) ;
-        throw `Unable to load file JSON test file ${fileName}` ;
+        TSError.throw(`Unable to load file JSON test file ${fileName}`) ;
     }
     return db as FSTestDB ;
 }

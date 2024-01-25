@@ -6,7 +6,7 @@ import * as https from "https"
 import { $count, $defined, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $ftrim } from "./strings";
 import { $isabsolutepath } from "./fs";
-import { TSError, TSHttpError } from "./tserrors";
+import { TSError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import { Nullable, StringDictionary, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $logterm, $mark } from "./utils";
@@ -218,7 +218,7 @@ export class TSServer {
         if ($ok(opts.webSites)) {
             const keys = $keys(opts.webSites!) ;
             if ($inbrowser() && keys.length) { 
-                throw new TSError('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
+                TSError.throw('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
             }
             if ($count(keys)) {
                 keys.forEach(u => {
@@ -236,7 +236,7 @@ export class TSServer {
 
         if ($ok(opts.port)) {
             if (!$isunsigned(opts.port, UINT16_MAX)) { 
-                throw new TSError(`TSServer.constructor(): Bad ${this.isHTTPs?'HTTPS':'HTTP'} server port ${opts.port}.`, {
+                TSError.throw(`TSServer.constructor(): Bad ${this.isHTTPs?'HTTPS':'HTTP'} server port ${opts.port}.`, {
                     endPoints:endPoints,
                     options:opts
                 }) ;
@@ -263,10 +263,11 @@ export class TSServer {
                 const sm = $value(req.method?.toUpperCase(), Verb.Get) ;
                 const potentialUrl = TSURL.compose(this.host, $string(req.url)) ;
                 if (!$ok(potentialUrl)) {
-                    throw new TSHttpError('Bad request url endpoint', Resp.NotFound, {
+                    TSError.throw('Bad request url endpoint', Resp.NotFound, {
                         host:this.host,
                         path:$string(req.url),
-                    }, TSServerErrorCodes.BadEndPointPath) ;    
+                        serverError:TSServerErrorCodes.BadEndPointPath
+                    }) ;    
                 }
                 const url = potentialUrl! ;
                 const originKey = `${url.pathname}[${$value(req.headers["origin"], '*')}]`; 
@@ -298,20 +299,22 @@ export class TSServer {
                 const method = this._allowedMethodsSet.has(sm) ? sm as Verb : undefined ;
 
                 if (!$ok(method)) {
-                    throw new TSHttpError(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
+                    TSError.throw(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
                         method:req.method,
-                        path:$length(url.pathname) ? url.pathname : '/' 
-                    }, TSServerErrorCodes.UnknownMethod) ;
+                        path:$length(url.pathname) ? url.pathname : '/',
+                        serverError:TSServerErrorCodes.UnknownMethod
+                    }) ;
                 }
 
                 // validating url
                 if (!$length(url.pathname) || url.pathname === '/') {
                     if (this.rootPath.length) { url.pathname = this.rootPath ; }
                     else {
-                        throw new TSHttpError('Root path is not Accessible', Resp.Forbidden, {
+                        TSError.throw('Root path is not Accessible', Resp.Forbidden, {
                             method:req.method,
-                            path:'/'
-                        }, TSServerErrorCodes.InnaccessibleRoot) ;    
+                            path:'/',
+                            serverError:TSServerErrorCodes.InnaccessibleRoot
+                        }) ;    
                     }
                 }
                 
@@ -363,10 +366,11 @@ export class TSServer {
                 }
                 
                 // here the resource is not found
-                throw new TSHttpError(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound, {
+                TSError.throw(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound, {
                     method:method,
-                    path:$length(url.pathname) ? url.pathname : '/'
-                }, TSServerErrorCodes.ResourceNotFound) ;
+                    path:$length(url.pathname) ? url.pathname : '/',
+                    serverError:TSServerErrorCodes.ResourceNotFound
+                }) ;
             }
             catch (e:any) {
                 let ret:TSDictionary = {} ;

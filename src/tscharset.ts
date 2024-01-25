@@ -37,7 +37,7 @@ export abstract class TSCharset {
     public readonly aliases:string[] ;
 
     protected constructor(name:string, aliases?:string[]) {
-        if (!$length(name)) { throw new TSError('TSCharset.constructor(): trying to instanciate unamed RTF charset', { aliases:aliases }) ; }
+        if (!$length(name)) { TSError.throw('TSCharset.constructor(): trying to instanciate unamed RTF charset', { aliases:aliases }) ; }
         this.name = name ;
         this.aliases = $ok(aliases) ? [... aliases!] : [] ;
     }
@@ -63,7 +63,7 @@ export abstract class TSCharset {
 
             ['ANSI', 'MacRoman'].forEach(c => { 
                 if (!$ok(TSCharset.__charsetsMap!.get(c.toLowerCase()))) {
-                    throw new TSError(`TSCharset.charset() : system loaded charset '${c}' is missing.`, { name:name }) ;
+                    TSError.throw(`TSCharset.charset() : system loaded charset '${c}' is missing.`, { name:name }) ;
                 }
             }) ;
 
@@ -126,7 +126,7 @@ class TSLoadedCharset extends TSCharset {
         const n = TSLoadedCharset.UnicodeBufferSize ;
         super(def.name, def.aliases) ;
         if ($count(def.charset) !== 256) { 
-            throw new TSError (`TSLoadedCharset.constructor(): charset ${def.name} has an invalid charset count (must be 256)`, { definition:def }) ; 
+            TSError.throw(`TSLoadedCharset.constructor(): charset ${def.name} has an invalid charset count (must be 256)`, { definition:def }) ; 
         }
 
         this._toUnicodeTable = [] ;
@@ -136,7 +136,7 @@ class TSLoadedCharset extends TSCharset {
         for (let i = 0 ; i < 256 ; i++) {
             const uc = $toint(def.charset[i]) ;
             if (uc < -1 || uc > UINT16_MAX) { 
-                throw new TSError(`TSLoadedCharset.constructor(): charset '${def.name}': Bad unicode 16 character ar charset[${i}]`, { definition:def }) ; 
+                TSError.throw(`TSLoadedCharset.constructor(): charset '${def.name}': Bad unicode 16 character ar charset[${i}]`, { definition:def }) ; 
             }
             if (uc >= 0) {
                 if (uc < n) { this._fromUnicodeTable[uc] = i ; } 

@@ -9,7 +9,7 @@ import { $ellapsed, $exit, $inbrowser, $logheader, $logterm, $mark, $writeterm }
 import { EchoStructure, PingStructure } from "./echoping";
 
 if ($inbrowser()) {
-    throw new TSError(`Impossible to launch ping tool inside a browser`) ;
+    TSError.throw(`Impossible to launch ping tool inside a browser`) ;
 }
 
 const [args,] = $args({

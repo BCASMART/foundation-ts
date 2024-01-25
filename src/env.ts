@@ -52,20 +52,20 @@ function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinitio
         let n = 0 ;
         for (let [name, d] of entries) {
             name = $ftrim(name) ;
-            if (name.length === 0) { throw new TSError(`${fn}(): found empty name definition`, parserDefinition!) ; }
-            if (_normarg(name) !== name || name.length < 2) { throw new TSError(`${fn}(): found bad name for env var '${name}'`, parserDefinition) ; }
-            if (nameSet.has(name)) { throw new TSError(`${fn}(): found duplicate name definition '${name}'`, parserDefinition!) ; }
+            if (name.length === 0) { TSError.throw(`${fn}(): found empty name definition`, parserDefinition!) ; }
+            if (_normarg(name) !== name || name.length < 2) { TSError.throw(`${fn}(): found bad name for env var '${name}'`, parserDefinition) ; }
+            if (nameSet.has(name)) { TSError.throw(`${fn}(): found duplicate name definition '${name}'`, parserDefinition!) ; }
             let localParser:Nullable<TSParser> = undefined ;
             if ($isstring(d) || $ok((d as any)._type)) {
                 localParser = TSParser.define(d) ;
             }
-            if (!$ok(localParser)) { throw new TSError(`${fn}(): bad parser definition for env var '${name}'`, parserDefinition!) ; }
+            if (!$ok(localParser)) { TSError.throw(`${fn}(): bad parser definition for env var '${name}'`, parserDefinition!) ; }
             (parserStructure as any)[name] = d ; 
             n++ ;
         }
-        if (n === 0) { throw new TSError(`${fn}(): no definition found in environment parser`, parserDefinition) ; }
+        if (n === 0) { TSError.throw(`${fn}(): no definition found in environment parser`, parserDefinition) ; }
         parser = TSParser.define(parserStructure) ;
-        if (!$ok(parser)) { throw new TSError(`${fn}(): impossible to define environment parser structure`, parserDefinition) ; }
+        if (!$ok(parser)) { TSError.throw(`${fn}(): impossible to define environment parser structure`, parserDefinition) ; }
     }
     const merge = $ok(opts?.merge) ;
     const ret:TSDictionary = merge ? opts!.merge! : {} ;
@@ -148,8 +148,8 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
     let n = 0 ;
     for (let [name, d] of entries) {
         name = $ftrim(name) ;
-        if (name.length === 0) { throw new TSError('$arg(): found empty name definition', definition) ; }
-        if (_normarg(name) !== name || name.length < 2) { throw new TSError(`$arg(): found bad name for argument '${name}'`, definition) ; }
+        if (name.length === 0) { TSError.throw('$arg(): found empty name definition', definition) ; }
+        if (_normarg(name) !== name || name.length < 2) { TSError.throw(`$arg(): found bad name for argument '${name}'`, definition) ; }
         let twice = nameSet.has(name) ;
         if (!twice) {
             let parser:Nullable<TSParser> = undefined ;
@@ -177,13 +177,13 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                 const nshort = isBoolean ? $string(ds.negativeShort) : '' ;
                 const doubledash = !ds.noDoubleDash && prefix.length > 0 ;
                 if (nname.length === 1 || (nname.length > 1 && (_normarg(nname) !== nname || nname === name))) {
-                    throw new TSError(`$args(): bad definition for negative name version of argument '${name}'`, { name:name, structure:d })
+                    TSError.throw(`$args(): bad definition for negative name version of argument '${name}'`, { name:name, structure:d })
                 }
                 if (short.length > 1 || (short.length === 1 && (_normarg(short) !== short || short === nshort))) {
-                    throw new TSError(`$args(): bad definition for short version of argument '${name}'`, { name:name, definition:d })
+                    TSError.throw(`$args(): bad definition for short version of argument '${name}'`, { name:name, definition:d })
                 }
                 if (nshort.length > 1 || (nshort.length === 1 && (_normarg(nshort) !== nshort || short === nshort))) {
-                    throw new TSError(`$args(): bad definition for negative short version of argument '${name}'`, { name:name, structure:d })
+                    TSError.throw(`$args(): bad definition for negative short version of argument '${name}'`, { name:name, structure:d })
                 }
 
                 twice = ref.has(prefix+name) || 
@@ -196,7 +196,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                     parser = TSParser.define(ds.struct) ;
                     if ($ok(parser)) {
                         if (isBoolean && parser?.mandatory && nname.length === 0 && nshort.length === 0) {
-                            throw new TSError(`$args(): argument '${name}' cannot be mandatory and have no negative version`, { name:name, structure:d })
+                            TSError.throw(`$args(): argument '${name}' cannot be mandatory and have no negative version`, { name:name, structure:d })
                         }
 
                         const def:TSArgumentParser = { name:name, positive:isBoolean ? true : undefined } ;
@@ -218,17 +218,17 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                     }
                 }
             }
-            if (!$ok(parser)) { throw new TSError(`bad structure definition for argument '${name}'`, { name:name, structure:d }) ; }
+            if (!$ok(parser)) { TSError.throw(`bad structure definition for argument '${name}'`, { name:name, structure:d }) ; }
         }
-        if (twice) { throw new TSError(`$args(): argument '${name}' is declared twice`, definition) ; }
+        if (twice) { TSError.throw(`$args(): argument '${name}' is declared twice`, definition) ; }
     }
-    if (n === 0) { throw new TSError("$args(): no arguments defined", definition) ; }
+    if (n === 0) { TSError.throw("$args(): no arguments defined", definition) ; }
 
     const parser = TSParser.define(parserStructure) ;
     let dict:TSDictionary|null = null ;
     let args:string[] = [] ;
 
-    if (!$ok(parser)) { throw new TSError("$args(): unable to generate parser", { structure:parserStructure, errors:opts?.errors}) }
+    if (!$ok(parser)) { TSError.throw("$args(): unable to generate parser", { structure:parserStructure, errors:opts?.errors}) }
     if (isURL) {
         // we parse an url query
         dict = parser!.interpret(_dictionaryFromURLQuery(url!, ref, opts?.errors), { errors:opts?.errors, context:'url' }) ;

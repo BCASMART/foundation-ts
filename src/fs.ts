@@ -462,7 +462,7 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
                         const wlen = writeSync(fd, buf, start, end - start);
                         if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
                         if (retries > MAX_TRY) {
-                            throw new TSError(`$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.`, {
+                            TSError.throw(`$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.`, {
                                 path: src,
                                 buffer: buf,
                                 options: opts
@@ -491,7 +491,7 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
                         // we should have been able to give our initial file its original name back
                         // but we could'nt do it, so, in this very hypothetical case, we will not
                         // destroy anything and will throw an Error will all the info in it 
-                        throw new TSError(`Unable to atomically finish writing file '${src}'`, {
+                        TSError.throw(`Unable to atomically finish writing file '${src}'`, {
                             wantedPath: src,
                             renamedExistingFile: renamedExistingFile,
                             writtenDataFile: pathToWrite

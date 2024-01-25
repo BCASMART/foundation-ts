@@ -24,10 +24,10 @@ export class TSStaticWebsite {
     constructor(uri:string, definition:TSWebSiteDefinition|string) {
         const def = $isstring(definition) ? { folder:definition as string} : definition as TSWebSiteDefinition ;
         if (!$length(uri)) { 
-            throw new TSError(`TSStaticWebsite.constructor(): url not defined for folder '${def.folder}'`, { uri:uri, ...def }) ; 
+            TSError.throw(`TSStaticWebsite.constructor(): url not defined for folder '${def.folder}'`, { uri:uri, ...def }) ; 
         }
         if (!$isdirectory(def.folder)) { 
-            throw new TSError(`TSStaticWebsite.constructor(): website ${uri} root folder ${def.folder} was not found on disk.`, { uri:uri, ...def }) ;
+            TSError.throw(`TSStaticWebsite.constructor(): website ${uri} root folder ${def.folder} was not found on disk.`, { uri:uri, ...def }) ;
         }
 
         this.uri = uri.toLowerCase() ;

@@ -30,10 +30,10 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 		const n = arguments.length ;
 		switch (n) {
 			case 0:
-				throw new TSError('TSRange.constructor(): no arguments provided') ;
+				TSError.throw('TSRange.constructor(): no arguments provided') ;
 			case 1:
 				if ($isnumber(arguments[0])) {
-                    throw new TSError('TSRange.constructor(): only location is provided', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRange.constructor(): only location is provided', { arguments:Array.from(arguments)}) ;
 				}
 				let v:TSRange|undefined = undefined ;
 				if (arguments[0] instanceof TSRange) {
@@ -42,7 +42,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
                 else if ($isarray(arguments[0])) {
                     const a = arguments[0] as number[] ;
                     if (!$israngearray(a)) {
-                        throw new TSError('TSRange.constructor(): bad provided range array', { arguments:Array.from(arguments)}) ;
+                        TSError.throw('TSRange.constructor(): bad provided range array', { arguments:Array.from(arguments)}) ;
                     }
                     this._location = a[0] ;
                     this._length = a[1] ;
@@ -58,7 +58,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 					v = a.range ;
 				}
                 if (!$ok(v) || !$isint(v!.location) || !$isunsigned(v!.length) || !$isint(v!.location + v!.length)) {
-                    throw new TSError('TSRange.constructor(): range or interval provided is too large', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRange.constructor(): range or interval provided is too large', { arguments:Array.from(arguments)}) ;
                 }
 				this._location = v!.location ;
 				this._length = v!.length ;
@@ -73,7 +73,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 						this._length = e - s ; 
 					}
 					else {
-                        throw new TSError('TSRange.constructor(): second provided date is anterior to the first one', { arguments:Array.from(arguments)}) ;
+                        TSError.throw('TSRange.constructor(): second provided date is anterior to the first one', { arguments:Array.from(arguments)}) ;
 					}
 				}
                 else if (isNaN(arguments[0]) || isNaN(arguments[1])) {
@@ -85,11 +85,11 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 					this._length = $tounsigned(arguments[1]) ;		
 				}
 				else {
-                    throw new TSError('TSRange.constructor(): Bad parameters', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRange.constructor(): Bad parameters', { arguments:Array.from(arguments)}) ;
 				}
 				break ;
 			default:
-                throw new TSError('TSRange.constructor(): more than two arguments were provided', { arguments:Array.from(arguments)}) ;
+                TSError.throw('TSRange.constructor(): more than two arguments were provided', { arguments:Array.from(arguments)}) ;
 		}
 	}
     
@@ -108,7 +108,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
         }
         else {
             if (!$isint(loc) || !$isint(loc + this._length)) { 
-                throw new TSError(`TSRange.location = ${loc} with bad parameter`, { range:this, location:loc }) ;
+                TSError.throw(`TSRange.location = ${loc} with bad parameter`, { range:this, location:loc }) ;
             }
             this._location = $toint(loc) ;    
         }
@@ -122,7 +122,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
         }
         else {
             if (!$isunsigned(len) || !$isint(len + this._location)) { 
-                throw new TSError(`TSRange.length = ${len} with bad parameter`, { range:this, length:len }) ;
+                TSError.throw(`TSRange.length = ${len} with bad parameter`, { range:this, length:len }) ;
             }
             this._length = $tounsigned(len) ;    
         }

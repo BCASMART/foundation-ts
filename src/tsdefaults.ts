@@ -98,7 +98,7 @@ export class TSDefaults {
         const cmap = TSCountry.loadCountries(managedLocales, this._managedLanguages) ;
         const c = cmap.get(Countries.FR) ;
         if (!$ok(c)) { 
-            throw new TSError(`Did not find country '${Countries.FR}' to be the default`) ;
+            TSError.throw(`Did not find country '${Countries.FR}' to be the default`) ;
         }
         this._defaultCountry = c!
         this._defaultCurrency = c!.currency ;
@@ -148,10 +148,10 @@ export class TSDefaults {
 
     public addLocalizations(lang:language, loc:StringDictionary) {
         if (!this._managedLocalesMap.get(lang)) {
-            throw new TSError(`Impossible to add localizations to non managed language '${lang}'`, { language:lang, localizations:loc }) ;
+            TSError.throw(`Impossible to add localizations to non managed language '${lang}'`, { language:lang, localizations:loc }) ;
         }
         else if (!$isobject(loc)) {
-            throw new TSError(`Impossible to add non string-dictionary localization to language '${lang}'`, { language:lang, localizations:loc }) ;
+            TSError.throw(`Impossible to add non string-dictionary localization to language '${lang}'`, { language:lang, localizations:loc }) ;
         }
         let actualLocalization = this._localizations[lang] ;
         if (!$ok(actualLocalization)) { this._localizations[lang] = {...loc} ; }
@@ -221,7 +221,7 @@ export class TSDefaults {
     public setTmpDirectory(path:string) {
         TSError.assertNotInBrowser('TSDefaults.setTmpDirectory') ;
         if (!$isdirectory(path)) {
-            throw new TSError('TSDefaults.setTmpDirectory(): bad path parameter', { path: path }) ;
+            TSError.throw('TSDefaults.setTmpDirectory(): bad path parameter', { path: path }) ;
         }    
         this._tmpDirectory = path ;
     }
@@ -247,7 +247,7 @@ export class TSDefaults {
     public configure(path?:Nullable<string>, opts?:Nullable<DefaultsConfigurationOptions>) {
         TSError.assertNotInBrowser('TSDefaults.configure') ;
         if (!$isobject(process) || !$isobject(process!.env)) {
-            throw new TSError('TSDefaults.configure(): process.env is not defined', { path:path, options:opts}) ;
+            TSError.throw('TSDefaults.configure(): process.env is not defined', { path:path, options:opts}) ;
         }
         const debug = !!opts?.debug ;
         path = $absolute($length(path) > 0 ? path! : '.env') ;

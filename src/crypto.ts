@@ -89,7 +89,7 @@ export interface $encryptOptions {
 // FIXME: have a replacement in browser when not available
 export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
     if (typeof createCipheriv === 'undefined') {
-        throw new TSError(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
+        TSError.throw(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
     }
 
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
@@ -121,7 +121,7 @@ export interface $decryptOptions extends $encryptOptions {}
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
 export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
     if (typeof createDecipheriv === 'undefined') {
-        throw new TSError(`$decrypt() : function createDecipheriv() is not available in your system.`, { source:source, options:opts }) ;
+        TSError.throw(`$decrypt() : function createDecipheriv() is not available in your system.`, { source:source, options:opts }) ;
     }
 
     const hasVector = !opts?.noInitializationVector ;
@@ -234,7 +234,7 @@ export function $slowhash(source: string | TSDataLike, options:$hashOptions = {}
         return $md5(buf, options.separator, options.dataOutput) ;
     }
 
-    throw new TSError(`$slowHash() : ${options.method} hashing method is unknown`, { source:source, options:options }) ;
+    TSError.throw(`$slowHash() : ${options.method} hashing method is unknown`, { source:source, options:options }) ;
 }
 
 export async function $hashfile(filePath: Nullable<string>, method?: Nullable<HashMethod>): Promise<string | null> {
@@ -315,10 +315,10 @@ export function $password(len:number, opts: $passwordOptions = {}):string
 
     const minLen = Math.max((!opts.usesLowercase?0:1)+(!opts.usesUppercase?0:1)+(!opts.usesDigits?0:1)+(!opts.usesSpecials?0:1), 3) ; 
     if (len < minLen) {
-        throw new TSError(`$password(): asked length is too short (${len}<${minLen}) for your gneration options`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
+        TSError.throw(`$password(): asked length is too short (${len}<${minLen}) for your gneration options`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
     }
     else if (len > TS_MAX_PASSWORD_LENGTH) {
-        throw new TSError(`$password(): asked length is too long (${len}>${TS_MAX_PASSWORD_LENGTH})`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
+        TSError.throw(`$password(): asked length is too long (${len}>${TS_MAX_PASSWORD_LENGTH})`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
     } 
 
     const pwd:string[] = [] ;

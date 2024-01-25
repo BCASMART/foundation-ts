@@ -206,6 +206,51 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             v.company.offices[1].officeType = 1 ;   _v(24, v) ;
         }
     }) ;
+
+    group.unary("TSParser check dictionary enumeration output", async(t) => {
+        const def = {
+            ...parserStructureTestDefinition,
+            company:{
+                ...parserStructureTestDefinition.company,
+                offices:[{ 
+                    officeType: {
+                        _type:'uint8',
+                        _mandatory: true,
+                        _enum:{ 'headquarter': 1, 'agency': 2 },
+                        _exportAsEnum:true
+                    },
+                    name: 'string!',
+                }, 0, 8]        
+            }
+        } ;
+        const [struct, _v, _i] = _define(t, def, 'example with enum exported') ;
+        if ($ok(struct)) {    
+            let v = parserStructureTestValue() ;
+            if (_v(2, v)) {
+                const r = parserStructureTestInterpretation() ;
+                const res = struct!.rawInterpret(v) ;
+                if (!t.expect3(res).is(r)) {
+                    console.log($inspect(struct!.toJSON(), 10)) ;
+                }
+                else {
+                    let out = parserStructureTestValue() ;
+                    out.firstname = out.firstName ; delete out.firstName ;
+                    out.language = 'en' ;
+                    out.bgcolor = out.bgcolor + 'ff' ;
+                    out.mobile = $phonenumber(out.mobile)?.standardNumber ;
+                    out.company.hiringDate = out.company.hiringDate+'T00:00:00' ;
+                    
+                    // here, the exported office type is the string of the enum
+
+                    if (!t.expect4(struct!.rawEncode(res)).is(out)) {
+                        console.log($inspect(struct!.toJSON(), 10)) ;
+                    }
+                }
+            }
+
+        }
+    }) ;
+
     group.unary("TSParser example with aliases", async(t) => {
         const ma = new Map<string,string>() ;
         const ca = new Map<string,string>() ;
@@ -255,19 +300,20 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 if (!t.expect3(res).is(r)) {
                     console.log($inspect(struct!.toJSON(), 10)) ;
                 }
+                else {
+                    let out = parserStructureTestValue() ;
+                    out.firstname = out.firstName ; delete out.firstName ;
+                    out.lastName = out.name ; delete out.name ;
+                    out['background-color'] = out.bgcolor+'ff' ; delete out.bgcolor ; // TODO: export as HTML ?
+                    out.language = 'en' ;
+                    out.mobile = $phonenumber(out.mobile)?.standardNumber ;
+                    out.company.hiringDate = out.company.hiringDate+'T00:00:00' ; // TODO: export short day values if there's no time ?
+                    out.company.job = out.company.position ; delete out.company.position ;
+                    out.company.offices[0].officeType = 2 ; // TODO: export the enum value ?
 
-                let out = parserStructureTestValue() ;
-                out.firstname = out.firstName ; delete out.firstName ;
-                out.lastName = out.name ; delete out.name ;
-                out['background-color'] = out.bgcolor+'ff' ; delete out.bgcolor ; // TODO: export as HTML ?
-                out.language = 'en' ;
-                out.mobile = $phonenumber(out.mobile)?.standardNumber ;
-                out.company.hiringDate = out.company.hiringDate+'T00:00:00' ; // TODO: export short day values if there's no time ?
-                out.company.job = out.company.position ; delete out.company.position ;
-                out.company.offices[0].officeType = 2 ; // TODO: export the enum value ?
-
-                if (!t.expect4(struct!.rawEncode(res)).is(out)) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    if (!t.expect4(struct!.rawEncode(res)).is(out)) {
+                        console.log($inspect(struct!.toJSON(), 10)) ;
+                    }
                 }
 
             }

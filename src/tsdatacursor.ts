@@ -31,7 +31,7 @@ export class TSDataCursor extends TSData
     public get cursor() { return this._cursor ; }
     public set cursor(n:number) {
         if (!$isunsigned(n)) { 
-            throw new TSError(`TSData.cursor = ${n} is not valid.`, { cursor:this, location:n}) ; 
+            TSError.throw(`TSData.cursor = ${n} is not valid.`, { cursor:this, location:n}) ; 
         }
         if (n > this._len) { this.length = n ; }
         this._cursor = n ;

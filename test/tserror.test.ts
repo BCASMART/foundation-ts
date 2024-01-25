@@ -1,5 +1,6 @@
 import { $uuid } from '../src/crypto';
 import { $subclassReponsabililty, TSError } from '../src/tserrors';
+import { Resp } from '../src/tsrequest';
 import { TSTest } from '../src/tstester';
 import { TSDictionary } from '../src/types';
 //import { $logterm } from '../src/utils';
@@ -52,16 +53,33 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
         t.expectB(e.message).is('AAAA') ;
         t.expectC(e.errorCode).is(23) ;
         t.expectD(e.info?.msg).is("XXX") ;
-        
         try {
             throw e
         }
         catch (ee) {
             const loc = ee as any ;
-            t.expectX(loc.message).is('AAAA') ;
-            t.expectY(loc.errorCode).is(23) ;
-            t.expectZ(loc.info?.msg).is('XXX') ;
+            t.expectP(loc.message).is('AAAA') ;
+            t.expectQ(loc.errorCode).is(23) ;
+            t.expectR(loc.info?.msg).is('XXX') ;
         }
+        
+        try {
+            TSError.throw('HTTP 404 error', Resp.NotFound)
+        }
+        catch (ee) {
+            const loc = ee as any ;
+            t.expectS(loc.message).is('HTTP 404 error') ;
+            t.expectT(loc.status).is(Resp.NotFound) ;
+        }
+        try {
+            TSError.throw('HTTP error')
+        }
+        catch (ee) {
+            const loc = ee as any ;
+            t.expectU(loc.message).is('HTTP error') ;
+            t.expectV(loc.status).is(Resp.InternalError) ;
+        }
+
     })
 }) ;
 

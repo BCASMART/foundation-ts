@@ -63,7 +63,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             this._buf = this._allocFn(capacity) ;
         }
         else {
-            throw new TSError('TSData.constructor() : Bad parameters', { arguments:Array.from(arguments)}) ;
+            TSError.throw('TSData.constructor() : Bad parameters', { arguments:Array.from(arguments)}) ;
         }
     }
 
@@ -169,7 +169,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     { while (this._len > 0 && this._buf[this._len-1] === 0) { this._len -- ; } ; return this ;}
 
     public truncateBy(n:number):TSData {
-        if (!$isunsigned(n)) { throw new TSError(`TSDate.truncateBy(${n}) is not valid.`, { data:this, truncateBy:n}) ; }
+        if (!$isunsigned(n)) { TSError.throw(`TSDate.truncateBy(${n}) is not valid.`, { data:this, truncateBy:n}) ; }
         this.length = n >= this._len ? 0 : this._len - n ;
         return this ;
     }
@@ -178,7 +178,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
 
     public set length(n:number) {
-        if (!$isunsigned(n)) { throw new TSError(`TSDate.length = ${n} is not valid.`, { data:this, length:n}) ; }
+        if (!$isunsigned(n)) { TSError.throw(`TSDate.length = ${n} is not valid.`, { data:this, length:n}) ; }
         if (n > this._len) { 
             this._willGrow(this._len - n) ; 
             if (this._allocFn !== Buffer.alloc) { while (this._len < n) { this._buf[this._len++] = 0 ; }}
@@ -454,14 +454,14 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
     protected _read<T>(offset:number = 0, size:number, bufferReadFn:(offset?:number)=>T):T {
         if (!$isunsigned(offset) || offset+size > this._len) { 
-            throw new TSError(`TSData._read(${offset}) out of bound [0,${this._len}]`, { data:this, offset:offset, size:size, readFunction:bufferReadFn}) ; 
+            TSError.throw(`TSData._read(${offset}) out of bound [0,${this._len}]`, { data:this, offset:offset, size:size, readFunction:bufferReadFn}) ; 
         }
         return bufferReadFn.call(this._buf, offset) ;        
     }
 
     protected _write<T>(value:T, offset:number = 0, size:number, bufferWriteFn:(value:T, offset?:number)=>void):TSData {
         if (!$isunsigned(offset)) { 
-            throw new TSError(`TSData._write(${value}, ${offset}) out of bound [0,${this._len}]`, { data:this, offset:offset, size:size, readFunction:bufferWriteFn}) ;
+            TSError.throw(`TSData._write(${value}, ${offset}) out of bound [0,${this._len}]`, { data:this, offset:offset, size:size, readFunction:bufferWriteFn}) ;
         }
         if (offset + size > this._len) { this._willGrow(offset + size - this._len) ; }
         for (let i = this._len ; i < offset ; i++) { this._buf[i] = 0 ; }  // fill intermediate part with zeros

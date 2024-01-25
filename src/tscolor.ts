@@ -113,7 +113,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             return TSColor.rgb(0,0,0) ; // bad 3/4 parameters => we return a black color               
         }
         // only throws on arguments wrong count
-        throw new TSError('TSColor.rgb() : Bad parameters', { arguments:Array.from(arguments)}) ;
+        TSError.throw('TSColor.rgb() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static rgbcomponents(r:number, g:number, b:number, opacity?:number) {
@@ -125,7 +125,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             opacity = _component(opacity) ;
             return TSColor.rgb((r*255) | 0, (g*255) | 0, (b*255) | 0, (opacity*255) | 0) ;
         }
-        throw new TSError('TSColor.rgbcomponents() : Bad parameters', { arguments:Array.from(arguments)}) ;
+        TSError.throw('TSColor.rgbcomponents() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
     
     public static cmyk(C:number,M:number,Y:number,K:number, opacity?:number) {
@@ -138,7 +138,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             opacity = _component(opacity) ;
             return new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
         }
-        throw new TSError('TSColor.cmyk() : Bad parameters', { arguments:Array.from(arguments)}) ;
+        TSError.throw('TSColor.cmyk() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static grayscale(whiteIntensity:number, opacity?:number) {
@@ -147,7 +147,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             whiteIntensity = _component(whiteIntensity) ;
             return new TSColor(TSColorSpace.Grayscale, [0,0,0,1-whiteIntensity], opacity) ;
         }
-        throw new TSError('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
+        TSError.throw('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static logColorCache() {
@@ -287,7 +287,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
     public toAlpha(newAlpha:uint8):TSColor {
         if (!$isunsigned(newAlpha, 0xFF)) {
-            throw new TSError(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;
+            TSError.throw(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;
         }
         if (this.colorSpace !== TSColorSpace.RGB) { return this.toOpacity(newAlpha / 255.0) ; }
         if (newAlpha === this._alpha) { return this ; } 

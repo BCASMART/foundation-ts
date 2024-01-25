@@ -1,7 +1,7 @@
 import { Nullable, TSDictionary } from "./types";
 import { $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string } from "./commons";
 import { $ftrim } from "./strings";
-import { TSError, TSHttpError } from "./tserrors";
+import { TSError } from "./tserrors";
 import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
 import { Resp, Verb } from "./tsrequest";
 import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse } from "./tsserver_types";
@@ -28,18 +28,18 @@ export class TSServerEndPoint {
         const errorOptions = { path:path, definition:def } ;
 
         if (len < 2) { 
-            throw new TSError(`TSServerEndPoint.constructor(): end points path '${path}' is too short`, errorOptions) ; 
+            TSError.throw(`TSServerEndPoint.constructor(): end points path '${path}' is too short`, errorOptions) ; 
         }
         // ========== final end points construction =========
         const methods = $keys(def) as Verb[] ;
         if (methods.length === 0) { 
-            throw new TSError(`TSServerEndPoint.constructor() : end points path '${path}' has no method defined.`, errorOptions) ; 
+            TSError.throw(`TSServerEndPoint.constructor() : end points path '${path}' has no method defined.`, errorOptions) ; 
         }
 
         this._managers = new Map<Verb, TSServerEndPointManager>() ;
         methods.forEach(m => {
             if (!Object.values(Verb).includes(m)) {
-                throw new TSError(`TSServerEndPoint.constructor() : end points path '${path}' did define invalid '${m}' request method.`, errorOptions) ; 
+                TSError.throw(`TSServerEndPoint.constructor() : end points path '${path}' did define invalid '${m}' request method.`, errorOptions) ; 
             }
             this._managers.set(m, new TSServerEndPointManager(m, ($isfunction(def[m]) ? { controller:def[m] } : def[m]) as TSEndPoint, errorOptions)) ;
         }) ;
@@ -60,7 +60,7 @@ export class TSServerEndPoint {
             switch (state) {
                 case State.Start:
                     if (c !== '/') { 
-                        throw new TSError(`TSServerEndPoint.constructor(): end points path '${path}' is not absolute.`, { position:i, ...errorOptions}) ; 
+                        TSError.throw(`TSServerEndPoint.constructor(): end points path '${path}' is not absolute.`, { position:i, ...errorOptions}) ; 
                     }
                     state = State.Standard ;
                     break ;
@@ -68,7 +68,7 @@ export class TSServerEndPoint {
                     switch (c) {
                         case '{': state = State.Bracket ; constructUri = false ; break ;
                         case '}': 
-                            throw new TSError(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${path}'.`, { position:i, ...errorOptions}) ; 
+                            TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${path}'.`, { position:i, ...errorOptions}) ; 
                         case '/':
                             if (constructUri) { this.uri += c ; } else { regString += '\\/' ; }
                             this.depth++ ;
@@ -77,7 +77,7 @@ export class TSServerEndPoint {
                             if (constructUri) { this.uri += c ; } else { regString += '\\'+c ; }
                             break ;
                         case '^': case '\\': case '[': case ']': case '`': case '|':
-                            throw new TSError(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in path '${path}'.`, { 
+                            TSError.throw(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in path '${path}'.`, { 
                                 position:i, 
                                 character:c, 
                                 ...errorOptions
@@ -94,7 +94,7 @@ export class TSServerEndPoint {
                         state = State.Token ; 
                         break ; 
                     }
-                    throw new TSError(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
+                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
                         position:i, 
                         character:c, 
                         ...errorOptions
@@ -118,7 +118,7 @@ export class TSServerEndPoint {
                         state = State.Standard ;
                         break ;
                     }
-                    throw new TSError(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
+                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
                         position:i, 
                         character:c, 
                         ...errorOptions
@@ -138,14 +138,14 @@ export class TSServerEndPoint {
                             state = State.Standard ;
                             break ;    
                         }
-                        throw new TSError(`TSServerEndPoint.constructor(): found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.`, { 
+                        TSError.throw(`TSServerEndPoint.constructor(): found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.`, { 
                             position:i, 
                             character:c, 
                             ...errorOptions
                         }) ; 
                     }
 
-                    throw new TSError(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric type of token '${currentToken}' in path '${path}'.`, { 
+                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric type of token '${currentToken}' in path '${path}'.`, { 
                         position:i, 
                         character:c, 
                         ...errorOptions
@@ -153,7 +153,7 @@ export class TSServerEndPoint {
             }
         }
         if (state !== State.Standard) { 
-            throw new TSError(`TSServerEndPoint.constructor(): malformed parametric path '${path}'.`, errorOptions) ; 
+            TSError.throw(`TSServerEndPoint.constructor(): malformed parametric path '${path}'.`, errorOptions) ; 
         }
         this._pathRegex = regString.length === 0 ? null : new RegExp('^'+regString+'$', 'i') ; 
     }
@@ -174,11 +174,12 @@ export class TSServerEndPoint {
                             const token = this._tokens[i] ;
                             const value = m![i+1] ;
                             if (!token.parser.validate(value)) {
-                                throw new TSHttpError(`Bad parameter '${token.name}' of type '${token.parser.nodeType}' in url path '${path}'`, Resp.BadRequest, {
+                                TSError.throw(`Bad parameter '${token.name}' of type '${token.parser.nodeType}' in url path '${path}'`, Resp.BadRequest, {
                                     token:token.name,
                                     type:token.parser.nodeType,
-                                    path:path
-                                  }, TSServerErrorCodes.BadParameter) ; 
+                                    path:path,
+                                    serverError:TSServerErrorCodes.BadParameter
+                                  }) ; 
                             }
                             ret[token.name] = token.parser.rawInterpret(value) ;
                         }
@@ -193,10 +194,11 @@ export class TSServerEndPoint {
     public async execute(req: TSServerRequest, res: ServerResponse):Promise<void> {
         const manager = this._managers.get(req.method) ;
         if (!$ok(manager)) { 
-           throw new TSHttpError(`Method '${req.method}' not implemented on url '${req.url.pathname}'`, Resp.NotImplemented, {
+           TSError.throw(`Method '${req.method}' not implemented on url '${req.url.pathname}'`, Resp.NotImplemented, {
              method:req.method,
-             path:$length(req.url.pathname) ? req.url.pathname : '/'
-           }, TSServerErrorCodes.MethodNotImplemented) ; 
+             path:$length(req.url.pathname) ? req.url.pathname : '/',
+             serverError:TSServerErrorCodes.MethodNotImplemented
+            }) ; 
         }
         _developerLog(req, 'will execute manager', manager?.developerDesc(req.url.pathname)) ;
         await manager!.execute(req, res) ;
@@ -227,7 +229,7 @@ class TSServerEndPointManager {
         this._responseParser = _defineParser(ep.response, 'response', errorOptions) ;
         
         if (!$isfunction(ep.controller)) {
-            throw new TSError(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has no valid controller function.`, errorOptions) ; 
+            TSError.throw(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has no valid controller function.`, errorOptions) ; 
         }
 
         this._controller = ep.controller ;
@@ -245,11 +247,12 @@ class TSServerEndPointManager {
 
             if (!this._queryParser!.validate(params, options)) {
                 _developerLog(req, 'impossible to validate query') ;                
-                throw new TSHttpError(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
+                TSError.throw(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    errors:options.errors
-                  }, TSServerErrorCodes.BadQueryStructure) ; 
+                    errors:options.errors,
+                    serverError:TSServerErrorCodes.BadQueryStructure
+                }) ; 
             }
             req.query = this._queryParser!.rawInterpret(params) ;
             _developerLog(req, 'final interpreted query', req.query) ;                
@@ -262,10 +265,11 @@ class TSServerEndPointManager {
 
             if (!$ok(body) && this._bodyParser!.mandatory) {
                 _developerLog(req, 'missing body content') ;                
-                throw new TSHttpError(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
+                TSError.throw(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
-                }, TSServerErrorCodes.MissingBody) ;
+                    serverError:TSServerErrorCodes.MissingBody
+                }) ;
             } ;
             
             const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
@@ -273,10 +277,11 @@ class TSServerEndPointManager {
 
             if (!mtype.length) {
                 _developerLog(req, 'bad MIME type') ;                
-                throw new TSHttpError(`No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
+                TSError.throw(`No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
-                }, TSServerErrorCodes.MissingMimeType) ;
+                    serverError:TSServerErrorCodes.MissingMimeType
+                }) ;
             }
             
 
@@ -290,22 +295,24 @@ class TSServerEndPointManager {
                     try { body = JSON.parse(body) ; }
                     catch (e) { 
                         _developerLog(req, 'impossible to decode JSON body') ;                
-                        throw new TSHttpError(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
+                        TSError.throw(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                             method:this._method,
                             path:$length(req.url.pathname) ? req.url.pathname : '/',
-                            parsingError:e
-                        }, TSServerErrorCodes.BadJSONBody) ;
+                            parsingError:e,
+                            serverError:TSServerErrorCodes.BadJSONBody
+                        }) ;
                     }
                     _developerLog(req, 'json decoded body', body) ;                
                 }
             }
             if (!this._bodyParser!.validate(body, options)) {
                 _developerLog(req, 'impossible to validate body') ;                
-                throw new TSHttpError(`Bad body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
+                TSError.throw(`Bad body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    errors:options.errors
-                  }, TSServerErrorCodes.BadBodyStructure) ; 
+                    errors:options.errors,
+                    serverError:TSServerErrorCodes.BadBodyStructure
+                }) ; 
             }
             req.body = this._bodyParser!.rawInterpret(body) ;
             _developerLog(req, 'final intepreted body', req.body) ;                
@@ -334,7 +341,7 @@ function _defineParser(node:Nullable<TSNode>, instanceVar:string, errorOptions:T
         const errors:string[] = []
         const parser = TSParser.define(node!, errors) ;
         if (!$ok(parser)) {
-            throw new TSError(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has invalid ${instanceVar} definition.`, 
+            TSError.throw(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has invalid ${instanceVar} definition.`, 
                               { parserErrors:errors, ...errorOptions}) ; 
 
         }

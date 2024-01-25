@@ -100,7 +100,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                     this._setInternalValues('bad TSFrame parameter', f.x, f.y, f.w, f.h) ;
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             }
@@ -112,11 +112,11 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                         this._setInternalValues('bad TSPoint+(TSSize or TSDocumentFormat) 2 parameters', p.x, p.y, s.w, s.h) ;
                     }
                     else {
-                        throw new TSError('TSRect.constructor() : 2nd parameeter is not a TSSize', { arguments:Array.from(arguments)}) ;
+                        TSError.throw('TSRect.constructor() : 2nd parameeter is not a TSSize', { arguments:Array.from(arguments)}) ;
                     }
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : 1st parameter is not a TSPoint', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRect.constructor() : 1st parameter is not a TSPoint', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             case 3:
@@ -129,7 +129,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                     this._setInternalValues('bad [point, number, number] parameters', p.x, p.y, arguments[1], arguments[2]) ;
                 }
                 else {
-                    throw new TSError('TSRect.constructor() : bad TSPoint, TSSize or number parameter', { arguments:Array.from(arguments)}) ;
+                    TSError.throw('TSRect.constructor() : bad TSPoint, TSSize or number parameter', { arguments:Array.from(arguments)}) ;
                 }
                 break ;
             case 4:
@@ -137,7 +137,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                 break ;
 
             default:
-                throw new TSError('TSRect.constructor() : too much arguments', { arguments:Array.from(arguments)}) ;
+                TSError.throw('TSRect.constructor() : too much arguments', { arguments:Array.from(arguments)}) ;
         }
     }
 
@@ -240,7 +240,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
     public offset(xOffset:number, yOffset:number):TSRect {
         if (!$isnumber(xOffset) || !$isnumber(yOffset)) {
-            throw new TSError('TSRect.offset() : invalid offset parameter', { xOffset:xOffset, yOffset:yOffset}) ;
+            TSError.throw('TSRect.offset() : invalid offset parameter', { xOffset:xOffset, yOffset:yOffset}) ;
         }
         return new TSRect(this.minX+xOffset, this.minY+yOffset, this.width, this.height) ;
     }
@@ -248,7 +248,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
     public inset(insetWidth:number, insetHeight:number):TSRect {
         if (!$isnumber(insetWidth) || !$isnumber(insetHeight)) {
-            throw new TSError('TSRect.inset() : invalid inset parameter', { insetWidth:insetWidth, insetHeight:insetHeight}) ;
+            TSError.throw('TSRect.inset() : invalid inset parameter', { insetWidth:insetWidth, insetHeight:insetHeight}) ;
         }
         return new TSRect(this.minX-insetWidth, this.minY-insetHeight, this.width + insetWidth*2, this.height + insetHeight*2) ;
     }
@@ -301,7 +301,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                        [new TSRect(x, this.maxY-amount, w, amount), new TSRect(x, y, w, h - amount)] ;
             default:
                 // we should never be here, but ...
-                throw new TSError('TSRect.divide() : bad edge parameter', { amount:amount, edge:edge}) ;
+                TSError.throw('TSRect.divide() : bad edge parameter', { amount:amount, edge:edge}) ;
         }
     }
     divideRect = this.divide ;
@@ -365,7 +365,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
             this.w = w ; this.h = h ;    
         }
         else {
-            throw new TSError(`TSRect.constructor() : ${message}`, { x:x, y:y, w:w, h:h}) ;
+            TSError.throw(`TSRect.constructor() : ${message}`, { x:x, y:y, w:w, h:h}) ;
         }
 
     }
@@ -404,7 +404,7 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
     const defaultSize = TSValidSize(opts.defaultSize) ? opts.defaultSize! : TSDocumentFormats.a4 ;
     if (!TSValidSize(size)) { 
         if (opts.invalidSizeRaise) { 
-            throw new TSError('TSAssertFormat() : invalid size format', { size:size }) ;
+            TSError.throw('TSAssertFormat() : invalid size format', { size:size }) ;
         } 
         return defaultSize ; 
     }
@@ -412,7 +412,7 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
     const min = TSValidSize(opts.minimalSize) ? opts.minimalSize! : TSDocumentFormats.min ;
     if (size!.w < min.w || size!.h < min.h) { 
         if (opts.oversizeRaise) { 
-            throw new TSError('TSAssertFormat() : size format too small', { size:size, minimalSize:min }) ;
+            TSError.throw('TSAssertFormat() : size format too small', { size:size, minimalSize:min }) ;
         } 
         return min ;
     }
@@ -420,7 +420,7 @@ export function TSAssertFormat(format:Nullable<TSDocumentFormat|TSSize>, opts:TS
     const max = TSValidSize(opts.maximalSize) ? opts.maximalSize! : TSDocumentFormats.max ;
     if (size!.w > max.w || size!.h > max.h) {
         if (opts.oversizeRaise) { 
-            throw new TSError('TSAssertFormat() : size format too large', { size:size, maximalSize:max }) ;
+            TSError.throw('TSAssertFormat() : size format too large', { size:size, maximalSize:max }) ;
         } 
         return max ; 
     }

@@ -46,7 +46,7 @@ export class _TSHashBuffer {
         this.intCount = opts.integersCount ;
         this.blockSize = opts.integersCount * 4 ;
         if (this.paddingLength > Math.floor(this.blockSize/8)) {
-            throw new TSError('Impossible to create HashBlock with a padding this size', {
+            TSError.throw('Impossible to create HashBlock with a padding this size', {
                 sourceLength:this.sourceLength,
                 paddingLength:this.paddingLength,
                 blockSize:this.blockSize,            
@@ -72,8 +72,8 @@ export class _TSHashBuffer {
     }
     
     private _getSourcedBlock(blockIndex:number):Buffer {
-        if (blockIndex < 0) { throw '_TSHashBuffer._getSourcedBlock index underflow' ; }
-        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getSourcedBlock index overflow' ; }
+        if (blockIndex < 0) { TSError.throw('_TSHashBuffer._getSourcedBlock index underflow') ; }
+        else if (blockIndex >= this.blocksCount) { TSError.throw('_TSHashBuffer._getSourcedBlock index overflow') ; }
 
         let i = blockIndex * this.blockSize ;
         const endBlock = i + this.blockSize ;
@@ -83,8 +83,8 @@ export class _TSHashBuffer {
     }
 
     private _getBlock(blockIndex:number, debug:boolean):number[] {
-        if (blockIndex < 0) { throw '_TSHashBuffer._getBlock index underflow' ; }
-        else if (blockIndex >= this.blocksCount) { throw '_TSHashBuffer._getBlock index overflow' ; }
+        if (blockIndex < 0) { TSError.throw('_TSHashBuffer._getBlock index underflow') ; }
+        else if (blockIndex >= this.blocksCount) { TSError.throw('_TSHashBuffer._getBlock index overflow') ; }
 
         let i = blockIndex * this.blockSize, j = 0 ;
         const endBlock = i + this.blockSize ;

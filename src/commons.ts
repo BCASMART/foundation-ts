@@ -412,7 +412,7 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
         
         for (let p of opts.properties) {
             if (!$isstring(p)) { 
-                throw new TSError(`$${fn}() needs to have valid string properties`, 
+                TSError.throw(`$${fn}() needs to have valid string properties`, 
                 { function:fn, source:source, destination:destination, options:opts}) ; 
             }
             const v = opts.filter(source[p]) ; 

@@ -52,7 +52,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 		const node = new TSListNode(data) ;
 		if (!this._f) {
 			if ($ok(before)) { 
-                throw new TSError('TSList.insert(): Try to insert data before a suposely existing node in an empty list', { data:data, before:before }) ;
+                TSError.throw('TSList.insert(): Try to insert data before a suposely existing node in an empty list', { data:data, before:before }) ;
             }
 			this._f = this._l = node ;
 			this._n = 1 ;
@@ -65,7 +65,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 			this._n ++ ;
 		}
 		else if (!$ok(this.searchNode((node: TSListNode<T>) => node === before))) {
-            throw new TSError('TSList.insert(): Try to insert data before a non existing node', { data:data, before:before }) ;
+            TSError.throw('TSList.insert(): Try to insert data before a non existing node', { data:data, before:before }) ;
         }
         else {
 			const prev = before!.prev! ;

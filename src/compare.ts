@@ -223,7 +223,7 @@ function _order(a:any, b:any, comparisonFn:(a:any,b:any)=>Comparison):NonNullabl
     else {
         const comp = comparisonFn(a,b) ;
         if (!$defined(comp)) {
-            throw new TSError("Impossible to order elements A and B", { A:a, B:b }) ;
+            TSError.throw("Impossible to order elements A and B", { A:a, B:b }) ;
         }
         return comp! ;
     }

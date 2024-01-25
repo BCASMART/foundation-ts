@@ -9,7 +9,7 @@ import { $exit, $inbrowser, $logheader, $logterm } from "../src/utils";
 import { EchoStructure, PingStructure } from "./echoping";
 
 if ($inbrowser()) {
-    throw new TSError(`Impossible to launch echo server inside a browser`) ;
+    TSError.throw(`Impossible to launch echo server inside a browser`) ;
 }
 const [args,] = $args({
     port:{ 

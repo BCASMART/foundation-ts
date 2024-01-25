@@ -287,17 +287,17 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
     if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
     if (!$isint(opts.minutesOffset)) { 
-        throw new TSError('$components2StringWithOffset() : output time zone offset must be a plain unsigned integer', { timeZoneOffset:opts.minutesOffset}) ;
+        TSError.throw('$components2StringWithOffset() : output time zone offset must be a plain unsigned integer', { timeZoneOffset:opts.minutesOffset}) ;
     }
     const m = opts.minutesOffset! as int ;
     const a = Math.abs(m) ;
     
     if (a % 15 !== 0) { 
-        throw new TSError('$components2StringWithOffset() : output time zone offset must be multiple of 15', { timeZoneOffset:opts.minutesOffset}) ;
+        TSError.throw('$components2StringWithOffset() : output time zone offset must be multiple of 15', { timeZoneOffset:opts.minutesOffset}) ;
     }
 
     if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { 
-        throw new TSError('$components2StringWithOffset() : milliseconds offset should be in 0...999 range', {millisecondsOffset:opts.milliseconds}) ;
+        TSError.throw('$components2StringWithOffset() : milliseconds offset should be in 0...999 range', {millisecondsOffset:opts.milliseconds}) ;
     }    
     
     let s = $components2string(c, opts.form!) ;
@@ -504,7 +504,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
     if ($ok(duration) && duration! < 0) { 
-        throw new TSError('$durationcomponents() : duration must be positive or 0', { duration:duration}) ;
+        TSError.throw('$durationcomponents() : duration must be positive or 0', { duration:duration}) ;
     }
     let time:number = $tounsigned(duration) ; // we trash subseconds duration digits
     let d:number, h:number, m:number ;
