@@ -151,7 +151,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         }
     }) ;
     group.unary("TSParser example", async(t) => {
-        const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example') ;
+        const [struct, _v, _i] = _define(0, t, parserStructureTestDefinition, 'example') ;
         if ($ok(struct)) {    
             let v = parserStructureTestValue() ;         
             if (_v(2, v)) {
@@ -223,7 +223,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 }, 0, 8]        
             }
         } ;
-        const [struct, _v, _i] = _define(t, def, 'example with enum exported') ;
+        const [struct, _v, _i] = _define(0, t, def, 'example with enum exported') ;
         if ($ok(struct)) {    
             let v = parserStructureTestValue() ;
             if (_v(2, v)) {
@@ -249,6 +249,43 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             }
 
         }
+    }) ;
+
+    group.unary('TSParser validate enum and default values', async(t) => {
+        const def0 = {
+            _mandatory:true, 
+            name:'string!',
+            format:{
+                _type:'paper',
+                _default:'toto'
+            },
+        } ;
+        let errors:string[] = [] ;
+        const struct0 = TSParser.define(def0, errors) ;
+        if (t.expect0(struct0).KO()) {
+            if (!t.expect1(errors.length).is(1) || 
+                !t.expect2(errors[0]).is("Parser type 'paper' cannot be have toto as default value")) {
+                console.log(errors) ;
+            }
+        } 
+
+        errors = [] ;        
+        const def3 = {
+            _mandatory:true, 
+            name:'string!',
+            lang:{
+                _type:'paper',
+                _enum:['a4', 'c1', 'toto']
+            },
+        } ;
+        const struct3 = TSParser.define(def3, errors) ;
+        if (t.expect3(struct3).KO()) {
+            if (!t.expect4(errors.length).is(1) || 
+                !t.expect5(errors[0]).is("Enumeration value 'toto' is invalid for type 'paper'")) {
+                console.log(errors) ;
+            }
+        } 
+
     }) ;
 
     group.unary("TSParser example with aliases", async(t) => {
@@ -285,7 +322,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
 
         cao.set('position', 'job') ;
 
-        const [struct, _v, _i] = _define(t, aliasParserDefinition, 'example with aliases') ;
+        const [struct, _v, _i] = _define(0, t, aliasParserDefinition, 'example with aliases') ;
 
         if ($ok(struct)) {    
             let v = parserStructureTestValue() ;
@@ -321,14 +358,62 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
 
     }) ;
 
+    group.unary('TSParser emulating insensitive case entries', async(t) => {
+        const aliases = new Map<string,string>() ;
+        aliases.set('documentformat', 'documentFormat') ;
+        aliases.set('name', 'name') ;
+        const def = {
+            _mandatory:true, 
+            name:'string!',
+            documentFormat:{
+                _type:'paper',
+                _default:'a4'
+            },
+            _aliases:aliases,
+            _aliasUnsensitive:true
+        } ;
+
+        const value = { NAME:"John DOE", DOCUMENTFORMAT:"folio" }
+        const interpretedValue = { name:"John DOE", documentFormat:"folio" }
+        
+        const [struct, _v, _i] = _define(0, t, def, 'emulating insensitive keys entries' ) ;
+        if ($ok(struct)) {
+            if (_v(0, value)) {
+                const res = struct!.rawInterpret(value) ;
+                t.expect0(res).is(interpretedValue)
+            }
+        }
+        const outa = new Map<string,string>() ;
+        outa.set('documentFormat', 'document-format') ;
+        outa.set('name', 'field-name') ;
+        aliases.set('document-format', "documentFormat") ;
+        (def as any)._outputAliases = outa ; 
+        
+        const value1 = { NAME:"John DOE", "DOCUMENT-FORMAT":"ledger" }
+        const interpretedValue1 = { name:"John DOE", documentFormat:"ledger" }
+        
+        const [struct1, _v1, _i1] = _define(1, t, def, 'emulating insensitive keys entries with other aliases' ) ;
+        if ($ok(struct1)) {
+            if (_v1(1, value1)) {
+                const res = struct1!.rawInterpret(value1) ;
+                if (t.expect1(res).is(interpretedValue1)) {
+                    if (!t.expect2(struct1!.rawEncode(res)).is({ "field-name":"John DOE", "document-format":"ledger" })) {
+                        console.log($inspect(struct1!.toJSON(), 10)) ;
+                    }
+                }
+            }
+        }
+
+    }) ;
+
     group.unary("TSParser url array example", async (t) => {
-        const [struct, _v, _i] = _define(t, ['url!'], 'url array' ) ;
+        const [struct, _v, _i] = _define(0, t, ['url!'], 'url array' ) ;
         if ($ok(struct)) {            
             const v = ['http://localhost', 'http://localhost/', 'http://localhost:8000', 'http://localhost:8000/toto'] ;
             const vr = v.map(s => TSURL.url(s)) ;
             if (_v(2, v)) {
                 const res = struct!.rawInterpret(v) ;
-                if (!t.expect3(res).is(vr)) {
+                if (!t.expect0(res).is(vr)) {
                     console.log($inspect(struct!.toJSON(), 10)) ;
                 }
             }
@@ -342,7 +427,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             _min:2,
             _max:4
         } 
-        const [struct, _v, _i] = _define(t, definition, 'UUID array') ;
+        const [struct, _v, _i] = _define(0, t, definition, 'UUID array') ;
         if ($ok(struct)) {   
             for (let i = 2 ; i < 8 ; i+=2 ) {
                 const v:UUID[] = [] ;
@@ -361,7 +446,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
     }) ;
 
     group.unary("TSParser example in JSON mode", async(t) => {
-        const [struct, _v, _i] = _define(t, parserStructureTestDefinition, 'example', 'json') ;
+        const [struct, _v, _i] = _define(0, t, parserStructureTestDefinition, 'example', 'json') ;
         if ($ok(struct)) {            
             const v = parserStructureTestValue() ;         
             if (_v(2, v)) {
@@ -508,7 +593,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
 }) ;
 
 function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
-    const [struct, _v, _i] = _define(t, def, $filename(file)) ;
+    const [struct, _v, _i] = _define(0, t, def, $filename(file)) ;
     if ($ok(struct)) {
         const json = $loadJSON($absolute(file)) ;
         if (t.expect(json).OK(), `json${n*2}`) {
@@ -523,10 +608,10 @@ function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
     }
 }
 
-function _define(t:TSUnaryTest, def:TSNode, test:string, context?:TSParserActionContextType):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
+function _define(n:number, t:TSUnaryTest, def:TSNode, test:string, context?:TSParserActionContextType):[TSParser|null, (n:number, v:any) => boolean, (n:number, v:any) => boolean] {
     let errors:string[] = [] ;
     const struct = TSParser.define(def, errors) ;
-    if (t.expect0(struct).OK() && t.expect1(errors.length).is(0)) { 
+    if (t.expect(struct, `def-${n}`).OK() && t.expect(errors.length, `err-${n}`).is(0)) { 
         function _v(n:number, v:any) { return _valid(t, struct!, v, n, true, context) ; }
         function _i(n:number, v:any) { return _valid(t, struct!, v, n, false, context) ; }
 

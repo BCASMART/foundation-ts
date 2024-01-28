@@ -111,8 +111,9 @@ export class TSError extends Error {
     // TSError status is here to handle specific HTTP errors
     public get status():Resp 
     { return $ok(this._errorCode) && !isNaN(this._errorCode) && Object.values(Resp).includes(this._errorCode) ? this._errorCode as Resp : Resp.InternalError ; }
-    public set status(s:Resp) { this._errorCode = s ; }
-
+    
+    public set status(s:Resp) 
+    { if (Object.values(Resp).includes(s)) { this._errorCode = s ; } }
 
     public entries(): [string, any][] { return Object.entries({ name:this.name, errorCode:this.errorCode, message:this.message, info:this.info}) ; }
 

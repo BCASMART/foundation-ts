@@ -10,6 +10,7 @@ import { TSCountry } from "./tscountry";
 import { TSCharset } from "./tscharset";
 import { TSURL } from './tsurl';
 import { TSError } from "./tserrors";
+import { TSDocumentFormat, TSDocumentFormats } from "./tsgeometry";
 
 /*
 
@@ -79,12 +80,12 @@ import { TSError } from "./tserrors";
 export type TSLeafOptionalNode  = 'boolean' | 'charset' | 'color' | 'continent' | 'country' | 'currency' | 
                                   'data' | 'date' | 'email' | 'hexa' | 'int' | 'int8' | 'int16' | 'int32' |
                                   'ipaddress' | 'ipv4' | 'ipv6' | 
-                                  'jsdate' | 'language' | 'number' | 'path' | 'phone' | 'string' |
+                                  'jsdate' | 'language' | 'number' | 'paper' | 'path' | 'phone' | 'string' |
                                   'uint8' | 'uint16' | 'uint32' | 'unsigned' | 'uuid' | 'url' ;
 export type TSMandatoryLeafNode = 'boolean!' | 'charset!' | 'color!' | 'continent!' | 'country!' | 'currency!' | 
                                   'data!' | 'date!' | 'email!' | 'hexa!' | 'int!' | 'int8!' | 'int16!' | 'int32!' | 
                                   'ipaddress!' | 'ipv4!' | 'ipv6!' | 
-                                  'jsdate!' | 'language!' | 'number!' | 'path!' | 'phone!' | 'string!' |
+                                  'jsdate!' | 'language!' | 'number!' | 'paper!' | 'path!' | 'phone!' | 'string!' |
                                   'uint8!' | 'uint16!' | 'uint32!' | 'unsigned!' | 'uuid!' | 'url!' ;
 
 export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
@@ -159,6 +160,7 @@ export type TSObjectNode = { [key: string]: TSNode } | {
     _keysCase?:Nullable<TSCase> ;
     _aliases?:Nullable<Map<string, string>> ;
     _outputAliases?:Nullable<Map<string, string>> ;
+    _aliasUnsensitive?:boolean ;
 }
 
 export type TSNode = TSLeafNode | TSObjectNode | TSArrayNode | TSExtendedArrayNode ;
@@ -326,6 +328,7 @@ class TSObjectParser extends TSParser {
     private _defaultValueKeys:string[] = [] ; 
     private _aliases:Map<string, string> ;
     private _outputAliases:Map<string, string> ;
+    private _aliasUnsensitive:boolean ;
 
     public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>, acceptsUncheckedItems:boolean) {
         const m = node._mandatory ;
@@ -345,8 +348,25 @@ class TSObjectParser extends TSParser {
         this._acceptsUncheckedItems = acceptsUncheckedItems ;
         this._itemsParsers = itemsParsers ;
         this._count = $objectcount(itemsParsers) ;
-
-        this._aliases = $ok(node._aliases) ? new Map(node._aliases as Map<string,string>) : new Map() ;
+        this._aliasUnsensitive = !!node._aliasUnsensitive ;
+        const aliases = node._aliases as Map<string,string> | undefined ;
+        
+        if (aliases?.size) {
+            if (this._aliasUnsensitive) {
+                this._aliases = new Map() ;
+                for (let [ak, tk] of aliases) {
+                    ak = ak.toLowerCase() ;
+                    if (this._aliases.get(ak)) {
+                        this.errors.push(`_aliases field should not contain insensitive similar alias ${ak} twice.`) ; 
+                    } 
+                    this._aliases.set(ak, tk) ; 
+                }
+            }
+            else { this._aliases = new Map(aliases!) ; }
+        }
+        else {
+            this._aliases = new Map() ;
+        }
         this._outputAliases = $ok(node._outputAliases) ? new Map(node._outputAliases as Map<string,string>) : new Map() ;
 
         const entries = Object.entries(itemsParsers) ;
@@ -388,9 +408,10 @@ class TSObjectParser extends TSParser {
         const entries = Object.entries(value) ;
         const founds = new Set<string>() ;
         let doomed = false ;
+        const atl = this._aliasUnsensitive ;
 
         for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
+            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
             if (founds.has(k)) {
                 _serror(opts, path, `.${k} is present several times`) ;
                 doomed = true ; continue ;
@@ -425,9 +446,10 @@ class TSObjectParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:any = {}
         const entries = Object.entries(value) ;
+        const atl = this._aliasUnsensitive ;
 
         for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
+            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
             const struct = this._itemsParsers[k] ;
             if ($ok(struct)) {
                 const res = struct.rawInterpret(v, opts) ; 
@@ -439,7 +461,7 @@ class TSObjectParser extends TSParser {
         }
         
         for (let k of this._defaultValueKeys) {
-            const kf = this._keyTransform($value(this._aliases.get(k), k)) ;
+            const kf = this._keyTransform($value(this._aliases.get(atl?k.toLowerCase():k), k)) ;
             if (!$ok(ret[kf])) {
                 ret[kf] = this._itemsParsers[k].includedDefaultValue() ;
             }
@@ -451,8 +473,10 @@ class TSObjectParser extends TSParser {
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         const ret:any = {}
         const entries = Object.entries(value) ;
+        const atl = this._aliasUnsensitive ;
+
         for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(key), key)) ;
+            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
             const struct = this._itemsParsers[k] ;
             const res = struct.rawEncode(v) ; 
             if ($ok(res)) { ret[$value(this._outputAliases.get(k), k)] = res ; }
@@ -566,7 +590,7 @@ class TSLeafParser extends TSParser {
     private _defaultValue:any = undefined ;
     private _exportAsEnum:boolean = false ;
 
-    private static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
+    public static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
         'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
         'charset' :  { valid:_isCharset, str2v:(s:string) => TSCharset.charset(s), v2nat:(v:any) => v.name},
         'color':     { valid:_iscolor, str2v:(s:string) => TSColor.fromString(s), v2nat:_color2str},
@@ -586,8 +610,9 @@ class TSLeafParser extends TSParser {
         'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => _isInt(v, INT32_MIN, INT32_MAX), iskey:true },
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => s, enum:_isLanguage, iskey:true},
-        'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
+        'paper':     { valid:_isDocumentFormat, str2v:(s:string) => s, enum:_isDocumentFormat, iskey:true},
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
+        'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
         'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
         'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0, iskey:true},
         'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
@@ -618,24 +643,24 @@ class TSLeafParser extends TSParser {
 
         const enumeration = node._enum ;
         if ($isarray(enumeration)) { 
-            if (!$ok(manager!.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
+            if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
             if (!enumeration!.length) { this.errors.push(`Empty enumeration definition array for type '${node._type}'`) ; }
             for (let e of enumeration as Array<string|number>) { 
-                if (!manager!.enum!(e)) { 
+                if (!manager?.enum!(e)) { 
                     this.errors.push(`Enumeration value '${e}' is invalid for type '${node._type}'`) ;
                 }
             }
             this._enumeration = new Set(enumeration as Array<string|number>) ;
         }
         else if ($isobject(enumeration)) {
-            if (!$ok(manager!.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
+            if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
             const entries = Object.entries(enumeration as TSDictionary<string|number>) ;
             
             this._enumeration = new Set<string|number>() ;
             this._reverse = new Map() ;
             for (let [key, item] of entries) {
                 if (!key.length || !key.match(IsFielOrEnumdRegex)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
-                if (manager!.enum!(item)) {
+                if (!!manager?.enum!(item)) {
                     this._enumeration.add(item) ;
                     this._reverse.set(item, key) ;
                 }
@@ -654,6 +679,9 @@ class TSLeafParser extends TSParser {
         if ($ok(node._default)) {
             if (mandatory) {
                 this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
+            }
+            else if (!manager?.valid(node._default)) {
+                this.errors.push(`Parser type '${node._type}' cannot be have ${node._default} as default value`) ;
             }
             else {
                 this._defaultValue = node._default ;
@@ -743,7 +771,6 @@ class TSLeafParser extends TSParser {
             default:         return null ;
         }
     }
-
 }
 // ========================== EXPORTED FUNCTIONS ==============================================================
 export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
@@ -757,6 +784,9 @@ export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
     }
 }
 
+export function $validateParsedValue(v:NonNullable<any>, type:TSLeafOptionalNode, opts?:Nullable<TSParserActionOptions>):boolean
+{ return $ok(v) && !!TSLeafParser.__managers[type]?.valid(v, opts) ; }
+
 // ========================== PRIVATE CONSTANTS, TYPES AND FUNCTIONS ==========================================
 
 interface TSLeafNodeManager {
@@ -767,17 +797,19 @@ interface TSLeafNodeManager {
     enum?:(v:any, opts?:Nullable<TSParserActionOptions>) => boolean ;
     iskey?:boolean ;
 }
-function _isCharset(v:any):boolean   { return v instanceof TSCharset || ($isstring(v) && $ok(TSCharset.charset(v))) ; }
-function _isContinent(v:any):boolean { return TSContinentSet.has(v) ; }
-function _isCountry(v:any):boolean   { return v instanceof TSCountry || TSCountrySet.has(v) ; }
-function _isCurrency(v:any):boolean  { return TSCurrencySet.has(v) ; }
-function _isIPAddress(v:any):boolean { return $isipaddress(v) ; }
-function _isIPV4(v:any):boolean      { return $isipv4(v) ; }
-function _isIPV6(v:any):boolean      { return $isipv6(v) ; }
-function _isLanguage(v:any):boolean  { return TSLanguageSet.has(v) ; }
-function _isNumber(v:any):boolean    { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
 
-function _countryTrans(v:any):any    { return v instanceof TSCountry ? v.alpha2Code : v ; }
+function _isCharset(v:any):boolean          { return v instanceof TSCharset || ($isstring(v) && $ok(TSCharset.charset(v))) ; }
+function _isContinent(v:any):boolean        { return TSContinentSet.has(v) ; }
+function _isCountry(v:any):boolean          { return v instanceof TSCountry || TSCountrySet.has(v) ; }
+function _isCurrency(v:any):boolean         { return TSCurrencySet.has(v) ; }
+function _isDocumentFormat(v:any):boolean   { return $isstring(v) && $ok(TSDocumentFormats[v as TSDocumentFormat]) ; }
+function _isIPAddress(v:any):boolean        { return $isipaddress(v) ; }
+function _isIPV4(v:any):boolean             { return $isipv4(v) ; }
+function _isIPV6(v:any):boolean             { return $isipv6(v) ; }
+function _isLanguage(v:any):boolean         { return TSLanguageSet.has(v) ; }
+function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
+
+function _countryTrans(v:any):any           { return v instanceof TSCountry ? v.alpha2Code : v ; }
 
 function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
     s = $ascii($ftrim(s)).toLowerCase() ;
@@ -857,7 +889,7 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 // this is the function wich convert you data model definition
 // into a tree of structures
 const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/g
-const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases']) ;
+const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases', '_aliasUnsensitive']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
     'lowercase':(s:string)=> s.toLowerCase(),
