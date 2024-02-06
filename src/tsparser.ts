@@ -1,4 +1,4 @@
-import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet } from "./types";
+import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet, language, continent, currency, country } from "./types";
 import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull, $isipaddress, $isipv4, $isipv6 } from "./commons";
 import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
 import { $ascii, $ftrim, $trim } from "./strings";
@@ -77,15 +77,16 @@ import { TSDocumentFormat, TSDocumentFormats } from "./tsgeometry";
 
  */
 // WARNING: 'jsdate' represents a Date() object, 'date' a TSDate() object
+// any means any simple type (ie not an object or an array)
 export type TSLeafOptionalNode  = 'boolean' | 'charset' | 'color' | 'continent' | 'country' | 'currency' | 
                                   'data' | 'date' | 'email' | 'hexa' | 'int' | 'int8' | 'int16' | 'int32' |
                                   'ipaddress' | 'ipv4' | 'ipv6' | 
-                                  'jsdate' | 'language' | 'number' | 'paper' | 'path' | 'phone' | 'string' |
+                                  'jsdate' | 'language' | 'native' | 'number' | 'paper' | 'path' | 'phone' | 'string' |
                                   'uint8' | 'uint16' | 'uint32' | 'unsigned' | 'uuid' | 'url' ;
 export type TSMandatoryLeafNode = 'boolean!' | 'charset!' | 'color!' | 'continent!' | 'country!' | 'currency!' | 
                                   'data!' | 'date!' | 'email!' | 'hexa!' | 'int!' | 'int8!' | 'int16!' | 'int32!' | 
                                   'ipaddress!' | 'ipv4!' | 'ipv6!' | 
-                                  'jsdate!' | 'language!' | 'number!' | 'paper!' | 'path!' | 'phone!' | 'string!' |
+                                  'jsdate!' | 'language!' | 'native!' | 'number!' | 'paper!' | 'path!' | 'phone!' | 'string!' |
                                   'uint8!' | 'uint16!' | 'uint32!' | 'unsigned!' | 'uuid!' | 'url!' ;
 
 export type TSParserNodeType    = TSLeafOptionalNode | 'array' | 'object' ;
@@ -594,26 +595,27 @@ class TSLeafParser extends TSParser {
         'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
         'charset' :  { valid:_isCharset, str2v:(s:string) => TSCharset.charset(s), v2nat:(v:any) => v.name},
         'color':     { valid:_iscolor, str2v:(s:string) => TSColor.fromString(s), v2nat:_color2str},
-        'continent': { valid:_isContinent, str2v:(s:string) => s, enum:_isContinent, iskey:true},
-        'country':   { valid:_isCountry, trans:_countryTrans, str2v:(s:string) => s, v2nat:(v:any) => v.alpha2Code, enum:(v:any) => TSCountrySet.has(v), iskey:true},
-        'currency':  { valid:_isCurrency, str2v:(s:string) => s, enum:_isCurrency, iskey:true},
+        'continent': { valid:_isContinent, str2v:(s:string) => $ftrim(s).toUpperCase(), enum:_isContinent, iskey:true},
+        'country':   { valid:_isCountry, trans:_countryTrans, str2v:(s:string) => $ftrim(s).toUpperCase(), v2nat:(v:any) => v.alpha2Code, enum:(v:any) => TSCountrySet.has(v), iskey:true},
+        'currency':  { valid:_isCurrency, str2v:(s:string) => $ftrim(s).toUpperCase(), enum:_isCurrency, iskey:true},
         'data' :     { valid:_isData, str2v:_decodeb64, v2nat:_encodeb64},
         'date' :     { valid:_isTsDate, str2v:(s:string) => TSDate.fromIsoString(s), v2nat:(v:any) => v.toIsoString()},
         'email':     { valid:(v:any) => $isemail(v), str2v:(s:string) => $email(s), iskey:true },
         'hexa':      { valid:_isHexaData, str2v:_decodeHexa, v2nat:(v:any) => $encodeHexa(v)},
-        'ipaddress': { valid:_isIPAddress, str2v:(s:string) => $ftrim(s), enum:_isIPAddress, iskey:true},
-        'ipv4':      { valid:_isIPV4, str2v:(s:string) => $ftrim(s), enum:_isIPV4, iskey:true},
-        'ipv6':      { valid:_isIPV6, str2v:(s:string) => $ftrim(s), enum:_isIPV6, iskey:true},
+        'ipaddress': { valid:$isipaddress, str2v:(s:string) => $ftrim(s), enum:$isipaddress, iskey:true},
+        'ipv4':      { valid:$isipv4, str2v:(s:string) => $ftrim(s), enum:$isipv4, iskey:true},
+        'ipv6':      { valid:$isipv6, str2v:(s:string) => $ftrim(s), enum:$isipv6, iskey:true},
         'int':       { valid:(v:any) => _isInt(v, INT_MIN,   INT_MAX),   str2v:_int, enum:(v) => _isInt(v, INT_MIN, INT_MAX), iskey:true },
         'int8':      { valid:(v:any) => _isInt(v, INT8_MIN,  INT8_MAX),  str2v:_int, enum:(v) => _isInt(v, INT8_MIN, INT8_MAX), iskey:true },
         'int16':     { valid:(v:any) => _isInt(v, INT16_MIN, INT16_MAX), str2v:_int, enum:(v) => _isInt(v, INT16_MIN, INT16_MAX), iskey:true },
         'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => _isInt(v, INT32_MIN, INT32_MAX), iskey:true },
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
-        'language':  { valid:_isLanguage, str2v:(s:string) => s, enum:_isLanguage, iskey:true},
+        'language':  { valid:_isLanguage, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isLanguage, iskey:true},
+        'native' :   { valid:_isAny, str2v:(s:string) => s, v2nat:_any2nat},
+        'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
         'paper':     { valid:_isDocumentFormat, str2v:(s:string) => s, enum:_isDocumentFormat, iskey:true},
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
-        'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
         'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0, iskey:true},
         'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
@@ -798,15 +800,34 @@ interface TSLeafNodeManager {
     iskey?:boolean ;
 }
 
+function _isAny(v:any):boolean {
+    switch (typeof v) {
+        case 'bigint': v = Number(v) ;  return !isNaN(v) && isFinite(v) ;
+        case 'number': return !isNaN(v) && isFinite(v) ;
+        case 'boolean': case 'string': case 'symbol': return true ;
+        default: return false ;
+    }
+}
+
+function _any2nat(v:any):TSNativeValue {
+    switch (typeof v) {
+        case 'bigint': return Number(v) ;
+        case 'number': case 'boolean': case 'string': return v ;
+        case 'symbol': return $string(v) ;
+        case 'undefined': return undefined ;
+        default: return null ;
+    }
+}
+
 function _isCharset(v:any):boolean          { return v instanceof TSCharset || ($isstring(v) && $ok(TSCharset.charset(v))) ; }
-function _isContinent(v:any):boolean        { return TSContinentSet.has(v) ; }
-function _isCountry(v:any):boolean          { return v instanceof TSCountry || TSCountrySet.has(v) ; }
-function _isCurrency(v:any):boolean         { return TSCurrencySet.has(v) ; }
+function _isContinent(v:any):boolean        { return $isstring(v) && TSContinentSet.has($ftrim(v).toUpperCase() as continent) ; }
+function _isCountry(v:any):boolean          { return v instanceof TSCountry ||  ($isstring(v) && TSCountrySet.has($ftrim(v).toUpperCase() as country)) ; }
+function _isCurrency(v:any):boolean         { return $isstring(v) && TSCurrencySet.has($ftrim(v).toUpperCase() as currency) ; }
 function _isDocumentFormat(v:any):boolean   { return $isstring(v) && $ok(TSDocumentFormats[v as TSDocumentFormat]) ; }
-function _isIPAddress(v:any):boolean        { return $isipaddress(v) ; }
-function _isIPV4(v:any):boolean             { return $isipv4(v) ; }
-function _isIPV6(v:any):boolean             { return $isipv6(v) ; }
-function _isLanguage(v:any):boolean         { return TSLanguageSet.has(v) ; }
+//function _isIPAddress(v:any):boolean        { return $isipaddress(v) ; }
+//function _isIPV4(v:any):boolean             { return $isipv4(v) ; }
+//function _isIPV6(v:any):boolean             { return $isipv6(v) ; }
+function _isLanguage(v:any):boolean         { return $isstring(v) && TSLanguageSet.has($ftrim(v).toLowerCase() as language) ; }
 function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
 
 function _countryTrans(v:any):any           { return v instanceof TSCountry ? v.alpha2Code : v ; }

@@ -30,8 +30,8 @@ export abstract class TSCharset {
     public static binaryCharset()     { return TSCharset.latin1Charset() ; }
     public static utf8Charset()       { return TSCharset._cachedCharset(TSCachedCharset.UTF8,   'utf8') ; }
     public static unicodeCharset()    { return TSCharset._cachedCharset(TSCachedCharset.UTF16,  'utf16le') ; }
-    public static ansiCharset()       { return TSCharset._cachedCharset(TSCachedCharset.UTF16,  'ansi') ; }
-    public static macCharset()        { return TSCharset._cachedCharset(TSCachedCharset.UTF16,  'mac') ; }
+    public static ansiCharset()       { return TSCharset._cachedCharset(TSCachedCharset.ANSI,   'ansi') ; }
+    public static macCharset()        { return TSCharset._cachedCharset(TSCachedCharset.MAC,    'mac') ; }
 
     public readonly name:string ;
     public readonly aliases:string[] ;
@@ -49,6 +49,11 @@ export abstract class TSCharset {
     public static encoding(enc:StringEncoding) { return this.charset($encoding(enc))! ; }
 
     public static charset(name:string):TSCharset|undefined {
+        const map = TSCharset._charsetMap() ;
+        return map.get(name.toLowerCase()) ;
+    }
+    
+    private static _charsetMap():Map<string, TSCharset> {
         if (!$ok(TSCharset.__charsetsMap)) {
             TSCharset.__charsetsMap = new Map<string, TSCharset>() ;
             
@@ -80,12 +85,15 @@ export abstract class TSCharset {
                 TSCharset.__charsetsMap!.set(name, charset) ;
                 aliases.forEach(a => TSCharset.__charsetsMap!.set(a, charset))
             }) ;
-
         }
-
-        return TSCharset.__charsetsMap!.get(name.toLowerCase()) ;
+        return TSCharset.__charsetsMap! ;
     }
-    
+
+    public static allCharsetNames():string[] {
+        const map = TSCharset._charsetMap() ;
+        return map.keysArray() ;
+    }
+
     private static _cachedCharset(code:TSCachedCharset, name:string):TSCharset {
         if (!$ok(TSCharset.__cachedCharsets[code])) { TSCharset.__cachedCharsets[code] = TSCharset.charset(name) ! }
         return TSCharset.__cachedCharsets[code] ;

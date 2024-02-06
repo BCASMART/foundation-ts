@@ -195,12 +195,19 @@ export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0
     return isNaN(v as number) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v as number, UINT_MAX))) as uint ;
 }
 
-export function $string(v:any) : string {
-    if ($isstring(v)) { return v ; }
-    else if (!$ok(v)) { return '' ; }
-    else if ($ismethod(v, 'toString')) { return v.toString() ; }
-    else { return `${v}` ; }
+export function $string(v:any, yesOrNo?:Nullable<boolean>) : string {
+    // WARNING: now this function try to export the symbol local or global key xxx instead of 'Symbol(xxx)')
+    const t = typeof(v) ;
+    switch (t) {
+        case 'string': return v ;
+        case 'symbol': return _symbol2str(v) ;
+        case 'undefined': return '' ;
+        case 'object': return v !== null ? ($ismethod(v, 'toString') ? v.toString() : `${v}`) : '' ;
+        case 'boolean': return !yesOrNo ? (v ? 'true' : 'false') : (v ? 'YES' : 'NO') ;
+        default: return v.toString() ; // Function, BigInt and Number have a toString() method
+    }
 }
+
 
 export function $array<T=any>(...values:T[]):T[] { return values ; }
 
@@ -383,6 +390,13 @@ export const __uuidV1Regex:RegExp   = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]
 export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A-F\d]{3}-[A-F\d]{12}$/i ;
 
 // ===== private functions ===================================
+function _symbol2str(v:symbol):string {
+    const s = v.toString() ;
+    if (s.startsWith('Symbol(') && s.endsWith(')')) {
+        return s.slice(7, s.length - 1) ;
+    }
+    return $value(Symbol.keyFor(v), '') ;
+}
 
 const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
 
