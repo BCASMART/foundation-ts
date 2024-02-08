@@ -1,4 +1,4 @@
-import { $count, $length, $ok, $value } from './commons';
+import { $count, $length, $ok, $value, $valueornull } from './commons';
 import { $continentName, $language, Locales, TSDefaults } from './tsdefaults';
 import { TSClone, TSLeafInspect, TSObject } from './tsobject';
 import { Comparison, continent, Countries, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
@@ -22,6 +22,8 @@ import { PhonePlan, PhonePlanInfo } from './tsphonenumber';
 
 export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     private static __countriesMap:Map<string, TSCountry> ;
+    private static __countriesAlpha3Map:Map<string, country> ;
+    private static __countriesAlpha2Map:Map<country, string> ;
     private static __countries:TSCountry[] ;
     private static __dialCodeMap:Map<string, Array<TSCountry>> ;
     private static __EULocale:Locales = {
@@ -91,6 +93,8 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public static loadCountries(localesMap:Map<string, Locales>, managedLanguages:language[]):Map<string, TSCountry> {
         if (!$ok(TSCountry.__countriesMap)) {
             TSCountry.__countriesMap = new Map<string, TSCountry>() ;
+            TSCountry.__countriesAlpha2Map = new Map<country, string>() ;
+            TSCountry.__countriesAlpha3Map = new Map<string, country>() ;
             TSCountry.__dialCodeMap = new Map<string, Array<TSCountry>>() ;
             TSCountry.__countries = [] ;
 
@@ -106,6 +110,9 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
                 codes!.push(c) ;
                 TSCountry.__countries.push(c) ;
                 TSCountry.__countriesMap.set(c.alpha2Code, c).set(c.alpha3Code, c) ;
+                TSCountry.__countriesAlpha3Map.set(c.alpha3Code, c.alpha2Code) ;
+                TSCountry.__countriesAlpha2Map.set(c.alpha2Code, c.alpha3Code) ;
+
                 managedLanguages.forEach(l => TSCountry.__countriesMap.set($ascii(c.names[l]!.toUpperCase()), c)) ;
                 info.aliases?.forEach(a => TSCountry.__countriesMap.set($ascii(a.toUpperCase()), c))
             }) ;            
@@ -127,6 +134,22 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         }
         return null ;
     }
+    
+    public static alpha2CodeForAlpha3Code(c:Nullable<string>):country|null
+    { return $length(c) === 3 ? $valueornull(TSCountry.__countriesAlpha3Map.get(c!)) : null ; }
+
+    public static alpha3CodeForAlpha2Code(c:Nullable<country|string>):string|null
+    { return $length(c) === 2 ? $valueornull(TSCountry.__countriesAlpha2Map.get(c as country)) : null ; }
+
+    // This does not return all elements listed in Country enum. 
+    // Only the managed countries as TSCountry
+    public static alpha2Codes():country[] 
+    { return TSCountry.__countriesAlpha2Map.keysArray() ; }
+
+    // All alpha3 codes of known TSCountry objects
+    public static alpha3Codes():string[] 
+    { return TSCountry.__countriesAlpha3Map.keysArray() ; }
+
 
     public static countryForVATNumber(vatNumber:Nullable<string>): TSCountry | null {
         vatNumber = $trim(vatNumber).toUpperCase() ;

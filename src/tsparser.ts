@@ -2,82 +2,63 @@ import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT1
 import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull, $isipaddress, $isipv4, $isipv6 } from "./commons";
 import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
 import { $ascii, $ftrim, $trim } from "./strings";
-import { TSColor, TSColorSpace } from "./tscolor";
-import { TSDate } from "./tsdate";
-import { TSPhoneNumber } from "./tsphonenumber";
-import { $inspect } from "./utils";
-import { TSCountry } from "./tscountry";
+
 import { TSCharset } from "./tscharset";
-import { TSURL } from './tsurl';
-import { TSError } from "./tserrors";
+import { TSColor, TSColorSpace } from "./tscolor";
+import { TSCountry } from "./tscountry";
+import { TSDate } from "./tsdate";
 import { TSDocumentFormat, TSDocumentFormats } from "./tsgeometry";
+import { TSPhoneNumber } from "./tsphonenumber";
+import { TSURL } from './tsurl';
 
-/*
+import { TSError } from "./tserrors";
 
-    Example of parser definition usage
+import { $inspect } from "./utils";
 
-    const def = {
-        _mandatory: true,
-        _keysCase: 'lowercase',
-        name:   'string!',
-        firstName: 'string',
-        mail:   'email!',
-        mobile: 'phone',
-        bgcolor: 'color',
-        language: 'language',
-        company: {
-            _mandatory: true,
-            name: 'string!',
-            hiringDate: 'date!',
-            position: 'string!',
-            photo: 'data',
-            website: 'url',
-            tags: ['string'],
-            offices:[{ 
-                officeType: {
-                    _type:'uint8',
-                    _mandatory: true,
-                    _enum:{ 'headquarter': 1, 'agency': 2 }
-                },
-                name: 'string!',
-            }, 0, 8]
-        }
-    } ;
 
-    const parser = TSParser.define(def) ;
-    if ($ok(parser)) {
-        const value = {
-            name:   "Monserat",
-            mail:   'h.monserat@orange.fr',
-            firstName: "Henry",
-            mobile: '+(33 1) 45 24 70 00',
-            bgcolor: '#ff0000',
-            language: 'FR',
-            company:{
-                name:"MyCompany",
-                hiringDate: "2023-06-15",
-                position: "chef de projet",
-                tags:["informatique", "services"],
-                offices:[{
-                    officeType:"agency",
-                    name:"Agencde de Paris Nord"
-                }]
-            }
-        }
-        
-        const result = parser!.interpret(value) ;
+// WARNING: AS IT IS :
+// -------------------------------------------------------------------------------------------------
+//  - 'charset' strings are not trimmed before validation 
+//      but string case is not relevant in getting the right TSCharset object
+//  - 'color' must be a valid color string or a TSColor object. 
+//      Valid color string formats are (with H as an hexadecimal digit) :
+//        -> "#HHH" and "HHH"
+//        -> "#HHHHHH" and "HHHHHH"
+//        -> "#HHHHHHHH" and "HHHHHHHH"
+//        -> any web color name ("azure", "turquoise", "white", "darkgray", "lightblue", "cyan"...)
+//           (see tscolor.ts)
+//  - 'continent', 'country', 'currency', 'language' and 'paper'  interpreted string are trimmed 
+//      and transformed in the expected case (lower or upper case)
+//  - 'country' items can be a country type string (ISO 3166-1 alpha-2) 
+//      or a TSCountry object or a known ISO 3166-1 alpha-3 code as a string.
+//      Obtained valid values are always of country type (ISO 3166-1 alpha-2 strings)
+//  - 'data' is any TSDataLike object or a base64 encoded string. Interpreted result is a TSDataLike
+//      objet. Encoded result is an base 64 encoded string. You can alter wich kind of base64 is used
+//      by settin the context in TSParserOptions. If your context is url the base64 url encoding schema
+//      will be used. In each other case, the standard base64 will be used. 
+//  - 'date' represents a TSDate() object. 'jsdate' represents a Date() object
+//  - 'email' is validated against a Regex email validation
+//  - 'hexa' is any TSDataLike object or an hexadecimal encoded string. Interpreted result 
+//      is a TSDataLike object. Encoded result is an hexadecimal encoded string.
+//  - 'ipaddress' means an 'ipv4' or an 'ipv6' address
+//  - 'jsdate' represents a Date() object, 'date' a TSDate() object
+//  - 'native' represents any simple type (ie: string, number, boolean, BigInt or Symbol).
+//      Symbol and BigInt values are kept as they are during interpretation.
+//      Symbol values are transformed in strings during encoding
+//      BigInt values are transformed in numbers during encoding
+//  - 'paper' is a document standard format. It includes all 'A' (eg 'a0', 'a1', ... 'a4', ...), 
+//      'B', 'C', 'US', 'din', 'envelopes' ... series, plus some specic formats like 'folio' or 'raisin'
+//      (see tsgeometry.ts).
+//  - 'phone' must be a valid phone number we checked against all common phone plans 
+//      in all countries we know of (all TSCountry objects). Interpreted values are 
+//      TSPhoneNumber objects. Encoded values are normalized international phone numbers
+//  - 'url' must be valid URL: a valid string URL, an URL object or a TSURL object.
+//      During interpretation, all values are transformed in TSURL objects.
+//      During encoding, all TSURL are converted using their href property 
+// -------------------------------------------------------------------------------------------------
 
-    }
+// If you want examples of parsers' definition, see the tsparser-test.ts file
 
-    In this example: 
-      - result.mobile will be a TSPhoneNumber object
-      - result.bgcolor will be a TSColor object
-      - result.company.hiringDate will be a TSDate object
-      - result.company.office[0].officeType will be a number (a uint8 number)
-
- */
-// WARNING: 'jsdate' represents a Date() object, 'date' a TSDate() object
-// any means any simple type (ie not an object or an array)
 export type TSLeafOptionalNode  = 'boolean' | 'charset' | 'color' | 'continent' | 'country' | 'currency' | 
                                   'data' | 'date' | 'email' | 'hexa' | 'int' | 'int8' | 'int16' | 'int32' |
                                   'ipaddress' | 'ipv4' | 'ipv6' | 
@@ -611,9 +592,9 @@ class TSLeafParser extends TSParser {
         'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => _isInt(v, INT32_MIN, INT32_MAX), iskey:true },
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isLanguage, iskey:true},
-        'native' :   { valid:_isAny, str2v:(s:string) => s, v2nat:_any2nat},
+        'native' :   { valid:_isNativeValue, str2v:(s:string) => s, v2nat:_nativeValue2nat},
         'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
-        'paper':     { valid:_isDocumentFormat, str2v:(s:string) => s, enum:_isDocumentFormat, iskey:true},
+        'paper':     { valid:_isDocumentFormat, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isDocumentFormat, iskey:true},
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
         'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0, iskey:true},
@@ -800,7 +781,7 @@ interface TSLeafNodeManager {
     iskey?:boolean ;
 }
 
-function _isAny(v:any):boolean {
+function _isNativeValue(v:any):boolean {
     switch (typeof v) {
         case 'bigint': v = Number(v) ;  return !isNaN(v) && isFinite(v) ;
         case 'number': return !isNaN(v) && isFinite(v) ;
@@ -809,7 +790,7 @@ function _isAny(v:any):boolean {
     }
 }
 
-function _any2nat(v:any):TSNativeValue {
+function _nativeValue2nat(v:any):TSNativeValue {
     switch (typeof v) {
         case 'bigint': return Number(v) ;
         case 'number': case 'boolean': case 'string': return v ;
@@ -821,16 +802,27 @@ function _any2nat(v:any):TSNativeValue {
 
 function _isCharset(v:any):boolean          { return v instanceof TSCharset || ($isstring(v) && $ok(TSCharset.charset(v))) ; }
 function _isContinent(v:any):boolean        { return $isstring(v) && TSContinentSet.has($ftrim(v).toUpperCase() as continent) ; }
-function _isCountry(v:any):boolean          { return v instanceof TSCountry ||  ($isstring(v) && TSCountrySet.has($ftrim(v).toUpperCase() as country)) ; }
 function _isCurrency(v:any):boolean         { return $isstring(v) && TSCurrencySet.has($ftrim(v).toUpperCase() as currency) ; }
-function _isDocumentFormat(v:any):boolean   { return $isstring(v) && $ok(TSDocumentFormats[v as TSDocumentFormat]) ; }
+function _isDocumentFormat(v:any):boolean   { return $isstring(v) && $ok(TSDocumentFormats[$ftrim(v).toLowerCase() as TSDocumentFormat]) ; }
 //function _isIPAddress(v:any):boolean        { return $isipaddress(v) ; }
 //function _isIPV4(v:any):boolean             { return $isipv4(v) ; }
 //function _isIPV6(v:any):boolean             { return $isipv6(v) ; }
 function _isLanguage(v:any):boolean         { return $isstring(v) && TSLanguageSet.has($ftrim(v).toLowerCase() as language) ; }
 function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
 
-function _countryTrans(v:any):any           { return v instanceof TSCountry ? v.alpha2Code : v ; }
+function _isCountry(v:any):boolean { 
+    if (v instanceof TSCountry) { return true ; } 
+    if ($isstring(v)) {
+        const s = $ftrim(v).toUpperCase() ;
+        return (s.length === 2 && TSCountrySet.has(s as country)) || (s.length === 3 && $ok(TSCountry.alpha2CodeForAlpha3Code(s)))
+    }
+    return false ;
+}
+
+function _countryTrans(v:any):any { 
+    if (v instanceof TSCountry) { return v.alpha2Code ; } 
+    return v.length === 3 ? TSCountry.alpha2CodeForAlpha3Code(v) : v ;
+}
 
 function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
     s = $ascii($ftrim(s)).toLowerCase() ;

@@ -10,6 +10,8 @@ import { $uuid } from "../src/crypto";
 import { TSURL } from "../src/tsurl";
 import { $decodeBase64 } from "../src/data";
 import { TSCharset } from "../src/tscharset";
+import { TSData } from "../src/tsdata";
+import { TSCountry } from "../src/tscountry";
 
 const days:TSExtendedArrayNode = {
     _mandatory:false,
@@ -170,19 +172,48 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         if ($ok(struct)) {    
             if (_v(0, photoHexaValue)) {
                 const res = struct!.rawInterpret(photoHexaValue) ;
-                t.expect1(res).is(b64decoded)
+                t.expect1(res).is(b64decoded) ;
             }
+            if (_v(1, hexaDecoded)) {
+                const res = struct!.rawInterpret(hexaDecoded) ;
+                t.expect3(res).is(b64decoded) ;
+            }
+            if (_v(2, b64decoded)) {
+                const res = struct!.rawInterpret(b64decoded) ;
+                t.expect4(res).is(hexaDecoded) ;
+            }
+            const data_object = new TSData(b64decoded) ;
+            if (_v(3, data_object)) {
+                const res = struct!.rawInterpret(data_object) ;
+                t.expect5(res instanceof TSData).OK() ;
+                t.expect6(res).is(hexaDecoded) ;
+            }
+
         }
 
         const def64 = {
             _mandatory:true,
             _type:'data'
-        }
+        } ;
         const [struct64, _v64] = _define(1, t, def64, 'unary base64 data parser') ;
         if ($ok(struct64)) {    
             if (_v64(0, photoBase64Value)) {
                 const res = struct64!.rawInterpret(photoBase64Value) ;
-                t.expect2(res).is(hexaDecoded)
+                t.expect2(res).is(hexaDecoded) ;
+            }
+            if (_v64(1, b64decoded)) {
+                const res = struct64!.rawInterpret(b64decoded) ;
+                t.expect3(res).is(hexaDecoded) ;
+            }
+            if (_v64(2, hexaDecoded)) {
+                const res = struct64!.rawInterpret(hexaDecoded) ;
+                t.expect4(res).is(b64decoded) ;
+            }
+            const data_object = new TSData(hexaDecoded) ;
+            if (_v64(3, data_object)) {
+                const res = struct64!.rawInterpret(data_object) ;
+                t.expect5(res instanceof TSData).OK() ;
+                t.expect6(res).is(b64decoded) ;
             }
         }
 
@@ -691,6 +722,17 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             _v(0, v) ;
             _i(1, ['Alaska']) ;
             _v(2, [' Fr ', '  us  ', ' ua ']) ;
+            _v(3, [' frA ', '  Usa  ', 'gbr', 'Gb ']) ;
+
+            const v4 = TSCountry.alpha2Codes() ;
+            _v(4, v4) ;
+
+            const v5 = TSCountry.alpha3Codes() ;
+            if (_v(5, v5)) {
+                const res = struct!.rawInterpret(v5) ;
+                t.expect5(res).is(v4) ;
+            }
+
         }
     }) ;
 

@@ -230,11 +230,13 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     
 		return new TSDate($timestamp(years, months, comp.day, comp.hour, comp.minute, comp.second)) ;
 	}
+    public dateByAddingYears(years:number) : TSDate { return this.dateByAdding(years) ; }
+    public dateByAddingMonths(months:number) : TSDate { return this.dateByAdding(0, months) ; }
 	public dateByAddingWeeks(weeks:number) : TSDate { return new TSDate(this._timestamp+weeks*TSWeek) ; }
 	public dateByAddingDays(days:number) : TSDate { return new TSDate(this._timestamp+days*TSDay) ; }
 	public dateByAddingHours(hours:number) : TSDate { return new TSDate(this._timestamp+hours*TSHour) ; }
 	public dateByAddingMinutes(mn:number) : TSDate { return new TSDate(this._timestamp+mn*TSMinute) ; }
-
+    public dateByAddingSeconds(seconds:number) : TSDate { return new TSDate(this._timestamp+seconds) ; } // same of dateByAddingTime() but some people asked for it
     public dateByAddingTime(time:number) : TSDate { return new TSDate(this._timestamp+time) ; }
 
 	public firstDateOfYear()  : TSDate  { let c = $components(this._timestamp) ; return new TSDate(c.year,1, 1); }
