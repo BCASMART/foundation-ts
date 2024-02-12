@@ -4,6 +4,7 @@ import { Ascending, Descending, Nullable, Same, TSDictionary } from "./types";
 import { $compare, $equal } from "./compare";
 import { $iscollection, TSCollection } from "./tsobject";
 import { TSError } from "./tserrors";
+import { $declareMethod } from "./object";
 
 
 export type QualifierOperator  =  'AND' | 'OR' | 'NOT' | 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE' | 'LIKE' | 'IN' | 'NIN' | 'OK' | 'KO' ;
@@ -327,7 +328,7 @@ declare global {
 }
 
 
-String.prototype.sqlLike = function sqlLike(this:string, like:string) { 
+String.prototype.sqlLike = function (this:string, like:string) { 
     if (!$ok(like)) { return false ; }
     like = like!.replace(new RegExp("([\\.\\\\\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}\\=\\!\\<\\>\\|\\:\\-])", "g"), "\\$1");
     like = like.replace(/%/g, '.*').replace(/_/g, '.');
@@ -339,13 +340,10 @@ String.prototype.sqlLike = function sqlLike(this:string, like:string) {
  * we did decide to use a functional way to declare our new methods on array
  * For now we limit this modification to Array class 
  */
-_addArrayMethod('filterWithQualifier', function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }) ;
-
-function _addArrayMethod(name:string, method:Function) {
-    Object.defineProperty(Array.prototype, name, { value:method, enumerable:false }) ;      
-}
-
-// Array.prototype.filterWithQualifier = function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
+$declareMethod(Array, { 
+    element:'filterWithQualifier', 
+    implementation:function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
+}) ;
 
 
 export function $sqllike(a:any, b:string) {

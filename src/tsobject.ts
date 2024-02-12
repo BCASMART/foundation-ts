@@ -1,9 +1,6 @@
 import { Comparison } from "./types";
 import { $ismethod } from "./commons";
 
-
-export type TSConstructor<T = unknown> = new (...args: any[]) => T;
-
 export interface TSObject {
 	toString(): string ;
 	toJSON(): any ;

@@ -1,3 +1,4 @@
+export * as object          from './object'
 export * as commons         from './commons'
 export * as compare         from './compare'
 export * as crypto          from './crypto'

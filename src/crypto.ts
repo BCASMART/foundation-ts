@@ -21,6 +21,7 @@ import { $ftrim, $trim } from './strings';
 import { _TSMD5Config, _TSSHA224HTable, _TSSHA256HTable, _TSSHA384HTable, _TSSHA512HTable, __TSCRC16ARCTable, __TSCRC32Table, __TSSHA256KTable, __TSSHA512KTable } from './crypto_tables';
 import { TSError } from './tserrors';
 import { _TSHashBuffer } from './crypto_hashBuffer';
+import { $declareMethod } from './object';
 
 export type  HashMethod = 'SHA224' | 'SHA256' | 'SHA384' | 'SHA512' | 'MD5' | 'SHA1' ;
 export const SHA224:HashMethod = 'SHA224' ;
@@ -389,13 +390,11 @@ ArrayBuffer.prototype.uuidhash = function uuidhash(this: any, version?:Nullable<
  * we did decide to use a functional way to declare our new methods on array
  * For now we limit this modification to Array class 
  */
-_addArrayMethod('shuffle', function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }) ;
+$declareMethod(Array, { 
+    element:'shuffle', 
+    implementation:function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
+}) ;
 
-function _addArrayMethod(name:string, method:Function) {
-    Object.defineProperty(Array.prototype, name, { value:method, enumerable:false }) ;      
-}
-
-//Array.prototype.shuffle        = function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
 
 export function $md5(buf:Nullable<TSDataLike>, separator?:Nullable<string>, dataoutput?:Nullable<boolean>):string|Buffer {
     let H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476] ;

@@ -3,6 +3,7 @@ import { $ftrim } from "./strings";
 import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
 import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
+import { $components, $durationcomponents, $durationDescription, $durationDescriptionOptions, $durationNumber2StringFormat, TSDateComp, TSDurationComp } from "./tsdatecomp";
 import { $unitDefinition, Locales } from "./tsdefaults";
 import { country, int, INT32_MIN, language, Nullable, uint, UINT32_MAX } from "./types";
 
@@ -39,24 +40,24 @@ const TSUnitMultiples = ['y', 'z', 'a', 'f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 
 const TSLog1000 = Math.log(1000) ;
 
 // default unit is m (for meters)
-export function $unit(n: Nullable<number>, opts:$unitOptions = {}) {
+export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
     const v = $ok(n) ? n! : 0 ;
-    const sn = $ftrim(opts.unitName) ;
-    const su = $ftrim(opts.unit) ;
-    const sp = $ftrim(opts.pluralUnitName) ;
+    const sn = $ftrim(opts?.unitName) ;
+    const su = $ftrim(opts?.unit) ;
+    const sp = $ftrim(opts?.pluralUnitName) ;
 
     const unitName = sn.length ? sn : (su.length ? su : 'm') ;
     const pluralUnitName = sp.length ? sp : unitName ;
-    const minU = $ok(opts.minimalUnit) ? Math.min(0, Math.max(-8, opts.minimalUnit!)) : -8 ;
-    const maxU = $ok(opts.maximalUnit) ? Math.min(8, Math.max(0, opts.maximalUnit!)) : 8 ;
-    let   dm = $isunsigned(opts.decimalPlaces) ? opts.decimalPlaces as number : 2 ;
+    const minU = $ok(opts?.minimalUnit) ? Math.min(0, Math.max(-8, opts!.minimalUnit!)) : -8 ;
+    const maxU = $ok(opts?.maximalUnit) ? Math.min(8, Math.max(0, opts!.maximalUnit!)) : 8 ;
+    let   dm = $isunsigned(opts?.decimalPlaces) ? opts!.decimalPlaces as number : 2 ;
     if (v === 0) {
-        if (dm === 0 || opts.ignoreZeroDecimals || (minU === 0 && opts.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
+        if (dm === 0 || !!opts?.ignoreZeroDecimals || (minU === 0 && !!opts?.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
         return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
     }
     const unit = su.length ? su : unitName.charAt(0) ;
     const i = Math.max(minU, Math.min(maxU, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
-    if (i === minU && opts.ignoreMinimalUnitDecimals) { dm = 0 ;}
+    if (i === minU && !!opts?.ignoreMinimalUnitDecimals) { dm = 0 ;}
     return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8]+(i==0?(v===1?unitName:pluralUnitName):unit) ;
 }
 
@@ -99,6 +100,8 @@ const FoundationHexaLowerChars = '0123456789abcdef' ;
 declare global {
     export interface Number {
         bytes:              (this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>) => string ;
+        dateComponents:     (this:number) => TSDateComp ;
+        durationComponents: (this:number) => TSDurationComp ;
         fpad:               (this:number, pad:number, failedChar?:string) => string ;
         fpad2:              (this:number, failedChar?:string) => string ;
         fpad3:              (this:number, failedChar?:string) => string ;
@@ -117,6 +120,8 @@ declare global {
         round:              (this:number, decimalPlaces?:number) => number ;
         singular:           (this:number) => boolean ;
         toDate:             (this:number) => Date|null ;
+        toDurationString:   (this:number, format?:Nullable<string>) => string ;
+        toDurationDescription: (this:number, opts?:Nullable<$durationDescriptionOptions>) => string ;
         toHex1:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
         toHex2:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
         toHex4:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
@@ -124,13 +129,15 @@ declare global {
         toInt:              (this:number, defaultValue?:int) => int ;
         toTSDate:           (this:number) => TSDate|null ;
         toUnsigned:         (this:number, defaultValue?:uint) => uint ;
-        unit:               (this:number, opts?:$unitOptions) => string ;
+        unit:               (this:number, opts?:Nullable<$unitOptions>) => string ;
     }
 }
 
 Number.prototype.bytes              = function bytes(this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>):string { 
     return $bytes(this, decimalPlaces, locale) ; 
 }
+Number.prototype.dateComponents     = function dateComp(this:number) { return $components(this) ; }
+Number.prototype.durationComponents = function durationComp(this:number) { return $durationcomponents(this) ; }
 Number.prototype.fpad               = function fpad(this:number, pad:number, failedChar?:string) { return $fpad(this, pad, failedChar) ; }
 Number.prototype.fpad2              = function fpad(this:number, failedChar?:string) { return $fpad(this, 2, failedChar) ; }
 Number.prototype.fpad3              = function fpad(this:number, failedChar?:string) { return $fpad(this, 3, failedChar) ; }
@@ -150,6 +157,8 @@ Number.prototype.octets             = function octets(this:number, decimalPlaces
 Number.prototype.round              = function round(this:number, decimalPlaces?:number):number { return $round(this, decimalPlaces) ; }
 Number.prototype.singular           = function singular(this:number):boolean { return this === 1 ; }
 Number.prototype.toDate             = function toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; }
+Number.prototype.toDurationString   = function durationString(this:number, format?:Nullable<string>) { return $durationNumber2StringFormat(this, format) ; }
+Number.prototype.toDurationDescription = function durationDesc(this:number, opts?:Nullable<$durationDescriptionOptions>) { return $durationDescription(this, opts) ; }
 Number.prototype.toHex1             = function toHex1(this:number, toLowerCase?:Nullable<boolean>):string {
     const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
     return r[this.toUnsigned() & 0x0F]
@@ -172,5 +181,5 @@ Number.prototype.toHex8             = function toHex8(this:number, toLowerCase?:
 Number.prototype.toInt              = function toInt(this:number, defaultValue?:int):int { return $toint(this, defaultValue) ; }
 Number.prototype.toTSDate           = function toTSDate(this:number):TSDate|null { return TSDate.fromTimeStamp(this) ; }
 Number.prototype.toUnsigned         = function toUnsigned(this:number, defaultValue?:uint):uint { return $tounsigned(this, defaultValue) ; }
-Number.prototype.unit               = function unit(this:number, opts?:$unitOptions):string { return $unit(this, opts) ; }
+Number.prototype.unit               = function unit(this:number, opts?:Nullable<$unitOptions>):string { return $unit(this, opts) ; }
 

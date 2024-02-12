@@ -20,14 +20,20 @@ export function $numorder(a:number, b:number):NonNullable<Comparison> {
 export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>) : Comparison 
 {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
-	if (a === b) { return Same ; }
+	
+    if (a === b) { return Same ; }
+    if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
+        
+    if (a instanceof Date) { return _heterogenDateCompare(a, b!) ; }
+    if (b instanceof Date) { return _inverseComparison(_heterogenDateCompare(b,a!)) ; }
 
-    if (a instanceof Date && b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) ; }
+    if ($isstring(a)) { a = new TSDate(a as string) ; }
+    if (a instanceof TSDate) { return _heterogenTimestampCompare(a.timestamp, 0, b as TSDate | string | number) ; }
 
-    // TODO: do we need to make a direct numcompare on number args ?
-    if (!(a instanceof TSDate)) { a = new TSDate(a as string /* correct cast should be number | string */) ;}
-    if (!(b instanceof TSDate)) { b = new TSDate(b as string /* correct cast should be number | string  */) ;}
-    return a.compare(b) ;
+    if ($isstring(b)) { b = new TSDate(b as string) ; }
+    if (b instanceof TSDate) { return _inverseComparison(_heterogenTimestampCompare(b.timestamp, 0, a as string | number)) ; }
+
+    return undefined ;
 }
 
 export function $arraycompare(a:Nullable<any[]>, b:Nullable<any[]>):Comparison {
@@ -73,7 +79,7 @@ export function $compare(a:any, b:any):Comparison {
     if ($isstring(a) && $isstring(b)) {
         return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
-	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a, b) ; }
+	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a,b) ; }
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
 	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytescompare(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
@@ -125,12 +131,6 @@ export function $equal(a:any, b:any):boolean {
 	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
 	if (!$ok(a) || !$ok(b)) return false ;
 
-    if (a instanceof Date && b instanceof Date) { return a.getTime() === b.getTime() ; }
-    if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { 
-        if (a instanceof Date) { a = new TSDate(a) ; }
-        if (b instanceof Date) { b = new TSDate(b) ; }
-        return a.isEqual(b) ;
-    }
     if (a instanceof URL && b instanceof URL) { return a.href === b.href ; }
 
     // Set, Map and Array are now conform to TSObject
@@ -228,4 +228,26 @@ function _order(a:any, b:any, comparisonFn:(a:any,b:any)=>Comparison):NonNullabl
         return comp! ;
     }
 }
+
+function _heterogenDateCompare(a:Date, b:Date|TSDate|string|number):Comparison {
+    if (b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) }
+    return _heterogenTimestampCompare(a.timeStamp, a.getMilliseconds(), b) ;
+}
+
+function _heterogenTimestampCompare(ats:number, mts:number, b:TSDate|string|number):Comparison {
+    let ts = NaN ;
+    let ms = 0 ;
+    if (b instanceof TSDate) { ts = b.timestamp ; }
+    else {
+        const t = typeof b ;
+        if (t === 'number') { ts = Math.trunc(b as number) ; ms = (b as number) - ts ; }
+        else if (t === 'string') { ts = (new TSDate(b as string)).timestamp ; }
+    }
+    const c = $numcompare(ats, ts) ;
+    return c === Same ? $numcompare(mts, ms) : c ;
+}
+
+
+function _inverseComparison(c:Comparison) { return c === Same || c === undefined ? c : (c === Ascending ? Descending : Ascending) ;} 
+
 

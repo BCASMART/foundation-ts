@@ -18,6 +18,7 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
     const AT = new TSDate(A);
     const D = new Date(1966, 3, 13, 12, 5, 22);
     const T = new TSDate(1966, 4, 13, 12, 5, 22);
+    const DM = new Date(1966, 3, 13, 12, 5, 22, 10);
 
     group.unary("$datecompare() function", async(t) => {
         t.expect1($datecompare(S, D)).is(Same);
@@ -28,6 +29,25 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect6($datecompare(null, D)).undef();
         t.expect7($datecompare(A, D)).is(Descending);
         t.expect8($datecompare(T, A)).is(Ascending);
+        t.expect9($datecompare(D, DM)).is(Ascending) ;
+        t.expectA($datecompare(DM, D)).is(Descending) ;
+        t.expectB($datecompare(T, DM)).is(Ascending) ;
+        t.expectC($datecompare(DM, T)).is(Descending) ;
+        t.expectD($datecompare(DM, NaN)).undef() ;
+        t.expectE($datecompare(T, NaN)).undef() ;
+        t.expectF($datecompare(NaN, D)).undef() ;
+        t.expectG($datecompare(undefined, D)).undef() ;
+        t.expectH($datecompare(D, null)).undef() ;
+        t.expectI($datecompare(T, null)).undef() ;
+        t.expectJ($datecompare(null, T)).undef() ;
+        t.expectK(DM.compare(D)).is(Descending) ; // internaly use $datecompare() 
+        t.expectL(T.compare(DM)).is(Ascending) ;  // idem
+        t.expectM(D.compare(T)).is(Same) ;        // idem
+        t.expectN(T.compare(D)).is(Same) ;        // idem
+        t.expectO(D.isEqual(T)).true() ;          // idem
+        t.expectP(T.isEqual(D)).true() ;          // idem
+        t.expectO(DM.isEqual(T)).false() ;        // idem
+        t.expectP(T.isEqual(DM)).false() ;        // idem
     }) ;
 
     group.unary("$compare() function", async(t) => {

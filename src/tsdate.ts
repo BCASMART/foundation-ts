@@ -9,7 +9,7 @@
  */
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
 import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value, $isdate } from "./commons";
-import { $numcompare } from "./compare";
+import { $datecompare, $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
 import { TSCountry } from "./tscountry";
@@ -23,6 +23,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 	private readonly _timestamp: number ;
     public static readonly FUTURE = 'future' ;
     public static readonly PAST = 'past' ;
+    public static readonly ZULU = 'zulu' ;
+    public static readonly EPOCH = 'epoch' ;
 	// =================== constructors ==========================
     /**
      *  WARNING : TSDate string intializer takes ISO 8601 representation
@@ -75,7 +77,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         else { // n === 1 || n === 0
             let t = arguments[0] ; // undefined if n === 0
             if (t === Number.POSITIVE_INFINITY) { this._timestamp = TSMaxTimeStamp ; }
-            else if (t === Number.NEGATIVE_INFINITY) { this._timestamp = -TSSecsFrom00010101To20010101 ; }
+            else if (t === Number.NEGATIVE_INFINITY) { this._timestamp = TSMinTimeStamp ; }
             else if ($isnumber(t)) { 
                 this._timestamp = $insettimestamp(t) ; // we trash the seconds here by making ts an integer
 			}
@@ -86,12 +88,20 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 				let comps:TSDateComp|null = null ;
 
 				if ($isstring(t)) {
-                    if (t === TSDate.FUTURE) {
+                    if (t === TSDate.ZULU) {
+                        this._timestamp = $div(Date.now(),1000) - TSSecsFrom19700101To20010101 ;
+                        return ;
+                    }
+                    else if (t === TSDate.FUTURE) {
                         this._timestamp = TSMaxTimeStamp ;
                         return ;
                     } 
                     else if (t === TSDate.PAST) {
-                        this._timestamp = -TSSecsFrom00010101To20010101 ;
+                        this._timestamp = TSMinTimeStamp ;
+                        return ;
+                    }
+                    else if (t === TSDate.EPOCH) {
+                        this._timestamp = - TSSecsFrom19700101To20010101 ;
                         return ;
                     }
                     else {
@@ -110,7 +120,9 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
     public static past()   : TSDate { return new TSDate(TSDate.PAST) ; }
     public static future() : TSDate { return new TSDate(TSDate.FUTURE) ; }
-    public static zulu()   : TSDate { return new TSDate($div(Date.now(),1000) - TSSecsFrom19700101To20010101) ; }
+    public static zulu()   : TSDate { return new TSDate(TSDate.ZULU) ; }
+    public static epoch()  : TSDate { return new TSDate(TSDate.EPOCH) ; }
+
     public static isDateSource(value:any):boolean
     { return $isnumber(value) || $isdate(value) || value === TSDate.PAST || value === TSDate.FUTURE || value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY ; }
 
@@ -186,7 +198,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
     public isLeap() : boolean { return $isleap($components(this._timestamp).year); }
     public isFuture() : boolean { return this._timestamp >= TSMaxTimeStamp ; }
-    public isPast() : boolean { return this._timestamp <= -TSSecsFrom00010101To20010101 ; }
+    public isPast() : boolean { return this._timestamp <= TSMinTimeStamp ; }
     public isFinite() : boolean { return !this.isPast() && !this.isFuture() ; }
 
 	public dateWithoutTime() { return new TSDate($timestampWithoutTime(this._timestamp)) ; }
@@ -272,13 +284,20 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return $components2StringWithOffset($components(this._timestamp), { forceZ:true, milliseconds:0 as uint }) ; 
     }
     
-	// ============ TSObject conformance =============== 
+    // ============ TSObject conformance =============== 
     public compare(other:any) : Comparison {
         if (this === other) { return Same ; }
         if (other instanceof TSDate) { return $numcompare(this._timestamp, other.timestamp) ; }
+        if (other instanceof Date) { return $datecompare(this, other) ; }
         return undefined ;
     }
-    public isEqual(other:any) : boolean { return this === other || (other instanceof TSDate && other.timestamp === this._timestamp) ; }
+    
+    public isEqual(other:any) : boolean {
+        if (this === other) { return true ; }
+        if (other instanceof TSDate) { return this._timestamp === other.timestamp ; }
+        if (other instanceof Date) { return $datecompare(other, this) === Same ; }
+        return false ;
+    }
 	
     public toString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
         if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
@@ -327,6 +346,7 @@ export const TSDaysFrom00010101To20010101 = 730485 ;
 export const TSSecsFrom00010101To20010101 = 63113904000 ;
 export const TSSecsFrom19700101To20010101 = 978307200 ;     // this one is exported for conversion from EPOCH to TSDate
 export const TSMaxTimeStamp               = 8639021692800 ; // corresponds to JS 100 000 000 days from EPOCH in the future
+export const TSMinTimeStamp               = -TSSecsFrom00010101To20010101 ; // first available date is 01/01/0001
 
 export function $isleap(y: number) : boolean 
 { 
@@ -404,7 +424,7 @@ export function $insettimestamp(ts:number) { return _insetTimeStamp($toint(ts)) 
  const TSDaysInPreviousMonth = [0, 0, 0, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337] ;
 
  function _insetTimeStamp(ts:number)
-{ return Math.min(Math.max(-TSSecsFrom00010101To20010101, ts), TSMaxTimeStamp) ; }
+{ return Math.min(Math.max(TSMinTimeStamp, ts), TSMaxTimeStamp) ; }
 
 function _lastDayOfMonth(year:number, month:number) : number { 
 	return (month === 2 && $isleap(year)) ? 29 : TSDaysInMonth[month]; 

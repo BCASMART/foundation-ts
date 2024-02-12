@@ -14,7 +14,9 @@ import {
     $weekOfYear, 
     $dayOfYear, 
     TSDaysFrom00000229To20010101, 
-    $dayOfWeekFromTimestamp
+    $dayOfWeekFromTimestamp,
+    TSMaxTimeStamp,
+    TSMinTimeStamp
 } from "./tsdate";
 import { country, int, language, Nullable, uint, UINT_MIN } from "./types";
 import { TSCountry } from "./tscountry";
@@ -101,8 +103,11 @@ export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
 	if (!$ok(source)) { source = new Date() ;}
 	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
 
+    if (source === Number.NEGATIVE_INFINITY) { source = TSMinTimeStamp ; }
+    else if (source === Number.POSITIVE_INFINITY) { source = TSMaxTimeStamp ; }
+    
 	if ($isnumber(source)) {
-		const timestamp = source as number ;
+		const timestamp = Math.max(Math.min(source as number, TSMaxTimeStamp), TSMinTimeStamp)  ;
 		let Z =                  Math.floor(timestamp/TSDay) + TSDaysFrom00000229To20010101 ;
 		let gg =                 Z - 0.25 ;
 		let CENTURY =            Math.floor(gg/36524.25) ;
@@ -124,7 +129,11 @@ export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
 		} ;
 	}
 
-	const d = source as Date ;
+    if (!(source instanceof Date)) {
+        TSError.throw(`$components() source is not a valid number, nor a Date nor a TSDate`, { source:source }) ;
+    }
+	
+    const d = source as Date ;
 	return {
 		year:<uint>d.getFullYear(), 
 		month:<uint>(d.getMonth()+1), 
@@ -534,18 +543,28 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
     return $durationNumber2StringFormat($duration(comps), format) ;
 }
 
-export function $durationDescription(
-    comps:TSDurationComp|number, 
-    depth?:Nullable<'days'|'hours'|'minutes'|'seconds'|'days-cut'|'hours-cut'|'minutes-cut'>, 
+export type $durationDescriptionDepth = 
+    'days'        | // duration is banking-rounded to the nearest number of days
+    'days-cut'    | // duration takes into account only days by ignoring every sub-units
+    'hours'       | // duration is banking-rounded to the nearest number of hours
+    'hours-cut'   | // duration takes into account only days and hours by ignoring every sub-units
+    'minutes'     | // duration is banking-rounded to the nearest number of minutes
+    'minutes-cut' | // duration takes into account only days, hours and minutes by ignoring seconds
+    'seconds'       // default value: every second of the duration is taken into account for description
+
+export interface $durationDescriptionOptions {
+    depth?:Nullable<$durationDescriptionDepth>,
     locale?:Nullable<language|country|TSCountry|Locales>,
-    noDays?:boolean):string 
-{
+    noDays?:Nullable<boolean>
+}
+    
+export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<$durationDescriptionOptions>) {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
     let duration = typeof comps === 'number' ? comps as number : $duration(comps) ;
     let c = $isunsigned(duration) ? $durationcomponents(duration) : null ;
     if ($ok(c)) {
-        switch (depth) {
+        switch (opts?.depth) {
             case 'days':
                 if ((duration % TSDay) >= TSDay/2) { c!.days ++ ; } 
                 c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
@@ -578,12 +597,12 @@ export function $durationDescription(
                 break ;
         }
         const a:string[] = [] ;
-        
+        const locale = opts?.locale ;
         function _addRep(key:string, value:number, defaultDefinition:UnitDefinition) {
             const def = $value($unitDefinition(key, locale), defaultDefinition) ;
             a.push(`${value} ${value===1?def?.singular:def.plural}`) ;
         }
-        if (!!noDays && c!.days > 0) { 
+        if (!!opts?.noDays && c!.days > 0) { 
             c!.hours = (c!.hours + 24 * c!.days) as uint ; 
             c!.days = UINT_MIN ;
         }
