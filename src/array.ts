@@ -132,11 +132,12 @@ declare global {
         filteredSet:    <R = T>(this:T[], callback?:Nullable<$mapCallback<T,R>>) => Set<R>;
         includesequal:  (this:T[], object:any) => boolean ;
         includesvisual: (this:T[], object:any) => boolean ;
-        first:          (this:T[]) => T | undefined;
-        last:           (this:T[]) => T | undefined;
-        max:            (this:T[]) => T | undefined;
-        min:            (this:T[]) => T | undefined;
-        sum:            (this:T[]) => number | undefined;
+        first:          (this:T[]) => T | undefined ;
+        last:           (this:T[]) => T | undefined ;
+        max:            (this:T[]) => T | undefined ;
+        min:            (this:T[]) => T | undefined ;
+        singular:       (this:T[]) => boolean ;
+        sum:            (this:T[]) => number | undefined ;
     }
 }
 
@@ -159,6 +160,7 @@ _addArrayMethod('last',              function first<T>(this: T[]): T | undefined
 _addArrayMethod('max',               function max<T>(this: T[]): T | undefined { return $max(this); }) ;
 _addArrayMethod('min',               function min<T>(this: T[]): T | undefined { return $min(this); }) ;
 _addArrayMethod('sum',               function sum<T>(this: T[]): number | undefined { return $sum(this); }) ;
+_addArrayMethod('singular',          function singular<T>(this: T[]): boolean { return this.length === 1 ; }) ;
 _addArrayMethod('toArray',           function toArray<T>(this:T[]): T[] { return this ; }) ; // QUESTION: should we take a copy here
 
 // ================================== private functions ==============================

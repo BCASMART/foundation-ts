@@ -83,6 +83,16 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expectW(values3.max()).toBeUndefined() ;
     }) ;
 
+    group.unary("Array.singular() method", async (t) => {
+        t.expect0([].singular()).false() ;
+        t.expect1([10].singular()).true() ;
+        t.expect2([45,12].singular()).false() ;
+        t.expect3([undefined].singular()).true() ;
+        t.expect4(["45",undefined].singular()).false() ;
+        t.expect5([undefined,333].singular()).false() ;
+        t.expect6([undefined,undefined].singular()).false() ;
+    }) ;
+
 }) ;
 
 

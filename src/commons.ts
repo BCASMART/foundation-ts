@@ -240,7 +240,7 @@ export function $capacityForCount(count:number):uint
 }
 
 export function $count<T=any>(a: Nullable<ArrayLike<T> | Set<T>>) : number
-{ return a instanceof Set ? a!.size : ($ok(a) ? (<ArrayLike<T>>a).length : 0) ; }
+{ return a instanceof Set ? a.size : ($ok(a) ? (<ArrayLike<T>>a).length : 0) ; }
 
 export function $length(s: Nullable<string | TSDataLike>) : number
 { return s instanceof ArrayBuffer ? s.byteLength : ($ok(s) ? (<string|Bytes|TSData>s).length : 0) ; }

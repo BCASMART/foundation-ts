@@ -42,4 +42,26 @@ export const mapsetGroups = TSTest.group("Commons map and set additions", async 
         t.expect7(map.dictionary((k,v) => k === 'E' ? [null, v] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
         t.expect8(map.dictionary((k,v) => k === 'E' ? ['', v] : [k.toLowerCase(), `-${v}-`])).is({ t:'-T-', a:'-A-' })
     }) ;
+
+    group.unary("Set.length property", async (t) => {
+        t.expect0(new Set([]).length).is(0) ;
+        t.expect1(new Set([10]).length).is(1) ;
+        t.expect2(new Set([45,12]).length).is(2) ;
+        t.expect3(new Set([undefined]).length).is(1) ;
+        t.expect4(new Set(["45",undefined]).length).is(2) ;
+        t.expect5(new Set([undefined,333]).length).is(2) ;
+        t.expect6(new Set([undefined,undefined]).length).is(1) ;
+        t.expect7(new Set([13,13]).length).is(1) ;
+    }) ;
+    group.unary("Set.singular() method", async (t) => {
+        t.expect0(new Set([]).singular()).false() ;
+        t.expect1(new Set([10]).singular()).true() ;
+        t.expect2(new Set([45,12]).singular()).false() ;
+        t.expect3(new Set([undefined]).singular()).true() ;
+        t.expect4(new Set(["45",undefined]).singular()).false() ;
+        t.expect5(new Set([undefined,333]).singular()).false() ;
+        t.expect6(new Set([undefined,undefined]).singular()).true() ;
+        t.expect7(new Set([13,13]).singular()).true() ;
+    }) ;
+
 }) ;

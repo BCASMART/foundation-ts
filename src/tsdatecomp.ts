@@ -543,7 +543,7 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
     return $durationNumber2StringFormat($duration(comps), format) ;
 }
 
-export type $durationDescriptionDepth = 
+export type TSTimeDescriptionDepth = 
     'days'        | // duration is banking-rounded to the nearest number of days
     'days-cut'    | // duration takes into account only days by ignoring every sub-units
     'hours'       | // duration is banking-rounded to the nearest number of hours
@@ -552,8 +552,10 @@ export type $durationDescriptionDepth =
     'minutes-cut' | // duration takes into account only days, hours and minutes by ignoring seconds
     'seconds'       // default value: every second of the duration is taken into account for description
 
+export type TSDurationDescriptionDepth = TSTimeDescriptionDepth ;
+
 export interface $durationDescriptionOptions {
-    depth?:Nullable<$durationDescriptionDepth>,
+    depth?:Nullable<TSDurationDescriptionDepth>,
     locale?:Nullable<language|country|TSCountry|Locales>,
     noDays?:Nullable<boolean>
 }
