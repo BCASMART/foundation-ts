@@ -11,7 +11,7 @@ export function $ascii(source: Nullable<string>): string {
     const l = $length(source);
     if (!l) return '';
     let s = (source as string).replace(/≠/g, "");
-    s = s.normalize("NFD").replace(/[\u0300-\u036f]|\u00a8|\u00b4/g, "").normalize("NFKD"); // does most of the job
+    s = s.normalize("NFD").replace(/[\u0300-\u036f]|\u00a8|\u00ad|\u00b4/g, "").normalize("NFKD"); // does most of the job
     // finally we will try to convert (or remove) the remaining non ascii characters
     return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '');
 }

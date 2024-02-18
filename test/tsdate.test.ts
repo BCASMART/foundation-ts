@@ -14,8 +14,9 @@ import {
     TSWeek
 } from "../src/tsdate";
 import { TSDateForm } from "../src/tsdatecomp";
-import { Ascending, Descending, Same } from "../src/types";
+import { Ascending, Comparison, Descending, Same } from "../src/types";
 import { TSTest } from '../src/tstester';
+import { $dateorder } from "../src/compare";
 
 export const dateGroups = [
     TSTest.group("Testing code $dayOfWeek() function", async (group) => {
@@ -263,5 +264,64 @@ export const dateGroups = [
             t.expect0(D1.toString(cf)).is("mardi, 8 mai 1945 à 23h01 et 3 secondes") ; 
             t.expect1(D1.dateWithoutTime().toString(cf)).is("mardi, 8 mai 1945") ;
         }) ;
+    }),
+
+    TSTest.group("Testing dates comparison", async(group) => {
+        const dateCouples:DCouple[] = [
+            { start:'2024-02-15T10:55:00', end:'2024-02-29T10:55:00', dox:0, o1:4, rs:7 },
+            { start:'2024-02-15T11:00:00', end:'2024-02-29T11:00:00', dox:1, o1:5, rs:6 },
+            { start:'2024-02-15T11:01:00', end:'2024-02-29T11:01:00', dox:2, o1:6, rs:5 },
+            { start:'2024-02-15T11:02:00', end:'2024-02-29T11:02:00', dox:3, o1:7, rs:4 },
+            { start:'2024-02-15T11:03:00', end:'2024-02-29T11:03:00', dox:4, o1:8, rs:3 },
+            { start:'2024-02-15T11:05:00', end:'2024-02-29T11:05:00', dox:5, o1:9, rs:2 },
+            { start:'2024-02-15T11:32:00', end:'2024-02-29T11:32:00', dox:6, o1:10, rs:1 },
+            { start:'2024-02-15T13:10:00', end:'2024-02-29T13:10:00', dox:7, o1:11, rs:0 },
+            { start:'2024-02-13T13:50:00', end:'2024-02-27T13:50:00', dox:8, o1:0, rs:11 },
+            { start:'2024-02-13T13:56:00', end:'2024-02-27T13:56:00', dox:9, o1:1, rs:10 },
+            { start:'2024-02-13T13:59:00', end:'2024-02-27T13:59:00', dox:10, o1:2, rs:9 },
+            { start:'2024-02-13T14:28:00', end:'2024-02-27T14:28:00', dox:11, o1:3, rs:8 },
+        ] ;
+        group.unary('start-end-ascending sort', async (t) => {
+            const sorted = [...dateCouples].sort(startEndAscending) ;
+            for (let i = 0 ; i < sorted.length ; i++) {
+                t.expect(sorted[i].o1, `o[${i}]`).is(i) ;
+            }
+        }) ;
+
+        group.unary('descending-start-sort', async (t) => {
+            const sorted = [...dateCouples].sort(descendingStart) ;
+            for (let i = 0 ; i < sorted.length ; i++) {
+                t.expect(sorted[i].rs, `rs[${i}]`).is(i) ;
+            }
+        }) ;
+        group.unary('descending-end-sort', async (t) => {
+            const sorted = [...dateCouples].sort(descendingEnd) ;
+            for (let i = 0 ; i < sorted.length ; i++) {
+                t.expect(sorted[i].rs, `re[${i}]`).is(i) ;
+            }
+        }) ;
+
+
     })
 ] ;
+
+interface DCouple {
+    start:string ;
+    end:string ;
+    dox:number ;
+    o1:number ;
+    rs:number ;
+} ;
+
+function startEndAscending(A:DCouple, B:DCouple):NonNullable<Comparison> 
+{ 
+    const comp = $dateorder(A.start, B.start) ;
+    return comp === Same ? $dateorder(A.end, B.end) : comp ;
+}
+
+function descendingStart(A:DCouple, B:DCouple) {
+    return $dateorder(B.start, A.start) ;
+}
+function descendingEnd(A:DCouple, B:DCouple) {
+    return $dateorder(B.start, A.start) ;
+}

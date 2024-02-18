@@ -16,6 +16,8 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect7($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
         t.expect8('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú'.ascii()).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
         t.expect9('ΆΏΰαζθφωώϐϑϒϓϔϕΣψῼ𝞅𝞍𝞊𝞋𝚯𝚹𝞁𝞂𝜚ϴϽϾϱϋὗὛὟῆῊῌᾇ'.ascii()).is('AOyazthfoovthYYYfSpsOffethTHTHssrTHSSryyYYiIIa') ;
+        t.expectA('eine Milliarde sieben­hundert­neun­und­sechzig Millionen fünf­hundert­sieben­und­zwanzig­tausend­ein­hundert­elf'.ascii())
+            .is('eine Milliarde siebenhundertneunundsechzig Millionen funfhundertsiebenundzwanzigtausendeinhundertelf') ;
     }) ;
     group.unary("$left() and $right() functions", async(t) => {
         t.expect1($left(S1)).is('T') ;

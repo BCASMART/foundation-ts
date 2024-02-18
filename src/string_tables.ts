@@ -32,7 +32,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     '¦': '|',
     '©': '(C)',
     '«': '"',
-    '­': '-',
+    // 0x00ad was removed from here because it's removed earlier as a 'nothing' space
     '®': '(R)',
 
     /* 00B0 */
