@@ -231,7 +231,7 @@ function _order(a:any, b:any, comparisonFn:(a:any,b:any)=>Comparison):NonNullabl
 
 function _heterogenDateCompare(a:Date, b:Date|TSDate|string|number):Comparison {
     if (b instanceof Date) { return $numcompare(a.getTime(), b.getTime()) }
-    return _heterogenTimestampCompare(a.timeStamp, a.getMilliseconds(), b) ;
+    return _heterogenTimestampCompare(a.timestamp, a.getMilliseconds(), b) ;
 }
 
 function _heterogenTimestampCompare(ats:number, mts:number, b:TSDate|string|number):Comparison {

@@ -24,6 +24,7 @@ import { $div, $fpad, $fpad2, $fpad3, $fpad4 } from "./number";
 import { $ftrim } from "./strings";
 import { $logterm } from "./utils";
 import { TSError } from "./tserrors";
+import "./date"
 
 export interface TSTimeComp {
 	hour:uint;
@@ -526,13 +527,16 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
 
 export function $datetimeDescription(
     date:TSDateComp|Date|TSDate|number, 
-    predefinedFormat:TSDatePredefinedFormat, 
-    locale?:Nullable<language|country|TSCountry|Locales>):string|null
+    predefinedFormat:TSDateTimeFormat, 
+    locale:Nullable<language|country|TSCountry|Locales>=undefined,
+    timezoneOffset?:Nullable<number>):string|null
 {
-    let comp = typeof date === 'number' || date instanceof Date || date instanceof TSDate ? 
-               $components(date as number | TSDate | Date ) as TSDateComp : 
-               date as TSDateComp ;
-    return $components2stringformat(comp, predefinedFormat, locale) ;
+    let ts = (date instanceof Date || date instanceof TSDate ? 
+                date.timestamp :
+                (typeof date === 'number' ? date as number : $components2timestamp(date as TSDateComp))
+             ) + ($ok(timezoneOffset) ? timezoneOffset as number : 0) ;
+    
+    return $components2stringformat($components(ts), predefinedFormat, locale) ;
 }
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {

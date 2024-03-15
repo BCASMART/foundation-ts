@@ -13,8 +13,8 @@ import {
     TSMaxTimeStamp,
     TSWeek
 } from "../src/tsdate";
-import { TSDateForm } from "../src/tsdatecomp";
-import { Ascending, Comparison, Descending, Same } from "../src/types";
+import { $components2timestamp, TSDateComp, TSDateForm } from "../src/tsdatecomp";
+import { Ascending, Comparison, Descending, Same, uint } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $dateorder } from "../src/compare";
 
@@ -154,14 +154,22 @@ export const dateGroups = [
         const df = "%Y/%m/%d" ;
         const dtf = `${df}-${tf}` ;
         const full = `${dtf}:%S` ;
-    
+        const comp:TSDateComp = { year:1945 as uint, month:5 as uint, day:8 as uint, hour:23 as uint, minute:1 as uint, second:0 as uint } ; 
+        const ts = $timestamp(1945, 5, 8, 23, 1, 0) ;
+
         group.unary('d.year', async (t) => { t.expect(D.year).is(1945) ; });
         group.unary('d.month', async (t) => { t.expect(D.month).is(5) ; });
         group.unary('d.day', async (t) => { t.expect(D.day).is(8) ; });
         group.unary('d.hour', async (t) => { t.expect(D.hour).is(23) ; });
         group.unary('d.minute', async (t) => { t.expect(D.minute).is(1) ; });
         group.unary('d.second', async (t) => { t.expect(D.second).is(0) ; });
-    
+        
+        group.unary('timestamp', async t => {
+            t.expect0($components2timestamp(comp)).is(ts) ;
+            t.expect1(D.timestamp).is(ts) ;
+            t.expect2(ED.timestamp).is(ts) ;
+            t.expect2(E.timestamp).is(ts) ;
+        });
         group.unary('d.dateWithoutTime()', async (t) => {
             t.expect(D.dateWithoutTime().toString(full)).is('1945/05/08-00:00:00') ;
         });

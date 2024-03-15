@@ -156,6 +156,7 @@ export const dateCompGroups = [
 
     TSTest.group("Predefined date-time output", async (group) => {
         const DT = new TSDate(1945, 5, 8, 23, 1, 35) ;
+        const DJ = new Date(1945, 4, 8, 23, 1, 35) ;
         const C = TSDate.zulu().toComponents() ;
         const s = $components2StringWithOffset(C, {
             milliseconds:0 as uint,
@@ -171,6 +172,19 @@ export const dateCompGroups = [
             t.expect3($datetimeDescription(DT, 'short-date-time', 'fr')).is('08/05/45 23:01:35') ;
             t.expect4($datetimeDescription(DT, 'date-short-time', 'fr')).is('08/05/1945 23:01') ;
             t.expect5($datetimeDescription(DT, 'short-date-short-time', 'fr')).is('08/05/45 23:01') ;
+            
+            t.expectA($datetimeDescription(DJ, 'date', 'fr')).is('08/05/1945') ;
+            t.expectB($datetimeDescription(DJ, 'short-date', 'fr')).is('08/05/45') ;
+            t.expectC($datetimeDescription(DJ, 'date-time', 'fr')).is('08/05/1945 23:01:35') ;
+            t.expectD($datetimeDescription(DJ, 'short-date-time', 'fr')).is('08/05/45 23:01:35') ;
+            t.expectE($datetimeDescription(DJ, 'date-short-time', 'fr')).is('08/05/1945 23:01') ;
+            t.expectF($datetimeDescription(DJ, 'short-date-short-time', 'fr')).is('08/05/45 23:01') ;
+
+            t.expectG($datetimeDescription(DT, 'date', 'fr', TSHour+30)).is('09/05/1945') ;
+            t.expectH($datetimeDescription(DT, 'date-time', 'fr', TSHour+30)).is('09/05/1945 00:02:05') ;
+            t.expectI($datetimeDescription(DJ, 'date', 'fr', TSHour+30)).is('09/05/1945') ;
+            t.expectJ($datetimeDescription(DJ, 'date-time', 'fr', TSHour+30)).is('09/05/1945 00:02:05') ;
+
         }) ;
         group.unary(`Complex iso string milliseconds output"`, async (t) => {
             const p = s.lastIndexOf('.') ;

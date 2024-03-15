@@ -28,7 +28,7 @@ declare global {
         leafInspect:   (this:Date) => string ;
 
         // ============ TSDate compatibility =============== 
-        timeStamp:      number ;
+        timestamp:      number ;
         toComponents:  (this:Date) => TSDateComp ;
         toDate:        (this:Date) => Date ;
         toTSDate:      (this:Date) => TSDate|null ;
@@ -44,7 +44,7 @@ declare global {
 
 Date.prototype.leafInspect = Date.prototype.toISOString ;
 
-$declareAccessor(Date, { element:'timeStamp', getter:function(this:Date):any { return $components2timestamp($components(this)) ; }})
+$declareAccessor(Date, { element:'timestamp', getter:function(this:Date):any { return $components2timestamp($components(this)) ; }})
 
 Date.prototype.isEqual       = function isEqual(this:Date, other:any):boolean { 
     if (this === other) { return true ; }
