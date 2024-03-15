@@ -667,7 +667,9 @@
             "timeFormat":"%H:%M:%S",
             "partialTimeFormat":"%H:%M",
             "dateTimeFormat":"%d.%m.%Y %H:%M:%S",
-            "shortDateTimeFormat":"%d.%m.%y %H:%M:%S"
+            "shortDateTimeFormat":"%d.%m.%y %H:%M:%S",
+            "datePartialTimeFormat":"%d.%m.%Y %H:%M",
+            "shortDatePartialTimeFormat":"%d.%m.%y %H:%M"
         }    
     },
     {

@@ -1,5 +1,5 @@
 import { TSDate, TSDay, TSHour, TSMinute } from "../src/tsdate";
-import { $components, $components2StringWithOffset, $components2timestamp, $duration, $duration2String, $durationcomponents, $durationDescription, TSDurationComp } from "../src/tsdatecomp";
+import { $components, $components2StringWithOffset, $components2timestamp, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, TSDurationComp } from "../src/tsdatecomp";
 import { uint } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $timeBetweenDates } from "../src/date";
@@ -45,6 +45,7 @@ export const dateCompGroups = [
             _rt(7, null, true)
             _rt(8, NaN) ;
         }) ;
+
         group.unary('$durationcomponents() function', async (t) => {
             t.expect0(Z).def() ;
             t.expect1(Z.days).is(0) ;
@@ -151,7 +152,10 @@ export const dateCompGroups = [
             t.expectI($duration(Z).toDurationString(F1)).is("") ; 
         }) ;
     }),
-    TSTest.group("Complex iso string output function", async (group) => {
+
+
+    TSTest.group("Predefined date-time output", async (group) => {
+        const DT = new TSDate(1945, 5, 8, 23, 1, 35) ;
         const C = TSDate.zulu().toComponents() ;
         const s = $components2StringWithOffset(C, {
             milliseconds:0 as uint,
@@ -160,8 +164,15 @@ export const dateCompGroups = [
         const s2 = $components2StringWithOffset(C, {
             milliseconds:0 as uint,
         }) ;
-    
-        group.unary(`Milliseconds output"`, async (t) => {
+        group.unary('$datetimeDescription() function', async t => {
+            t.expect0($datetimeDescription(DT, 'date', 'fr')).is('08/05/1945') ;
+            t.expect1($datetimeDescription(DT, 'short-date', 'fr')).is('08/05/45') ;
+            t.expect2($datetimeDescription(DT, 'date-time', 'fr')).is('08/05/1945 23:01:35') ;
+            t.expect3($datetimeDescription(DT, 'short-date-time', 'fr')).is('08/05/45 23:01:35') ;
+            t.expect4($datetimeDescription(DT, 'date-short-time', 'fr')).is('08/05/1945 23:01') ;
+            t.expect5($datetimeDescription(DT, 'short-date-short-time', 'fr')).is('08/05/45 23:01') ;
+        }) ;
+        group.unary(`Complex iso string milliseconds output"`, async (t) => {
             const p = s.lastIndexOf('.') ;
             t.expect0(s.slice(p)).is('.000Z') ;
             t.expect1(s2.slice(p)).is('.000+00:00') ;

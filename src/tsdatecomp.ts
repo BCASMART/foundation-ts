@@ -25,25 +25,25 @@ import { $ftrim } from "./strings";
 import { $logterm } from "./utils";
 import { TSError } from "./tserrors";
 
-export interface TimeComp {
+export interface TSTimeComp {
 	hour:uint;
 	minute:uint;
 	second:uint;
-}
+} ;
 
-export interface TSDateComp extends TimeComp {
+export interface TSDateComp extends TSTimeComp {
 	year:uint;
 	month:uint;
 	day:uint;
 	dayOfWeek?:uint;
-}
+} ;
 
 export interface TSDurationComp {
     days:uint;
     hours:uint;
     minutes:uint;
     seconds:uint;
-}
+} ;
 
 export enum TSDateForm {
 	Standard = 0,
@@ -52,17 +52,22 @@ export enum TSDateForm {
 	ISO8601,
     ISO8601C,
     ISO8601L
-}
+} ;
+
+export type TSDurationDescriptionDepth = 
+    'days'        | // duration is banking-rounded to the nearest number of days
+    'days-cut'    | // duration takes into account only days by ignoring every sub-units
+    'hours'       | // duration is banking-rounded to the nearest number of hours
+    'hours-cut'   | // duration takes into account only days and hours by ignoring every sub-units
+    'minutes'     | // duration is banking-rounded to the nearest number of minutes
+    'minutes-cut' | // duration takes into account only days, hours and minutes by ignoring seconds
+    'seconds' ;     // default value: every second of the duration is taken into account for description
+
+export type TSDateTimeFormat = 'date' | 'short-date' | 'date-time' | 'short-date-time' | 'date-short-time' | 'short-date-short-time' ;
 
 export type TSIsoDateForm = TSDateForm.ISO8601 | TSDateForm.ISO8601C | TSDateForm.ISO8601L ;
 
-export enum TSDateRep {
-    LocalTime = 'lt',
-    LocalDate = 'ld',
-    LocalDateTime = 'ldt',
-    ShortLocalDate = 'sld',
-    ShortLocalDateTime = 'sldt'
-}
+export type TSDatePredefinedFormat = TSDateTimeFormat | 'time' | 'short-time' ;
 
 /**
  * If you call timecomponents() with no parameters, it
@@ -71,7 +76,7 @@ export enum TSDateRep {
  * in order to create components from string, you need
  * to user functions $parsetime()
  */
- export function $timecomponents(source: Nullable<number|Date|TSDate>) : TimeComp {
+export function $timecomponents(source: Nullable<number|Date|TSDate>) : TSTimeComp {
 	if (!$ok(source)) { source = new Date() ;}
 	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
 
@@ -155,12 +160,12 @@ export function $componentshavetime(c:TSDateComp) : boolean {
 	return c.hour > 0 || c.minute > 0 || c. second > 0
 }
 
-export function $parsetime(s:Nullable<string>) : TimeComp|null {
+export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
 	if (!$length(s)) { return null ; }
 	const m = (<string>s).match(/^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
-	const c:TimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN }
+	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN }
 
 	_parseTime(c, res, 0, res.length) ;
 	return $timeisvalid(c.hour, c.minute, c.second) ? c : null ;
@@ -374,7 +379,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
  *          (meaning enabled if hour > 0 || minute > 0 || second > 0)
  *      %]  exit previous format zone without time
  */
-export function $components2stringformat(comp:TSDateComp, format:Nullable<string|TSDateRep>='', locale?:Nullable<language|country|TSCountry|Locales>) : string | null {
+export function $components2stringformat(comp:TSDateComp, format:Nullable<string|TSDatePredefinedFormat>='', locale?:Nullable<language|country|TSCountry|Locales>) : string | null {
     if (!$componentsarevalid(comp)) { return null ; }
     const ts = $components2timestamp(comp) ;
     const trs = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
@@ -387,21 +392,30 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
         format = trs.dateTimeFormat ;
     }
     else {
-        switch (format) {
-            case TSDateRep.LocalDate:
+        switch (format as TSDatePredefinedFormat) {
+            case 'date':
                 format = trs.dateFormat ;
                 break ;
-            case TSDateRep.ShortLocalDate:
+            case 'short-date':
                 format = trs.shortDateFormat ;
                 break ;
-            case TSDateRep.LocalDateTime:
+            case 'date-time':
                 format = trs.dateTimeFormat ;
                 break ;
-            case TSDateRep.ShortLocalDateTime:
+            case 'short-date-time':
                 format = trs.shortDateTimeFormat ;
                 break ;
-            case TSDateRep.LocalTime:
+            case 'date-short-time':
+                format = trs.datePartialTimeFormat ;
+                break ;
+            case 'short-date-short-time':
+                format = trs.shortDatePartialTimeFormat ;
+                break ;
+            case 'time':
                 format = trs.timeFormat ;
+                break ;
+            case 'short-time':
+                format = trs.partialTimeFormat ;
                 break ;
             default:
                 break ; 
@@ -510,6 +524,16 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
     return ret ;
 }
 
+export function $datetimeDescription(
+    date:TSDateComp|Date|TSDate|number, 
+    predefinedFormat:TSDatePredefinedFormat, 
+    locale?:Nullable<language|country|TSCountry|Locales>):string|null
+{
+    let comp = typeof date === 'number' || date instanceof Date || date instanceof TSDate ? 
+               $components(date as number | TSDate | Date ) as TSDateComp : 
+               date as TSDateComp ;
+    return $components2stringformat(comp, predefinedFormat, locale) ;
+}
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
     if ($ok(duration) && duration! < 0) { 
@@ -543,21 +567,12 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
     return $durationNumber2StringFormat($duration(comps), format) ;
 }
 
-export type TSTimeDescriptionDepth = 
-    'days'        | // duration is banking-rounded to the nearest number of days
-    'days-cut'    | // duration takes into account only days by ignoring every sub-units
-    'hours'       | // duration is banking-rounded to the nearest number of hours
-    'hours-cut'   | // duration takes into account only days and hours by ignoring every sub-units
-    'minutes'     | // duration is banking-rounded to the nearest number of minutes
-    'minutes-cut' | // duration takes into account only days, hours and minutes by ignoring seconds
-    'seconds'       // default value: every second of the duration is taken into account for description
 
-export type TSDurationDescriptionDepth = TSTimeDescriptionDepth ;
 
 export interface $durationDescriptionOptions {
-    depth?:Nullable<TSDurationDescriptionDepth>,
-    locale?:Nullable<language|country|TSCountry|Locales>,
-    noDays?:Nullable<boolean>
+    depth?:Nullable<TSDurationDescriptionDepth> ;
+    locale?:Nullable<language|country|TSCountry|Locales> ;
+    noDays?:Nullable<boolean> ;
 }
     
 export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<$durationDescriptionOptions>) {
@@ -1022,7 +1037,7 @@ function _parsedt(s:Nullable<string>, regexp:RegExp, form:TSDateForm=TSDateForm.
 	return $componentsarevalid(c) ? c : null ;
 }
 
-function _parseTime(c:TimeComp, m:RegExpMatchArray, start:number, len:number)
+function _parseTime(c:TSTimeComp, m:RegExpMatchArray, start:number, len:number)
 {
 	let v = $unsigned(m[start+1]) ;
 	if (len === 2) {

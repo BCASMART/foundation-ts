@@ -21,9 +21,11 @@ export interface Locales {
     shortDays:string[];
     startingWeekDay:number;
     dateTimeFormat:string;
+    datePartialTimeFormat:string;
     dateFormat:string;
     shortDateFormat:string;
     shortDateTimeFormat:string;
+    shortDatePartialTimeFormat:string;
     timeFormat:string;
     partialTimeFormat:string;
     ampm:string[];
