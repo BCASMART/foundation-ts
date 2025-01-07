@@ -82,6 +82,8 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
             minDigits:10,
             maxDigits:10,
             areaCodes:[],
+            dummies:[],
+            format:"+(%d) %n",
             ... info.phonePlan
         } ;
         this.currency = info.currency ;
@@ -185,7 +187,8 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public clone():TSCountry { return this ; } // no clone on immutable objects
 
     public translatedName(lang?:Nullable<language>):string | null {
-        const ret =  this.names[$ok(lang) ? lang! : $language()!] ;
+        if (!$length(lang)) { return null ; }
+        const ret =  this.names[lang!] ;
         return $length(ret) ? ret! : null ;
     }
     

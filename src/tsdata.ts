@@ -1,6 +1,6 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
 import { $crc16, $crc32, $hash, $hashOptions, $slowhash, $uuidhash, HashMethod } from "./crypto";
-import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR } from "./data";
+import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
@@ -87,12 +87,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     // ============================ STANDARD JS ENUMERATION =============================================
-    public [Symbol.iterator]() {
-        let pos = 0 ;
-        return { next: () => { 
-            return pos < this._len ? { done:false, value:this._buf[pos++] } : { done:true, value:NaN}; 
-        }} ;
-    }
+    public *[Symbol.iterator]()
+    { for (let i = 0 ; i < this._len ; i++) { yield this._buf[i] ; }}
 
     // ============================ POTENTIALLY MUTABLE OPERATIONS =============================================
 
@@ -232,7 +228,6 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
         return this._index(data!, $tounsigned(byteOffset)) ;
     }
-
     
     public lastIndexOf(value:Nullable<TSDataLike | number | Uint8Array>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
         if (!$ok(value) || !this._len) { return - 1 ; }
@@ -314,7 +309,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string 
     { return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ; }
     
-    public toHexa():string { return this.mutableBuffer.toString('hex') ; }
+    public toHexa(toLowerCase?:boolean):string { return $encodeBytesToHexa(this.mutableBuffer, toLowerCase) ; }
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
 

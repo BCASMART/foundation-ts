@@ -1,9 +1,10 @@
-import { $isstring, $ok, $value } from "./commons";
+import { $count, $defined, $isstring, $length, $ok, $value } from "./commons";
+import { $random } from "./crypto";
 import { $ascii, $normspaces } from "./strings";
 import { TSCountry } from "./tscountry";
-import { TSDefaults } from "./tsdefaults";
+import { $language, TSDefaults } from "./tsdefaults";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
+import { Ascending, Comparison, Descending, language, Nullable, Same } from "./types";
 
 /**
  * TSPhoneNumber objects are immutable and you create one
@@ -18,6 +19,8 @@ export interface PhonePlanInfo {
     areaCodes?:string[];
     minDigits?:number ;
     maxDigits?:number ;
+    format?:string ;
+    dummies?:string[] ;
 }
 
 export type PhonePlan = Required<PhonePlanInfo> ;
@@ -52,10 +55,35 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
         return validity ;
     }
 
+    static exampleNumber(telcountry?:Nullable<TSCountry>):TSPhoneNumber|null {
+        const country = $value(telcountry, TSDefaults.defaults().defaultCountry) ;
+        const dummies = country.phonePlan.dummies ;
+        const count = $count(dummies) ;
+        if (count) {
+            const dummy = dummies[$random(count)] ;
+            const parts = dummy.split('X') ;
+            const n = $count(parts) ;
+            if (n > 1) {
+                let s = parts[0] ;
+                const ref = '0123456789' ;
+                for (let i = 0 ; i < n ; i++) {
+                    s += ref[$random(10)] ;
+                    s += parts[i] ;
+                }
+                return new TSPhoneNumber(s, country) ;
+            }
+        }
+        return null ;
+    }
+
     private constructor(public readonly number:string, public readonly country:TSCountry) {}
 
     public get dialCode() { return this.country.phonePlan.dialCode ; }
-    public get standardNumber() {  return this._standardNumber() }
+    public get standardNumber():string {  return this._standardNumber() ; }
+    public get compactNumber():string {  return this._standardNumber(true) ; }
+    public get alpha2Code():string    { return this.country.alpha2Code ; }
+    public get alpha3Code():string    { return this.country.alpha3Code ; }
+    public get trunkCode():string    { return this.country.phonePlan.trunkCode ; }
 
     public clone():TSPhoneNumber { return this ; } // no clone for immutable objects
 
@@ -72,28 +100,119 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
         if (this === other) { return Same ; }
         if ($isstring(other)) { other = TSPhoneNumber.fromString(other) ; }
         if (!(other instanceof TSPhoneNumber)) { return undefined ; }
-        const a = this._standardNumber() ;
-        const b = other._standardNumber() ;
+        const a = this._standardNumber(true) ;
+        const b = other._standardNumber(true) ;
         return a > b ? Descending : (a < b ? Ascending : Same) ;
     }
 
 	public isEqual(other:any) : boolean {
         if (this === other) { return true ; }
         if ($isstring(other)) { other = TSPhoneNumber.fromString(other) ; }
-        return other instanceof TSPhoneNumber ? this._standardNumber() === other._standardNumber() : false ;
+        return other instanceof TSPhoneNumber ? this._standardNumber(true) === other._standardNumber(true) : false ;
     } 
 
 	public toArray():any[] { return [this] ; }
+    public toJSON():string { return this._standardNumber(true) ; }
 
-    toString = TSPhoneNumber.prototype._standardNumber ; // for now. in the future we may have options to ouptut other formats
-    toJSON = TSPhoneNumber.prototype._standardNumber ;
+    /*
+        if format undefined => returns standard non compact string
+        if format null or empty uses standard country format
+
+        Format composition
+        ---------------------
+        %c      country label
+        %C      country localized name
+        %d      dialcode
+        %t      trunkCode
+        %n      phone number without the trunk code if present
+        %N      phone number including potential trunk code
+        %0      this stops the rest of the format if there's no more number digit remaining
+        %1      next digit of phone number
+        %2      next 2 digits of phone number
+        %3      next 3 digits of phone number
+        %4 %5 %6 %7 %8 %9
+        %9      next 9 digits of phone number
+        %r      all remaining digits of phone number  
+        %x      country alpha2 code
+        %X      country alpha3 code   
+        %%      a percent
+    */
+
+    public toString(format?:Nullable<string>, translation?:Nullable<language|'default'|'native'>):string {
+        if (!$defined(format)) { return this._standardNumber() ; }
+        let fmtlen = $length(format) ;
+        if (!fmtlen) { 
+            format = this.country.phonePlan.format ;
+            fmtlen = format!.length ;
+        }
+        let escape:boolean = false ;
+        let ret = "" ;
+        let pos = 0 ;
+        let trunk = this.country.phonePlan.trunkCode ;
+        let number = $length(trunk) > 0 && this.number.startsWith(trunk) ? 
+                     this.number.slice(1) : 
+                     this.number ;
+        const nlen = number.length ;
+
+        const lang = !$length(translation) || translation == 'default' ? 
+                     $language() :
+                     (translation == 'native' ? this.country.nativeLanguage : translation) ;
+
+        
+        for (let i = 0 ; i < fmtlen ; i++) {
+            const c = format!.charAt(i) ;
+            if (c == '%') {
+                if (escape) { ret += '%' ; escape = false ; }
+                else { escape = true ;}
+            }
+            else if (escape) {
+                switch (c) {
+                    case '0': if (pos >= nlen) { return ret ; } break ; // conditionaly stops the format
+                    case 'C': ret += $value(this.country.translatedName(lang), this.country.nativeName) ; break ;
+                    case 'N': ret += this.number ; break ;
+                    case 'c': ret += this.country.label ; break ;
+                    case 'd': ret += this.dialCode ; break ;
+                    case 'n': ret += number ; break ;
+                    case 'l': ret += this.country.label ; break ;
+                    case 't': ret += this.country.phonePlan.trunkCode ; break ;
+                    case 'r':
+                        if (pos < nlen) {
+                            ret += number.slice(pos) ;
+                            pos = nlen ;
+                        }
+                        break ;
+                    case 'x': ret += this.country.alpha2Code ; break ;
+                    case 'X': ret += this.country.alpha3Code ; break ;
+                    default:
+                        if (c >= '1' && c <= '9') {
+                            if (pos < nlen) {
+                                const nl = c.charCodeAt(0) - 0x30 ;
+                                if (pos + nl >= nlen) {
+                                    ret += number.slice(pos) ;
+                                    pos = nlen ;
+                                }
+                                else {
+                                    ret += number.slice(pos, pos+nl) ;
+                                    pos += nl ;
+                                }
+                            }
+                        }
+                        else { ret += c ; }
+                        break ;
+                }
+                escape = false ;
+            }
+            else { ret += c ; }
+        }
+        return ret ;
+    }
 
 	// ============ private methods =============== 
-    private _standardNumber():string {
+    private _standardNumber(compact?:boolean):string {
         const p = this.country.phonePlan ;
         const t = p.trunkCode ;
         const n = this.number ; 
-        return `+${p.dialCode} ${t.length > 0 && n.startsWith(t) ? n.slice(t.length) : n}` ; 
+        return `+${p.dialCode}${!compact?" ":""}${$length(t) > 0 && n.startsWith(t) ? n.slice(t.length) : n}` ; 
     }
 
 }
@@ -149,9 +268,18 @@ function _phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountr
     s = s.slice(start) ;
     len = s.length ;
     countries = countries.filter(c => {
-        const t = c.phonePlan.trunkCode ;
-        const min = c.phonePlan.minDigits - (!localNumber && t.length > 0 && !s.startsWith(t) ? t.length : 0) ;
-        return len >= min && len <= c.phonePlan.maxDigits ;
+        const p = c.phonePlan ;
+        let minDigits = p.minDigits ;
+        let maxDigits = p.maxDigits ;
+        if (!localNumber) {
+            const t = p.trunkCode ;
+            const tlen = $length(t) ;
+            if (tlen > 0 && !s.startsWith(t)) {
+                minDigits -= tlen ;
+                maxDigits -= tlen ;
+            }
+        }
+        return len >= minDigits && len <= maxDigits ;
     }) ;
     if (!countries.length) { return [null, null, PhoneValidity.WrongLength] ; }
 

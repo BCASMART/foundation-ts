@@ -10,7 +10,7 @@ import { Comparison, Same } from "./types";
  * and instanceof works.
  */
 
-export class TSCouple<T,U> implements TSObject, TSClone<TSCouple<T,U>> {
+export class TSCouple<T,U> implements Iterable<T|U>, TSObject, TSClone<TSCouple<T,U>> {
 	constructor(public first:T, public second:U) {}
     public clone():TSCouple<T,U> { return new TSCouple(this.first, this.second) ; }
 
@@ -29,6 +29,10 @@ export class TSCouple<T,U> implements TSObject, TSClone<TSCouple<T,U>> {
 	public toString():string { return $json(this) ; }
 	public toJSON():any { return {first:$jsonobj(this.first), second:$jsonobj(this.second)} ; }
 	public toArray():any[] { return [this.first, this.second] ; }
+
+    // ============================ STANDARD JS ENUMERATION =============================================
+    public *[Symbol.iterator]()
+    { yield this.first ; yield this.second ; }
     
 }
 

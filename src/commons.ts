@@ -242,8 +242,14 @@ export function $capacityForCount(count:number):uint
 export function $count<T=any>(a: Nullable<ArrayLike<T> | Set<T>>) : number
 { return a instanceof Set ? a.size : ($ok(a) ? (<ArrayLike<T>>a).length : 0) ; }
 
-export function $length(s: Nullable<string | TSDataLike>) : number
-{ return s instanceof ArrayBuffer ? s.byteLength : ($ok(s) ? (<string|Bytes|TSData>s).length : 0) ; }
+export function $length(s: Nullable<string | TSDataLike | Blob>) : number
+{ 
+    return s instanceof Blob ? 
+        s.size : 
+        (s instanceof ArrayBuffer ? 
+            s.byteLength : 
+            ($ok(s) ? (<string|Bytes|TSData>s).length : 0)) ; 
+}
 
 export function $lse<T>(s:Nullable<string | TSDataLike | ArrayLike<T>>, start?:Nullable<number>, end?:Nullable<number>) : [uint, uint, uint, uint] {
     if (!$ok(s)) { return [0, 0, 0, 0] as [uint, uint, uint, uint];}

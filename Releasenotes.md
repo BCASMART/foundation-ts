@@ -1,0 +1,115 @@
+# Foundation-ts release notes
+
+Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
+
+
+
+<hr/>
+
+## version 1.6.0
+
+#### What's new ?
+
+- foundation-ts needs now **Node.js 20.0.0** to run. a new `engines` section in `package.json` and a new `.npmrc` file are here to enforce this.
+
+- new `$randomBytes()` function in for generating random bytes arrays
+
+- new `$arrayBufferFromBlob()`,  `$bufferFromBlob()`, `$uint8ArrayFromBlob()`, `$blobFromBytes()` and  `$blobFromDataLike()` functions to convert data from and to blobs.
+
+- new `$encodeHewa()` and `$encodeBytesToHexa()` functions
+
+- new `toHexa()` method on `Uint8Array`, `ArrayBuffer` and `TSData` instances
+
+- new `$asciifs()` function which concerts any string to ASCII and replaces non recognized ASCII characters in file systems by `'_'`.
+
+- new `asciifs` method on String objects.
+
+- new `$safeFilename()` function which converts any filename in a safe filename using `$asciifs()`
+
+- new `$timezoneOffsetWithComponents()` function which calculate any time zone offset from specific date, time and timezone name
+
+- `TSDate` has a new `toTimezoneString()` and `toUTCDate()` methods
+
+- `TSPhoneNumber` class now provides new static method `exampleNumber()` for generating, if possible dummy phone numbers.
+
+- `TSPhoneNumber` class now provides new instance methods
+
+  - `toJSON()` => a valid phone's string representation for JSON
+
+  - `compactNumber()` => something like +33145247000
+
+  - `alpha2Code()` => phone's country alpha2 code
+
+  - `alpha3Code()` => phone's country alpha3 code
+
+  - `toString()` => which provides a way to format your phone number as you wish with the following format tags :
+
+    ```typescript
+    /*
+      if format undefined => returns standard non compact string
+      if format null or empty uses standard country format
+    
+      Format composition
+      ---------------------
+      %c      country label
+      %C      country localized name
+      %d      dialcode
+      %t      trunkCode
+      %n      phone number without the trunk code if present
+      %N      phone number including potential trunk code
+      %0      this stops the rest of the format if no more number digit remains
+      %1      next digit of phone number
+      %2      next 2 digits of phone number
+      %3      next 3 digits of phone number
+      %4 %5 %6 %7 %8 %9
+      %9      next 9 digits of phone number
+      %r      all remaining digits of phone number  
+      %x      country alpha2 code
+      %X      country alpha3 code   
+      %%      a percent
+    */
+    
+    ```
+
+- `TSUnaryTest` class has now a boolean `logAllTests` you can activate to show all expected tests to log PASS and FAIL
+
+#### What's updated ?
+
+-  `$length()` function now works with Blob
+
+- `$ascii()` function does now a better job in converting Unicode strings to ASCII (for example it removes all characters considered as modifiers) and is now restricted in convertinf UTF16 characters (all character after 0xFFFF are dropped)
+
+- `TSCountry` class now accepts in its countries.json definition file standard phone formats and dummies phone range templates. Accordingly `PhonePlanInfo` interface now contains `format` and `dummies` new fields
+
+- `TSDate` max time stamp is now `31/12/275760 23:59:59` 
+
+- `TSCouple`, `TSData` and `TSList` have now a standard `Symbol.iterator` method.
+
+- `$components2date()` function has now 2 optional parameters in order to pass `milliseconds` and if you want a current `Date` or an `UTC` `Date`
+
+- `TSRequest` class now use internal Node `fetch()` function to send HTTP requests. In short: we drop the use of Axios module.
+
+- interface `TSServerOptions` has now a `logLevel` field use to choose what to log. The log level is defined by the explicit new enum:
+
+  ```typescript
+  export enum TSServerLogLevel {
+      None = 0,
+      Errors = 1,
+      Warnings = 2,
+      Infos = 3,
+      Developer = 4
+  }
+  ```
+
+#### Bug corrections
+
+- static methods `TSError` `throw()` and `assert()` were corrected. Wrong argumend where passed to constructors
+- function `$subclassReponsabililty()` now returns `never` in spite of `any`
+- Bug correction in `TSTester` final tests logging
+
+#### Work in progress (stay tuned for for future versions)
+
+-  `Locales` interface now have a `ordinals` array wich will in the future be used by `%E` date format and will output 1st, 2nd, 3e … 
+
+<hr />
+

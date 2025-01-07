@@ -1,14 +1,11 @@
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
-import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned } from './commons';
+import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned, $ismethod } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $timeout } from './utils';
 import { $ftrim } from './strings';
-
-// TODO: for now, we use axios, but as good as axios is, it comes with a lot of
-// dependancies and in near future, we will upgrade this class to be autonomous
-import axios, {AxiosInstance, AxiosRequestConfig } from 'axios';
-import { $arrayBufferFromBytes, $encodeBase64 } from './data';
+import { $encodeBase64 } from './data';
 import { TSData } from './tsdata';
+import { TSURL } from './tsurl';
 import { $map } from './array';
 import { $charset, TSCharset } from './tscharset';
 import { $iscollection } from './tsobject'
@@ -152,28 +149,26 @@ export enum RespType {
 	Stream = 'stream'
 }
 
+
 export const NO_BODY = undefined ;
 export const NO_HEADERS = {} ;
 
-export type RequestHeaders = { [key:string]: string | string[] | number}
-export type RequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> }
+export type TSRequestHeaders = { [key:string]: string | string[] | number } ;
+export type TSResponseHeaders = Headers ;
+export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ;
 
-interface TSRequestError {
-    status?:number ;
-    statusCode?:number ;
-    code?:string ;
-} ;
-
+export type TSResponseType = Nullable<object | string | number | boolean | ReadableStream> ;
 export interface TSResponse {
     status:Resp,
-    response:Buffer|object|string|ReadableStream|null, // WARNING: should we accept number and boolean return ?
-    headers:RequestHeaders
-}
+    response:TSResponseType,
+    headers:TSResponseHeaders
+    statusDescription?:string ;
+} ;
 export interface TSRequestOptions {
-    headers?:Nullable<RequestHeaders> ;
+    headers?:Nullable<TSRequestHeaders> ;
     timeout?:Nullable<number> ;
     managesCredentials?:Nullable<boolean> ;
-    auth?:Nullable<RequestAuth|string|TSDataLike> ; // if TSDataLike, we need to convert it to base64
+    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // if TSDataLike, we need to convert it to base64
 }
 
 export class TSRequest {
@@ -181,13 +176,10 @@ export class TSRequest {
 	public token:string = '' ;
 	public basicAuth:string = '' ;
 	public defaultTimeOut = 1000 ;
-    public commonHeaders:RequestHeaders={} ;
+    public commonHeaders:TSRequestHeaders={} ;
 
     private _baseURL:string = TSRequest.DefaultURL ;
-    private _managesCredential:boolean ;
-
-    // @ts-ignore (_channel is defined in _resetChannel() private method)
-    private _channel:AxiosInstance ;
+    private _managesCredential:boolean = false ;
 
     public constructor(baseURL:string='', opts:TSRequestOptions = {}) {
         this.baseURL = baseURL ;
@@ -205,7 +197,7 @@ export class TSRequest {
             this.setToken(opts.auth as TSDataLike) ;
         }
         else if ($ok(opts.auth)) {
-            this.setAuth(opts.auth as RequestAuth) ;
+            this.setAuth(opts.auth as TSRequestAuth) ;
         }
 
         if ($ok(opts.timeout) && opts.timeout! < 0) { 
@@ -216,26 +208,21 @@ export class TSRequest {
 		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
         this._managesCredential = !!opts.managesCredentials ;
         this._baseURL = baseURL.length > 0 ? baseURL : TSRequest.DefaultURL ;
-        this._resetChannel() ;
+        // this._resetChannel() ;
 	} 
     public get baseURL():string { return this._baseURL ; }
     public set baseURL(s:string) {
         if (!s.length) { s = TSRequest.DefaultURL ; }
         if (s !== this._baseURL) {
             this._baseURL = s ;
-            this._resetChannel() ;
+            // this._resetChannel() ;
         }
     } 
 
     public get managesCredential():boolean { return this._managesCredential ; }
-    public set managesCredential(flag:boolean) {
-        if ((flag && !this._managesCredential) || (!flag && this._managesCredential)) {
-            this._managesCredential = flag ;
-            this._resetChannel() ;
-        }
-    }
+    public set managesCredential(flag:boolean) {this._managesCredential = !!flag ; }
 
-	public setAuth(auth?:Nullable<RequestAuth>) {
+	public setAuth(auth?:Nullable<TSRequestAuth>) {
 		if ($ok(auth) && $length(auth!.login)) {
 			this.basicAuth = $basicauth(auth!.login, auth!.password, auth!.encoding) ;
 		}
@@ -260,10 +247,10 @@ export class TSRequest {
 		method?:Verb, 
 		responseType?:RespType, 
 		statuses:number[] = [200], 
-		body?:Nullable<object|TSDataLike>, 
-		suplHeaders?:RequestHeaders,
+		body?:Nullable<BodyInit|TSData>, 
+		suplHeaders?:TSRequestHeaders,
 		timeout?:number
-	) : Promise<[Buffer|object|string|ReadableStream|null, number]> 
+	) : Promise<[TSResponseType, number]> 
     {
         const resp = await this.req(relativeURL, method, responseType, body, suplHeaders, timeout) ;
         return [statuses.includes(resp.status) ? resp.response : null, resp.status] ;
@@ -273,34 +260,83 @@ export class TSRequest {
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
-		body:Nullable<object|TSDataLike>=null, 
-		suplHeaders:RequestHeaders={},
+		body:Nullable<BodyInit|TSData>=null, 
+		suplHeaders:TSRequestHeaders={},
 		timeout?:number
 	) : Promise<TSResponse> 
 	{
-		const config:AxiosRequestConfig = {
-			url:relativeURL,
-			method:method,
-			responseType:responseType,
-			headers: {... this.commonHeaders, ... _standardHeaders(suplHeaders)},
-            validateStatus: () => true
-		} ;
+        const requestHeaders:StringDictionary = _finalHeaders({... this.commonHeaders, ..._standardHeaders(suplHeaders)}) ;
+        const config:RequestInit = {
+            method:method,
+            headers:requestHeaders,
+            cache:"no-cache",
+            redirect:"follow",
+            keepalive:false
+        } ;
 
+        if (this.managesCredential) {
+            config.credentials = 'include' ;
+        }
 		if ($length(this.token)) {
-			config.headers!['Authorization'] = this.token! ;
+			requestHeaders!['Authorization'] = this.token! ;
 		}
 		else if ($length(this.basicAuth)) {
-			config.headers!['Authorization'] = this.basicAuth! ;
+			requestHeaders!['Authorization'] = this.basicAuth! ;
 		}
 
-		if ($ok(body)) {
-            // TODO: we should make a better conversion here but since
-            // our goal is to remove the Axio's dependancy, it can wait
-            if (body instanceof TSData) { config.data = (body as TSData).mutableBuffer ; } 
-            else if (body instanceof Uint8Array) { config.data = $arrayBufferFromBytes(body as Uint8Array) ; }
-            else { config.data = body ; } 
-        } ;
-		
+        const finalURL = TSURL.compose(this.baseURL, $string(relativeURL))?.href ;
+        if (!$ok(finalURL)) {
+            TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', { 
+                relativeURL:relativeURL, 
+                method:method, 
+                responseType:responseType, 
+                body:body,
+                suplHeaders:suplHeaders,
+                timeout:timeout
+            }) ; 
+        }
+        //$logterm(`request body => &p\n${$insp(body)}&0`) ;
+        switch (typeof body) {
+            case 'undefined': break ;
+            case 'string': 
+                // QUESTION: should we not JSON.stringify the string here ? Or do we consider in that case that the user should have done it before
+                config.body = body ; 
+                break ; 
+            case 'number': 
+            case 'boolean':
+                config.body = JSON.stringify(body) ;
+                _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
+                break ;
+            case 'object':
+                if (body === null) { break ; }
+                else if (body instanceof TSData) { config.body = body.mutableBuffer ; }
+                else if (body instanceof FormData || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || _isReadableStream(body!)) { config.body = body as BodyInit ; }
+                else if (body instanceof URLSearchParams) { 
+                    config.body = body.toString() ;
+                    _maySetContentType(requestHeaders, RequestBodyType.UrlEncoded) ;
+                }
+                else {
+                    const stringBody = ($ismethod(body, 'toString') ? body.toString() : `${body}`) ;
+                    if (stringBody === '[object File]' || stringBody === '[object Blob') { config.body = body as BodyInit ; }
+                    else {
+                        config.body = JSON.stringify(body) ;
+                        _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
+                        //$logterm(`JSON body => &c\n${$insp(config.body)}&0`) ;
+                    }
+                }
+                break ;
+            default:
+                TSError.throw(`TSRequest.req(): impossible to send a ${typeof body} as a body`, { 
+                    relativeURL:relativeURL, 
+                    method:method, 
+                    responseType:responseType, 
+                    body:body,
+                    suplHeaders:suplHeaders,
+                    timeout:timeout
+                }) ; 
+        }
+
+
         if ($ok(timeout) && timeout! < 0) { 
             TSError.throw('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
                 relativeURL:relativeURL, 
@@ -316,59 +352,139 @@ export class TSRequest {
 		if (!timeout) { timeout = this.defaultTimeOut ; }
 		let ret = null ;
 		let status = 0 ;
-        let headers:RequestHeaders = {} ;
+        let headers:TSResponseHeaders = new Headers() ;
+        
+        _maySetAccept(requestHeaders, responseType) ;
+        _maySetHeader(requestHeaders, 'connection', 'close') ;
 
 		const timeoutError = TSUniqueError.timeoutError() ;
 		try {
-			const response = await $timeout(this._channel(config), timeout, timeoutError)
-			ret = responseType === RespType.Buffer ? Buffer.from(response.data) : response.data ;
-			status = response.status ;
-            headers = response.headers ;
-		}
-		catch (e) {
-			if (e === timeoutError || (e as TSRequestError).code === 'ECONNABORTED' || (e as TSRequestError).code === 'ETIMEDOUT' || (e as TSRequestError).code === 'ERR_PARSE_TIMEOUT') { 
-				ret = null ;
-				status = Resp.TimeOut ;
-			}
-            else if ((e as TSRequestError).code === 'ECONNREFUSED') {
-                ret = null ;
-                status = Resp.Misdirected ;
+			const resp = await $timeout(fetch(finalURL!, config), timeout, timeoutError) ;
+            if ($ok(resp)) {
+                const response:Response = resp! ;
+                status = response.status ;
+                headers = response.headers ;
+                // wa don't catch conversion errors because they should not occur and
+                // an occurence means a local error or a protocol discrepency between
+                // the server and the client
+                switch (responseType) {
+                    case RespType.Buffer:
+                        ret = Buffer.from(await response.arrayBuffer()) ;
+                        break ;
+                    case RespType.Json:
+                        ret = await response.json() ;
+                        break ;
+                    case RespType.Stream:
+                        ret = response.body ;
+                        break ;
+                    case RespType.String:
+                        ret = await response.text() ;
+                        break ;
+                }
             }
-			else if ($isnumber((e as TSRequestError).statusCode)) {
-				ret = null ;
-				status = (e as TSRequestError).statusCode as number ;
+		}
+		catch (e:any) {
+            ret = null ;
+            if (e === timeoutError) {
+				status = Resp.TimeOut ;
+            }
+			else if ($isnumber(e?.statusCode)) {
+				status = e!.statusCode as number ;
 			}
-			else if ($isnumber((e as TSRequestError).status)) {
-				ret = null ;
-				status = (e as TSRequestError).status as number ;
+			else if ($isnumber(e?.status)) {
+				status = e!.status as number ;
 			}
 			else {
-				// all other errors must throw
-				throw e ;
+                let code = (((e as TypeError)?.cause) as any)?.code ;
+                if (!$length(code)) {
+                    code = $string(e?.code)
+                }
+                switch (code) {
+                    case 'ECONNREFUSED': 
+                    case 'DEPTH_ZERO_SELF_SIGNED_CERT':
+                        status = Resp.Misdirected ; 
+                        break ;
+                    case 'ECONNABORTED': case 'ETIMEDOUT': case 'ERR_PARSE_TIMEOUT':
+                        status = Resp.TimeOut ;
+                        break ;
+                    default:
+        				// all other errors must throw
+                        throw e ;
+                }
 			}
 		}
 		return { status:status, response:ret, headers:headers}  ;
 	}
 
     // ============== private methods ======================
-    private _resetChannel() {
+    /* private _resetChannel() {
         this._channel = axios.create({baseURL:this._baseURL, withCredentials:!!this._managesCredential}) ;
-    }
+    } */
 
 }
 
-function _standardHeaders(headers:Nullable<RequestHeaders>):RequestHeaders {
+function _maySetContentType(headers:StringDictionary, type:RequestBodyType){
+    switch (type) {
+        case RequestBodyType.Json:
+            _maySetHeader(headers, 'Content-Type', 'application/json')
+            break ;
+        case RequestBodyType.UrlEncoded:
+            _maySetHeader(headers, 'Content-Type', 'application/x-www-form-urlencoded')
+            break ;
+        default:
+            break ;
+    }
+}
+
+function _maySetAccept(headers:StringDictionary, type:RespType) {
+    switch (type) {
+        case RespType.Json:
+            _maySetHeader(headers, 'Accept', 'application/json')
+            break ;
+        case RespType.String:
+            _maySetHeader(headers, 'Accept', 'text/plain')
+            break ;
+        default:
+            break ;
+    }
+}
+
+function _maySetHeader(headers:StringDictionary, header:string, value:string) {
+    header = header.capitalize() ;
+    if (!$length(headers[header]) && $length(value)) {
+        headers[header] = value ;
+    }
+}
+
+function _isReadableStream(v:NonNullable<any>):boolean {
+    return $ismethod(v, 'pipe') && $ismethod(v, '_read') ;
+}
+
+function _finalHeaders(headers:Nullable<TSRequestHeaders>):StringDictionary {
     const entries = $ok(headers) ? Object.entries(headers!) : [] ;
-    const ret:RequestHeaders = {} ;
+    const ret:StringDictionary = {} ;
+    for (let [key, value] of entries) {
+        ret[key.capitalize()] = $isarray(value) ? (value as Array<string|number>).join(', ') : `${value}` ;
+    }
+    return ret ;
+}
+
+function _standardHeaders(headers:Nullable<TSRequestHeaders>):TSRequestHeaders {
+    const entries = $ok(headers) ? Object.entries(headers!) : [] ;
+    const ret:TSRequestHeaders = {} ;
     for (let [key, value] of entries) {
         ret[key.capitalize()] = $isarray(value) ? $map(value as string[], i => `${i}`) : `${value}` ;
     }
     return ret ;
 }
+enum RequestBodyType {
+    Json = 0,
+    UrlEncoded
+} ;
 
 declare global {
     export interface URLSearchParams {
-        query:              (this: URLSearchParams) => StringDictionary | null;
+        query:(this: URLSearchParams) => StringDictionary | null;
     }
 }
 

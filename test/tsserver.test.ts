@@ -1,7 +1,7 @@
-import { Agent } from "https";
-import axios from "axios";
+// import { Agent } from "https";
+// import axios from "axios";
 
-import { TSServer, TSServerOptions } from "../src/tsserver";
+import { TSServer, TSServerLogLevel, TSServerOptions } from "../src/tsserver";
 import { $UUID, $keys, $length, $string } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
@@ -117,7 +117,7 @@ if (!$inbrowser()) {
         const port = 8327 as uint16 ;
         const basicOptions: TSServerOptions = {
             port:port,
-            logInfo:false
+            logLevel:TSServerLogLevel.None        
         } ;
         const options:TSServerOptions = {
             ...basicOptions,
@@ -180,6 +180,7 @@ if (!$inbrowser()) {
                 country:france.alpha2Code
             }
             const returnedResponseParser = TSParser.define(endPointStructure) ;
+            // t.logAllTests = true ;
 
             if (t.expect1(returnedResponseParser).OK()) {
                 t.register('options', basicOptions) ;            
@@ -205,7 +206,7 @@ if (!$inbrowser()) {
                         POST:postEndPoint
                     }
                 } ;
-                const startStatus = await TSServer.start(serverEndPoints, {...options, developer:false}) ;
+                const startStatus = await TSServer.start(serverEndPoints, {...options }) ;
                 t.expect2(startStatus).is(TSServerStartStatus.HTTP) ;
                 t.expectA(await TSServer.isRunning()).true() ;
                 t.register('sessionID', sessionID) ;
@@ -241,20 +242,6 @@ if (!$inbrowser()) {
         }) ;
         
         group.unary('Same page in HTTP/S', async (t) => {
-
-            /**
-             * warning: this code directly put on axios defaults
-             * allows us to ignore self signed certificate error
-             * during axios request. Should be removed when axios
-             * will be removed from foundation-ts
-             */
-            axios.defaults.httpsAgent = new Agent({
-                rejectUnauthorized: false,
-            }) ;
-            /**
-             * we didn't want to add node forge in our modules, so we did generate
-             * an autosigned certificate with openssl and use it for our tests. 
-             */
             const cert = $readBuffer($absolute('test/cert/cert.pem')) ;
             const key = $readBuffer($absolute('test/cert/key.pem')) ;
             if (t.expect0($length(cert)).gt(0) && t.expect1($length(key)).gt(0)) {
@@ -273,9 +260,20 @@ if (!$inbrowser()) {
                 client.baseURL = 'https://localhost:9654/' ; // this should assert a new channel
                 
                 [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
+                t.expectB(status).is(Resp.Misdirected) ;
 
-                if (t.expectB(status).is(Resp.OK)) {
-                    t.expectC(ret).is(content) ;
+                /**
+                 * we didn't want to add node forge in our modules, so we did generate
+                 * an autosigned certificate with openssl and use it for our tests. 
+                 * For our test to work, we need to set 
+                 *  process.env.NODE_TLS_REJECT_UNAUTHORIZED to ZERO.
+                 * 
+                 * This is an awfull hack but it does not have any dependancy issues
+                 */
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+                [ret, status] = await client.request('index.html', Verb.Get, RespType.Buffer) ;
+                if (t.expectC(status).is(Resp.OK)) {
+                    t.expectD(ret).is(content) ;
                 }
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;    

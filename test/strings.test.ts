@@ -15,9 +15,36 @@ export const stringGroups = TSTest.group("Commons strings functions", async (gro
         t.expect6($ascii('<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\±')).is('<wxcvbn,;:=>WXCVBN?./+<=<(C)ss~.../>=>/ci?.\\') ;
         t.expect7($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
         t.expect8('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú'.ascii()).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
-        t.expect9('ΆΏΰαζθφωώϐϑϒϓϔϕΣψῼ𝞅𝞍𝞊𝞋𝚯𝚹𝞁𝞂𝜚ϴϽϾϱϋὗὛὟῆῊῌᾇ'.ascii()).is('AOyazthfoovthYYYfSpsOffethTHTHssrTHSSryyYYiIIa') ;
+        t.expect9('ΆΏΰαζθφωώϐϑϒϓϔϕΣψῼ'.ascii()).is('AOyazthfoovthYYYfSpsO') ;
         t.expectA('eine Milliarde sieben­hundert­neun­und­sechzig Millionen fünf­hundert­sieben­und­zwanzig­tausend­ein­hundert­elf'.ascii())
             .is('eine Milliarde siebenhundertneunundsechzig Millionen funfhundertsiebenundzwanzigtausendeinhundertelf') ;
+        t.expectB('¯ĸƱƼƽɗɤɸʊʰʱʲʳʴʵʶʷʸ˘˙˚˛˜˝ˠˡˢˣͺ;Ϳͻͼͽ'.ascii())
+              .is('qUQqdgfu?Jsss') ;
+        t.expectC('ᶛᶜᶝᶞᶟᶠᶡᶢᶣᶤᶥᶦ'.ascii()).is("") ;
+        t.expectD('ᶧᶨᶩᶪᶫᶬᶭᶮᶯᶰᶱᶲᶳᶴ'.ascii()).is("") ;
+        t.expectE('ᶵᶶᶷᶸᶹᶺᶻᶼᶽᶾᶿ'.ascii()).is("") ;
+        t.expectF('᾽᾿῀῍῎῏ι῝῞῟῾'.ascii()).is("") ;
+        t.expectG('‗\u{2028}\u{2029}‾℞≁≮≯≰≱⍯゛゜・ー㈀㈁㈂㈃㈄㈅㈆㈇㈈㈉㈊㈋㈌㈍㈎㈏㈐㈟㈠㈡㈢㈣㈤㈥㈦㈧㈨㈩㈪㈫㈬㈭㈮㈯㈰㈱㈲㈳㈴㈵㈶㈷㈸㈹㈺㈻㈼㈽㈾㈿㉀㉁㉂㉃'.ascii()).is("") ;
+        t.expectH('\u{3250}㌀㌃㌇㌈㌊㌍㌑㌒㌓㌖㌛㌜㌞㌠㌤㌫㌬㌭㌳㌶㌻㌼㍁㍂㍊㍍㍎㍓㍔'.ascii()).is("") ;
+        t.expectI('\u{AB5C}\u{AB5E}\u{AB69}\u{FC5E}\u{FC5F}\u{FC60}\u{FC61}\u{FC62}\u{FC63}'.ascii()).is("") ;
+        t.expectJ('ﷻﷺ﹉﹊﹋﹌ﹰ'.ascii()).is("") ;
+        t.expectK('﹍﹎﹏﹐﹒ﹲﹴﹶﹺﹼﹾ'.ascii()).is(",.") ;
+        t.expectL('₠₣€₨₧℩Ↄↄ≪≫⋆⋜⋝⍷、㉈㉉㉊㉋㉌㉍㉎㉏'.ascii())
+              .is('EURFRFEURRsPtsiCc<<>>*<=>=e,1020304050607080')
+        t.expectM('ϱϋὗὛὟῆῊῌᾇϴϽϾ'.ascii()).is('ryyYYiIIaTHSS') ;
+
+        t.expectN('ϝϞϟϷϸϺϻ\u{180E}\u{1680}'.ascii())
+              .is('fKkSHshSs') ;
+        t.expectO('ͱͰ΄ϘϙϚϛϜ'.ascii())
+              .is('hHKkSTstF') ;
+        
+        t.expectP('ᴦᴧᴨᴩᴪᴬᴭᴮᴯᴰᴱᴲᴳᴴᴵᴶᴷᴸᴹᴺᴻᴼᴽᴾᴿᵀᵁᵂᵃᵄᵅᵆᵇᵈᵉᵊᵋᵌᵍᵎᵏᵐᵑᵒᵓᵔᵕᵖᵗᵘᵙᵚᵛᵜᵝᵞᵟᵠᵡᵢᵣᵤᵥᵦᵧᵨᵩᵪᵫᵬᵭᵮᵯᵿ'.ascii())
+              .is('GLPRPSuebdfmu') ;
+
+        // all character after 0xffff are now dropped
+        t.expectX('🆑🆒🆓🆔🆕🆖🆗🆘🆙🆚'.ascii()).is('') ;
+        t.expectY('😠😊💔😕😢😦❤️👿😇😂😗😆👨😐😶😮😡😄😃😈😭😛😝😜😎😓😅😒😉'.ascii()).is("")
+        t.expectZ('𝞅𝞍𝞊𝞋𝚯𝚹𝞁𝞂𝜚'.ascii()).is('') ;
     }) ;
     group.unary("$left() and $right() functions", async(t) => {
         t.expect1($left(S1)).is('T') ;

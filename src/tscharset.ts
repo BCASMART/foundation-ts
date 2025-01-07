@@ -207,7 +207,7 @@ export class TSSystemCharset extends TSCharset {
         return this._stringFromBuffer($bufferFromBytes(source), sourceStart, sourceEnd) ;
     }
 
-    public stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
+    public override stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
         if (src instanceof Buffer) { return this._stringFromBuffer(src, sourceStart, sourceEnd) ; }
         else if (src instanceof TSData) { return this._stringFromBuffer(src.mutableBuffer, sourceStart, sourceEnd) ; }
         else { return this._stringFromBuffer($bufferFromBytes(src as Bytes), sourceStart, sourceEnd) ; }

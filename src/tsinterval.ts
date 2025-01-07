@@ -15,7 +15,7 @@ export class TSInterval extends TSCouple<Nullable<TSDate>, Nullable<TSDate>> imp
     get start():TSDate { return $ok(this.first) ? this.first! : new TSDate(TSDate.PAST) ; }
 	get end():TSDate { return $ok(this.second) ? this.second! : new TSDate(TSDate.FUTURE) ; }
 
-	public clone():TSInterval { return new TSInterval(this.first, this.second) ; }
+	public override clone():TSInterval { return new TSInterval(this.first, this.second) ; }
 
     get hasSignificantRange():boolean {
 		if ($ok(this.first) && $ok(this.second)) {
@@ -105,7 +105,7 @@ export class TSInterval extends TSCouple<Nullable<TSDate>, Nullable<TSDate>> imp
                 ($ok(this.start) && $ok(other.end) && this.start.isEqual(other.end))) ;
 	}
 
-    public compare(other:any) : Comparison {
+    public override compare(other:any) : Comparison {
         if (this.isEqual(other)) { return Same ; }
         if (other instanceof TSInterval) {
             if (this.hasSignificantRange) {
@@ -125,15 +125,15 @@ export class TSInterval extends TSCouple<Nullable<TSDate>, Nullable<TSDate>> imp
     }
 
 	// ============ TSObject conformance =============== 
-	public isEqual(other:any) : boolean
+	public override isEqual(other:any) : boolean
 	{
         if (this === other) { return true ; }
         return (other instanceof TSInterval) && 
                (($ok(this.first) && this.first!.isEqual(other.first)) || (!$ok(this.first) && !$ok(other.first))) &&
                (($ok(this.second) && this.second!.isEqual(other.second)) || (!$ok(this.second) && !$ok(other.second))) ;
     }
-	public toJSON():{start:Nullable<TSDate>, end:Nullable<TSDate>} { return {start:$jsonobj(this.first), end:$jsonobj(this.second)} ; }
-	public toArray():TSInterval[] { return [this] ; } // should we not return one or two dates here ?
+	public override toJSON():{start:Nullable<TSDate>, end:Nullable<TSDate>} { return {start:$jsonobj(this.first), end:$jsonobj(this.second)} ; }
+	public override toArray():TSInterval[] { return [this] ; } // should we not return one or two dates here ?
 }
 
 export interface TSIntervalConstructor extends TSCoupleConstructor<Nullable<TSDate>, Nullable<TSDate>>

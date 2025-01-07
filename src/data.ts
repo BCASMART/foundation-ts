@@ -1,4 +1,4 @@
-import { $isfunction, $isstring, $length, $lse, $ok } from "./commons";
+import { $isfunction, $ismethod, $isstring, $length, $lse, $ok, $valueornull } from "./commons";
 import { $charset, TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
 import { Bytes, Nullable, StringEncoding, TSDataLike, TSEndianness, uint32, uint8 } from "./types";
@@ -38,6 +38,7 @@ export function $bufferFromDataLike(source:TSDataLike, options?:DataConversionOp
     const [src, opts] = _toBytesOpts(source, options) ;
     return $bufferFromBytes(src, opts) ;
 }
+
 
 // ===================== conversions to Uint8Array ==============================
 
@@ -112,6 +113,37 @@ export function $arrayBufferFromDataLike(source:TSDataLike, opts:DataConversionO
     }
     else if (source instanceof TSData) { source = source.mutableBuffer ; }
     return $arrayBufferFromBytes(source as Bytes, opts)
+}
+
+// ===================== conversions to Blob ==============================
+export async function $arrayBufferFromBlob(source:Blob):Promise<ArrayBuffer|null> {
+    if (!$ok(source)) { return null ;}
+    try { return await source.arrayBuffer() ; }
+    catch { return null ; }
+} 
+
+export async function $bufferFromBlob(source:Blob):Promise<Buffer|null> {
+    const data = await $arrayBufferFromBlob(source) ;
+    return $ok(data) ? $bufferFromArrayBuffer(data!) : null ;
+}
+
+export async function $uint8ArrayFromBlob(source:Blob):Promise<Uint8Array|null> {
+    if ($ismethod(source, 'bytes')) {
+        try { return $valueornull(await (source as any).bytes()) ; }
+        catch { return null ; }    
+    }
+    return await $bufferFromBlob(source) ;
+}
+
+export function $blobFromBytes(source:Bytes): Blob {
+    const data = source instanceof Uint8Array ? source : _uint8ArrayFromArray(source) ;
+    return new Blob([data]) ;
+}
+
+export function $blobFromDataLike(source: TSDataLike): Blob { 
+    return source instanceof ArrayBuffer ? 
+            new Blob([source]) : 
+            (source instanceof TSData ? new Blob([source.mutableBuffer]) : $blobFromBytes(source)) ;
 }
 
 // ===================== conversions to Uint32 ==============================
@@ -221,8 +253,32 @@ function _encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, enco
 }
 
 export function $decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
-export function $encodeHexa(source:TSDataLike):string { return $bufferFromDataLike(source).toString('hex') ; }
 
+const FoundationHexaChars = '0123456789ABCDEF' ;
+const FoundationHexaLowerChars = '0123456789abcdef' ;
+
+export function $encodeHexa(source:TSDataLike, toLowerCase?:boolean):string
+{
+    if (source instanceof TSData) { return $encodeBytesToHexa(source.mutableBuffer) ; }
+    else if (source instanceof ArrayBuffer) { return $encodeBytesToHexa($bufferFromArrayBuffer(source)) ; }
+    return $encodeBytesToHexa(source, toLowerCase) ;
+}
+
+export function $encodeBytesToHexa(source:Bytes, toLowerCase?:boolean):string {
+    if (source instanceof Buffer && !!toLowerCase) { return source.toString('hex') ; } // fast implementation
+    
+    let s = '' ;
+    const len = $length(source) ;
+    if (len) {
+        const b = !toLowerCase ? FoundationHexaChars : FoundationHexaLowerChars ;
+
+        for (let i = 0 ; i < len ; i++) {
+            const n = source[i] ;
+            s += b[(n>>4) & 0xF] + b[n & 0xF] ;
+        }
+    }   
+    return s ;     
+}
 
 // ===================== Data operations ==============================
 export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
@@ -271,7 +327,7 @@ declare global {
     export interface Uint8Array {
         leafInspect:         (this: Uint8Array) => string;
         toBase64:            (this: Uint8Array) => string;
-        toHexa:              (this: any) => string;
+        toHexa:              (this: any, toLowerCase?:boolean) => string;
         isGenuineUint8Array: (this: Uint8Array) => boolean ;
         XOR:                 (this: TSDataLike, other:TSDataLike) => Buffer;
     }
@@ -284,7 +340,7 @@ declare global {
     export interface ArrayBuffer {
         leafInspect: (this: any) => string;
         toBase64:    (this: any) => string;
-        toHexa:      (this: any) => string;
+        toHexa:      (this: any, toLowerCase?:boolean) => string;
         XOR:         (this: TSDataLike, other:TSDataLike) => Buffer;
     }
 }
@@ -303,14 +359,20 @@ String.prototype.toBase64         = function toBase64(this: string): string { re
 Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
 ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64(this) ; }
 
-Uint8Array.prototype.toHexa       = function toHexa(this: any): string { return Buffer.from(this.buffer,this.byteOffset,this.byteLength).toString('hex');; }
-Buffer.prototype.toHexa           = function toHexa(this: any): string { return this.toString('hex'); } 
-ArrayBuffer.prototype.toHexa      = function toHexa(this: any): string { return $encodeHexa(this) ; }
+Uint8Array.prototype.toHexa       = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa(this, toLowerCase) ; } // since Buffer is a subclass of Uint8Array, also available on buffer
+ArrayBuffer.prototype.toHexa      = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa($bufferFromArrayBuffer(this), toLowerCase) ; }
 
 Uint8Array.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
 ArrayBuffer.prototype.XOR         = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
 
 // ===================== private functions ==============================
+function _uint8ArrayFromArray(a:uint8[]):Uint8Array {
+    const len = a.length ;
+    const ret = new Uint8Array(len);
+    for (let i = 0 ; i < len; i++) { ret[i] = a[i] ; }
+    return ret ;
+}
+
 function _toBytesOpts(source:TSDataLike, opts:DataConversionOptions = {}): [Bytes, DataConversionOptions]
 {
     if (source instanceof ArrayBuffer) {

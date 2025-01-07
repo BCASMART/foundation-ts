@@ -44,7 +44,7 @@ import { $inbrowser } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
 import { Nullable, StringEncoding, TSDataLike } from './types';
-import { $ftrim } from './strings';
+import { $asciifs, $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
 
@@ -327,6 +327,9 @@ export function $dir(source: Nullable<string>, internalImplementation: boolean =
     }
     return dirname(s!);
 }
+
+export function $safeFilename(s: Nullable<string>, posix:boolean = false, internalImplementation: boolean = false): string 
+{ return $asciifs($filename(s, internalImplementation), posix) ; }
 
 export function $filename(s: Nullable<string>, internalImplementation: boolean = false): string {
     let len = $length(s);

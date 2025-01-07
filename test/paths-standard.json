@@ -6,6 +6,8 @@
         "normalized": ".",
         "dirname": ".",
         "filename": "",
+        "safename": "",
+        "posixname": "",
         "extname": ""
       },
       {
@@ -14,6 +16,8 @@
         "normalized": ".doc",
         "dirname": ".",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -22,6 +26,8 @@
         "normalized": "c:",
         "dirname": ".",
         "filename": "c:",
+        "safename": "c_",
+        "posixname": "c_",
         "extname": ""
       },
       {
@@ -30,6 +36,8 @@
         "normalized": "c:/",
         "dirname": ".",
         "filename": "c:",
+        "safename": "c_",
+        "posixname": "c_",
         "extname": ""
       },
       {
@@ -38,6 +46,8 @@
         "normalized": "c:\\",
         "dirname": ".",
         "filename": "c:\\",
+        "safename": "c__",
+        "posixname": "c__",
         "extname": ""
       },
       {
@@ -46,6 +56,8 @@
         "normalized": "C:",
         "dirname": ".",
         "filename": "C:",
+        "safename": "C_",
+        "posixname": "C_",
         "extname": ""
       },
       {
@@ -54,6 +66,8 @@
         "normalized": "C:/",
         "dirname": ".",
         "filename": "C:",
+        "safename": "C_",
+        "posixname": "C_",
         "extname": ""
       },
       {
@@ -62,6 +76,8 @@
         "normalized": "C:\\",
         "dirname": ".",
         "filename": "C:\\",
+        "safename": "C__",
+        "posixname": "C__",
         "extname": ""
       },
       {
@@ -70,6 +86,8 @@
         "normalized": "à:/",
         "dirname": ".",
         "filename": "à:",
+        "safename": "a_",
+        "posixname": "a_",
         "extname": ""
       },
       {
@@ -78,6 +96,8 @@
         "normalized": "à:\\",
         "dirname": ".",
         "filename": "à:\\",
+        "safename": "a__",
+        "posixname": "a__",
         "extname": ""
       },
       {
@@ -86,6 +106,8 @@
         "normalized": "À:/",
         "dirname": ".",
         "filename": "À:",
+        "safename": "A_",
+        "posixname": "A_",
         "extname": ""
       },
       {
@@ -94,6 +116,8 @@
         "normalized": "À:\\",
         "dirname": ".",
         "filename": "À:\\",
+        "safename": "A__",
+        "posixname": "A__",
         "extname": ""
       },
       {
@@ -102,6 +126,8 @@
         "normalized": "z:/",
         "dirname": ".",
         "filename": "z:",
+        "safename": "z_",
+        "posixname": "z_",
         "extname": ""
       },
       {
@@ -110,6 +136,8 @@
         "normalized": "z:\\",
         "dirname": ".",
         "filename": "z:\\",
+        "safename": "z__",
+        "posixname": "z__",
         "extname": ""
       },
       {
@@ -118,6 +146,8 @@
         "normalized": "AB:/",
         "dirname": ".",
         "filename": "AB:",
+        "safename": "AB_",
+        "posixname": "AB_",
         "extname": ""
       },
       {
@@ -126,6 +156,8 @@
         "normalized": "AB:\\",
         "dirname": ".",
         "filename": "AB:\\",
+        "safename": "AB__",
+        "posixname": "AB__",
         "extname": ""
       },
       {
@@ -134,6 +166,8 @@
         "normalized": "c:/.doc",
         "dirname": "c:",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -142,6 +176,8 @@
         "normalized": "c:\\.doc",
         "dirname": ".",
         "filename": "c:\\.doc",
+        "safename": "c__.doc",
+        "posixname": "c__.doc",
         "extname": ".doc"
       },
       {
@@ -150,6 +186,8 @@
         "normalized": "C:/folder",
         "dirname": "C:",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -158,6 +196,8 @@
         "normalized": "C:\\folder",
         "dirname": ".",
         "filename": "C:\\folder",
+        "safename": "C__folder",
+        "posixname": "C__folder",
         "extname": ""
       },
       {
@@ -166,6 +206,8 @@
         "normalized": "C:/file.pdf",
         "dirname": "C:",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -174,6 +216,8 @@
         "normalized": "C:\\file.pdf",
         "dirname": ".",
         "filename": "C:\\file.pdf",
+        "safename": "C__file.pdf",
+        "posixname": "C__file.pdf",
         "extname": ".pdf"
       },
       {
@@ -182,6 +226,8 @@
         "normalized": "C:/folder/",
         "dirname": "C:",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -190,6 +236,8 @@
         "normalized": "C:\\folder\\",
         "dirname": ".",
         "filename": "C:\\folder\\",
+        "safename": "C__folder_",
+        "posixname": "C__folder_",
         "extname": ""
       },
       {
@@ -198,6 +246,8 @@
         "normalized": "C:/folder/file.pdf",
         "dirname": "C:/folder",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -206,6 +256,8 @@
         "normalized": "C:\\folder\\file.pdf",
         "dirname": ".",
         "filename": "C:\\folder\\file.pdf",
+        "safename": "C__folder_file.pdf",
+        "posixname": "C__folder_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -214,6 +266,8 @@
         "normalized": "C:/folder/folder2",
         "dirname": "C:/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -222,6 +276,8 @@
         "normalized": "C:\\folder\\folder2",
         "dirname": ".",
         "filename": "C:\\folder\\folder2",
+        "safename": "C__folder_folder2",
+        "posixname": "C__folder_folder2",
         "extname": ""
       },
       {
@@ -230,6 +286,8 @@
         "normalized": "C:/folder/folder2/file.pdf",
         "dirname": "C:/folder/folder2",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -238,6 +296,8 @@
         "normalized": "C:\\folder\\folder2\\file.pdf",
         "dirname": ".",
         "filename": "C:\\folder\\folder2\\file.pdf",
+        "safename": "C__folder_folder2_file.pdf",
+        "posixname": "C__folder_folder2_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -246,6 +306,8 @@
         "normalized": "C:/",
         "dirname": ".",
         "filename": "C:",
+        "safename": "C_",
+        "posixname": "C_",
         "extname": ""
       },
       {
@@ -254,6 +316,8 @@
         "normalized": "C:\\\\",
         "dirname": ".",
         "filename": "C:\\\\",
+        "safename": "C___",
+        "posixname": "C___",
         "extname": ""
       },
       {
@@ -262,6 +326,8 @@
         "normalized": "C:/folder",
         "dirname": "C:/",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -270,6 +336,8 @@
         "normalized": "C:\\\\folder",
         "dirname": ".",
         "filename": "C:\\\\folder",
+        "safename": "C___folder",
+        "posixname": "C___folder",
         "extname": ""
       },
       {
@@ -278,6 +346,8 @@
         "normalized": "/",
         "dirname": "/",
         "filename": "",
+        "safename": "",
+        "posixname": "",
         "extname": ""
       },
       {
@@ -286,6 +356,8 @@
         "normalized": "\\",
         "dirname": ".",
         "filename": "\\",
+        "safename": "_",
+        "posixname": "_",
         "extname": ""
       },
       {
@@ -294,6 +366,8 @@
         "normalized": "/.doc",
         "dirname": "/",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -302,6 +376,8 @@
         "normalized": "\\.doc",
         "dirname": ".",
         "filename": "\\.doc",
+        "safename": "_.doc",
+        "posixname": "_.doc",
         "extname": ".doc"
       },
       {
@@ -310,6 +386,8 @@
         "normalized": "/folder",
         "dirname": "/",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -318,6 +396,8 @@
         "normalized": "\\folder",
         "dirname": ".",
         "filename": "\\folder",
+        "safename": "_folder",
+        "posixname": "_folder",
         "extname": ""
       },
       {
@@ -326,6 +406,8 @@
         "normalized": "/folder/",
         "dirname": "/",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -334,6 +416,8 @@
         "normalized": "\\folder\\",
         "dirname": ".",
         "filename": "\\folder\\",
+        "safename": "_folder_",
+        "posixname": "_folder_",
         "extname": ""
       },
       {
@@ -342,6 +426,8 @@
         "normalized": "/folder/.doc",
         "dirname": "/folder",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -350,6 +436,8 @@
         "normalized": "\\folder\\.doc",
         "dirname": ".",
         "filename": "\\folder\\.doc",
+        "safename": "_folder_.doc",
+        "posixname": "_folder_.doc",
         "extname": ".doc"
       },
       {
@@ -358,6 +446,8 @@
         "normalized": "/file.pdf",
         "dirname": "/",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -366,6 +456,8 @@
         "normalized": "\\file.pdf",
         "dirname": ".",
         "filename": "\\file.pdf",
+        "safename": "_file.pdf",
+        "posixname": "_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -374,6 +466,8 @@
         "normalized": "/folder/file.pdf",
         "dirname": "/folder",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -382,6 +476,8 @@
         "normalized": "\\folder\\file.pdf",
         "dirname": ".",
         "filename": "\\folder\\file.pdf",
+        "safename": "_folder_file.pdf",
+        "posixname": "_folder_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -390,6 +486,8 @@
         "normalized": "/folder/folder2",
         "dirname": "/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -398,6 +496,8 @@
         "normalized": "\\folder\\folder2",
         "dirname": ".",
         "filename": "\\folder\\folder2",
+        "safename": "_folder_folder2",
+        "posixname": "_folder_folder2",
         "extname": ""
       },
       {
@@ -406,6 +506,8 @@
         "normalized": "/folder/folder2/",
         "dirname": "/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -414,6 +516,8 @@
         "normalized": "\\folder\\folder2\\",
         "dirname": ".",
         "filename": "\\folder\\folder2\\",
+        "safename": "_folder_folder2_",
+        "posixname": "_folder_folder2_",
         "extname": ""
       },
       {
@@ -422,6 +526,8 @@
         "normalized": "/folder/folder2/file.pdf",
         "dirname": "/folder/folder2",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -430,6 +536,8 @@
         "normalized": "\\folder\\folder2\\file.pdf",
         "dirname": ".",
         "filename": "\\folder\\folder2\\file.pdf",
+        "safename": "_folder_folder2_file.pdf",
+        "posixname": "_folder_folder2_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -438,6 +546,8 @@
         "normalized": "/",
         "dirname": "/",
         "filename": "",
+        "safename": "",
+        "posixname": "",
         "extname": ""
       },
       {
@@ -446,6 +556,8 @@
         "normalized": "\\\\",
         "dirname": ".",
         "filename": "\\\\",
+        "safename": "__",
+        "posixname": "__",
         "extname": ""
       },
       {
@@ -454,6 +566,8 @@
         "normalized": "/.doc",
         "dirname": "//",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -462,6 +576,8 @@
         "normalized": "\\\\.doc",
         "dirname": ".",
         "filename": "\\\\.doc",
+        "safename": "__.doc",
+        "posixname": "__.doc",
         "extname": ".doc"
       },
       {
@@ -470,6 +586,8 @@
         "normalized": "/server",
         "dirname": "//",
         "filename": "server",
+        "safename": "server",
+        "posixname": "server",
         "extname": ""
       },
       {
@@ -478,6 +596,8 @@
         "normalized": "\\\\server",
         "dirname": ".",
         "filename": "\\\\server",
+        "safename": "__server",
+        "posixname": "__server",
         "extname": ""
       },
       {
@@ -486,6 +606,8 @@
         "normalized": "/server/",
         "dirname": "//",
         "filename": "server",
+        "safename": "server",
+        "posixname": "server",
         "extname": ""
       },
       {
@@ -494,6 +616,8 @@
         "normalized": "\\\\server\\",
         "dirname": ".",
         "filename": "\\\\server\\",
+        "safename": "__server_",
+        "posixname": "__server_",
         "extname": ""
       },
       {
@@ -502,6 +626,8 @@
         "normalized": "/server/.doc",
         "dirname": "//server",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -510,6 +636,8 @@
         "normalized": "\\\\server\\.doc",
         "dirname": ".",
         "filename": "\\\\server\\.doc",
+        "safename": "__server_.doc",
+        "posixname": "__server_.doc",
         "extname": ".doc"
       },
       {
@@ -518,6 +646,8 @@
         "normalized": "/server/volume",
         "dirname": "//server",
         "filename": "volume",
+        "safename": "volume",
+        "posixname": "volume",
         "extname": ""
       },
       {
@@ -526,6 +656,8 @@
         "normalized": "\\\\server\\volume",
         "dirname": ".",
         "filename": "\\\\server\\volume",
+        "safename": "__server_volume",
+        "posixname": "__server_volume",
         "extname": ""
       },
       {
@@ -534,6 +666,8 @@
         "normalized": "/server/volume/",
         "dirname": "//server",
         "filename": "volume",
+        "safename": "volume",
+        "posixname": "volume",
         "extname": ""
       },
       {
@@ -542,6 +676,8 @@
         "normalized": "\\\\server\\volume\\",
         "dirname": ".",
         "filename": "\\\\server\\volume\\",
+        "safename": "__server_volume_",
+        "posixname": "__server_volume_",
         "extname": ""
       },
       {
@@ -550,6 +686,8 @@
         "normalized": "/server/volume/.doc",
         "dirname": "//server/volume",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -558,6 +696,8 @@
         "normalized": "\\\\server\\volume\\.doc",
         "dirname": ".",
         "filename": "\\\\server\\volume\\.doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ".doc"
       },
       {
@@ -566,6 +706,8 @@
         "normalized": "/server/volume/file.pdf",
         "dirname": "//server/volume",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -574,6 +716,8 @@
         "normalized": "\\\\server\\volume\\file.pdf",
         "dirname": ".",
         "filename": "\\\\server\\volume\\file.pdf",
+        "safename": "__server_volumne_file.pdf",
+        "posixname": "__server_volumne_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -582,6 +726,8 @@
         "normalized": "/server/volume/folder",
         "dirname": "//server/volume",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -590,6 +736,8 @@
         "normalized": "\\\\server\\volume\\folder",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder",
+        "safename": "__server_volumne_folder",
+        "posixname": "__server_volumne_folder",
         "extname": ""
       },
       {
@@ -598,6 +746,8 @@
         "normalized": "/server/volume/folder/",
         "dirname": "//server/volume",
         "filename": "folder",
+        "safename": "folder",
+        "posixname": "folder",
         "extname": ""
       },
       {
@@ -606,6 +756,8 @@
         "normalized": "\\\\server\\volume\\folder\\",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\",
+        "safename": "__server_volumne_folder_",
+        "posixname": "__server_volumne_folder_",
         "extname": ""
       },
       {
@@ -614,6 +766,8 @@
         "normalized": "/server/volume/folder/file.pdf",
         "dirname": "//server/volume/folder",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -622,6 +776,8 @@
         "normalized": "\\\\server\\volume\\folder\\file.pdf",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\file.pdf",
+        "safename": "__server_volumne_folder_file.pdf",
+        "posixname": "__server_volumne_folder_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -630,6 +786,8 @@
         "normalized": "/server/volume/folder/folder2",
         "dirname": "//server/volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -638,6 +796,8 @@
         "normalized": "\\\\server\\volume\\folder\\folder2",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\folder2",
+        "safename": "__server_volumne_folder_folder2",
+        "posixname": "__server_volumne_folder_folder2",
         "extname": ""
       },
       {
@@ -646,6 +806,8 @@
         "normalized": "/server/volume/folder/folder2/",
         "dirname": "//server/volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -654,6 +816,8 @@
         "normalized": "\\\\server\\volume\\folder\\folder2\\",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\folder2\\",
+        "safename": "__server_volumne_folder_folder2_",
+        "posixname": "__server_volumne_folder_folder2_",
         "extname": ""
       },
       {
@@ -662,6 +826,8 @@
         "normalized": "/server/volume/folder/folder2/file.pdf",
         "dirname": "//server/volume/folder/folder2",
         "filename": "file.pdf",
+        "safename": "file.pdf",
+        "posixname": "file.pdf",
         "extname": ".pdf"
       },
       {
@@ -670,6 +836,8 @@
         "normalized": "\\\\server\\volume\\folder\\folder2\\file.pdf",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\folder2\\file.pdf",
+        "safename": "__server_volumne_folder_folder2_file.pdf",
+        "posixname": "__server_volumne_folder_folder2_file.pdf",
         "extname": ".pdf"
       },
       {
@@ -678,6 +846,8 @@
         "normalized": "/server/volume/folder/folder2/.doc",
         "dirname": "//server/volume/folder/folder2",
         "filename": ".doc",
+        "safename": ".doc",
+        "posixname": ".doc",
         "extname": ""
       },
       {
@@ -686,6 +856,8 @@
         "normalized": "\\\\server\\volume\\folder\\folder2\\.doc",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\folder2\\.doc",
+        "safename": "__server_volumne_folder_folder2_.doc",
+        "posixname": "__server_volumne_folder_folder2_.doc",
         "extname": ".doc"
       },
       {
@@ -694,6 +866,8 @@
         "normalized": "/",
         "dirname": "/",
         "filename": "",
+        "safename": "",
+        "posixname": "",
         "extname": ""
       },
       {
@@ -702,6 +876,8 @@
         "normalized": "\\\\\\",
         "dirname": ".",
         "filename": "\\\\\\",
+        "safename": "___",
+        "posixname": "___",
         "extname": ""
       },
       {
@@ -710,6 +886,8 @@
         "normalized": "/Users/Durand/Developer/foundation-ts/files",
         "dirname": "/Users/Durand/Developer/foundation-ts",
         "filename": "files",
+        "safename": "files",
+        "posixname": "files",
         "extname": ""
       },
       {
@@ -718,6 +896,8 @@
         "normalized": "\\Users\\Durand\\Developer\\foundation-ts\\files",
         "dirname": ".",
         "filename": "\\Users\\Durand\\Developer\\foundation-ts\\files",
+        "safename": "_Users_Durand_Developer_foundation-ts_files",
+        "posixname": "_Users_Durand_Developer_foundation-ts_files",
         "extname": ""
       },
       {
@@ -726,6 +906,8 @@
         "normalized": "C:/Users/Durand/Developer/foundation-ts/files",
         "dirname": "C:/Users/Durand/Developer/foundation-ts",
         "filename": "files",
+        "safename": "files",
+        "posixname": "files",
         "extname": ""
       },
       {
@@ -734,6 +916,8 @@
         "normalized": "C:\\Users\\Durand\\Developer\\foundation-ts\\files",
         "dirname": ".",
         "filename": "C:\\Users\\Durand\\Developer\\foundation-ts\\files",
+        "safename": "C__Users_Durand_Developer_foundation-ts_files",
+        "posixname": "C__Users_Durand_Developer_foundation-ts_files",
         "extname": ""
       },
       {
@@ -742,6 +926,8 @@
         "normalized": "/LocalServer/SharedVolume/Users/Durand/Developer/foundation-ts/files",
         "dirname": "//LocalServer/SharedVolume/Users/Durand/Developer/foundation-ts",
         "filename": "files",
+        "safename": "files",
+        "posixname": "files",
         "extname": ""
       },
       {
@@ -750,6 +936,8 @@
         "normalized": "\\\\LocalServer\\SharedVolume\\Users\\Durand\\Developer\\foundation-ts\\files",
         "dirname": ".",
         "filename": "\\\\LocalServer\\SharedVolume\\Users\\Durand\\Developer\\foundation-ts\\files",
+        "safename": "__LocalServer_SharedVolume_Users_Durand_Developer_foundation-ts_files",
+        "posixname": "__LocalServer_SharedVolume_Users_Durand_Developer_foundation-ts_files",
         "extname": ""
       },
       {
@@ -758,6 +946,8 @@
         "normalized": "/folder/folder2\\",
         "dirname": "/folder",
         "filename": "folder2\\",
+        "safename": "folder2_",
+        "posixname": "folder2_",
         "extname": ""
       },
       {
@@ -766,6 +956,8 @@
         "normalized": "/folder\\folder2",
         "dirname": "/",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -774,6 +966,8 @@
         "normalized": "/folder\\folder2/",
         "dirname": "/",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -782,6 +976,8 @@
         "normalized": "/folder\\folder2\\",
         "dirname": "/",
         "filename": "folder\\folder2\\",
+        "safename": "folder_folder2_",
+        "posixname": "folder_folder2_",
         "extname": ""
       },
       {
@@ -790,6 +986,8 @@
         "normalized": "\\folder/folder2",
         "dirname": "\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -798,6 +996,8 @@
         "normalized": "\\folder/folder2/",
         "dirname": "\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -806,6 +1006,8 @@
         "normalized": "\\folder/folder2\\",
         "dirname": "\\folder",
         "filename": "folder2\\",
+        "safename": "folder2_",
+        "posixname": "folder2_",
         "extname": ""
       },
       {
@@ -814,6 +1016,8 @@
         "normalized": "\\folder\\folder2/",
         "dirname": ".",
         "filename": "\\folder\\folder2",
+        "safename": "_folder_folder2",
+        "posixname": "_folder_folder2",
         "extname": ""
       },
       {
@@ -822,6 +1026,8 @@
         "normalized": "C:/folder/folder2\\",
         "dirname": "C:/folder",
         "filename": "folder2\\",
+        "safename": "folder2_",
+        "posixname": "folder2_",
         "extname": ""
       },
       {
@@ -830,6 +1036,8 @@
         "normalized": "C:/folder\\folder2",
         "dirname": "C:",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -838,6 +1046,8 @@
         "normalized": "C:/folder\\folder2/",
         "dirname": "C:",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -846,6 +1056,8 @@
         "normalized": "C:/folder\\folder2\\",
         "dirname": "C:",
         "filename": "folder\\folder2\\",
+        "safename": "folder_folder2_",
+        "posixname": "folder_folder2_",
         "extname": ""
       },
       {
@@ -854,6 +1066,8 @@
         "normalized": "C:\\folder/folder2",
         "dirname": "C:\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -862,6 +1076,8 @@
         "normalized": "C:\\folder/folder2/",
         "dirname": "C:\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -870,6 +1086,8 @@
         "normalized": "C:\\folder/folder2\\",
         "dirname": "C:\\folder",
         "filename": "folder2\\",
+        "safename": "folder2_",
+        "posixname": "folder2_",
         "extname": ""
       },
       {
@@ -878,6 +1096,8 @@
         "normalized": "C:\\folder\\folder2/",
         "dirname": ".",
         "filename": "C:\\folder\\folder2",
+        "safename": "C__folder_folder2",
+        "posixname": "C__folder_folder2",
         "extname": ""
       },
       {
@@ -886,6 +1106,8 @@
         "normalized": "/server/volume/folder/folder2\\",
         "dirname": "//server/volume/folder",
         "filename": "folder2\\",
+        "safename": "folder2_",
+        "posixname": "folder2_",
         "extname": ""
       },
       {
@@ -894,6 +1116,8 @@
         "normalized": "/server/volume/folder\\folder2",
         "dirname": "//server/volume",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -902,6 +1126,8 @@
         "normalized": "/server/volume/folder\\folder2/",
         "dirname": "//server/volume",
         "filename": "folder\\folder2",
+        "safename": "folder_folder2",
+        "posixname": "folder_folder2",
         "extname": ""
       },
       {
@@ -910,6 +1136,8 @@
         "normalized": "/server/volume/folder\\folder2\\",
         "dirname": "//server/volume",
         "filename": "folder\\folder2\\",
+        "safename": "folder_folder2_",
+        "posixname": "folder_folder2_",
         "extname": ""
       },
       {
@@ -918,6 +1146,8 @@
         "normalized": "/server/volume\\folder\\folder2",
         "dirname": "//server",
         "filename": "volume\\folder\\folder2",
+        "safename": "volume_folder_folder2",
+        "posixname": "volume_folder_folder2",
         "extname": ""
       },
       {
@@ -926,6 +1156,8 @@
         "normalized": "/server/volume\\folder\\folder2\\",
         "dirname": "//server",
         "filename": "volume\\folder\\folder2\\",
+        "safename": "volume_folder_folder2_",
+        "posixname": "volume_folder_folder2_",
         "extname": ""
       },
       {
@@ -934,6 +1166,8 @@
         "normalized": "/server\\volume\\folder\\folder2",
         "dirname": "//",
         "filename": "server\\volume\\folder\\folder2",
+        "safename": "server_volume_folder_folder2",
+        "posixname": "server_volume_folder_folder2",
         "extname": ""
       },
       {
@@ -942,6 +1176,8 @@
         "normalized": "/server\\volume\\folder\\folder2\\",
         "dirname": "//",
         "filename": "server\\volume\\folder\\folder2\\",
+        "safename": "server_volume_folder_folder2_",
+        "posixname": "server_volume_folder_folder2_",
         "extname": ""
       },
       {
@@ -950,6 +1186,8 @@
         "normalized": "/\\server\\volume\\folder\\folder2",
         "dirname": "/",
         "filename": "\\server\\volume\\folder\\folder2",
+        "safename": "_server_volume_folder_folder2",
+        "posixname": "_server_volume_folder_folder2",
         "extname": ""
       },
       {
@@ -958,6 +1196,8 @@
         "normalized": "/\\server\\volume\\folder\\folder2\\",
         "dirname": "/",
         "filename": "\\server\\volume\\folder\\folder2\\",
+        "safename": "_server_volume_folder_folder2_",
+        "posixname": "_server_volume_folder_folder2_",
         "extname": ""
       },
       {
@@ -966,6 +1206,8 @@
         "normalized": "\\\\server\\volume\\folder\\folder2/",
         "dirname": ".",
         "filename": "\\\\server\\volume\\folder\\folder2",
+        "safename": "__server_volume_folder_folder2_",
+        "posixname": "__server_volume_folder_folder2_",
         "extname": ""
       },
       {
@@ -974,6 +1216,8 @@
         "normalized": "\\\\server\\volume\\folder/folder2/",
         "dirname": "\\\\server\\volume\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -982,6 +1226,8 @@
         "normalized": "\\\\server\\volume\\folder/folder2",
         "dirname": "\\\\server\\volume\\folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -990,6 +1236,8 @@
         "normalized": "\\\\server\\volume/folder/folder2/",
         "dirname": "\\\\server\\volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -998,6 +1246,8 @@
         "normalized": "\\\\server\\volume/folder/folder2",
         "dirname": "\\\\server\\volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -1006,6 +1256,8 @@
         "normalized": "\\\\server/volume/folder/folder2/",
         "dirname": "\\\\server/volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -1014,6 +1266,8 @@
         "normalized": "\\\\server/volume/folder/folder2",
         "dirname": "\\\\server/volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       },
       {
@@ -1022,6 +1276,8 @@
         "normalized": "\\/server/volume/folder/folder2",
         "dirname": "\\/server/volume/folder",
         "filename": "folder2",
+        "safename": "folder2",
+        "posixname": "folder2",
         "extname": ""
       }
     ],

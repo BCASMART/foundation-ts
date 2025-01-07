@@ -890,6 +890,8 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                     areaCodes:['string!'],
                     minDigits:'uint8',
                     maxDigits:'uint8',
+                    format:'string',
+                    dummies:['string!'],
                     _checker: (v:any) => !$ok(v.minDigits) || !$ok(v.maxDigits) || v.minDigits <= v.maxDigits
                 },
                 aliases:['string!'],

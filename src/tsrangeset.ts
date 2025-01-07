@@ -13,7 +13,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		super() ;
 		if ($ok(v)) {
 			if (v instanceof TSRangeSet) {
-				v.forEach(r => super.add(r)) ;
+				v.forEach(r => super.add(r)) ; // super here is just like this. This is JS at its best OOD.
 				return ;	
 			}
             if (!$isarray(v)) {
@@ -48,7 +48,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		}
 	}
 
-	public get length():number { 
+	public override get length():number { 
 		let n:number = 0 ;
 		this.forEach(r => n += r.length) ;
 		return n ;
@@ -59,17 +59,17 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
     /*
         // THIS 3 METHOD CANNOT BE OVERWRITTEN. JUST DON'T USE THEM.
 
-	public insert(data:TSRange, before?:TSListNode<TSRange>):TSListNode<TSRange> ;
-	public add(data:TSRange):TSListNode<TSRange> :
-	public removeNode(node:TSListNode<TSRange>) ;
+	    public insert(data:TSRange, before?:TSListNode<TSRange>):TSListNode<TSRange> ;
+	    public add(data:TSRange):TSListNode<TSRange> :
+	    public removeNode(node:TSListNode<TSRange>) ;
     */
 
 	// --------- interval protocol conformance -------------
-	public get hasSignificantRange():boolean { return $ok(super.first) ; }
+	public get hasSignificantRange():boolean { return $ok(this.first) ; } 
 	public get range():TSRange {
 		if (this.hasSignificantRange) {
-			const loc = super.first!.data.location ;
-			return new TSRange(loc, super.last!.data.maxRange - loc) ;
+			const loc = this.first!.data.location ;
+			return new TSRange(loc, this.last!.data.maxRange - loc) ; // super here is just like this. This is JS at its best OOD. 
 		}
 		return TSBadRange() ;
 	}
@@ -77,8 +77,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
     public get isValid():boolean { return this.range.isValid ; }
 	public get isEmpty():boolean { return this.range.isEmpty ; }
 
-	public get location():number { return $ok(super.first) ? super.first!.data.location : NaN ; }
-	public get maxRange():number { return $ok(super.first) ? super.last!.data.maxRange : NaN ; }
+	public get location():number { return $ok(this.first) ? this.first!.data.location : NaN ; }
+	public get maxRange():number { return $ok(this.first) ? this.last!.data.maxRange : NaN ; }
 
 	public clone():TSRangeSet { return new TSRangeSet(this) ; }
 
@@ -90,17 +90,17 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 				l.data = l.data.unionRange(r) ;
 				while(l !== null && l.next !== null && l.data.continuousWith(l.next.data)) {
 					l.data = l.data.unionRange(l.next.data) ;
-					super.removeNode(l.next) ;
+					super.removeNode(l.next) ; // super here is just like this. This is JS at its best OOD.
 				}
 				return ;
 			}
 			else if (r.maxRange < l.data.location) {
-				super.insert(r, l) ;
+				super.insert(r, l) ; // super here is just like this. This is JS at its best OOD.
 				return ;
 			}
 			l = l.next ;
 		}
-		super.add(r) ;
+		super.add(r) ; // super here is just like this. This is JS at its best OOD.
 	}
 
 	// here r must be a valid range
@@ -112,7 +112,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 				const inter = r.intersectionRange(l.data) ;
 				if (l.data.isEqual(inter)) {
 					let n = l.next ;
-					super.removeNode(l) ;
+					super.removeNode(l) ; // super here is just like this. This is JS at its best OOD.
 					l = n ;
 				}
 				else {
@@ -120,8 +120,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 						if (inter.location > l.data.location) {
 							if (inter.maxRange < l.data.maxRange) {
 								const upRange = new TSRange(inter.maxRange, l.data.maxRange - inter.maxRange) ;
-								if (l.next) super.insert(upRange, l.next) ;
-								else super.add(upRange) ;
+								if (l.next) { super.insert(upRange, l.next) ; } // super here is just like this. This is JS at its best OOD.
+								else { super.add(upRange) ; } // super here is just like this. This is JS at its best OOD.
 							}
 							l.data.length = inter.location - l.data.location ;
 						}
@@ -140,13 +140,13 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		if (this.hasSignificantRange) {
 			if (this.range.intersects(r)) {
 				let l = this.first ;
-				while (l && !l.data.intersects(r)) { let n = l.next ; super.removeNode(l) ; l = n ; }
+				while (l && !l.data.intersects(r)) { let n = l.next ; super.removeNode(l) ; l = n ; } // super here is just like this. This is JS at its best OOD.
 				let inter:TSRange ;
 				while (l && (inter = r.intersectionRange(l.data)).length > 0) {
 					l.data = inter ;
 					l = l.next ;
 				}
-				while (l) { let n = l.next ; super.removeNode(l) ; l = n ; }
+				while (l) { let n = l.next ; super.removeNode(l) ; l = n ; } // super here is just like this. This is JS at its best OOD.
 			}
 			else {
 				this.clear() ;
@@ -347,11 +347,11 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	}
 
 	// ============ TSObject conformance =============== 
-    public isEqual(other:any) : boolean { 
+    public override isEqual(other:any) : boolean { 
 		return this === other || (other instanceof TSRangeSet && super.isEqual(other)) ;
 	}
     
-    public compare(other:any) : Comparison {
+    public override compare(other:any) : Comparison {
         if (this.isEqual(other)) { return Same ; }
         if ((other instanceof TSRange || other instanceof TSRangeSet) && this.hasSignificantRange && other.hasSignificantRange) {
             if (this.location >= other.maxRange) { return Descending ; }

@@ -1,4 +1,4 @@
-import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned, $value } from "./commons";
+import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned, $value, $count } from "./commons";
 import { $default, $locales, $unitDefinition, Locales, UnitDefinition } from "./tsdefaults";
 import { 
     $dayisvalid, 
@@ -265,10 +265,19 @@ export function $components2timestamp(c:TSDateComp) : number {
 	return $timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second) ;
 }
 
-export function $components2date(c:TSDateComp) : Date {
-	return new Date(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, 0);
+export function $components2date(c:TSDateComp, milliseconds:number = 0, utcDate:boolean = false) : Date {
+	return utcDate ?
+            new Date(Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, milliseconds)) : 
+            new Date(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, milliseconds);
 }
 
+export function $timezoneOffsetWithComponents(tzString:string, c:TSDateComp) {
+    try { 
+        const tc = $components(new Date((new Date(Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, 0))).toLocaleString("en-US", {timeZone: tzString}))) ;
+        return ($timestamp(tc.year, tc.month, tc.day, tc.hour, tc.minute, tc.second) - $timestamp(c.year, c.month, c.day, c.hour, c.minute, c.second)) / TSMinute ;
+    }
+    catch { return 0 ; }
+}
 
 export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Standard) : string {
 	switch(form) {
@@ -347,6 +356,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
  * 
  *      %d  day padded to 2 digits
  *      %e  not padded day
+ *      %E  not padded simple ordinal day
  * 
  *      %f  day of week (0 = sunday, 1 = monday, ..., 6 = Saturday)
  *      %F  day of week calculated with the current local starting day (0 = monday in France)
@@ -444,6 +454,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                     case 'B': ret += trs.months[comp.month-1] ; break ;
                     case 'd': ret += $fpad2(comp.day) ; break ;
                     case 'e': ret += comp.day ; break ;
+                    case 'E': ret += comp.day <= $count(trs.ordinals) ? trs.ordinals![comp.day-1] : comp.day ; break ;
                     case 'f':
                         ret += $dayOfWeekFromTimestamp(ts) ;
                         break ;

@@ -7,7 +7,7 @@
  * TSDate instances are immutable which means you cannot change
  * their content after creation
  */
-import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset } from "./tsdatecomp"
+import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset, $timezoneOffsetWithComponents } from "./tsdatecomp"
 import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value, $isdate } from "./commons";
 import { $datecompare, $numcompare } from "./compare";
 import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
@@ -16,6 +16,7 @@ import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
 import { $div } from "./number";
 import { TSError } from "./tserrors";
+import { $trim } from "./strings";
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
@@ -276,6 +277,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     toEpochTimestamp = this.toEpoch ;
 
     public toDate() : Date { return $components2date($components(this._timestamp)) ; }
+    public toUTCDate() : Date { return $components2date($components(this._timestamp), undefined, true) ; }
+
 	public toIsoString(format:IsoDateFormat=TSDateForm.ISO8601) : isodate { 
         return <isodate>$components2string($components(this._timestamp), format) ; 
     }
@@ -299,13 +302,17 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return false ;
     }
 	
-    public toString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
+    public toString(format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
         if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
         return this._toString(false, format, locale) ;
     }
 
     public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
         return this._toString(true, format, locale) ;
+    }
+
+    public toTimezoneString(timezone:string, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>):string {
+        return this._toString(timezone, format, locale) ;
     }
 
     public toJSON(): string { return this.toIsoString() ; }
@@ -320,15 +327,22 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     }
     
 	// ============ Private methods =============== 
-    private _toString(localTime:boolean, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
-        const offset = localTime ? -(this.toDate()).getTimezoneOffset() * TSMinute : 0 ;
+    private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
+        let offset = 0 ; 
+        if (typeof localTimeOrTZ == 'string') {
+            offset = $timezoneOffsetWithComponents($trim(localTimeOrTZ), $components(this._timestamp)) * TSMinute ;
+        }
+        else { 
+            // here we use the local time zone offset
+            offset = !localTimeOrTZ ? 0 : -(this.toDate()).getTimezoneOffset() * TSMinute ; 
+        }
+
         if ($isstring(format)) {
             return $value($components2stringformat($components(this._timestamp+offset), format as string, locale), '') ;
         }
         if (!$ok(format)) { format = TSDateForm.Standard ; }
         return $components2string($components(this._timestamp + offset), format as TSDateForm) ; 
     }
-
 }
 
 /***************************************************************************************************************
@@ -345,7 +359,8 @@ export const TSDaysFrom00010101To20010101 = 730485 ;
 
 export const TSSecsFrom00010101To20010101 = 63113904000 ;
 export const TSSecsFrom19700101To20010101 = 978307200 ;     // this one is exported for conversion from EPOCH to TSDate
-export const TSMaxTimeStamp               = 8639021692800 ; // corresponds to JS 100 000 000 days from EPOCH in the future
+export const TSMaxTimeStamp               = 8639031196799 ; // corresponds to the end of the year of 100 000 000 days 
+                                                            // from EPOCH in the future (date is 31/12/275760 23:59:59)
 export const TSMinTimeStamp               = -TSSecsFrom00010101To20010101 ; // first available date is 01/01/0001
 
 export function $isleap(y: number) : boolean 

@@ -133,17 +133,8 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 		}	
 	}
 
-    public [Symbol.iterator]() {
-        let currentNode = this._f ;
-        return { next: () => { 
-            if (currentNode) { 
-                const ret = { done:false, value:currentNode!.data } ;
-                currentNode = currentNode!.next ;
-                return ret ;
-            }
-            return { done:true, value:undefined as any } ;
-        }} ;
-    }
+    public *[Symbol.iterator]() 
+    { for (let n = this._f ; n ; n = n!.next) { yield n!.data ; } }
 
 	public searchNode(callback: (node: TSListNode<T>) => boolean): TSListNode<T> | null {
 		if (this._f) {

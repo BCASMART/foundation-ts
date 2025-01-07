@@ -279,6 +279,11 @@ export function $random(max?: Nullable<number>): uint {
     }
 }
 
+export function $randomBytes(length:number):Uint8Array {
+    length = $tounsigned(length) ;
+    return length > 0 ? _randomBytes(length!) : new Uint8Array() ;
+}
+
 export function $shuffle<T = any>(values:Nullable<ArrayLike<T>|Iterable<T>>, max?:Nullable<number>): T[] {
     const ret:Array<T> = [] ;
     if ($ok(values)) {

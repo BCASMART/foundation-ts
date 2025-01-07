@@ -17,6 +17,7 @@ export interface Locales {
     monthsList?:string[];
     shortMonths:string[];
     days:string[];
+    ordinals?:string[];
     daysList?:string[];
     shortDays:string[];
     startingWeekDay:number;

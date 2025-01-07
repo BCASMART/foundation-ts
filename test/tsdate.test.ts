@@ -260,10 +260,12 @@ export const dateGroups = [
 
     TSTest.group("Testing TSDate output format", async (group) => {
         const D1 = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
+        const D2 = new TSDate(2024, 7, 22, 17, 19, 18) ;
         const f = "%A, %e %B %Y à %Hh%M" ;
         group.unary(`unconditional output format`, async (t) => { 
             t.register('format', f) ; 
-            t.expect(D1.toString(f)).is("mardi, 8 mai 1945 à 23h01") ; 
+            t.expect0(D1.toString(f)).is("mardi, 8 mai 1945 à 23h01") ; 
+            t.expect1(D2.toTimezoneString('Europe/Paris', f)).is("lundi, 22 juillet 2024 à 19h19") ; 
         }) ;
     
         const cf = "%A, %e %B %Y%[ à %Hh%M et %T secondes%]" ;
@@ -271,6 +273,8 @@ export const dateGroups = [
             t.register('format', cf) ; 
             t.expect0(D1.toString(cf)).is("mardi, 8 mai 1945 à 23h01 et 3 secondes") ; 
             t.expect1(D1.dateWithoutTime().toString(cf)).is("mardi, 8 mai 1945") ;
+            t.expect2(D2.toTimezoneString('Europe/Paris', cf)).is("lundi, 22 juillet 2024 à 19h19 et 18 secondes") ; 
+            t.expect3(D2.dateWithoutTime().toTimezoneString('Europe/Paris', cf)).is("lundi, 22 juillet 2024 à 02h00 et 0 secondes") ;
         }) ;
     }),
 

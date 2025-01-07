@@ -15,7 +15,6 @@ export interface TSServerRequest {
     parameters:TSDictionary,          // a key-value parametric path dictionary
     query:TSDictionary,               // a key-value query dictionary
     body: any,
-    developerMode: boolean
 }
 
 export class TSServerResponse 
@@ -128,7 +127,6 @@ function _returnData(r:TSServerResponse, args:ArrayLike<any>) {
 }
 
 function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
-    _statusAndType(r, 'returnObject', 'application/json', args) ;
     let v = args[0] ;
     if ($isdataobject(v)) { 
         TSError.throw('TSServerResponse.returnObject() : Impossible to return data as object response', {
@@ -145,6 +143,7 @@ function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
         }
         v = r.responseParser!.rawEncode(v, opts) ;
     } 
+    _statusAndType(r, 'returnObject', 'application/json', args) ;
     r.response.end(JSON.stringify(v, undefined, 2)) ;
 }
 

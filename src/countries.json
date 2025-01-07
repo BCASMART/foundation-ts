@@ -455,7 +455,16 @@
         "domains": [".fr"],
         "phonePlan": { 
             "dialCode": "33",
-            "trunkCode": "0" 
+            "trunkCode": "0",
+            "format": "+(%d) %1 %2 %2 %2 %2",
+            "dummies": [
+                "+3319900XXXX",
+                "+3326191XXXX",
+                "+3335301XXXX",
+                "+3346571XXXX",
+                "+3353649XXXX",
+                "+3363998XXXX"
+            ] 
         } 
     },
     {
@@ -631,8 +640,8 @@
         "spokenLanguages": ["en"], 
         "domains": [".ie"],
         "phonePlan": {
-            "minDigits": 9,
-            "maxDigits": 13, 
+            "minDigits": 8,
+            "maxDigits": 10, 
             "dialCode": "353",
             "trunkCode": "0" 
         } 

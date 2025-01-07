@@ -69,6 +69,7 @@ export const FoundationASCIIConversion:StringDictionary = {
 
     /* 0130 */
     'ı': 'i',
+    'ĸ': 'q',
 
     /* 0140 */
     'Ł': 'L',
@@ -134,6 +135,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     'Ʈ': 'T',
 
     /* 01B0 */
+    'Ʊ': 'U',
     'Ʋ': 'v',
     'Ƴ': 'Y',
     'ƴ': 'y',
@@ -144,6 +146,8 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ƹ': 'z',
     'ƺ': 'z',
     'ƻ': '2',
+    'Ƽ': 'Q',
+    'ƽ': 'q',
     'ƿ': 'w',
 
     /* 01C0 */
@@ -212,6 +216,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ɔ': 'o',
     'ɕ': 'c',
     'ɖ': 'd',
+    'ɗ': "d",
     'ɘ': 'e',
     'ə': 'e', // could be ae
     'ɚ': 'e',
@@ -226,6 +231,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ɡ': 'g',
     'ɢ': 'G',
     'ɣ': 'g',
+    'ɤ': 'g',
     'ɥ': 'h',
     'ɦ': 'h',
     'ɧ': 'h',
@@ -266,6 +272,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ʇ': 't',
     'ʈ': 't',
     'ʉ': 'u',
+    'ʊ': 'u',
     'ʋ': 'v',
     'ʌ': 'v',
     'ʍ': 'W',
@@ -301,6 +308,17 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ʮ': 'h',
     'ʯ': 'h',
     
+    /* 0370 - Approximative Transliteration */
+    'Ͱ': 'H',
+    'ͱ': 'h',
+    'Ͷ': 'F',
+    'ͷ': 'f',
+    'ͻ': 's',
+    'ͼ': 's',
+    'ͽ': 's',
+    ';': '?',
+    'Ϳ': 'J',
+
     /* 0380 - ELOT Transliteration */
     'Ά': 'A',
     'Έ': 'E',
@@ -380,15 +398,24 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ύ': 'y',
     'ώ': 'o',
 
-    /* 03D0 - ELOT Transliteration */
+    /* 03D0 - ELOT Transliteration (almost) */
     'ϐ': 'v',
     'ϑ': 'th',
     'ϒ': 'Y',
     'ϓ': 'Y',
     'ϔ': 'Y',
     'ϕ': 'f',
+    'Ϙ': 'K',
+    'ϙ': 'k',
+    'Ϛ': 'ST',
+    'ϛ': 'st',
+    'Ϝ': 'F',
+    'ϝ': 'f',
+    'Ϟ': 'K',
+    'ϟ': 'k',
 
     /* 03F0 - ELOT Transliteration */
+    'ϳ': 'j',
     'ϱ': 'r',
     'ϲ': 's',
     'ϴ': 'TH',
@@ -399,6 +426,11 @@ export const FoundationASCIIConversion:StringDictionary = {
     'Ͻ': 'S',
     'Ͼ': 'S',
     'Ͽ': 'S',
+    'Ϸ': 'SH',
+    'ϸ': 'sh',
+    'Ϻ': 'S',
+    'ϻ': 's',
+
     
     /* 0660 */
     '٠': '0',
@@ -466,6 +498,12 @@ export const FoundationASCIIConversion:StringDictionary = {
 	'ᴡ': 'W',
 	'ᴢ': 'Z',
     'ᴣ': 'Z',
+    'ᴦ': 'G',
+    'ᴧ': 'L',
+    'ᴨ': 'P',
+    'ᴩ': 'R',
+    'ᴪ': 'PS',
+
 
     /* 1D60 */
     'ᵫ': 'ue',
@@ -489,6 +527,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ᵼ': 'i',
     'ᵽ': 'p',
     'ᵾ': 'U',
+    'ᵿ': 'u',
 
     /* 1D80 */
     'ᶀ': 'b',
@@ -520,7 +559,6 @@ export const FoundationASCIIConversion:StringDictionary = {
     'ᶘ': 's',
     'ᶙ': 'u',
     'ᶚ': 'z',
-
 
     /* 1E90 */
     'ẜ': 's',
@@ -772,8 +810,9 @@ export const FoundationASCIIConversion:StringDictionary = {
     'Ὺ': 'Y',
     'Ύ': 'Y',
     'Ῥ': 'R',
-
-    /* 1FE0 - ELOT Transliteration */
+    // here we hage greel varia transforming in antiquote (`) 
+    
+    /* 1FF0 - ELOT Transliteration */
     'ῲ': 'o',
     'ῳ': 'o',
     'ῴ': 'o',
@@ -804,6 +843,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     /* 2020 */
     '•': '.',
     '‧': '.',
+    // here we have 202F: narrow no break space
 
     /* 2030 */
     '′': "'",
@@ -828,17 +868,20 @@ export const FoundationASCIIConversion:StringDictionary = {
     '⁕': '*',
 
     /* 20A0 */
+    '₠': 'EUR',
     '₣': 'FRF',
+    '₧': 'Pts',
     '€': 'EUR',
+    // here we ghave: Rs
 
     /* 2110 */
     '℗': '(P)',
     '℘': 'P',
-    '℞': 'R',
     '℟': 'R',
 
     /* 2120 */
     '℮': 'e',
+    '℩': 'i',
 
     /* 2130 */
     'Ⅎ': 'F',
@@ -852,6 +895,10 @@ export const FoundationASCIIConversion:StringDictionary = {
     '⅋': '&',
     '⅍': 'A/S',
     'ⅎ': 'F',
+
+    /* 2180 */
+    'Ↄ': 'C',
+    'ↄ': 'c',
 
     /* 2200 */
     '∂': 'd',
@@ -870,14 +917,17 @@ export const FoundationASCIIConversion:StringDictionary = {
 //    '≠': '!=',
     '≤': '<=',
     '≥': '>=',
-
-    /* 2290 */
-    '⋜': '=<',
-    '⋝': '=>',
+    '≪': '<<',
+    '≫': '>>',
 
     /* 22C0 */
     '⋅': '.',
+    '⋆': '*',
 
+    /* 22D0 */
+    '⋜': '<=',
+    '⋝': '>=',
+    
     /* 22E0 */
     '⋯': '...',
 
@@ -903,7 +953,6 @@ export const FoundationASCIIConversion:StringDictionary = {
     '⍠': ':',
     '⍪': ',',
     '⍮': ';',
-    '⍯': '!=',
 
     /* 2370 - LIOT transliteration */
     '⍰': '?',
@@ -914,6 +963,7 @@ export const FoundationASCIIConversion:StringDictionary = {
     '⍸': 'i',
     '⍹': 'o',
     '⍺': 'a',
+    '⍷': 'e',
 
     /* 24E0 */
     '⓫': '11',
@@ -1084,10 +1134,18 @@ export const FoundationASCIIConversion:StringDictionary = {
     'Ȿ': 'S',
     'Ɀ': 'Z',
     
-    /* 30F0 */
-    '・': '.',
-    'ー': '-',
+    /* 3000 */
+    '、': ',',
 
+    "㉈": "10",
+    "㉉": "20",
+    "㉊": "30",
+    "㉋": "40",
+    "㉌": "50",
+    "㉍": "60",
+    "㉎": "70",
+    "㉏": "80",
+    
     /* A720 */
     'Ꜧ': 'H',
     'ꜧ': 'h',
@@ -1216,9 +1274,7 @@ export const FoundationASCIIConversion:StringDictionary = {
 
     /* FE50 */
     '﹘': '-',
-    '﹝': '[',
-    '﹞': ']',
-    
+
     /* FF50 */
     '｟': '(', // why not '(('
 

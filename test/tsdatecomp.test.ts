@@ -1,5 +1,5 @@
 import { TSDate, TSDay, TSHour, TSMinute } from "../src/tsdate";
-import { $components, $components2StringWithOffset, $components2timestamp, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, TSDurationComp } from "../src/tsdatecomp";
+import { $components, $components2StringWithOffset, $components2timestamp, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, $timezoneOffsetWithComponents, TSDurationComp } from "../src/tsdatecomp";
 import { uint } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $timeBetweenDates } from "../src/date";
@@ -190,6 +190,10 @@ export const dateCompGroups = [
             const p = s.lastIndexOf('.') ;
             t.expect0(s.slice(p)).is('.000Z') ;
             t.expect1(s2.slice(p)).is('.000+00:00') ;
+        }) ;
+        group.unary('$timezoneOffsetWithComponents() function', async t => {
+            const TZD = new TSDate(2024, 7, 8, 23, 1, 35) ;
+            t.expect0($timezoneOffsetWithComponents('Europe/Paris', TZD.toComponents())).is(120) ;
         }) ;
     })
 ] ;

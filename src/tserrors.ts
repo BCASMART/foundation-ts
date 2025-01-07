@@ -46,7 +46,7 @@ export class TSError extends Error {
             case 0: throw new this(`${this.name} did throw`) ;
             case 1: throw new this(arguments[0]) ;
             case 2: throw new this(arguments[0], arguments[1]) 
-            default: throw new this(arguments[0], arguments[1], arguments[3]) 
+            default: throw new this(arguments[0], arguments[1], arguments[2]) 
         }        
     }
 
@@ -62,7 +62,7 @@ export class TSError extends Error {
             case 1: if (!arguments[0]) { throw new this(`${this.name}.assert() did fail`) ; } break ;
             case 1: if (!arguments[0]) { throw new this(arguments[1]) ; } break ;
             case 2: if (!arguments[0]) { throw new this(arguments[1], arguments[2]) ; } break ; 
-            default: if (!arguments[0]) { throw new this(arguments[0], arguments[1], arguments[3]) ; } break ; 
+            default: if (!arguments[0]) { throw new this(arguments[1], arguments[2], arguments[3]) ; } break ; 
         }        
     }
 
@@ -122,7 +122,7 @@ export class TSError extends Error {
 // @deprecated HttpError class does not exist anymore, use TSError instead
 export { TSError as TSHttpError }
 
-export function $subclassReponsabililty(instance:object, method:Function):any {
+export function $subclassReponsabililty(instance:object, method:Function):never {
     const c = instance.constructor ;
     if (c === Function) {
         TSError.throw(`implementation of static method ${(instance as any).name}.${method.name}() is subclasses reponsabillity.`, {

@@ -90,6 +90,9 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect7($meters(0.132479, 0)).is("132 mm") ;
         t.expect8($meters(0)).is("0.00 m") ;
         t.expect9($meters(0, 1)).is("0.0 m") ;
+        t.expectA($meters(1355.667, 2)).is("1.36 km") ;
+        t.expectB($meters(0.132479, 1)).is("132.5 mm") ;
+
     }) ;
 
     group.unary("$unit() function", async(t) => {
