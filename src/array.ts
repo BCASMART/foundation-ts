@@ -194,7 +194,13 @@ function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number,
                         let n = undefined ;
                         if ($isnumber(v)) { n = v ;}
                         else if ($isstring(v)) { n = Number(v) ; }
-                        else if ($ismethod(v, 'toNumber')) { n = (v as any).toNumber() } 
+                        else if ($ismethod(v, Symbol.toPrimitive)) { 
+                            n = (v as any)[Symbol.toPrimitive]('number') ;
+                            if (!$ok(n) && $ismethod(v, 'valueOf')) {
+                                n = (v as any).valueOf() ;
+                            }
+                        }
+                        else if ($ismethod(v, 'valueOf')) { n = (v as any).valueOf() ; } 
                         if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
                         else { sum += n ; }
                     }

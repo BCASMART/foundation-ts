@@ -2,6 +2,7 @@
     {
         "alpha2Code":"AL",
         "alpha3Code": "ALB",
+        "numericCode": 8,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -27,6 +28,7 @@
     {
         "alpha2Code":"AD",
         "alpha3Code": "AND",
+        "numericCode": 20,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -58,6 +60,7 @@
     {
         "alpha2Code":"AM",
         "alpha3Code": "ARM",
+        "numericCode": 51,
         "continent": "EU",
         "EEC": false, 
         "names": {
@@ -83,6 +86,7 @@
     {
         "alpha2Code":"AT",
         "alpha3Code": "AUT",
+        "numericCode": 40,
         "continent": "EU",
         "EEC": true, 
         "names": {
@@ -108,6 +112,7 @@
     {
         "alpha2Code":"BE",
         "alpha3Code": "BEL",
+        "numericCode": 56,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -133,6 +138,7 @@
     {
         "alpha2Code":"BY",
         "alpha3Code": "BLR",
+        "numericCode": 112,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -158,6 +164,7 @@
     {
         "alpha2Code":"BA",
         "alpha3Code": "BIH",
+        "numericCode": 70,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -186,6 +193,7 @@
     {
         "alpha2Code":"BR",
         "alpha3Code": "BRA",
+        "numericCode": 76,
         "continent": "SA",
         "EEC": false,
         "names":{
@@ -212,6 +220,7 @@
     {
         "alpha2Code":"BG",
         "alpha3Code": "BGR",
+        "numericCode": 100,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -236,6 +245,7 @@
     {
         "alpha2Code":"CA",
         "alpha3Code": "CAN",
+        "numericCode": 124,
         "continent": "NA",
         "EEC": false,
         "names":{
@@ -269,6 +279,7 @@
     {
         "alpha2Code":"HR",
         "alpha3Code": "HRV",
+        "numericCode": 191,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -293,6 +304,7 @@
     {
         "alpha2Code":"CY",
         "alpha3Code": "CYP",
+        "numericCode": 196,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -319,6 +331,7 @@
     {
         "alpha2Code":"CZ", 
         "alpha3Code": "CZE",
+        "numericCode": 203,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -345,6 +358,7 @@
     {
         "alpha2Code":"DK", 
         "alpha3Code": "DNK",
+        "numericCode": 208,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -381,6 +395,7 @@
     {
         "alpha2Code": "EE", 
         "alpha3Code": "EST",
+        "numericCode": 233,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -405,6 +420,7 @@
     {
         "alpha2Code": "FI", 
         "alpha3Code": "FIN",
+        "numericCode": 246,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -430,6 +446,7 @@
     {
         "alpha2Code": "FR", 
         "alpha3Code": "FRA",
+        "numericCode": 250,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -470,6 +487,7 @@
     {
         "alpha2Code":"GE",
         "alpha3Code": "GEO",
+        "numericCode": 268,
         "continent": "EU",
         "EEC": false, 
         "names": {
@@ -494,6 +512,7 @@
     {
         "alpha2Code": "GL", 
         "alpha3Code": "GRL",
+        "numericCode": 304,
         "state": "DK",
         "continent": "NA",
         "EEC": false,
@@ -520,6 +539,7 @@
     {
         "alpha2Code": "GB",
         "alpha3Code": "GBR",
+        "numericCode": 826,
         "continent": "EU",
         "EEC": false,
         "names": {
@@ -551,6 +571,7 @@
     {
         "alpha2Code": "DE", 
         "alpha3Code": "DEU",
+        "numericCode": 276,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -576,6 +597,7 @@
     {
         "alpha2Code": "GR", 
         "alpha3Code": "GRC",
+        "numericCode": 300,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -600,6 +622,7 @@
     {
         "alpha2Code": "HU", 
         "alpha3Code": "HUN",
+        "numericCode": 348,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -624,6 +647,7 @@
     {
         "alpha2Code": "IE", 
         "alpha3Code": "IRL",
+        "numericCode": 372,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -649,6 +673,7 @@
     {
         "alpha2Code": "IS", 
         "alpha3Code": "ISL",
+        "numericCode": 352,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -684,6 +709,7 @@
     {
         "alpha2Code": "IT", 
         "alpha3Code": "ITA",
+        "numericCode": 380,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -710,6 +736,7 @@
     {
         "alpha2Code": "XK",
         "alpha3Code": "XKX",
+        "numericCode": 0,
         "continent": "EU",
         "EEC": false,
         "names": {
@@ -734,6 +761,7 @@
     {
         "alpha2Code": "LV",
         "alpha3Code": "LVA",
+        "numericCode": 428,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -759,6 +787,7 @@
     {
         "alpha2Code":"LI",
         "alpha3Code": "LIE",
+        "numericCode": 438,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -785,6 +814,7 @@
     {
         "alpha2Code":"LT", 
         "alpha3Code": "LTU",
+        "numericCode": 440,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -810,6 +840,7 @@
     {
         "alpha2Code":"LU",
         "alpha3Code": "LUX",
+        "numericCode": 442,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -836,6 +867,7 @@
     {
         "alpha2Code":"MK",
         "alpha3Code": "MKD",
+        "numericCode": 807,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -864,6 +896,7 @@
     {
         "alpha2Code":"MT",
         "alpha3Code": "MLT",
+        "numericCode": 470,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -889,6 +922,7 @@
     {
         "alpha2Code":"MX",
         "alpha3Code": "MEX",
+        "numericCode": 484,
         "continent": "NA",
         "EEC": false,
         "names":{
@@ -913,6 +947,7 @@
     {
         "alpha2Code":"MD",
         "alpha3Code": "MDA",
+        "numericCode": 498,
         "continent": "EU",
         "EEC":false,
         "names":{
@@ -936,6 +971,7 @@
     {
         "alpha2Code":"MC",
         "alpha3Code": "MCO",
+        "numericCode": 492,
         "continent": "EU",
         "EEC":false,
         "names":{
@@ -970,6 +1006,7 @@
     {
         "alpha2Code":"ME",
         "alpha3Code": "MNE",
+        "numericCode": 499,
         "continent": "EU",
         "EEC":false,
         "names":{
@@ -995,6 +1032,7 @@
     {
         "alpha2Code":"NL",
         "alpha3Code": "NLD",
+        "numericCode": 528,
         "continent": "EU",
         "EEC":true,
         "names":{
@@ -1022,6 +1060,7 @@
     {
         "alpha2Code":"NO", 
         "alpha3Code": "NOR",
+        "numericCode": 578,
         "continent": "EU",
         "EEC":false,
         "names":{
@@ -1047,6 +1086,7 @@
     {
         "alpha2Code":"PL", 
         "alpha3Code": "POL",
+        "numericCode": 616,
         "continent": "EU",
         "EEC":true,
         "names":{
@@ -1072,6 +1112,7 @@
     {
         "alpha2Code":"PT", 
         "alpha3Code": "PRT",
+        "numericCode": 620,
         "continent": "EU",
         "EEC":true,
         "names":{
@@ -1099,6 +1140,7 @@
     {
         "alpha2Code":"RO", 
         "alpha3Code": "ROU",
+        "numericCode": 642,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -1122,6 +1164,7 @@
     {
         "alpha2Code":"SM", 
         "alpha3Code": "SMR",
+        "numericCode": 674,
         "continent":"EU",
         "EEC": false,
         "names":{
@@ -1154,6 +1197,7 @@
     {
         "alpha2Code":"RS", 
         "alpha3Code": "SRB",
+        "numericCode": 688,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -1178,6 +1222,7 @@
     {
         "alpha2Code":"SK", 
         "alpha3Code": "SVK",
+        "numericCode": 703,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -1201,6 +1246,7 @@
     {
         "alpha2Code":"SI", 
         "alpha3Code": "SVN",
+        "numericCode": 705,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -1226,6 +1272,7 @@
     {
         "alpha2Code":"ES", 
         "alpha3Code": "ESP",
+        "numericCode": 724,
         "continent": "EU",
         "EEC": true,
         "names": {
@@ -1252,6 +1299,7 @@
     {
         "alpha2Code":"SE", 
         "alpha3Code": "SWE",
+        "numericCode": 752,
         "continent": "EU",
         "EEC": true,
         "names":{
@@ -1277,6 +1325,7 @@
     {
         "alpha2Code":"CH", 
         "alpha3Code": "CHE",
+        "numericCode": 756,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -1301,6 +1350,7 @@
     {
         "alpha2Code":"UA", 
         "alpha3Code": "UKR",
+        "numericCode": 804,
         "continent": "EU",
         "EEC": false,
         "names":{
@@ -1325,6 +1375,7 @@
     {
         "alpha2Code":"US",
         "alpha3Code": "USA",
+        "numericCode": 840,
         "continent": "NA",
         "EEC": false,
         "localeLanguage": "en",
@@ -1361,6 +1412,7 @@
     {
         "alpha2Code":"VA", 
         "alpha3Code": "VAT",
+        "numericCode": 336,
         "EEC": false,
         "continent": "EU",
         "names":{

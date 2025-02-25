@@ -3,7 +3,7 @@ import { Resp, Verb } from "./tsrequest";
 import { Nullable, TSDataLike, TSDictionary } from "./types";
 import { TSLeafNode, TSNode, TSParser, TSParserOptions } from "./tsparser" ;
 import { $isdataobject, $ok, $string, $value } from "./commons";
-import { $bufferFromDataLike } from "./data";
+import { $uint8ArrayFromDataLike } from "./data";
 import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
@@ -47,13 +47,14 @@ export class TSServerResponse
 
 }
 
-export type TSEndPointController = (req:TSServerRequest, resp:TSServerResponse) => Promise<void> ;
+export type TSEndPointController = (req:TSServerRequest, resp:TSServerResponse, context?:TSDictionary) => Promise<void> ;
 
 export interface TSEndPoint {
     controller:TSEndPointController ;
     query?: {[key: string]: TSLeafNode } ;
     body?:TSNode ;
     response?:TSNode ;
+    context?:Nullable<TSDictionary> ;
 }
 
 /** 
@@ -65,7 +66,7 @@ export interface TSEndPoint {
  *    which is a dictionary with the method as a key and a TSEndPointController or TSEndoint
  *    as the endpoint definition
 */
-export type TSEndPointsDefinitionDictionary = { [key in Verb]?: TSEndPoint|TSEndPointController; } ;
+export type TSEndPointsDefinitionDictionary = { [key in Verb]?: TSEndPoint | TSEndPointController; } ;
 export type TSEndpointsDefinition = TSEndPointsDefinitionDictionary | TSEndPoint | TSEndPointController ;
 
 
@@ -190,8 +191,6 @@ function _statusAndType(r:TSServerResponse, fn:string, defaultType:string, args:
     r.response.writeHead(status, { 'Content-Type': type }) ;
 }
 
-function _compatibleData(data:Nullable<TSDataLike>):Uint8Array|ArrayBuffer {
-    if (!$ok(data)) { return Buffer.from('') ; }
-    if (data instanceof Uint8Array || data instanceof ArrayBuffer) { return data as Uint8Array }
-    return $bufferFromDataLike(data!) ;
-}
+function _compatibleData(data:Nullable<TSDataLike>):Uint8Array
+{ return $ok(data) ? $uint8ArrayFromDataLike(data!) : new Uint8Array() ; }
+

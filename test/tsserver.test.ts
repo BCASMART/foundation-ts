@@ -10,12 +10,13 @@ import { Languages, TSDictionary, uint16 } from "../src/types";
 import { $inbrowser } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
-import { TSEndPoint, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
+import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
 import { TSServerEndPoint } from "../src/tsserver_endpoints";
 import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
 import { TSObjectNode, TSParser } from "../src/tsparser";
 import { TSColor } from "../src/tscolor";
 import { TSCountry } from "../src/tscountry";
+import { $decodeBase64 } from "../src/data";
 
 export const serverGroups = [
     TSTest.group("Testing TSServer API definitions", async (group) => {
@@ -146,7 +147,46 @@ if (!$inbrowser()) {
                 t.expectZ(stopped).toBeUndefined() ;    
             }
         }) ;
-        
+        group.unary('Base64 decoder service', async t => {
+            const b64 = 'JVBERi0xLjQKJcKlwrEKCgoKMSAwIG9iagogIDw8IC9UeXBlIC9DYXRhbG9nCiAgICAgL1BhZ2VzIDIgMCBSCiAgPj4KZW5kb2JqCgoyIDAgb2JqCiAgPDwgL1R5cGUgL1BhZ2VzCiAgICAgL0tpZHMgWzMgMCBSXQogICAgIC9Db3VudCAxCiAgICAgL01lZGlhQm94IFswIDAgMzAwIDE0NF0KICA+PgplbmRvYmoKCjMgMCBvYmoKICA8PCAgL1R5cGUgL1BhZ2UKICAgICAgL1BhcmVudCAyIDAgUgogICAgICAvUmVzb3VyY2VzCiAgICAgICA8PCAvRm9udAogICAgICAgICAgIDw8IC9GMQogICAgICAgICAgICAgICA8PCAvVHlwZSAvRm9udAogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTEKICAgICAgICAgICAgICAgICAgL0Jhc2VGb250IC9UaW1lcy1Sb21hbgogICAgICAgICAgICAgICA+PgogICAgICAgICAgID4+CiAgICAgICA+PgogICAgICAvQ29udGVudHMgNCAwIFIKICA+PgplbmRvYmoKCjQgMCBvYmoKICA8PCAvTGVuZ3RoIDU1ID4+CnN0cmVhbQogIEJUCiAgICAvRjEgMTggVGYKICAgIDAgMCBUZAogICAgKEhlbGxvIFdvcmxkKSBUagogIEVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxOCAwMDAwMCBuIAowMDAwMDAwMDc3IDAwMDAwIG4gCjAwMDAwMDAxNzggMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAp0cmFpbGVyCiAgPDwgIC9Sb290IDEgMCBSCiAgICAgIC9TaXplIDUKICA+PgpzdGFydHhyZWYKNTY1CiUlRU9GCg==' ;
+            const prefix = 'This is a prefix.' ;
+
+            const endPoint:TSEndPoint = {
+                controller:async (req:TSServerRequest, resp:TSServerResponse, context?:TSDictionary):Promise<void> => {
+                    const len = $length(context?.prefix) ;
+                    let str = req.body as string ;
+                    if (len > 0 && str.startsWith(str)) {
+                        str = str.slice(len) ;
+                    }
+                    resp.returnData($decodeBase64(str)) ;
+                },
+                body:{
+                    _mandatory:true,
+                    _type:"string"
+                },
+                context:{prefix:prefix}
+            } ;
+            const serverEndPoints:TSDictionary<TSEndPointsDefinitionDictionary> = {
+                "/decode":{
+                    POST: endPoint
+                }
+            } ;
+            const startStatus = await TSServer.start(serverEndPoints, {...basicOptions }) ;
+            t.expect0(startStatus).is(TSServerStartStatus.HTTP) ;
+            t.expect1(await TSServer.isRunning()).true() ;
+            const client = new TSRequest(`http://localhost:${port}/`) ;
+            t.expect2(client).OK() ;
+            const resp = await client.req("decode", Verb.Post, RespType.Buffer, prefix+b64) ;
+            if (t.expect3(resp.status).is(Resp.OK)) {
+                t.expect4(resp.response).is($decodeBase64(b64)) ;
+            }
+            else {
+                console.log("Did encouter error "+resp.status) ;
+                console.log("Error:", JSON.parse(resp.response!.toString())) ;
+            }
+            const stopped = await TSServer.stop() ;
+            t.expectZ(stopped).undef() ;   
+        }) ;
         group.unary('Parametric endpoint with post request test', async(t) => {
             const sessionID = $UUID("2281C1F4-15CA-4BE2-A576-67E8D9FFAFA1") ;
             const badSessionID = $UUID("41D3BEA0-B52A-4186-901A-DFA15D8D4E4E") ;

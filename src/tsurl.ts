@@ -248,9 +248,13 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         this._href = undefined ;
     }
 
+    public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
+        return hint === "string" || hint === "default" ? this.href : null ; 
+    }
+
     // ============ TSObject conformance ==================
     public isEqual(other:any):boolean {
-        return this === other || (other instanceof TSURL && this.href === other.href)
+        return this === other || (other instanceof TSURL && this.href === other.href) ;
     }
 
     public compare(other:any):Comparison {

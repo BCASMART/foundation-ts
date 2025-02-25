@@ -11,15 +11,41 @@ import { TSError } from "./tserrors";
 
 export const $noop = () => {} ;
 
-export function $inbrowser():boolean {
-    if (!$defined(($inbrowser as any).flag)) {
+enum TSBrowserOS {
+    notInBrowser,
+    unknownOS,
+    android,
+    iOS,
+    linux,
+    macOS,
+    tvOS,
+    windows
+} ;
+
+export function $browserOS():TSBrowserOS {
+    if (!$defined(($browserOS as any).os)) {
         let inb = false ;
+        let bs = TSBrowserOS.notInBrowser ;
         try { inb = $defined(navigator) || !$isproperty(process, 'stdout') || !$ismethod(process?.stdout, 'write') ; }
         catch { inb = false ; }
-        ($inbrowser as any).flag = inb ;
+        if (inb) {
+            bs = TSBrowserOS.unknownOS ;
+            var agent = window.navigator.userAgent.toLowerCase() ;
+            if (agent.indexOf('win') >= 0) { bs = TSBrowserOS.windows ; }
+            else if (agent.indexOf('android') >= 0) { bs = TSBrowserOS.android ; }
+            else if (agent.indexOf('ipad') >= 0 || agent.indexOf('iphone') >= 0) { bs = TSBrowserOS.iOS ; }
+            else if (agent.indexOf('appletv') >= 0 ) { bs = TSBrowserOS.tvOS ; }
+            else if (agent.indexOf('debian') >= 0 || agent.indexOf('ubuntu') >= 0 || agent.indexOf('centos') >= 0 || 
+                     agent.indexOf('fedora') >= 0 || agent.indexOf('red hat') >= 0 || agent.indexOf('suze') >= 0 || 
+                     agent.indexOf('linux') >= 0) { bs = TSBrowserOS.linux ; } // we don't test for other linux of other unix
+            else if (agent.indexOf('mac')) { bs = TSBrowserOS.macOS ; }
+        }
+        ($browserOS as any).os = bs ;
     }
-    return ($inbrowser as any).flag ;
+    return ($browserOS as any).os ;
 }
+
+export function $inbrowser():boolean { return $browserOS() !== TSBrowserOS.notInBrowser ; }
 
 export function $exit(errorCode?:number) {
     if (!$isint(errorCode)) { errorCode = 0 ; }

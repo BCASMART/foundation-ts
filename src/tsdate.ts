@@ -196,6 +196,17 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     public toTSDate = this.clone ;
 
     public get timestamp():number { return this._timestamp ; }
+    public valueOf():number { return this._timestamp ; }
+
+    public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
+        if (hint === "number" || hint === "default") {
+          return this._timestamp ;
+        }
+        if (hint === "string") {
+          return this.toIsoString() ;
+        }
+        return null;
+    }
 
     public isLeap() : boolean { return $isleap($components(this._timestamp).year); }
     public isFuture() : boolean { return this._timestamp >= TSMaxTimeStamp ; }

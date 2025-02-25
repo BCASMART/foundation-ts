@@ -12,7 +12,7 @@ export function $ascii(source: Nullable<string>): string {
     if (!l) return '';
     let s = (source as string).replace(/≠|¯|ͺ|΄|ι|≁|[\u226C-\u22C4]|[\u1D2B-\u1D6A]/g, "") ;
     s = s.replace(/;/g, '?').replace(/ɸ/g, 'f') ;
-    s = s.normalize("NFD").replace(/[\u02B0-\u036f]|[\u0400-\u05FF]|[\u0700-\u1CFF]|[\u1D9B-\u1DFF]|[\u1FBD-\u1FC0]|[\u1FCD-\u1FCF]|[\u1FDD-\u1FDF]|[\u237B-\u245F]|[\u2500-\u2638]|[\u263C-\u2752]|[\u27F0-\u2982]|[\u2A7F-\u2C5F]|[\u2C80-\u2FFF]|[\u3002-\u3247]|[\u3260-\u32B0]|[\u32D0-\u3357]|[\u3400-\uA725]|[\uA7B6-\uA7F1]|[\uA800-\uDFFF]|[\uFB07-\uFB28]|[\uFB2A-\uFE0F]|[\uFE49-\uFE4F]|[\uFE6C-\uFEFE]|[\uFF66-\uFF6F]|[\uFF71-\uFFDF]|[\uFFE6-\uFFFF]|\u00a8|\u00ad|\u00b4|\u1680|\u180E|\u1FFE|\u2017|\u3250|\u1D78|\u2028|\u2029|\u203E|\u211E|\u236F\u2241/g, "").normalize("NFKD"); // does most of the job
+    s = s.normalize("NFD").replace(/[\u02B0-\u036f]|[\u0400-\u05FF]|[\u0700-\u1CFF]|[\u1D9B-\u1DFF]|[\u1FBD-\u1FC0]|[\u1FCD-\u1FCF]|[\u1FDD-\u1FDF]|[\u237B-\u245F]|[\u2500-\u2638]|[\u263C-\u2752]|[\u27F0-\u2982]|[\u2A7F-\u2C5F]|[\u2C80-\u2FFF]|[\u3002-\u3247]|[\u3260-\u32B0]|[\u32D0-\u3357]|[\u3400-\uA725]|[\uA7B6-\uA7F1]|[\uA800-\uD7FF]|[\uFB07-\uFB28]|[\uFB2A-\uFE0F]|[\uFE49-\uFE4F]|[\uFE6C-\uFEFE]|[\uFF66-\uFF6F]|[\uFF71-\uFFDF]|[\uFFE6-\uFFFF]|\u00a8|\u00ad|\u00b4|\u1680|\u180E|\u1FFE|\u2017|\u3250|\u1D78|\u2028|\u2029|\u203E|\u211E|\u236F\u2241/g, "").normalize("NFKD"); // does most of the job
     // finally we will try to convert (or remove) the remaining non ascii characters
     return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '');
 }

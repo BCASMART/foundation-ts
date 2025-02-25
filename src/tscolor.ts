@@ -331,11 +331,22 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
 	public matchingColor(): TSColor { return this.isPale ? this.darkestColor() : this.lightestColor(); }
 
-	public toNumber(): number {
+	public valueOf(): number {
         const [R,G,B] = this.rgb() ;
 		return ((0xff - this.alpha) << 24) | (R << 16) | (G << 8) | B
 	}
-	public toUnsigned(): uint { return <uint>this.toNumber(); }
+	public toUnsigned(): uint { return <uint>this.valueOf(); }
+    public toNumber():number { return this.valueOf() ; }
+
+    public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
+        if (hint === "number" || hint === "default") {
+            return this.valueOf() ; // convert in a RGB number for comparison
+        }
+        if (hint === "string") {
+          return this.toString() ;
+        }
+        return null ;
+    }
 
     public isSimilar(other:TSColor):boolean {
         if (this === other) { return true ; }

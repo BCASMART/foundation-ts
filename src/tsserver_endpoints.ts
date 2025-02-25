@@ -1,5 +1,5 @@
 import { Nullable, TSDictionary } from "./types";
-import { $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string } from "./commons";
+import { $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
@@ -212,6 +212,7 @@ class TSServerEndPointManager {
     private _queryParser?:TSParser ;
     private _bodyParser?:TSParser ;
     private _responseParser?:TSParser ;
+    private _context:TSDictionary|undefined ;
 
     static __textMimes = [
         'application/json',
@@ -234,6 +235,7 @@ class TSServerEndPointManager {
 
         this._controller = ep.controller ;
         this._method = m ;
+        this._context = $valueorundefine(ep.context) ;
     }
 
     public developerDesc(msg:string):string { return `${this._method}:${$string(msg)} [queryParser:${_yesNo(this._queryParser)}, bodyParser:${_yesNo(this._bodyParser)}, responseParser:${_yesNo(this._responseParser)}]` ; }
@@ -322,7 +324,7 @@ class TSServerEndPointManager {
         }
 
         if (!!logme) { _logme(req, 'calling internal controller') ; }                
-        await this._controller(req, new TSServerResponse(res, this._responseParser)) ; // QUESTION: this method may also throw, so get the stack in the info ?
+        await this._controller(req, new TSServerResponse(res, this._responseParser), this._context) ; // QUESTION: this method may also throw, so get the stack in the info ?
         if (!!logme) { _logme(req, 'resumed from internal controller') ; }                
     }
 

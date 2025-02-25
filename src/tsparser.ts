@@ -812,6 +812,7 @@ function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(
 
 function _isCountry(v:any):boolean { 
     if (v instanceof TSCountry) { return true ; } 
+    if ($isnumber(v) && v >=1 && $ok(TSCountry.alpha2CodeForNumericCode(v as number))) { return true ; }
     if ($isstring(v)) {
         const s = $ftrim(v).toUpperCase() ;
         return (s.length === 2 && TSCountrySet.has(s as country)) || (s.length === 3 && $ok(TSCountry.alpha2CodeForAlpha3Code(s)))
@@ -821,6 +822,7 @@ function _isCountry(v:any):boolean {
 
 function _countryTrans(v:any):any { 
     if (v instanceof TSCountry) { return v.alpha2Code ; } 
+    if ($isnumber(v)) { return TSCountry.alpha2CodeForNumericCode(v as number) ; }
     return v.length === 3 ? TSCountry.alpha2CodeForAlpha3Code(v) : v ;
 }
 

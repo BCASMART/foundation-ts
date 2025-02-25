@@ -95,15 +95,14 @@ export class TSError extends Error {
         }
     }
 
-    public static assertIntParam(v:Nullable<number>, fn:string, param:string)
+    public static assertIntParam(v:Nullable<number>, fn:string, param:string):void
     { this.assert(!$ok(v) || $isint(v), `parameter '${param}' of ${fn}() must be an integer`, { functionName:fn, param:param, value:v}) ; }
 
-    public static assertUnsignedParam(v:Nullable<number>, fn:string, param:string)
+    public static assertUnsignedParam(v:Nullable<number>, fn:string, param:string):void
     { this.assert(!$ok(v) || $isunsigned(v), `parameter '${param}' of ${fn}() must be an unsigned`, { functionName:fn, param:param, value:v}) ; }
 
-    public static assertNotInBrowser(fn:string)
+    public static assertNotInBrowser(fn:string):void
     { this.assert(!$inbrowser(), `unavailable ${fn}() ${fn.includes('.')?'method':'function'} in browser`, { functionName:fn}) ; }
-
 
     public get errorCode():number { return this._errorCode ; }
     public set errorCode(code:Nullable<number>) { if ($isint(code)) { this._errorCode = code! ;} } 

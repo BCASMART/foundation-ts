@@ -279,6 +279,64 @@ export const dateGroups = [
     }),
 
     TSTest.group("Testing dates comparison", async(group) => {
+
+        group.unary('Testing primitive equlity and comparison', async (t) => {            
+            /*
+                The primitive conversion in == does not occur if both terms
+                are objects which is ... causing distress !
+            */
+
+            const D = new TSDate(1945, 5, 8, 23, 1, 0) ; // armistice signature
+            const ED = new Date(1945,4,8,23,1,0) ;
+            const E = new TSDate(ED) ;
+            const D1 = new TSDate(1945, 5, 8, 23, 1, 3) ; // nearly 3 seconds after armistice signature
+            const D0 = new TSDate(1945, 5, 8, 23, 0, 45) ; // 15 seconds before armistice signature
+    
+            t.expect0(D).is(E) ;
+            t.expect1(E).is(D) ;
+            t.expect2(D == E).false() ; // JS BUG : should return YES with
+                                        // implicit primitive conversion since >= and <= does it
+            t.expect3((D as any) == E.timestamp).true() ; // and here we have a conversion
+            t.expect4(D.timestamp == (E as any)).true() ; // since one of the term is a number
+            t.expect5(+D == +E).true() ;    // we have a conversion too
+            t.expect6(+D === +E).true() ;   // idem
+
+            t.expect7(D >= E).true() ;      // idem
+            t.expect8(D <= E).true() ;      // idem
+            t.expect9((D1 as any) - (D as any)).is(D1.timeSinceDate(D)) ;   // idem
+            t.expectA(D > E).false() ;      // idem
+            t.expectB(D < E).false() ;      // idem
+            t.expectC(D < D1).true() ;      // idem
+            t.expectD(D < D0).false() ;     // idem
+            t.expectE(D > D1).false() ;     // idem
+            t.expectF(D > D0).true() ;      // idem
+
+            t.expectG(D === E).false() ;    // that is OK because === compares "objects' references" here
+
+            // now we use internal compare and isEqual methods
+            t.expectH(D.compare(E)).is(Same) ;  
+            t.expectI(E.compare(D)).is(Same) ;
+            t.expectJ(E.compare(ED)).is(Same) ;
+            t.expectK(D.compare(ED)).is(Same) ;
+
+            t.expectL(D.compare(D1)).is(Ascending) ;
+            t.expectM(D1.compare(D)).is(Descending) ;
+
+            t.expectN(D).is(E) ;  
+            t.expectO(E).is(D) ;  
+            t.expectP(E).is(ED) ;  
+            t.expectQ(D).is(ED) ;  
+
+            t.expectR(D).lt(D1) ;
+            t.expectS(D1).gt(D) ;
+
+            t.expectT(D).lte(E) ;
+            t.expectU(D).gte(E) ;
+
+            // now we use internal isEqual methods
+
+        }) ;
+    
         const dateCouples:DCouple[] = [
             { start:'2024-02-15T10:55:00', end:'2024-02-29T10:55:00', dox:0, o1:4, rs:7 },
             { start:'2024-02-15T11:00:00', end:'2024-02-29T11:00:00', dox:1, o1:5, rs:6 },

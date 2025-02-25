@@ -1,6 +1,6 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
 import { $crc16, $crc32, $hash, $hashOptions, $slowhash, $uuidhash, HashMethod } from "./crypto";
-import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa } from "./data";
+import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa, $encodeBase64URL } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
@@ -295,6 +295,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public readDoubleBE(offset?:number): number     { return this._read(offset, 8, Buffer.prototype.readDoubleBE) ; }
 
     public toBase64():string { return $encodeBase64(this.mutableBuffer) ; }
+    public toBase64URL():string { return $encodeBase64URL(this.mutableBuffer) ; }
 
     public crc16():uint16 { return $crc16(this) ; }
     public crc32():uint32 { return $crc32(this) ; }
@@ -304,6 +305,13 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
     public slowhash(options?: $hashOptions):string|Buffer { return $slowhash(this, options) ; }
     public uuidhash(version?:Nullable<UUIDVersion>) { return $uuidhash(this, version) ; }
+
+    public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
+        if (hint === "string" || hint === "default") {
+            return TSCharset.binaryCharset().stringFromData(this) ;
+        }
+        return null ;
+    }
 
     // ============ TSObject conformance =============== 
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string 

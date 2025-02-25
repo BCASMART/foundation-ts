@@ -6,6 +6,34 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 <hr/>
 
+## version 1.6.1
+
+#### What's new ?
+
+- `TSCountry` now manages a standard `numericCode` wich will be returned with `valueOf()` method
+- `TSCountry` now implements `[Symbol.toPrimitive]` method
+- `TSColor` now implements `valueOf()` and `[Symbol.toPrimitive]` methods
+- `TSURL` now implements `[Symbol.toPrimitive]` method
+- `TSDate` now implements `valueOf()` and `[Symbol.toPrimitive]` methods
+- `TSData` now implements `[Symbol.toPrimitive]` and `toBase64URL()` method
+- `String`, `Uint8Array` and `ArrayBuffer` now implements `toBase64URL()` method
+- `String` now implements methods `decodeBase64()` and `decodeBase64URL()`
+- new function `$browserOS()` wich returns a TSBrowserOS enumeration element
+
+#### What's updated ?
+
+-  `$inbrowser()` function now use `$browserOS()` function for its implementation
+-  `$ascii()` function now makes better transformation
+-  `TSEndPoint` interface does now contains a context `TSDictionary` which can be used in `TSEndPointController` which now includes a 3rd optional parameter wich is this `TSDictionary`. This new parameter may be used to keep infos through all script's life
+-  numeric operations on Arrays now use `valueOf()` and `[Symbol.toPrimitive]` methods 
+-  tests were updated in order to reflect all modifications
+
+#### Bug corrections
+
+- `TSServerResponse` `returnData(...)` methods does take into account all types of buffers
+
+<hr/>
+
 ## version 1.6.0
 
 #### What's new ?

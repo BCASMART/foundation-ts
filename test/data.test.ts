@@ -41,6 +41,9 @@ export const dataGroups = [
             const str = 'This is a string' ;
             const str64 = $encodeBase64(str) ;
             t.expect2(str64).is(Buffer.from(str, 'binary').toString('base64')) ;
+            t.expect3(b64_2.decodeBase64()).is(u8array) ;
+            t.expect4(b64_2.decodeBase64().toBase64()).is(b64_2) ;
+            t.expect5(u8array.toBase64().decodeBase64()).is(u8array) ;
         }) ;
 
         group.unary('blob conversion functions', async t => {

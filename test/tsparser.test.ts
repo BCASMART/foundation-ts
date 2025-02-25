@@ -878,6 +878,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 _mandatory:true,
                 alpha2Code:'country!',
                 alpha3Code:'string!',
+                numericCode:'number!',
                 continent:'continent!',
                 currency: 'currency!',
                 domains:['string!', 1],
