@@ -619,3 +619,39 @@ function _internalPath(...paths: string[]): string {
     }
     return '';
 }
+
+declare global {
+    // all methodes automatically use standard implementation if available
+    // all methods work in node environment and inside a browser
+    export interface String {
+        addPath:            (this: string, ...components:string[]) => string ;
+        addPaths:           (this: string, ...components:string[]) => string ;
+        ext:                (this: string) => string ;
+        extension:          (this: string) => string ;
+        directory:          (this: string) => string ;
+        filename:           (this: string) => string ;
+        hasExtension:       (this: string, e?:Nullable<string>) => boolean ; // this method is not case sensitive
+        isAbsolutePath:     (this: string) => boolean ;
+        newExtension:       (this: string, e?:Nullable<string>) => string ; 
+        normalizePath:      (this: string) => string ;
+        safeFilename:       (this: string) => string ;
+    }
+}
+
+String.prototype.addPaths       = function addPaths(this:string, ...comps:string[]):string
+{ return $inbrowser() ? _internalPath(this, ...comps) : join(this, ... comps) ; }
+String.prototype.addPath        = String.prototype.addPaths ;
+String.prototype.extension      = function extension(this:string):string { return $ext(this) ; }
+String.prototype.ext            = String.prototype.extension ;
+String.prototype.directory      = function directory(this:string):string { return $dir(this) ; }
+String.prototype.filename       = function filename(this:string):string { return $filename(this) ; }
+String.prototype.hasExtension   = function hasExtension(this:string, e?:Nullable<string>)
+{
+    if (!$ok(e)) { e = '' ; }
+    const ext = $ext(this) ;
+    return e === ext || (e!.length && e!.toLowerCase() === ext.toLowerCase()) ? true : false ; 
+}
+String.prototype.isAbsolutePath = function isAbsolutePath(this:string):boolean { return $isabsolutepath(this) ; }
+String.prototype.newExtension   = function newExtension(this:string, e?:Nullable<string>):string { return $newext(this, e) ; }
+String.prototype.normalizePath  = function normalizePath(this:string):string { return $normalizepath(this) ; }
+String.prototype.safeFilename   = function safeFilename(this:string):string { return $safeFilename(this) ; }

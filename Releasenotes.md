@@ -6,6 +6,28 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 <hr/>
 
+## version 1.6.2
+
+#### What's new ?
+
+- new method  `addPaths()` (or `addPath()`) usable on strings.
+
+- new method `extension()` (or `ext()`  usable on strings)
+
+- new methods `directory()`, `filename()` and `safeFilename()`  usable on strings
+
+- new method `hasExtension()` (which is case insensitive) usable on strings
+
+- new method `newExtension()` usable on strings
+
+- new method `isAbsolutePath()` usable on strings
+
+- new method `normalizePath()` usable on strings
+
+  All these methods are usable in node.js and in a web browser.. Tests add been added accordingly.
+
+<hr/>
+
 ## version 1.6.1
 
 #### What's new ?

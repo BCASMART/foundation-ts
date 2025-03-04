@@ -198,6 +198,22 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expectD($extset(['json', 'jsonB', 'GEOJs', ''])).is(exts) ;
                 t.expectE($extset(['.JSON', 'json', 'jsonB', 'GEOJs', '.geojs'])).is(exts) ;
             }) ;    
+            group.unary('paths methods on String', async t => {
+                t.expect0('toto.pdf'.extension()).is('pdf') ;
+                t.expect1('toto.PDF'.ext()).is('PDF') ;
+                t.expect2('toto'.hasExtension()).true() ;
+                t.expect3('toto.pdf'.hasExtension('pdf')).true() ;
+                t.expect4('toto.PDF'.hasExtension('pdf')).true() ;
+                t.expect5('volume/tutu/titi/toto.PDF'.filename()).is('toto.PDF') ;
+                t.expect6('volume/tutu/titi/toto.PDF'.directory()).is('volume/tutu/titi') ;
+                t.expect7('volume/tutu/titi/toto.PDF'.hasExtension('pdf')).true() ;
+                t.expect8('/volume/tutu/titi/toto.pdf'.filename()).is('toto.pdf') ;
+                t.expect9('/volume/tutu/titi/toto.pdf'.directory()).is('/volume/tutu/titi') ;
+                t.expectA('/a/b/c'.addPath('toto.pdf')).is('/a/b/c/toto.pdf')
+                t.expectB('/a/b/c'.addPaths('toto.pdf')).is('/a/b/c/toto.pdf')
+                t.expectC('/a/b/c'.addPath('d/e','toto.pdf')).is('/a/b/c/d/e/toto.pdf')
+                t.expectD('/a/b/c'.addPaths('d/e','f/toto.pdf')).is('/a/b/c/d/e/f/toto.pdf')
+            })
         })) ;
     }
 }
