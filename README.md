@@ -41,6 +41,6 @@ Foundation-ts is a full-Typescript project, coming with its own unary tests (`np
 
 Foundation-ts is a work in progress used in our own project. We provide it as it is, with no guarantee and we want you to be aware that regularly, we change things in it which can break your inclusions. Don't panic, nothing may be lost : we only add new functions or methods or change algorithms or source code files organization like we did in version 1.3.
 
-Foundation-ts 1.6 is the last major step in this framework since we did change our TSRequest class internal implementation and we now don't depend any more from any other modules. Foundation-ts is a dependency free framework. To do so, Foundation-ts 1.6+ requires at least node 20.0.0.
+Foundation-ts 1.6 is the last major step in this framework since we did change our TSRequest class internal implementation and we now don't depend any more from any other modules. Foundation-ts is a dependency free framework. To do so, Foundation-ts 1.6+ requires at least node 20.0.0. Foundation-ts 1.6.3 has been tested on node 23.11.0.
 
 Enjoy.

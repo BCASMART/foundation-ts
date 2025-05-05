@@ -26,7 +26,7 @@ export function $browserOS():TSBrowserOS {
     if (!$defined(($browserOS as any).os)) {
         let inb = false ;
         let bs = TSBrowserOS.notInBrowser ;
-        try { inb = $defined(navigator) || !$isproperty(process, 'stdout') || !$ismethod(process?.stdout, 'write') ; }
+        try { inb = $defined(window) && ($defined(navigator) || !$isproperty(process, 'stdout') || !$ismethod(process?.stdout, 'write')) ; }
         catch { inb = false ; }
         if (inb) {
             bs = TSBrowserOS.unknownOS ;
