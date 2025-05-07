@@ -283,8 +283,7 @@ export class TSRequest {
 		else if ($length(this.basicAuth)) {
 			requestHeaders!['Authorization'] = this.basicAuth! ;
 		}
-
-        const finalURL = TSURL.compose(this.baseURL, $string(relativeURL))?.href ;
+        let finalURL = TSURL.compose(this.baseURL, $string(relativeURL))?.href as Nullable<string> ;
         if (!$ok(finalURL)) {
             TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', { 
                 relativeURL:relativeURL, 
@@ -295,6 +294,7 @@ export class TSRequest {
                 timeout:timeout
             }) ; 
         }
+        if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, finalURL.length-1) ; }
         //$logterm(`request body => &p\n${$insp(body)}&0`) ;
         switch (typeof body) {
             case 'undefined': break ;
@@ -498,3 +498,49 @@ URLSearchParams.prototype.query = function query(this: URLSearchParams): StringD
     return total > 0 ? ret : null ;
 } ;
 
+export type TSMultipartEntry = string | Blob ;
+
+export async function $generateMultiPartBodyString(dict:TSDictionary<TSMultipartEntry>, boundary:string):Promise<string|null>
+{
+    const entries = Object.entries(dict) ;
+    const body: string[] = [] ;
+    let total = 0 ;
+    
+    for (let [key, value] of entries) {
+        const isstr = $isstring(value) ;
+        if (!isstr && !(value instanceof Blob)) { // File is an subclass of Blob, so it should fit here
+            continue ;  // we could throw an exception or return null instead 
+        }
+
+        let type = 'text/plain' ;
+        body.push(`--${boundary}`) ;
+
+        if (isstr) {
+            body.push(`Content-Disposition: form-data; name="${key}"`) ;
+        } 
+        else {
+            type = (value as Blob).type ;
+            if (!$length(type)) { type = 'application/octet-stream' ; }
+            value = await (value as Blob).text() ;
+            if ($ismethod(value, 'name')) {
+                // this is a file or anything like it
+                body.push(`Content-Disposition: form-data; name="${key}"; filename="${(value as any).name}"`) ;
+            }
+            else {
+                // this is a blob
+                body.push(`Content-Disposition: form-data; name="${key}"`) ;
+            }
+        }
+        body.push(`Content-Type: ${type}`) ;
+        body.push('') ;
+        body.push(value as string) ;
+        total ++ ;
+    }
+    
+    if (!total) { return null ; }
+
+    body.push(`--${boundary}--`) ;
+    body.push('') ;
+
+    return body.join('\r\n') ;
+}
