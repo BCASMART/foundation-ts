@@ -6,6 +6,41 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 <hr/>
 
+## version 1.6.5
+
+#### Bug corrections
+
+- issue #1 was corrected : you can now add a StringEncoding or a TSCharset to the String.toBase64() and String.toBase64URL() method in order to change the current charset which is Binary. Tests were added to check standard UTF8 string encoded in base 64.
+- debugged version of encodebase64URL, decodeBase64 and decodeBase64URL (managing missing '=' at the end of base 64 string and not adding '=' in encodeBase64URL)
+
+#### What's new ?
+
+- new scripts for building, testing, packing and publishing the framework on MacOSX using HomeBrew and nvm in order to build and test on our chosen node LTS version 22.15.0.
+
+#### 
+
+<hr/>
+
+## version 1.6.4
+
+#### What's new ?
+
+- new function  $generateMultiPartBodyString() mainly for Node.js usages.
+
+#### Bug corrections
+
+- there was some times a crash when a request did have a `/`at the end.
+
+<hr/>
+
+## version 1.6.3
+
+#### Bug corrections
+
+- since `navigator`is defined in Node.js 22.x.x, we did have to update our test in order to known if we are inside a navigator or running as Node.js script.
+
+<hr/>
+
 ## version 1.6.2
 
 #### What's new ?

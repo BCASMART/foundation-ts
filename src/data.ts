@@ -26,7 +26,7 @@ export function $bufferFromBytes(source:Bytes, opts:DataConversionOptions = {}):
     else if (!opts.forceCopy && source instanceof Uint8Array) {
         return Buffer.from(source.buffer, source.byteOffset+start, len) ;   
     }
-    else if (start === 0 && end === sourceLen) { return Buffer.from(source) ; }
+    else if (start === 0 && end === sourceLen) { return Buffer.from(source as any) ; }
 
     const ret = Buffer.allocUnsafe(len) ;
     for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i]; }
@@ -48,7 +48,7 @@ export function $uint8ArrayFromBytes(source:Bytes, opts:DataConversionOptions = 
 {
     const [sourceLen, start, end, len] = $lse(source, opts.start, opts.end) ;
     if (!opts.forceCopy && source instanceof Uint8Array /* includes Buffer */) {
-        return start === 0 && end === sourceLen ? source : source.subarray(start, end) ;
+        return start === 0 && end === sourceLen ? source as Uint8Array : (source as Uint8Array).subarray(start, end) ;
     }
     const ret = new Uint8Array(len);
     for (let i = start, j = 0; i < end; i++, j++) { ret[j] = source[i]; }
@@ -132,7 +132,7 @@ export async function $uint8ArrayFromBlob(source:Blob):Promise<Uint8Array|null> 
         try { return $valueornull(await (source as any).bytes()) ; }
         catch { return null ; }    
     }
-    return await $bufferFromBlob(source) ;
+    return await $bufferFromBlob(source) as Uint8Array | null ;
 }
 
 export function $blobFromBytes(source:Bytes): Blob {
@@ -180,6 +180,7 @@ const base64KeyStr    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 const base64URLKeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=";
 const base64Regex     = /[^A-Za-z0-9\+\/\=]/g ;
 const base64URLRegex  = /[^A-Za-z0-9\-\_\=]/g ;
+const base64URLRightTrimRegex = /[\=]+$/ ;
 
 export function $decodeBase64(input: string): Uint8Array
 { return _decodeBase64(input, base64KeyStr, base64Regex) ; }
@@ -201,9 +202,9 @@ function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Arr
     while (i < len) {
 
         enc1 = reference.indexOf(input.charAt(i++));
-        enc2 = reference.indexOf(input.charAt(i++));
-        enc3 = reference.indexOf(input.charAt(i++));
-        enc4 = reference.indexOf(input.charAt(i++));
+        enc2 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
+        enc3 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
+        enc4 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
 
         chr1 = (enc1 << 2) | (enc2 >> 4);
         chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
@@ -212,7 +213,6 @@ function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Arr
         uint8[size++] = (chr1 & 0xff);
         if (enc3 !== 64) { uint8[size++] = (chr2 & 0xff) ; }
         if (enc4 !== 64) { uint8[size++] = (chr3 & 0xff) ; }
-
     }
     return uint8.subarray(0, size);
 }
@@ -249,7 +249,7 @@ function _encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, enco
         }
         output = output + reference.charAt(enc1) + reference.charAt(enc2) + reference.charAt(enc3) + reference.charAt(enc4);
     }
-    return output;
+    return ref === base64URLKeyStr && output.length > 0 ? output.replace(base64URLRightTrimRegex, "") : output ;            
 }
 
 export function $decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
@@ -322,17 +322,17 @@ export function $dataAspect(
 
 declare global {
     export interface String {
-        toBase64:        (this: string) => string;
-        toBase64URL:     (this: string) => string;
+        toBase64:        (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // warning: default string encoding is Bynary
+        toBase64URL:     (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // idem
         decodeBase64:    (this: string) => Uint8Array;
         decodeBase64URL: (this: string) => Uint8Array;
     }
     export interface Uint8Array {
-        leafInspect:         (this: Uint8Array) => string;
-        toBase64URL:         (this: Uint8Array) => string;
-        toBase64:            (this: Uint8Array) => string;
+        leafInspect:         (this: any) => string;
+        toBase64URL:         (this: any) => string;
+        toBase64:            (this: any) => string;
         toHexa:              (this: any, toLowerCase?:boolean) => string;
-        isGenuineUint8Array: (this: Uint8Array) => boolean ;
+        isGenuineUint8Array: (this: any) => boolean ;
         XOR:                 (this: TSDataLike, other:TSDataLike) => Buffer;
     }
     export interface Uint16Array {
@@ -362,8 +362,8 @@ ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
 
 String.prototype.decodeBase64     = function decodeBase64(this: string): Uint8Array { return $decodeBase64(this); }
 String.prototype.decodeBase64URL  = function decodeBase64URL(this: string): Uint8Array { return $decodeBase64URL(this); }
-String.prototype.toBase64         = function toBase64(this: string): string { return $encodeBase64(this); }
-String.prototype.toBase64URL      = function toBase64URL(this: string): string { return $encodeBase64URL(this); }
+String.prototype.toBase64         = function toBase64(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64(this, encoding); }
+String.prototype.toBase64URL      = function toBase64URL(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64URL(this, encoding); }
 Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
 Uint8Array.prototype.toBase64URL  = function toBase64(this: Uint8Array): string { return $encodeBase64URL(this); } //idem
 ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64(this) ; }

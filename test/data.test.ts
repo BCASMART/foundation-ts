@@ -1,5 +1,6 @@
 import { $length } from '../src/commons';
-import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint32ArrayFromBuffer, $blobFromBytes, $bufferFromBlob } from '../src/data';
+import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint32ArrayFromBuffer, $blobFromBytes, $bufferFromBlob, $decodeBase64URL } from '../src/data';
+import { TSCharset } from '../src/tscharset';
 import { TSTest } from '../src/tstester';
 
 export const dataGroups = [
@@ -34,6 +35,10 @@ export const dataGroups = [
         }) ;
 
         group.unary("$decodeBase64() and $encodeBase64() functions", async(t) => {
+            const utf8String = "âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú" ;
+            const utf8Str64 = "w6LDqsOuw7TDu8Okw6vDr8O2w7zDgsOKw47DlMObw4TDi8OPw5bDnMOgw6jDrMOyw7nDgMOIw4zDksOZw7HDkcOjw4PDtcOVw4HDicONw5PDmsOhw6nDrcOzw7o=" ;
+            const utf8Str64URL = "w6LDqsOuw7TDu8Okw6vDr8O2w7zDgsOKw47DlMObw4TDi8OPw5bDnMOgw6jDrMOyw7nDgMOIw4zDksOZw7HDkcOjw4PDtcOVw4HDicONw5PDmsOhw6nDrcOzw7o" ;
+            const uft8Array = TSCharset.utf8Charset().uint8ArrayFromString(utf8String) ;
             t.expect0(u8array).is(Buffer.from(b64, 'base64')) ;
             const b64_2 = $encodeBase64(u8array) ;
             t.expect1(b64_2).is(b64) ;
@@ -44,6 +49,21 @@ export const dataGroups = [
             t.expect3(b64_2.decodeBase64()).is(u8array) ;
             t.expect4(b64_2.decodeBase64().toBase64()).is(b64_2) ;
             t.expect5(u8array.toBase64().decodeBase64()).is(u8array) ;
+
+            let utf64 = utf8String.toBase64() ;
+            t.expect6(utf64).isnot(utf8Str64) ;
+            utf64 = utf8String.toBase64(TSCharset.utf8Charset()) ;
+            t.expect7(utf64).is(utf8Str64) ;
+            t.expect8($decodeBase64(utf64)).is(uft8Array) ;
+
+            utf64 = utf8String.toBase64URL() ;
+            t.expect9(utf64).isnot(utf8Str64URL) ;
+            utf64 = utf8String.toBase64URL(TSCharset.utf8Charset()) ;
+            t.expectA(utf64).is(utf8Str64URL) ;
+            const durl64 = $decodeBase64URL(utf64) ;
+            t.expectB(TSCharset.utf8Charset().stringFromData(durl64)).is(utf8String) ;
+            t.expectC(durl64).is(uft8Array) ;
+
         }) ;
 
         group.unary('blob conversion functions', async t => {
