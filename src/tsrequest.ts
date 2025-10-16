@@ -247,7 +247,7 @@ export class TSRequest {
 		method?:Verb, 
 		responseType?:RespType, 
 		statuses:number[] = [200], 
-		body?:Nullable<BodyInit|TSData>, 
+		body?:Nullable<BodyInit|TSData|number|boolean|object>, 
 		suplHeaders?:TSRequestHeaders,
 		timeout?:number
 	) : Promise<[TSResponseType, number]> 
@@ -260,7 +260,7 @@ export class TSRequest {
 		relativeURL:string, 
 		method:Verb = Verb.Get, 
 		responseType:RespType = RespType.Json, 
-		body:Nullable<BodyInit|TSData>=null, 
+		body:Nullable<BodyInit|TSData|number|boolean|object>=null, 
 		suplHeaders:TSRequestHeaders={},
 		timeout?:number
 	) : Promise<TSResponse> 
@@ -295,7 +295,7 @@ export class TSRequest {
             }) ; 
         }
         if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, finalURL.length-1) ; }
-        //$logterm(`request body => &p\n${$insp(body)}&0`) ;
+
         switch (typeof body) {
             case 'undefined': break ;
             case 'string': 
@@ -309,20 +309,14 @@ export class TSRequest {
                 break ;
             case 'object':
                 if (body === null) { break ; }
-                else if (body instanceof TSData) { config.body = body.mutableBuffer ; }
-                else if (body instanceof FormData || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || _isReadableStream(body!)) { config.body = body as BodyInit ; }
+                else if (body instanceof TSData) { config.body = new Uint8Array(body.mutableBuffer) ; }
+                else if (body instanceof FormData || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || _isReadableStream(body!) || body instanceof Blob) { config.body = body as BodyInit ; }
                 else if (body instanceof URLSearchParams) { 
                     config.body = body.toString() ;
                     _maySetContentType(requestHeaders, RequestBodyType.UrlEncoded) ;
-                }
-                else {
-                    const stringBody = ($ismethod(body, 'toString') ? body.toString() : `${body}`) ;
-                    if (stringBody === '[object File]' || stringBody === '[object Blob') { config.body = body as BodyInit ; }
-                    else {
-                        config.body = JSON.stringify(body) ;
-                        _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
-                        //$logterm(`JSON body => &c\n${$insp(config.body)}&0`) ;
-                    }
+                } else {
+                    config.body = JSON.stringify(body) ;
+                    _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
                 }
                 break ;
             default:

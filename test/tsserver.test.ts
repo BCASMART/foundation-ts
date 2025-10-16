@@ -7,7 +7,7 @@ import { $UUID, $keys, $length, $string } from "../src/commons";
 import { TSTest } from '../src/tstester';
 import { $absolute, $path, $readBuffer } from "../src/fs";
 import { Languages, TSDictionary, uint16 } from "../src/types";
-import { $inbrowser } from "../src/utils";
+import { $inbrowser, $readStreamBuffer } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
 import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
@@ -280,7 +280,29 @@ if (!$inbrowser()) {
                 t.expectZ(stopped).toBeUndefined() ;   
             } 
         }) ;
-        
+        group.unary('Test send blob request', async (t) => {
+            const blobPart = new Uint8Array([31, 32, 33, 34]);
+            const blobBody: Blob = new Blob([blobPart]);
+            const postEndPoint = async (req: TSServerRequest, resp: TSServerResponse): Promise<void> => {
+                const data = await $readStreamBuffer(req.message);
+                t.expect2(data).eq(blobPart);
+                resp.returnData(data);
+            };
+            const serverEndPoints = {
+                '/blobs':{
+                    POST: postEndPoint
+                }
+            };
+            const startStatus = await TSServer.start(serverEndPoints, {...options });
+            t.expect0(startStatus).is(TSServerStartStatus.HTTP);
+            t.expect1(await TSServer.isRunning()).true();
+            const client = new TSRequest(`http://localhost:${port}/`);
+            const resp = await client.req('blobs', Verb.Post, RespType.Buffer, blobBody);
+            t.expectA(resp.status).is(Resp.OK);
+            t.expectB(resp.response).is(blobPart);
+            const stopped = await TSServer.stop();
+            t.expectZ(stopped).toBeUndefined();
+        });
         group.unary('Same page in HTTP/S', async (t) => {
             const cert = $readBuffer($absolute('test/cert/cert.pem')) ;
             const key = $readBuffer($absolute('test/cert/key.pem')) ;

@@ -11,10 +11,8 @@
         "experimentalDecorators": true,
         "forceConsistentCasingInFileNames": true,
         "isolatedModules": true,
-        "jsx": "react",
-        "lib": ["dom", "es2017", "dom.iterable", "esnext"],
-        "module": "commonjs",
-        "moduleResolution": "node",
+        "lib": ["dom", "es2024", "dom.iterable", "esnext"],
+        "module": "node20",
         "noFallthroughCasesInSwitch": true,
         "noImplicitAny": true,
         "noImplicitReturns": true,
@@ -29,7 +27,6 @@
         "sourceMap": true,
         "strict": true,
         "strictNullChecks": true,
-        "target": "es6",
     }
 }
     

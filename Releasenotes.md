@@ -6,6 +6,20 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 <hr/>
 
+## version 1.7.0
+
+#### What's new ?
+
+- define library to use NodeJS v24 and Typescript v5.9.3
+- review compiler options to create JS files in 'node20' module format with es2024 types library
+- rename the String, Uint8Array and ArrayBuffer names of methods 'toBase64' and 'toBase64URL' to 'base64String' and 'base64URL'
+- change the 'req' and 'request' method signatures of TSRequest (body is now Nullable<BodyInit|TSData|number|boolean|object>)
+- improve the tests performed on the TSRequest body
+
+#### 
+
+<hr/>
+
 ## version 1.6.5
 
 #### Bug corrections

@@ -69,7 +69,7 @@ export function $uuidVersion(str:Nullable<string>):UUIDVersion | undefined {
 }
 
 const __TSNoSpecificIV = Buffer.from([3,67,0,14,2,95,191,0,217,255,7,6,1,67,13,89]) ;
-let __CommonInitializationVector = __TSNoSpecificIV ;
+let __CommonInitializationVector: Buffer<ArrayBufferLike> = __TSNoSpecificIV ;
 
 export function $setCommonItializationVector(d?:Nullable<TSDataLike>)
 { __CommonInitializationVector = $length(d) === 16 ? $bufferFromDataLike(d!) : __TSNoSpecificIV ; }

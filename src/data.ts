@@ -137,13 +137,13 @@ export async function $uint8ArrayFromBlob(source:Blob):Promise<Uint8Array|null> 
 
 export function $blobFromBytes(source:Bytes): Blob {
     const data = source instanceof Uint8Array ? source : _uint8ArrayFromArray(source) ;
-    return new Blob([data]) ;
+    return new Blob([data as BlobPart]) ;
 }
 
 export function $blobFromDataLike(source: TSDataLike): Blob { 
     return source instanceof ArrayBuffer ? 
             new Blob([source]) : 
-            (source instanceof TSData ? new Blob([source.mutableBuffer]) : $blobFromBytes(source)) ;
+            (source instanceof TSData ? new Blob([source.mutableBuffer as BlobPart]) : $blobFromBytes(source)) ;
 }
 
 // ===================== conversions to Uint32 ==============================
@@ -322,18 +322,18 @@ export function $dataAspect(
 
 declare global {
     export interface String {
-        toBase64:        (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // warning: default string encoding is Bynary
-        toBase64URL:     (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // idem
+        base64String:    (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // warning: default string encoding is Bynary
+        base64URL:       (this: string, encoding?:Nullable<StringEncoding | TSCharset>) => string; // idem
         decodeBase64:    (this: string) => Uint8Array;
         decodeBase64URL: (this: string) => Uint8Array;
     }
     export interface Uint8Array {
         leafInspect:         (this: any) => string;
-        toBase64URL:         (this: any) => string;
-        toBase64:            (this: any) => string;
-        toHexa:              (this: any, toLowerCase?:boolean) => string;
+        base64String:        (this: any) => string;
+        base64URL:           (this: any) => string;
+        hexaString:          (this: any, toLowerCase?:boolean) => string;
         isGenuineUint8Array: (this: any) => boolean ;
-        XOR:                 (this: TSDataLike, other:TSDataLike) => Buffer;
+        XOR:                 (this: TSDataLike, other: TSDataLike) => Buffer;
     }
     export interface Uint16Array {
         leafInspect: (this: Uint16Array) => string;
@@ -342,11 +342,11 @@ declare global {
         leafInspect: (this: Uint32Array) => string;
     }
     export interface ArrayBuffer {
-        leafInspect: (this: any) => string;
-        toBase64:    (this: any) => string;
-        toBase64URL: (this: any) => string;
-        toHexa:      (this: any, toLowerCase?:boolean) => string;
-        XOR:         (this: TSDataLike, other:TSDataLike) => Buffer;
+        leafInspect:  (this: any) => string;
+        base64String: (this: any) => string;
+        base64URL:    (this: any) => string;
+        hexaString:   (this: any, toLowerCase?:boolean) => string;
+        XOR:          (this: TSDataLike, other:TSDataLike) => Buffer;
     }
 }
 Uint8Array.prototype.isGenuineUint8Array = function isGenuine(this:Uint8Array): boolean { return this.constructor.name === 'Uint8Array' ; } 
@@ -360,20 +360,20 @@ ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
     return 'ArrayBuffer { [Uint8Contents]: <' + $dataAspect(buf, { prefix: '', suffix: '', separator: '', showLength: false, name: '', transformFn: (n) => n.toHex2(true) }) + '>, byteLength: ' + buf.length + ' }';
 }
 
-String.prototype.decodeBase64     = function decodeBase64(this: string): Uint8Array { return $decodeBase64(this); }
-String.prototype.decodeBase64URL  = function decodeBase64URL(this: string): Uint8Array { return $decodeBase64URL(this); }
-String.prototype.toBase64         = function toBase64(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64(this, encoding); }
-String.prototype.toBase64URL      = function toBase64URL(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64URL(this, encoding); }
-Uint8Array.prototype.toBase64     = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
-Uint8Array.prototype.toBase64URL  = function toBase64(this: Uint8Array): string { return $encodeBase64URL(this); } //idem
-ArrayBuffer.prototype.toBase64    = function toBase64(this: any): string { return $encodeBase64(this) ; }
-ArrayBuffer.prototype.toBase64URL = function toBase64(this: any): string { return $encodeBase64URL(this) ; }
+String.prototype.decodeBase64      = function decodeBase64(this: string): Uint8Array { return $decodeBase64(this); }
+String.prototype.decodeBase64URL   = function decodeBase64URL(this: string): Uint8Array { return $decodeBase64URL(this); }
+String.prototype.base64String      = function toBase64(this: string,  encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64(this, encoding); }
+String.prototype.base64URL         = function toBase64URL(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64URL(this, encoding); }
+Uint8Array.prototype.base64String  = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
+Uint8Array.prototype.base64URL     = function toBase64URL(this: Uint8Array): string { return $encodeBase64URL(this); } //idem
+ArrayBuffer.prototype.base64String = function toBase64(this: any): string { return $encodeBase64(this) ; }
+ArrayBuffer.prototype.base64URL    = function toBase64URL(this: any): string { return $encodeBase64URL(this) ; }
 
-Uint8Array.prototype.toHexa       = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa(this, toLowerCase) ; } // since Buffer is a subclass of Uint8Array, also available on buffer
-ArrayBuffer.prototype.toHexa      = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa($bufferFromArrayBuffer(this), toLowerCase) ; }
+Uint8Array.prototype.hexaString    = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa(this, toLowerCase) ; } // since Buffer is a subclass of Uint8Array, also available on buffer
+ArrayBuffer.prototype.hexaString   = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa($bufferFromArrayBuffer(this), toLowerCase) ; }
 
-Uint8Array.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
-ArrayBuffer.prototype.XOR         = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
+Uint8Array.prototype.XOR           = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
+ArrayBuffer.prototype.XOR          = function xor(this:TSDataLike, other:TSDataLike) { return $dataXOR(this, other) ; }
 
 // ===================== private functions ==============================
 function _uint8ArrayFromArray(a:uint8[]):Uint8Array {

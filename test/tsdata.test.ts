@@ -185,7 +185,9 @@ export const mutableDataGroups = [
 
     TSTest.group("Testing data manipulations functions", async (group) => {
         group.unary('$bufferFromArrayBuffer() and $arrayBufferFromBytes() functions', async(t) => {
-            const a:Uint8Array = new Uint8Array([65,66,67,68]) ;
+            const a = new ArrayBuffer(4);
+            const view = new Uint8Array(a);
+            view[0] = 65; view[1] = 66; view[2] = 67; view[3] = 68;
             const b = $bufferFromArrayBuffer(a) ;
             const c = Buffer.from("ABCD") ;
             const d = $arrayBufferFromBytes(c) ;
