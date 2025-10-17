@@ -2,11 +2,15 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.7.1
 
+#### Corrections
+
+- corrected  npm js restrictions in package.json
 
 <hr/>
 
-## version 1.7.0
+## version 1.7.0 (major version)
 
 #### What's new ?
 
@@ -15,8 +19,6 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 - rename the String, Uint8Array and ArrayBuffer names of methods 'toBase64' and 'toBase64URL' to 'base64String' and 'base64URL'
 - change the 'req' and 'request' method signatures of TSRequest (body is now Nullable<BodyInit|TSData|number|boolean|object>)
 - improve the tests performed on the TSRequest body
-
-#### 
 
 <hr/>
 
@@ -30,8 +32,6 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 #### What's new ?
 
 - new scripts for building, testing, packing and publishing the framework on MacOSX using HomeBrew and nvm in order to build and test on our chosen node LTS version 22.15.0.
-
-#### 
 
 <hr/>
 
