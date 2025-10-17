@@ -6,7 +6,7 @@ export NVM_DIR="$HOME/.nvm"
   [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 # Changer la version de Node.js
-nvm use 22.15.0
+nvm use 24.0.0
 
 # Exécuter votre commande
 npm run build
