@@ -47,7 +47,7 @@ export function $browserOS():TSBrowserOS {
 
 export function $inbrowser():boolean { return $browserOS() !== TSBrowserOS.notInBrowser ; }
 
-export function $exit(errorCode?:number) {
+export function $exit(errorCode?:number):never {
     if (!$isint(errorCode)) { errorCode = 0 ; }
     
     if (!$inbrowser() && process && typeof process?.exit === 'function') {

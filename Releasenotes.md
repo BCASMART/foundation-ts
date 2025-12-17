@@ -2,6 +2,26 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.7.2
+
+#### Corrections
+
+- slowhash algorith did not work correctly with Node24. A much simpler algorith as been put in place instead of the previous one. crc16, crc32, sha1, sha224, sha256, sha384 and sha512 were rewritten.
+
+#### What's new ?
+
+- MDS hash functions were discarted
+- $uuidhash() and $uuidhashfile() functions were discarted
+- $sha256partial() function was discarded
+- uuidhash() method was discarted from all classes
+- TSData now respons to hexaString(), base64String() and base64URL() common methods (previous were keeped for backward compatibility) 
+- separator field was discarted $hashOptions parameters
+- separator parameter was discarted in functions $sha1(), $sha224(), $sha256(), $sha384() and $sha512() function
+- $exit() function now returns never
+- new crypto hash tests have been added
+
+<hr/>
+
 ## version 1.7.1
 
 #### Corrections

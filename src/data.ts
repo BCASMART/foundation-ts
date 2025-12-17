@@ -362,12 +362,12 @@ ArrayBuffer.prototype.leafInspect = function leafInspect(this: any): string {
 
 String.prototype.decodeBase64      = function decodeBase64(this: string): Uint8Array { return $decodeBase64(this); }
 String.prototype.decodeBase64URL   = function decodeBase64URL(this: string): Uint8Array { return $decodeBase64URL(this); }
-String.prototype.base64String      = function toBase64(this: string,  encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64(this, encoding); }
-String.prototype.base64URL         = function toBase64URL(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64URL(this, encoding); }
-Uint8Array.prototype.base64String  = function toBase64(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
-Uint8Array.prototype.base64URL     = function toBase64URL(this: Uint8Array): string { return $encodeBase64URL(this); } //idem
-ArrayBuffer.prototype.base64String = function toBase64(this: any): string { return $encodeBase64(this) ; }
-ArrayBuffer.prototype.base64URL    = function toBase64URL(this: any): string { return $encodeBase64URL(this) ; }
+String.prototype.base64String      = function base64String(this: string,  encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64(this, encoding); }
+String.prototype.base64URL         = function base64URL(this: string, encoding?:Nullable<StringEncoding | TSCharset>): string { return $encodeBase64URL(this, encoding); }
+Uint8Array.prototype.base64String  = function base64String(this: Uint8Array): string { return $encodeBase64(this); } // since Buffer is a subclass of Uint8Array, also available on buffer
+Uint8Array.prototype.base64URL     = function base64URL(this: Uint8Array): string { return $encodeBase64URL(this); } //idem
+ArrayBuffer.prototype.base64String = function base64String(this: any): string { return $encodeBase64(this) ; }
+ArrayBuffer.prototype.base64URL    = function base64URL(this: any): string { return $encodeBase64URL(this) ; }
 
 Uint8Array.prototype.hexaString    = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa(this, toLowerCase) ; } // since Buffer is a subclass of Uint8Array, also available on buffer
 ArrayBuffer.prototype.hexaString   = function toHexa(this: any, toLowerCase?:boolean): string { return $encodeBytesToHexa($bufferFromArrayBuffer(this), toLowerCase) ; }

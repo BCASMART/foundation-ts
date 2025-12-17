@@ -1,34 +1,15 @@
 import { $isuuid } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidhash, $uuidVersion, AES128, MD5, SHA1, SHA384, SHA512, SHA224, $password, $shuffle } from "../src/crypto";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA384, SHA512, SHA224, $password, $shuffle } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
+import { TSCrypto } from "../src/tscrypto"
+import { TSCharset } from "../src/tscharset";
 
 const text = `Lorem Ipsum comes from a latin text written in 45BC by Roman statesman, lawyer, scholar, and philosopher, Marcus Tullius Cicero. The text is titled "de Finibus Bonorum et Malorum" which means "The Extremes of Good and Evil". The most common form of Lorem ipsum is the following:Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. The text is a corrupted version of the original and therefore does not mean anything in particular. The book however where it originates discusses the philosophical views of Epicureanism, Stoicism, and the Platonism of Antiochus of Ascalon. Lorem ipsum is widely in use since the 14th century and up to today as the default dummy "random" text of the typesetting and web development industry. In fact not only it has survived the test of time but it thrived and can be found in many software products, from Microsoft Word to WordPress.` ;
 
 export const cryptoGroups = [
     TSTest.group("Standard hash functions", async (group) => {
-        group.unary("$hash(MD5) function", async(t) => {
-            t.expect0($hash("123456789", MD5)).is('25f9e794323b453885f5181f1b624d0b') ;
-            t.expect1($hash('ABCDEFGHIJKLMNOPQRSTUVWXYZ', MD5)).is('437bba8e0bf58337674f4539e75186ac') ;
-            t.expect2($hash(text, MD5)).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expect3(Buffer.from(text).hash(MD5)).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expectA("123456789".slowhash({ method:MD5 })).is('25f9e794323b453885f5181f1b624d0b') ;
-            t.expectB('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slowhash({ method:MD5 })).is('437bba8e0bf58337674f4539e75186ac') ;
-            t.expectC(text.hash(MD5)).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expectD('@'.hash(MD5)).is('518ed29525738cebdac49c49e60ea9d3') ;
-            t.expectE('012345678901234567890123456789abcdefghijklmnopqrstuvwxy'.hash(MD5)).is('c84d67144b7c1eee18af420cf9e85617') ;
-            t.expectF('012345678901234567890123456789abcdefghijklmnopqrstuvwxyz'.hash(MD5)).is('1d55a5c2c3e17f2389a9469c65a575f1') ;
-            t.expectG('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz'.hash(MD5)).is('31adf70a6c10a07071397638a01973eb') ;
-            t.expectH('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-'.hash(MD5)).is('3b83f83f9f2c0be437633e0f94265f8f') ;
-            t.expectI('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$'.hash(MD5)).is('87e6cf86fde073909798bbffd37bc282') ;
-            t.expectJ('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+'.hash(MD5)).is('2ee8d223d468cdde07d61382696737b8') ;
-            t.expectK('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*'.hash(MD5)).is('ede62ca90e40d9f285b61cb907b5640c') ;
-            t.expectL('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/'.hash(MD5)).is('ad649580abc182b33e6aacb624f463ba') ;
-            t.expectM('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#'.hash(MD5)).is('3e87679816ae933f142af8563d125e72') ;
-            t.expectN('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#%'.hash(MD5)).is('67ead863fdd1242ba6cd4496d243ad6a') ;
-        }) ;
-
         group.unary("$hash(SHA1) function", async(t) => {
             t.expect0($hash("123456789", SHA1)).is('f7c3bc1d808e04732adf679965ccc34ca7ae3441') ;
             t.expect1($hash('ABCDEFGHIJKLMNOPQRSTUVWXYZ', SHA1)).is('80256f39a9d308650ac90d9be9a72a9562454574') ;
@@ -102,28 +83,55 @@ export const cryptoGroups = [
             t.expectN('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#%'.hash(SHA512)).is('e62cce3426ea49e03fc66ea9d8f9749cad13370232617c88088ecf24bc9fda4c571afbd125ebac468ad1bb6851bc0eaefdafa14a99bd26c15d68ef3c07f180f2') ;
         }) ;
     }),
-    TSTest.group("Internal hash functions", async (group) => {
-        group.unary("$slowhash(MD5) function", async(t) => {
-            t.expect0($slowhash("123456789", { method:MD5 })).is('25f9e794323b453885f5181f1b624d0b') ;
-            t.expect1($slowhash("ABCDEFGHIJKLMNOPQRSTUVWXYZ", { method:MD5 })).is('437bba8e0bf58337674f4539e75186ac') ;
-            t.expect2($slowhash(text, { method:MD5 })).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expect3(Buffer.from(text).slowhash({ method:MD5 })).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expectA("123456789".slowhash({ method:MD5 })).is('25f9e794323b453885f5181f1b624d0b') ;
-            t.expectB('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slowhash({ method:MD5 })).is('437bba8e0bf58337674f4539e75186ac') ;
-            t.expectC(text.slowhash({ method:MD5 })).is('b71ad19e4e7f0a0f427180a8505c4b50') ;
-            t.expectD('@'.slowhash({ method:MD5 })).is('518ed29525738cebdac49c49e60ea9d3') ;
-            t.expectE('012345678901234567890123456789abcdefghijklmnopqrstuvwxy'.slowhash({ method:MD5 })).is('c84d67144b7c1eee18af420cf9e85617') ;
-            t.expectF('012345678901234567890123456789abcdefghijklmnopqrstuvwxyz'.slowhash({ method:MD5 })).is('1d55a5c2c3e17f2389a9469c65a575f1') ;
-            t.expectG('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz'.slowhash({ method:MD5 })).is('31adf70a6c10a07071397638a01973eb') ;
-            t.expectH('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-'.slowhash({ method:MD5 })).is('3b83f83f9f2c0be437633e0f94265f8f') ;
-            t.expectI('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$'.slowhash({ method:MD5 })).is('87e6cf86fde073909798bbffd37bc282') ;
-            t.expectJ('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+'.slowhash({ method:MD5 })).is('2ee8d223d468cdde07d61382696737b8') ;
-            t.expectK('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*'.slowhash({ method:MD5 })).is('ede62ca90e40d9f285b61cb907b5640c') ;
-            t.expectL('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/'.slowhash({ method:MD5 })).is('ad649580abc182b33e6aacb624f463ba') ;
-            t.expectM('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#'.slowhash({ method:MD5 })).is('3e87679816ae933f142af8563d125e72') ;
-            t.expectN('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#%'.slowhash({ method:MD5 })).is('67ead863fdd1242ba6cd4496d243ad6a') ;
+    TSTest.group("TSCrypto methods", async (group) => {
+        const source = TSCharset.binaryCharset().uint8ArrayFromString('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ;
+        const source2 = TSCharset.binaryCharset().uint8ArrayFromString('012345678901234567890123456789abcdefghijklmnopqrstuvwxy') ;
+        const source3 = TSCharset.binaryCharset().uint8ArrayFromString(
+           //0        1         2         3         4         5         6         7         8         9         10        11        12
+           //123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789            
+            'aB3cD5eF7gH9jK1lM3nO5pQ7rS9tU1vW3xY5zA7bC9dE1fG3hJ5kL7mN9pQ1rS3tU5vW7xY9zA2bC4dE6fG8hJ0kL2mN4pQ6rS8tU0vW2xY4zA6bC8dE0fG2hJ4kL6mN8'
+        ) ;
+        group.unary("TSCrypto.crc methods", async (t) => {
+            t.expect0(TSCrypto.crc16(source)).is(0x18E7) ;
+            t.expect1(TSCrypto.crc32(source)).is(0xabf77822) ;
         }) ;
 
+        group.unary("TSCrypto.sha1()", async (t) => {
+            t.expect0(TSCrypto.sha1String(source)).is('80256f39a9d308650ac90d9be9a72a9562454574') ;
+            t.expect1(TSCrypto.sha1(source).hexaString(true))   .is('80256f39a9d308650ac90d9be9a72a9562454574') ;
+            t.expect2(TSCrypto.sha1String(source2))             .is('f79ebaa18fe5cdffbb53777191185f3d88370a28') ;
+            t.expect3(TSCrypto.sha1(source2).hexaString(true))  .is('f79ebaa18fe5cdffbb53777191185f3d88370a28') ;
+            t.expect4(TSCrypto.sha1String(source3))             .is('7ffc73258b6b5697fa1d45b76884f639c487a001') ;
+            t.expect5(TSCrypto.sha1(source3).hexaString(true))  .is('7ffc73258b6b5697fa1d45b76884f639c487a001') ;
+        }) ;
+        group.unary("TSCrypto.sha224()", async (t) => {
+            t.expect0(TSCrypto.sha224String(source)).is('174ee2931ce092fc30f4992332c6586cf2fedec88c6bf192549fee08') ;
+            t.expect1(TSCrypto.sha224(source).hexaString(true)).is('174ee2931ce092fc30f4992332c6586cf2fedec88c6bf192549fee08') ;
+            t.expect4(TSCrypto.sha224String(source3)).is('ecf8aa6b6e6b54b599a7268faa2fef74fb86c20998d1379b73915861') ;
+            t.expect5(TSCrypto.sha224(source3).hexaString(true)).is('ecf8aa6b6e6b54b599a7268faa2fef74fb86c20998d1379b73915861') ;
+        }) ;
+        group.unary("TSCrypto.sha256()", async (t) => {
+            t.expect0(TSCrypto.sha256String(source)).is('d6ec6898de87ddac6e5b3611708a7aa1c2d298293349cc1a6c299a1db7149d38') ;
+            t.expect1(TSCrypto.sha256(source).hexaString(true)).is('d6ec6898de87ddac6e5b3611708a7aa1c2d298293349cc1a6c299a1db7149d38') ;
+            t.expect2(TSCrypto.sha256String(source2)).is('d8f3a2a11a90907715ed92c747bd774f869b47dbdca903438ae4e67301aa303d') ;
+            t.expect3(TSCrypto.sha256(source2).hexaString(true)).is('d8f3a2a11a90907715ed92c747bd774f869b47dbdca903438ae4e67301aa303d') ;
+            t.expect2(TSCrypto.sha256String(source3)).is('87a34fba755ac05e166caa6589785f10d81bb3973560a91bbc428809b4186dea') ;
+            t.expect3(TSCrypto.sha256(source3).hexaString(true)).is('87a34fba755ac05e166caa6589785f10d81bb3973560a91bbc428809b4186dea') ;
+        }) ;
+        group.unary("TSCrypto.sha384()", async (t) => {
+            t.expect0(TSCrypto.sha384String(source)).is('be1ef2903d1e27460a352f5a69cce87ac31142810a2b52f84062fa6f939e357bf1c139dabc88666bc17e4fd879c65dfb') ;
+            t.expect1(TSCrypto.sha384(source).hexaString(true)).is('be1ef2903d1e27460a352f5a69cce87ac31142810a2b52f84062fa6f939e357bf1c139dabc88666bc17e4fd879c65dfb') ;
+            t.expect4(TSCrypto.sha384String(source3)).is('1cb53e67c25af0d1603f54b6e9c0cde0c544b9a8cb30019db637a2e392e25935a0cba4e564f45116f6529d94485b84a1') ;
+            t.expect5(TSCrypto.sha384(source3).hexaString(true)).is('1cb53e67c25af0d1603f54b6e9c0cde0c544b9a8cb30019db637a2e392e25935a0cba4e564f45116f6529d94485b84a1') ;
+        }) ;
+        group.unary("TSCrypto.sha512()", async (t) => {
+            t.expect0(TSCrypto.sha512String(source))            .is('f9292a765b5826c3e5786d9cf361e677f58ec5e3b5cecfd7a8bf122f5407b157196753f062d109ac7c16b29b0f471f81da9787c8d314e873413edca956027799') ;
+            t.expect1(TSCrypto.sha512(source).hexaString(true)) .is('f9292a765b5826c3e5786d9cf361e677f58ec5e3b5cecfd7a8bf122f5407b157196753f062d109ac7c16b29b0f471f81da9787c8d314e873413edca956027799') ;
+            t.expect4(TSCrypto.sha512String(source3))           .is('7a8fe7ad4cbec1fc773fa81e466a9fd837bf875d53a3cfa8e51f6484a56b3f9bf2d8b76036b6fc4ee7b8d9b54929a81e3f9b2b736193293ef7ac7deb1f75c434') ;
+            t.expect5(TSCrypto.sha512(source3).hexaString(true)).is('7a8fe7ad4cbec1fc773fa81e466a9fd837bf875d53a3cfa8e51f6484a56b3f9bf2d8b76036b6fc4ee7b8d9b54929a81e3f9b2b736193293ef7ac7deb1f75c434') ;
+        }) ;
+    }),
+    TSTest.group("Internal hash functions", async (group) => {
         group.unary("$slowhash(SHA1) function", async(t) => {
             t.expect0($slowhash("123456789", { method:SHA1 })).is('f7c3bc1d808e04732adf679965ccc34ca7ae3441') ;
             t.expect1($slowhash('ABCDEFGHIJKLMNOPQRSTUVWXYZ', { method:SHA1 })).is('80256f39a9d308650ac90d9be9a72a9562454574') ;
@@ -284,36 +292,6 @@ export const cryptoGroups = [
             t.expect3($crc32(text)).is(0x9359156b) ;
         }) ;
         
-        group.unary("$uuidhash() function", async(t) => {
-            let a1 = $uuidhash('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ;
-            let a2 = $uuidhash('123456789') ;
-            let a3 = $uuidhash(text) ;
-
-            t.expect0(a1).is('437bba8e-0bf5-8337-674f-4539e75186ac') ;
-            t.expect1($isuuid(a1)).true() ;
-            t.expect2($isuuid(a1, UUIDv4)).false() ;
-            
-            t.expect3(a2).is('25f9e794-323b-4538-85f5-181f1b624d0b') ;
-            t.expect4($isuuid(a2)).true() ;
-            t.expect5($isuuid(a2, UUIDv4)).true() ;
-            
-            t.expect6(a3).is('b71ad19e-4e7f-0a0f-4271-80a8505c4b50') ;
-            t.expect7($isuuid(a3)).true() ;
-            t.expect8($isuuid(a3, UUIDv4)).false() ;
-
-            a1 = $uuidhash('ABCDEFGHIJKLMNOPQRSTUVWXYZ', UUIDv4) ;
-            a2 = $uuidhash('123456789', UUIDv4) ;
-            a3 = $uuidhash(text, UUIDv4) ;
-
-            t.expectA(a1).is('437bba8e-0bf5-4337-874f-4539e75186ac') ;
-            t.expectB(a2).is('25f9e794-323b-4538-85f5-181f1b624d0b') ;
-            t.expectC(a3).is('b71ad19e-4e7f-4a0f-8271-80a8505c4b50') ;
-
-            t.expectD($isuuid(a1, UUIDv4)).true() ;
-            t.expectE($isuuid(a2, UUIDv4)).true() ;
-            t.expectF($isuuid(a3, UUIDv4)).true() ;
-        }) ;
-
         group.unary("$password() function", async (t) => {
             const p1 = $password(16, { usesDigits:true, usesSpecials:true, usesLowercase:true })
             t.expect0(p1.length).is(16) ;
