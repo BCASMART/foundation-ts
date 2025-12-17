@@ -1,11 +1,11 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
-import { $crc16, $crc32, $hash, $hashOptions, $slowhash, $uuidhash, HashMethod } from "./crypto";
+import { $crc16, $crc32, $hash, $hashOptions, $slowhash, HashMethod } from "./crypto";
 import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa, $encodeBase64URL } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { Bytes, Comparison, Nullable, Same, StringEncoding, TSDataLike, uint, uint16, uint32, uint8, UINT8_MAX, UUIDVersion } from "./types" ;
+import { Bytes, Comparison, Nullable, Same, StringEncoding, TSDataLike, uint, uint16, uint32, uint8, UINT8_MAX } from "./types" ;
 
 /**
  * TSData is a mutable buffer-like class. You cannot directly access the contained bytes in a TSData.
@@ -294,8 +294,10 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public readDoubleLE(offset?:number): number     { return this._read(offset, 8, Buffer.prototype.readDoubleLE) ; }
     public readDoubleBE(offset?:number): number     { return this._read(offset, 8, Buffer.prototype.readDoubleBE) ; }
 
-    public toBase64():string { return $encodeBase64(this.mutableBuffer) ; }
-    public toBase64URL():string { return $encodeBase64URL(this.mutableBuffer) ; }
+    public base64String():string { return $encodeBase64(this.mutableBuffer) ; }
+    public base64URL():string { return $encodeBase64URL(this.mutableBuffer) ; }
+    public toBase64 = this.base64String ;
+    public toBase64URL = this.base64URL ;
 
     public crc16():uint16 { return $crc16(this) ; }
     public crc32():uint32 { return $crc32(this) ; }
@@ -303,8 +305,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public XOR(other:TSDataLike):Buffer { return $dataXOR(this, other) ; }
     
     public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
-    public slowhash(options?: $hashOptions):string|Buffer { return $slowhash(this, options) ; }
-    public uuidhash(version?:Nullable<UUIDVersion>) { return $uuidhash(this, version) ; }
+    public slowhash(options?: $hashOptions):string|Uint8Array { return $slowhash(this, options) ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
         if (hint === "string" || hint === "default") {
@@ -317,7 +318,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string 
     { return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ; }
     
-    public toHexa(toLowerCase?:boolean):string { return $encodeBytesToHexa(this.mutableBuffer, toLowerCase) ; }
+    public hexaString(toLowerCase?:boolean):string { return $encodeBytesToHexa(this.mutableBuffer, toLowerCase) ; }
+    public toHexa = this.hexaString ;
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
 
