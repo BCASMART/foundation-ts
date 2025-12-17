@@ -1,5 +1,5 @@
 import { $isuuid } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA384, SHA512, SHA224, $password, $shuffle } from "../src/crypto";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA384, SHA512, SHA224, $password, $shuffle, $randomBytes, $nativeHash, $sha1, $sha256, $sha512 } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
@@ -205,6 +205,26 @@ export const cryptoGroups = [
             t.expectN('01234567890123456789@0123456789abcdefghijklmnopqrstuvwxyz-$+*/#%'.slowhash({ method:SHA512 })).is('e62cce3426ea49e03fc66ea9d8f9749cad13370232617c88088ecf24bc9fda4c571afbd125ebac468ad1bb6851bc0eaefdafa14a99bd26c15d68ef3c07f180f2') ;
 
         }) ;
+    }),
+    TSTest.group("Random hash comparison test", async (group) => {
+        for (let i = 0 ; i < 500 ; i++) {
+            const length = $random(8192) ;
+            const source = $randomBytes(length) ;
+            group.unary(`crypto test ${i+1}: ${length}`, async (t) => {
+                let n = $nativeHash(source,'SHA1') ;
+                let s = $sha1(source) ;
+                t.expect0(s).is(n) ;
+
+                n = $nativeHash(source,'SHA256') ;
+                s = $sha256(source) ;
+                t.expect1(s).is(n) ;
+
+                n = $nativeHash(source,'SHA512') ;
+                s = $sha512(source) ;
+                t.expect2(s).is(n) ;
+
+            }) ;
+        }
     }),
     TSTest.group("Commons other cryptographic functions", async (group) => {
         group.unary("$encrypt()/$decrypt() functions", async(t) => {

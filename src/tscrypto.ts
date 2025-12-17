@@ -370,51 +370,28 @@ function _padSHA1And256(data: Nullable<Uint8Array>): Uint8Array {
     return padded;
 }
 
-function _padSHA512(data:Nullable<Uint8Array>) {
+export function _padSHA512(data:Nullable<Uint8Array>) {
     const len = $length(data) ;
     const bitLen = len * 8 ;
     const blockSize = 128;
-    const lenBuffer = new ArrayBuffer(16); // 128 bits
-    const view = new DataView(lenBuffer) ;
-    view.setBigUint64(8, BigInt(bitLen), false) ; 
 
-    let paddingLength = blockSize - ((len + 1 + 16) % blockSize);
-    if (paddingLength < 1) {
-        paddingLength += blockSize;
-    }
+    const totalBeforePadding = len + 1 + 16;
+    const paddingLength = (blockSize - (totalBeforePadding % blockSize)) % blockSize;
+    const finalLength = len + 1 + paddingLength + 16;
 
-    const padded = new Uint8Array(len + 1 + paddingLength + 16);
-    if (len) { padded.set(data!) ; }
+    const padded = new Uint8Array(finalLength) ;
+    if (len && $ok(data)) { padded.set(data!, 0) ; }
     padded[len] = 0x80;
-    padded.fill(0, len + 1, padded.length - 16);
+
+    const lenBuffer = new ArrayBuffer(16);
+    const view = new DataView(lenBuffer) ;
+    view.setBigUint64(0, 0n, false); // 64 bits hauts à 0
+    view.setBigUint64(8, BigInt(bitLen), false) ; 
     padded.set(new Uint8Array(lenBuffer), padded.length - 16);
+
     return padded ;
 }
-/*
-function _pad(data:Nullable<Uint8Array>, blockSize:number):Uint8Array {
-    const msgLen = $length(data) ;
-    const bitLen = msgLen * 8 ;    
-    const k = blockSize - ((msgLen + (blockSize === 64 ? 9 : 17)) % blockSize) ;
-    const totalLen = msgLen + 1 + k + (blockSize === 64 ? 8 : 16) ;
-    const padded = new Uint8Array(totalLen) ;
-    
-    if (msgLen) { padded.set(data!); }
-    
-    padded[msgLen] = 0x80 ;
-    
-    if (blockSize === 64) {
-        const view = new DataView(padded.buffer) ;
-        view.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false) ;
-        view.setUint32(totalLen - 4, bitLen >>> 0, false) ;
-    } 
-    else {
-        const view = new DataView(padded.buffer) ;
-        view.setBigUint64(totalLen - 16, 0n, false) ;
-        view.setBigUint64(totalLen - 8, BigInt(bitLen), false) ;
-    }
-    return padded ;
-}
-*/
+
 function _rotleft32(n:number, b:number):number      { return ((n << b) | (n >>> (32 - b))) >>> 0 ; }
 function _rotright32(n: number, b: number): number  { return ((n >>> b) | (n << (32 - b))) >>> 0 ; }
 function _rotright64(n:bigint, b:bigint): bigint    { return ((n >> b) | (n << (64n - b))) & 0xffffffffffffffffn ; }

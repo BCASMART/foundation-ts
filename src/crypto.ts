@@ -174,20 +174,7 @@ export function $crc32(source: string | TSDataLike, encoding?: Nullable<StringEn
 // in this implementation we always tries $slowhash() if internal methods fails. Both calls are exception protected.
 // in browser, you may prefer to directly call $slowhash()
 export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
-    let ret: string | null = null;
-    if (typeof createHash !== 'undefined') {
-        // if we have an internal implementation, we use it
-        try {
-            const source = _uint8ArrayFromStringOrDataLike(buf, encoding);
-            let hash = _createHash(method) ;
-            hash.update(source) ;
-            ret = hash.digest('hex');
-        }
-        catch {
-            $logterm(`Warning: crypto hash functions did fail for method '${$length(method)?method:'SHA256'}'`) ;    
-            ret = null ;
-        }
-    }
+    let ret = $nativeHash(buf, method, encoding) ;
     if ($ok(ret)) { return ret ; }
     try { 
         ret = $slowhash(buf, { method:method, encoding:encoding }) as string ; 
@@ -198,6 +185,25 @@ export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, e
     }
     return ret;
 }
+
+export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
+    let ret: string | null = null;
+    if (typeof createHash !== 'undefined') {
+        // if we have an internal implementation, we use it
+        try {
+            const source = _uint8ArrayFromStringOrDataLike(buf, encoding);
+            let hash = _createHash(method) ;
+            hash.update(source) ;
+            ret = hash.digest('hex');
+        }
+        catch {
+            $logterm(`Warning: native crypto hash functions did fail for method '${$length(method)?method:'SHA256'}'`) ;    
+            ret = null ;
+        }
+    }
+    return ret ;
+}
+
 export interface $hashOptions {
     encoding?: Nullable<StringEncoding | TSCharset> ; // default charset is binary
     method?: Nullable<HashMethod> ;
