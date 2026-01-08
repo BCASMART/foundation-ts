@@ -1,4 +1,4 @@
-import { $inbrowser, $insp, $term, $termclean } from "../src/utils";
+import { $inbrowser, $insp, $mark, $sleep, $term, $termclean } from "../src/utils";
 import { TSTest } from '../src/tstester';
 import { inspect } from "util";
 import { TSDate } from "../src/tsdate";
@@ -101,6 +101,14 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
             t.expect2(typeof document === 'undefined').true() ;
         }
     }) ;
+
+    group.unary("$sleep() function", async (t) => {
+        const start = $mark();
+        await $sleep(150);
+        const end = $mark();
+        t.expect0(end-start).gte(0.145) ;
+        t.expect1(end-start).lte(0.155) ;
+    });
 
     group.unary("$term() && $termclean() functions()", async (t) => {
         if ($inbrowser()) {

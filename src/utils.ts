@@ -80,7 +80,10 @@ export function $ellapsed(previousMark:number):string {
     }) ;
 }
 
-export async function $sleep(ms:number) { new Promise(res => setTimeout(res, ms)) ; }
+export async function $sleep(ms:number) { 
+    const promise = new Promise(res => setTimeout(res, ms)) ; 
+    await promise ;
+}
 
 export function $timeout(promise:Promise<any>, time:number, exception:any) : Promise<any> {
 	let timer:any ;

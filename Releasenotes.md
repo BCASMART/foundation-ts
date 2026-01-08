@@ -2,6 +2,14 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.7.3
+
+#### Corrections
+
+- function $sleep() is now working and is tested.
+
+<hr/>
+
 ## version 1.7.2
 
 #### Corrections
