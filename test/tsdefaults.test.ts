@@ -78,8 +78,8 @@ export const defaultsGroups = [
             t.expect5($unitDefinition('minute')?.unit).toBe('mn') ;
             t.expect6($unitDefinition('hour', 'GB')?.unit).toBe('h') ;
             t.expect7($unitDefinition('minute', 'GB')?.unit).toBe('m') ;
-            t.expect8($unitDefinition('hour', 'el')?.unit).toBe('') ;
-            t.expect9($unitDefinition('minute', 'el')?.unit).toBe('') ;
+            t.expect8($unitDefinition('hour', 'el')?.unit).toBe('ώ') ;
+            t.expect9($unitDefinition('minute', 'el')?.unit).toBe('λ') ;
             t.expectA($unitDefinition('hour', 'GR')?.plural).toBe('ώρες') ;
             t.expectB($unitDefinition('minute', $country('grece'))?.singular).toBe('λεπτό') ;
             t.expectC($unitDefinition('unknown')?.singular).KO() ;

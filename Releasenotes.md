@@ -2,6 +2,83 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.0
+
+#### Corrections
+
+- functions $ok(), $defined() … $isstring() conform to type management for the following code (issue #11)
+
+- new implementation for $ascii() function (issue #6)
+
+- TSEndianness is no more a type but a constant object with BE = false and LE = true (issue #5)
+
+- new function $uint32ArrayFromUint8Array() replacing $uint32ArrayFromBuffer() (issue #5)
+
+- modify read/write number functions implementation in order to use new DataView methods (issue #5)
+
+- remove read/write number functions from Uint8Array (data.ts) since we prefer developers directly use DataView methods (issue #5)
+
+- Improved TSPhoneNumber class with more accuracy, tests and methods to know if a phone number is mobile, and land line or undetermined  (issue #9)
+
+- Did add TSReques's defined RespType.OptionalJson in order to manage request with JSON wich may not be present in requests' responses (issue #10)
+
+#### What's new ?
+
+- removed wrongly conceived TSDataCursor class (issue #5)
+
+- new $strictascii() function which returns null if some charaters cannot be represented in ASCII  (issue #6)
+
+- new $jsonparse() function replacing JSON.parse() and permitting to ignore commentaries in parsing (issue #8)
+
+- new $jsonstrip() function removing // and /* .. */ commentaries in JSON string (issue #8)
+
+- did add reading DataView methods to TSData (issue #5)
+
+  ```typescript
+  getInt8(byteOffset):number // Reads an 8-bit signed integer.
+  getUint8(byteOffset):number // Reads an 8-bit unsigned integer.
+  getInt16(byteOffset:number, littleEndian?:boolean):number // Reads a 16-bit signed integer.
+  getUint16(byteOffset:number, littleEndian?:boolean):number // Reads a 16-bit unsigned integer.
+  getInt32(byteOffset:number, littleEndian?:boolean):number // Reads a 32-bit signed integer.
+  getUint32(byteOffset:number, littleEndian?:boolean):number // Reads a 32-bit unsigned integer.
+  getFloat32(byteOffset:number, littleEndian?:boolean):number // Reads a 32-bit floating point number.
+  getFloat64(byteOffset:number, littleEndian?:boolean):number // Reads a 64-bit floating point number.
+  getBigInt64(byteOffset:number, littleEndian?:boolean):bigint // Reads a 64-bit signed integer as BigInt.
+  getBigUint64(byteOffset:number, littleEndian?:boolean):bigint // Reads a 64-bit unsigned integer as BigInt.
+  ```
+
+- did add writing DataView methods to TSData (issue #5)
+
+  ```typescript
+  settInt8(byteOffset:number, value:number) // Writes an 8-bit signed integer.
+  setUint8(byteOffset:number, value:number) // Writes an 8-bit unsigned integer.
+  setInt16(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 16-bit signed integer.
+  setUint16(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 16-bit unsigned integer.
+  setInt32(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 32-bit signed integer.
+  setUint32(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 32-bit unsigned integer.
+  setFloat32(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 32-bit floating point number.
+  setFloat64(byteOffset:number, value:number, littleEndian?:boolean) // Writes a 64-bit floating point number.
+  setBigInt64(byteOffset:number, value:bigint, littleEndian?:boolean) // Writes a 64-bit signed integer BigInt.
+  setBigUint64(byteOffset:number, value:bigint, littleEndian?:boolean) // Writes a 64-bit unsigned integer BigInt.
+  ```
+
+
+- add function $bufferFromHexaString(s:string):Buffer|null. Please use it instead of Buffer.from(xxx, 'hex') which may silently fail (issue #4)
+
+- add function $uint8ArrayFromHexaString(s:string):Uint8Array|null. (issue #4)
+
+- add function $arrayBufferFromHexaString(s:string):ArrayBuffer|null. (issue #4)
+
+- declare fromHex() method on Uint8ArrayConstructor because it was not done by Typescript itself (issue #4)
+
+- add static methods TSData.fromHexaString(), TSData.fromBase64String(), TSData.fromBase64URLString() (issue #4)
+
+- did add ordinals values in Locales.json in order to manage %E indicator in date formats (issue #2)
+
+- did add 'pdf-max' and 'pdf-min' document formats (issue #7)
+
+<hr/>
+
 ## version 1.7.3
 
 #### Corrections

@@ -17,8 +17,8 @@ export function $timeBetweenDates(pa:Nullable<number|string|Date|TSDate>, pb:Nul
     if (typeof a === 'number' && typeof b === 'number') { return b - a ; }
     if (a instanceof Date && b instanceof Date) { return b.timeSinceDate(a) ; }
     
-    if (!(a instanceof TSDate)) { a = new TSDate(a as number) ;}
-    if (!(b instanceof TSDate)) { b = new TSDate(b as number) ;}
+    if (!(a instanceof TSDate)) { a = new TSDate(a as any) ;}
+    if (!(b instanceof TSDate)) { b = new TSDate(b as any) ;}
 
     return b.timeSinceDate(a) ;
 } 
@@ -74,14 +74,11 @@ function _acceptableDateParameter(a:Nullable<number|string|Date|TSDate>, future:
     if (!$ok(a)) { return !future ? TSDate.past() : TSDate.future() ; }
     if (a === Number.POSITIVE_INFINITY) { return TSDate.future() ; }
     if (a === Number.NEGATIVE_INFINITY) { return TSDate.past() ; }
+    
     if (a instanceof Date || a instanceof TSDate) { return a ; }
+    if (typeof a === 'string') { return new TSDate(a) ; }
 
-    const t = typeof a ;
-    if (t === 'string') { return new TSDate(a as string) ; }
-    if (t === 'number') { 
-        if (isNaN(a as number)) { TSError.throw('$timeBetweenDates() cannot handle NaN as numbers') ; }
-        return a as number ;
-    }
+    if (isNaN(a)) { TSError.throw('$timeBetweenDates() cannot handle NaN as numbers') ; }
+    return a ;
 
-    TSError.throw(`$timeBetweenDates() cannot handle value of type ${t}`) ;
 }

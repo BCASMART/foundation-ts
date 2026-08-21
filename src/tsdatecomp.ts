@@ -79,21 +79,19 @@ export type TSDatePredefinedFormat = TSDateTimeFormat | 'time' | 'short-time' ;
  */
 export function $timecomponents(source: Nullable<number|Date|TSDate>) : TSTimeComp {
 	if (!$ok(source)) { source = new Date() ;}
-	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
+	else if (source instanceof TSDate) { source = source.timestamp ; }
 
 	if ($isnumber(source)) {
-		const timestamp = source as number ;
 		return {
-			hour:$hourFromTimestamp(timestamp),
-			minute:$minuteFromTimestamp(timestamp),
-			second:$secondFromTimestamp(timestamp),
+			hour:$hourFromTimestamp(source),
+			minute:$minuteFromTimestamp(source),
+			second:$secondFromTimestamp(source),
 		} ;
 	}
-	const d = source as Date ;
 	return {
-		hour:<uint>d.getHours(), 
-		minute:<uint>d.getMinutes(), 
-		second:<uint>d.getSeconds(),
+		hour:<uint>source.getHours(), 
+		minute:<uint>source.getMinutes(), 
+		second:<uint>source.getSeconds(),
 	} ;
 }
 
@@ -113,7 +111,7 @@ export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
     else if (source === Number.POSITIVE_INFINITY) { source = TSMaxTimeStamp ; }
     
 	if ($isnumber(source)) {
-		const timestamp = Math.max(Math.min(source as number, TSMaxTimeStamp), TSMinTimeStamp)  ;
+		const timestamp = Math.max(Math.min(source, TSMaxTimeStamp), TSMinTimeStamp)  ;
 		let Z =                  Math.floor(timestamp/TSDay) + TSDaysFrom00000229To20010101 ;
 		let gg =                 Z - 0.25 ;
 		let CENTURY =            Math.floor(gg/36524.25) ;
@@ -139,15 +137,14 @@ export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
         TSError.throw(`$components() source is not a valid number, nor a Date nor a TSDate`, { source:source }) ;
     }
 	
-    const d = source as Date ;
 	return {
-		year:<uint>d.getFullYear(), 
-		month:<uint>(d.getMonth()+1), 
-		day:<uint>d.getDate(), 
-		hour:<uint>d.getHours(), 
-		minute:<uint>d.getMinutes(), 
-		second:<uint>d.getSeconds(),
-		dayOfWeek:<uint>d.getDay()
+		year:<uint>source.getFullYear(), 
+		month:<uint>(source.getMonth()+1), 
+		day:<uint>source.getDate(), 
+		hour:<uint>source.getHours(), 
+		minute:<uint>source.getMinutes(), 
+		second:<uint>source.getSeconds(),
+		dayOfWeek:<uint>source.getDay()
 	} ;
 }
 
@@ -327,7 +324,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     let s = $components2string(c, opts.form!) ;
     
     if ($ok(opts.milliseconds)) {
-        s += '.'+$fpad3(opts.milliseconds!) ;
+        s += '.'+$fpad3(opts.milliseconds) ;
     }
 
     if (opts.form === TSDateForm.ISO8601C) {
@@ -454,7 +451,7 @@ export function $components2stringformat(comp:TSDateComp, format:Nullable<string
                     case 'B': ret += trs.months[comp.month-1] ; break ;
                     case 'd': ret += $fpad2(comp.day) ; break ;
                     case 'e': ret += comp.day ; break ;
-                    case 'E': ret += comp.day <= $count(trs.ordinals) ? trs.ordinals![comp.day-1] : comp.day ; break ;
+                    case 'E': ret += (comp.day < $count(trs.ordinals) ? trs.ordinals![comp.day] : comp.day) ; break ;
                     case 'f':
                         ret += $dayOfWeekFromTimestamp(ts) ;
                         break ;
@@ -544,14 +541,14 @@ export function $datetimeDescription(
 {
     let ts = (date instanceof Date || date instanceof TSDate ? 
                 date.timestamp :
-                (typeof date === 'number' ? date as number : $components2timestamp(date as TSDateComp))
-             ) + ($ok(timezoneOffset) ? timezoneOffset as number : 0) ;
+                (typeof date === 'number' ? date : $components2timestamp(date as TSDateComp))
+             ) + $value(timezoneOffset, 0) ;
     
     return $components2stringformat($components(ts), predefinedFormat, locale) ;
 }
 
 export function $durationcomponents(duration: Nullable<number>) : TSDurationComp {
-    if ($ok(duration) && duration! < 0) { 
+    if ($ok(duration) && duration < 0) { 
         TSError.throw('$durationcomponents() : duration must be positive or 0', { duration:duration}) ;
     }
     let time:number = $tounsigned(duration) ; // we trash subseconds duration digits
@@ -593,36 +590,36 @@ export interface $durationDescriptionOptions {
 export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<$durationDescriptionOptions>) {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
-    let duration = typeof comps === 'number' ? comps as number : $duration(comps) ;
+    let duration = typeof comps === 'number' ? comps : $duration(comps) ;
     let c = $isunsigned(duration) ? $durationcomponents(duration) : null ;
     if ($ok(c)) {
         switch (opts?.depth) {
             case 'days':
-                if ((duration % TSDay) >= TSDay/2) { c!.days ++ ; } 
-                c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                if ((duration % TSDay) >= TSDay/2) { c.days ++ ; } 
+                c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
                 break ;
             case 'days-cut':
-                c!.hours = UINT_MIN ; c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
                 break ;
             case 'hours':
                 if ((duration % TSHour) >= TSHour/2) {
-                    c!.hours++ ; if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
+                    c.hours++ ; if (c.hours === 24) { c.days ++ ; c.hours = UINT_MIN ; }
                 }
-                c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
                 break ;
             case 'hours-cut':
-                c!.minutes = UINT_MIN ; c!.seconds = UINT_MIN ;
+                c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
                 break ;
             case 'minutes':
-                if (c!.seconds >= 30) {
-                    c!.minutes++ ;
-                    if (c!.minutes === 60) { c!.hours ++ ; c!.minutes = UINT_MIN ; }
-                    if (c!.hours === 24) { c!.days ++ ; c!.hours = UINT_MIN ; }
+                if (c.seconds >= 30) {
+                    c.minutes++ ;
+                    if (c.minutes === 60) { c.hours ++ ; c.minutes = UINT_MIN ; }
+                    if (c.hours === 24) { c.days ++ ; c.hours = UINT_MIN ; }
                 }
-                c!.seconds = UINT_MIN ;
+                c.seconds = UINT_MIN ;
                 break ;
             case 'minutes-cut':
-                c!.seconds = UINT_MIN ;
+                c.seconds = UINT_MIN ;
                 break ;
             default:
                 // full depth = seconds

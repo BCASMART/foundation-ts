@@ -194,7 +194,7 @@ export class TSQualifier<T> {
             case 'AND':
                 for (let cond of this._operands) {
                     if (cond instanceof TSQualifier) { if (!cond.validateValue(value)) return false ; }
-                    else if ($ok(validateValueForCondition)) { if (!validateValueForCondition!(value, cond)) return false ; }
+                    else if ($ok(validateValueForCondition)) { if (!validateValueForCondition(value, cond)) return false ; }
                     else {
                         TSError.throw('need a validateValueForCondition() callback to interpret a specific AND condition', { value:value, condition:validateValueForCondition }) ;
                     }
@@ -203,7 +203,7 @@ export class TSQualifier<T> {
             case 'OR': 
                 for (let cond of this._operands) {
                     if (cond instanceof TSQualifier) { if (cond.validateValue(value)) return true ; }
-                    else if ($ok(validateValueForCondition)) { if (validateValueForCondition!(value, cond)) return true ; }
+                    else if ($ok(validateValueForCondition)) { if (validateValueForCondition(value, cond)) return true ; }
                     else {
                         TSError.throw('need a validateValueForCondition() callback to interpret a specific OR condition', { value:value, condition:validateValueForCondition }) ;
                     }
@@ -212,7 +212,7 @@ export class TSQualifier<T> {
             case 'NOT':
                 const cond = this._operands[0] ;
                 if (cond instanceof TSQualifier) { return !cond.validateValue(value) ; }
-                else if ($ok(validateValueForCondition)) { return !validateValueForCondition!(value, cond) ; }
+                else if ($ok(validateValueForCondition)) { return !validateValueForCondition(value, cond) ; }
                 TSError.throw('need a validateValueForCondition() callback to interpret a specific NOT condition', { value:value, condition:validateValueForCondition }) ;
             case 'OK':
                 return _valuesForKeyPath(value, this._operands[0]).length > 0 ;
@@ -269,7 +269,7 @@ export class TSQualifier<T> {
 
     public filterValues(values:Nullable<Iterable<T>>):Array<T> {
         const ret:Array<T> = []
-        if ($ok(values)) { for (let v of values!) { if (this.validateValue(v)) { ret.push(v) ; }}}
+        if ($ok(values)) { for (let v of values) { if (this.validateValue(v)) { ret.push(v) ; }}}
         return ret ;
     }
 

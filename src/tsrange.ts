@@ -40,7 +40,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 					v = arguments[0] as TSRange ;
 				}
                 else if ($isarray(arguments[0])) {
-                    const a = arguments[0] as number[] ;
+                    const a = arguments[0] ;
                     if (!$israngearray(a)) {
                         TSError.throw('TSRange.constructor(): bad provided range array', { arguments:Array.from(arguments)}) ;
                     }
@@ -141,7 +141,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 		if (other instanceof TSRange) {
 			return this.containsLocation(other.location) && (other.isEmpty || this.containsLocation(other.location+other.length-1)) ;
 		}
-		return this.containsLocation(other as number) ;
+		return this.containsLocation(other) ;
 	}
 
 	public intersects(other:TSRange):boolean {

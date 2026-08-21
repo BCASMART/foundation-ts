@@ -1,7 +1,9 @@
 import { $length } from '../src/commons';
-import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint32ArrayFromBuffer, $blobFromBytes, $bufferFromBlob, $decodeBase64URL } from '../src/data';
+import { $randomBytes } from '../src/crypto';
+import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $blobFromBytes, $bufferFromBlob, $decodeBase64URL, $uint32ArrayFromUint8Array, $encodeBytesToHexa, $bufferFromHexaString, $uint8ArrayFromHexaString } from '../src/data';
 import { TSCharset } from '../src/tscharset';
 import { TSTest } from '../src/tstester';
+import { TSEndianness } from '../src/types';
 
 export const dataGroups = [
     TSTest.group("Testing simple level data manipulations functions", async (group) => {
@@ -77,8 +79,39 @@ export const dataGroups = [
                 t.expect2(b64_2).is(b64) ; 
             }
         }) ;
+        
+        group.unary("$uint8ArrayFromHexaString() function", async t => {
+            for (let l = 1 ; l < 100 ; l++) {
+                const rb = $randomBytes(l) ;
+                const su = $encodeBytesToHexa(rb, false) ;
+                const sl = $encodeBytesToHexa(rb, true) ;
+                const sbu = $uint8ArrayFromHexaString(su, false) ;
+                const sbl = $uint8ArrayFromHexaString(sl, false) ;
+                const fbu = $uint8ArrayFromHexaString(su, true) ;
+                const fbl = $uint8ArrayFromHexaString(sl, true) ;
+                t.expect(sbu, `AH${l.fpad2()}-0`).is(rb) ;
+                t.expect(sbl, `AH${l.fpad2()}-1`).is(rb) ;
+                t.expect(fbu, `AH${l.fpad2()}-2`).is(rb) ;
+                t.expect(fbl, `AH${l.fpad2()}-3`).is(rb) ;
+            }
+        }) ;
+        group.unary("$bufferFromHexaString() function", async t => {
+            for (let l = 1 ; l < 100 ; l++) {
+                const rb = $randomBytes(l) ;
+                const su = $encodeBytesToHexa(rb, false) ;
+                const sl = $encodeBytesToHexa(rb, true) ;
+                const sbu = Buffer.from(su, 'hex') ;
+                const sbl = Buffer.from(sl, 'hex') ;
+                const fbu = $bufferFromHexaString(su) ;
+                const fbl = $bufferFromHexaString(sl) ;
+                t.expect(sbu, `BH${l.fpad2()}-0`).is(rb) ;
+                t.expect(sbl, `BH${l.fpad2()}-1`).is(rb) ;
+                t.expect(fbu, `BH${l.fpad2()}-2`).is(rb) ;
+                t.expect(fbl, `BH${l.fpad2()}-3`).is(rb) ;
+            }
+        }) ;
 
-        group.unary("$uint32ArrayFromBuffer() function", async(t) => {
+        group.unary("$uint32ArrayFromUint8Array() function", async(t) => {
             const bytes = [64,65,66,67,31,38,39,37] ;
             const base = Buffer.from(bytes) ;
             const full = Buffer.from([...bytes, 1, 2, 3, 4])
@@ -93,22 +126,22 @@ export const dataGroups = [
             const refl  = [nl, [...nl, 0x00000001], [...nl, 0x00000201], [...nl, 0x00030201], [...nl, 0x04030201]] ;
 
             for (let i = 0 ; i < 5 ; i++) {
-                const A = $uint32ArrayFromBuffer(bufs[i], 'BE', true) ;
-                const B =  $uint32ArrayFromBuffer(pbufs[i], 'BE', true) ;
+                const A = $uint32ArrayFromUint8Array(bufs[i], TSEndianness.BE, true) ;
+                const B =  $uint32ArrayFromUint8Array(pbufs[i], TSEndianness.BE, true) ;
                 t.expect(A, `EBQ${i}`).is(B) ;
                 t.expect(A, `RBQ${i}`).is(refb[i]) ;
 
-                const C = $uint32ArrayFromBuffer(bufs[i], 'BE', false) ;
-                const D = $uint32ArrayFromBuffer(bufs[i]) ;
+                const C = $uint32ArrayFromUint8Array(bufs[i], TSEndianness.BE, false) ;
+                const D = $uint32ArrayFromUint8Array(bufs[i]) ;
                 t.expect(C, `BBQ${i}`).is(refb0[i]) ;
                 t.expect(C, `CBQ${i}`).is(D) ;
 
-                const X = $uint32ArrayFromBuffer(bufs[i], 'LE', true) ;
-                const Y =  $uint32ArrayFromBuffer(pbufs[i], 'LE', true) ;
+                const X = $uint32ArrayFromUint8Array(bufs[i], TSEndianness.LE, true) ;
+                const Y =  $uint32ArrayFromUint8Array(pbufs[i], TSEndianness.LE, true) ;
                 t.expect(X, `ELQ${i}`).is(Y) ;
                 t.expect(X, `RLQ${i}`).is(refl[i]) ;
 
-                const Z = $uint32ArrayFromBuffer(bufs[i], 'LE', false) ;
+                const Z = $uint32ArrayFromUint8Array(bufs[i], TSEndianness.LE, false) ;
                 t.expect(Z, `BLQ${i}`).is(refl0[i]) ;
             }
         }) ;

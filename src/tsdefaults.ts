@@ -6,7 +6,7 @@ import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
 import { $inbrowser, $logterm } from "./utils";
 import { $env } from "./env";
-import { $ascii, $ftrim } from "./strings";
+import { $ascii, $ftrim, $strictascii } from "./strings";
 import { TSError } from "./tserrors";
 import { TSCharset } from "./tscharset";
 
@@ -94,7 +94,7 @@ export class TSDefaults {
         let managedLocales = new Map<string, Locales>() ;
         TSDefaults.__locales.forEach ( loc => {
             managedLocales.set(loc.language, loc) ;
-            this._managedLanguages.forEach(l => managedLocales.set($ascii(loc.names[l]!.toLowerCase()), loc)) ;
+            this._managedLanguages.forEach(l => managedLocales.set($ascii(loc.names[l]!).toLowerCase(), loc)) ;
         }) ;
         
         this._managedLocalesMap = managedLocales ;
@@ -111,9 +111,9 @@ export class TSDefaults {
     public managedLanguages() : language[] { return [... this._managedLanguages] ; } // send a copy
     public managedLanguage(s?:Nullable<string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
-        const v = $ascii($ftrim(s).toLowerCase()) ;
+        const v = $ascii($ftrim(s)).toLowerCase() ;
         const locales = this._managedLocalesMap.get(v) ;
-        if ($ok(locales)) { return locales!.language ; }
+        if ($ok(locales)) { return locales.language ; }
         return null ;
     }
 
@@ -125,28 +125,25 @@ export class TSDefaults {
 
     public country(s:Nullable<string>) : country | null {
         if ($ok(s) && !$isstring(s)) { return null ; }
-        const v = $ascii($ftrim(s).toUpperCase()) ;
+        const v = $ascii($ftrim(s)).toUpperCase() ;
         const managedCountry = TSCountry.country(v) ;
-        if ($ok(managedCountry)) { return managedCountry!.alpha2Code ; }
-        return $valueornull(this._countriesMap.get(v)) ;
+        return $ok(managedCountry) ? managedCountry.alpha2Code : $valueornull(this._countriesMap.get(v)) ;
     }
 
     public language(s?:Nullable<TSCountry|string>) : language | null {
         if (!$ok(s)) { return this.defaultLanguage ;}
         if (s instanceof TSCountry) { return (s as TSCountry).language ; }
-        const v = $ascii($ftrim(s).toLowerCase()) ;
+        const v = $ascii($ftrim(s)).toLowerCase() ;
         const locales = this._managedLocalesMap.get(v) ;
-        if ($ok(locales)) { return locales!.language ; }
-        return $valueornull(this._languagesMap.get(v)) ;
+        return $ok(locales) ? locales.language : $valueornull(this._languagesMap.get(v)) ;
     }
 
     public currency(s?:Nullable<TSCountry|string>) : currency | null {
         if (!$ok(s)) { return this.defaultCurrency ;}
         if (s instanceof TSCountry) { return (s as TSCountry).currency ; }
-        s = $ascii($ftrim(s).toUpperCase()) ;
+        s = $ascii($ftrim(s)).toUpperCase() ;
         const c = TSCountry.country(s) ;
-        if ($ok(c)) { return c!.currency ; }
-        return $valueornull(this._currenciesMap.get(s)) ;
+        return $ok(c) ? c.currency : $valueornull(this._currenciesMap.get(s)) ;
     }
 
     public addLocalizations(lang:language, loc:StringDictionary) {
@@ -165,15 +162,15 @@ export class TSDefaults {
         if (locale instanceof TSCountry) {
             return this._localizations[locale.language!] || {} ;
         }
-        locale = $ftrim(locale) ;
-        if (locale.length) {
-            const lang = this.language(locale as string) ;
-            if ($ok(lang)) { return this._localizations[lang!] || {} ; }
+        const loc = $ftrim(locale) ;
+        if (loc.length) {
+            const lang = this.language(loc) ;
+            if ($ok(lang)) { return this._localizations[lang] || {} ; }
 
             // here we may have a country
-            const c = TSCountry.country(locale) ;
+            const c = TSCountry.country(loc) ;
             if ($ok(c)) {
-                return this._localizations[c!.language] || {} ;
+                return this._localizations[c.language] || {} ;
             }
         }
         return {}
@@ -181,14 +178,14 @@ export class TSDefaults {
 
     public locales(locale?:Nullable<language|country|TSCountry|string>):Locales {
         if (locale instanceof TSCountry) { return locale.locales ; }
-        locale = $ascii($ftrim(locale)) ;
-        if (locale.length) {
-            const locales = this._managedLocalesMap.get((locale as string).toLowerCase()) ;
-            if ($ok(locales)) { return locales! ; }
+        locale = $strictascii($ftrim(locale)) ;
+        if ($length(locale) > 0) {
+            const locales = this._managedLocalesMap.get(locale!.toLowerCase()) ;
+            if ($ok(locales)) { return locales ; }
 
             // here we may have a country
             const c = TSCountry.country(locale) ;
-            if ($ok(c)) { return c!.locales ; }
+            if ($ok(c)) { return c.locales ; }
         }
         return this._managedLocalesMap.get(this.defaultLanguage)! ;
     }

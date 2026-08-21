@@ -35,23 +35,23 @@ export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<
         switch (opts.unicity) { 
             case TSUnicity.None: {
                 let index = 0;
-                for (let v of values!) {
+                for (let v of values) {
                     const mv = fn(v, index);
-                    if ($ok(mv)) { ret.push(mv!); }
+                    if ($ok(mv)) { ret.push(mv); }
                     index++;
                 }
                 break ;
             }
             case TSUnicity.Objects:
-                _mapEquality(ret, values!, fn, (_:R[]) => false)
+                _mapEquality(ret, values, fn, (_:R[]) => false)
                 break ;
 
             case TSUnicity.Equality:
-                _mapEquality(ret, values!, fn, (src:R[], o?:Nullable<R>) => $includesequal(src, o))
+                _mapEquality(ret, values, fn, (src:R[], o?:Nullable<R>) => $includesequal(src, o))
                 break ;
 
             case TSUnicity.Visual:
-                _mapEquality(ret, values!, fn, (src:R[], o?:Nullable<R>) => $includesvisual(src, o))
+                _mapEquality(ret, values, fn, (src:R[], o?:Nullable<R>) => $includesvisual(src, o))
                 break ;
         }
     }
@@ -63,9 +63,9 @@ export function $arrayset<T, R = T>(values: Nullable<Iterable<T>>, callback?:Nul
     const ret = new Set<R>() ;
     if ($ok(values)) {
         let index = 0 ;
-        for (let v of values!) {
+        for (let v of values) {
             const mv = callback!(v, index++) ;
-            if ($ok(mv)) { ret.add(mv!) ; }
+            if ($ok(mv)) { ret.add(mv) ; }
         }
     }
     return ret ;
@@ -76,14 +76,14 @@ export { $arrayset as $mapset }
 
 export function $includesequal<T = any>(values: Nullable<Iterable<T>>, object:any): boolean {
     if ($ok(values)) {
-        for (let v of values!) { if ($equal(object, v)) return true ; }
+        for (let v of values) { if ($equal(object, v)) return true ; }
     }
     return false ;
 }
 
 export function $includesvisual<T = any>(values: Nullable<Iterable<T>>, object:any): boolean {
     if ($ok(values)) {
-        for (let v of values!) { if ($visualequal(object, v)) return true ; }
+        for (let v of values) { if ($visualequal(object, v)) return true ; }
     }
     return false ;
 }
@@ -122,7 +122,7 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
     if (opts.countsOnlyOKItems) { count = okCount; }
     else if (opts.countsOnlyDefinedItems) { count = definedCount; }
 
-    return $defined(sum) && count > 0 ? sum! / count : undefined;
+    return $defined(sum) && count > 0 ? sum / count : undefined;
 }
 
 declare global {
@@ -171,9 +171,9 @@ function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>
     let index = 0;
     for (let v of values!) {
         const mv = fn(v, index++);
-        if ($ok(mv) && !set.has(mv!) && !includesFn(target, mv)) { 
-            target.push(mv!) ; 
-            set.add(mv!) ;
+        if ($ok(mv) && !set.has(mv) && !includesFn(target, mv)) { 
+            target.push(mv) ; 
+            set.add(mv) ;
         }
     }
 }
@@ -187,7 +187,7 @@ function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number,
     let definedCount = 0 ;
     let totalCount = 0 ;
     if ($ok(values)) {
-        for (let v of values!) {
+        for (let v of values) {
             if ($defined(v)) {
                 if (v !== null) {
                     if ($defined(sum)) {
@@ -218,7 +218,7 @@ function _minmax<T>(values:Nullable<Iterable<T>>, compValue:Comparison):T|undefi
 {
     let ret:undefined|T = undefined ;
     if ($ok(values)) {
-        for (let v of values!) { 
+        for (let v of values) { 
             if (!$ok(v)) { return undefined ; }
             else if (!$ok(ret)) { ret = v ; }
             else { 

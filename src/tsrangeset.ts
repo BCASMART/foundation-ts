@@ -18,7 +18,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 			}
             if (!$isarray(v)) {
                 if ($isnumber(v)) {
-                    v = [new TSRange(v as number, 1)] ;
+                    v = [new TSRange(v, 1)] ;
                 }
                 else if ((v instanceof TSRange) || $comformsToInterval(v)) {
                     v = [v as trrs] ;
@@ -30,7 +30,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
             let tmp:TSRange[] = [] ;
             if ($count(u) === 2 && $isnumber(u[0]) && $isnumber(u[1])) {
                 const r = TSRange.fromArray(u as Array<number>) ;
-                if ($ok(r)) { u = [r!] ; }
+                if ($ok(r)) { u = [r] ; }
                 else { TSError.throw('TSRangeSet.constructor(): invalid range as array parameter', { parameter:v}) ; }
             }
 
@@ -157,7 +157,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		if (!this.hasSignificantRange) return false ;
 		if (typeof v === 'number') { return this.contains(new TSRange(v, 1)) ; }
         else if ($isarray(v)) {
-            const rs = TSRange.fromArray(v as number[]) ;
+            const rs = TSRange.fromArray(v) ;
             if (!$ok(rs) || !rs?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.contains(): invalid range array parameter', { parameter:v}) ;
             }
@@ -185,7 +185,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		if (!this.hasSignificantRange) return false ;
 		if (typeof v === 'number') { return this.intersects(new TSRange(v, 1)) ; }
         else if ($isarray(v)) {
-            const rs = TSRange.fromArray(v as number[]) ;
+            const rs = TSRange.fromArray(v) ;
             if (!$ok(rs) || !rs?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.intersects(): invalid range array parameter', { parameter:v}) ;
             }
@@ -213,7 +213,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	public unionWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._addRange(new TSRange(v, 1)) ; }
         else if ($isarray(v)) {
-            const r = TSRange.fromArray(v as number[]) ;
+            const r = TSRange.fromArray(v) ;
             if (!$ok(r) || !r?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.unionWidth(): invalid range array parameter', { parameter:v}) ;
             }
@@ -242,7 +242,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	public substractFrom(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._removeRange(new TSRange(v, 1)) ; }
         else if ($isarray(v)) {
-            const r = TSRange.fromArray(v as number[]) ;
+            const r = TSRange.fromArray(v) ;
             if (!$ok(r) || !r?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.substractFrom(): invalid range array parameter', { parameter:v}) ;
             }
@@ -271,7 +271,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	public intersectWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
 		if (typeof v === 'number') { this._intersectRange(new TSRange(v, 1)) ; }
         else if ($isarray(v)) {
-            const r = TSRange.fromArray(v as number[]) ;
+            const r = TSRange.fromArray(v) ;
             if (!$ok(r) || !r?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.intersectWidth(): invalid range array parameter', { parameter:v}) ;
             }
@@ -320,11 +320,11 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 			if (!$ok(v)) {
                 TSError.throw('TSRangeSet.complement(): call with no parameter on an empty range set', { parameter:v}) ;
             }
-			return new TSRangeSet(v!) ;
+			return new TSRangeSet(v) ;
 		}
 		if (!$ok(v)) { v = this.range ; }
         else if ($isarray(v)) {
-            const r = TSRange.fromArray(v as number[]) ;
+            const r = TSRange.fromArray(v) ;
             if (!$ok(r) || !r?.hasSignificantRange) {
                 TSError.throw('TSRangeSet.complement(): invalid range array parameter', { parameter:v}) ;
             }

@@ -1,7 +1,7 @@
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
 import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned, $ismethod } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
-import { $timeout } from './utils';
+import { $jsonparse, $timeout } from './utils';
 import { $ftrim } from './strings';
 import { $encodeBase64 } from './data';
 import { TSData } from './tsdata';
@@ -24,7 +24,7 @@ export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEn
 export function $barerauth(base64StringOrData:string|TSDataLike) : string
 {
     // there's no charset in bareauth. Tokens are considered as ASCII strings
-    const tok = $isstring(base64StringOrData) ? base64StringOrData as string : $encodeBase64(base64StringOrData as TSDataLike) ;
+    const tok = $isstring(base64StringOrData) ? base64StringOrData : $encodeBase64(base64StringOrData) ;
 	return `Bearer ${tok}` ;
 }
 
@@ -144,6 +144,7 @@ export enum Verb {
 
 export enum RespType {
 	Json = 'json',
+    OptionalJson = 'json?',
 	Buffer = 'arraybuffer',
 	String = 'text',
 	Stream = 'stream'
@@ -231,7 +232,7 @@ export class TSRequest {
 		}
 	}
 
-    // if you pass as string it's a base64string. If you pass a data, it is converted to base64
+    // if you pass a string it's a base64string. If you pass a data, it is converted to base64
 	public setToken(token?:Nullable<string|TSDataLike>) {
 		if ($length(token)) {
 			token = $barerauth(token!) ;
@@ -331,7 +332,7 @@ export class TSRequest {
         }
 
 
-        if ($ok(timeout) && timeout! < 0) { 
+        if ($ok(timeout) && timeout < 0) { 
             TSError.throw('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
                 relativeURL:relativeURL, 
                 method:method, 
@@ -355,7 +356,7 @@ export class TSRequest {
 		try {
 			const resp = await $timeout(fetch(finalURL!, config), timeout, timeoutError) ;
             if ($ok(resp)) {
-                const response:Response = resp! ;
+                const response:Response = resp ;
                 status = response.status ;
                 headers = response.headers ;
                 // wa don't catch conversion errors because they should not occur and
@@ -365,8 +366,14 @@ export class TSRequest {
                     case RespType.Buffer:
                         ret = Buffer.from(await response.arrayBuffer()) ;
                         break ;
+                    case RespType.OptionalJson:
+                        const text = $ftrim(await response.text());
+                        // here we consider that an empty body, meaning no body or a body with only whitespaces, 
+                        // is a valid response and we return null in that case
+                        ret = text.length ? $jsonparse(text) : null ;
+                        break ;
                     case RespType.Json:
-                        ret = await response.json() ;
+                        ret = await response.json() ;                        
                         break ;
                     case RespType.Stream:
                         ret = response.body ;
@@ -383,10 +390,10 @@ export class TSRequest {
 				status = Resp.TimeOut ;
             }
 			else if ($isnumber(e?.statusCode)) {
-				status = e!.statusCode as number ;
+				status = e.statusCode ;
 			}
 			else if ($isnumber(e?.status)) {
-				status = e!.status as number ;
+				status = e.status ;
 			}
 			else {
                 let code = (((e as TypeError)?.cause) as any)?.code ;
@@ -467,7 +474,7 @@ function _standardHeaders(headers:Nullable<TSRequestHeaders>):TSRequestHeaders {
     const entries = $ok(headers) ? Object.entries(headers!) : [] ;
     const ret:TSRequestHeaders = {} ;
     for (let [key, value] of entries) {
-        ret[key.capitalize()] = $isarray(value) ? $map(value as string[], i => `${i}`) : `${value}` ;
+        ret[key.capitalize()] = $isarray(value) ? $map(value, i => `${i}`) : `${value}` ;
     }
     return ret ;
 }

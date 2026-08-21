@@ -1,3 +1,4 @@
+import { $map } from "./array";
 import { $count, $defined, $isstring, $length, $ok, $value } from "./commons";
 import { $random } from "./crypto";
 import { $ascii, $normspaces } from "./strings";
@@ -13,25 +14,40 @@ import { Ascending, Comparison, Descending, language, Nullable, Same } from "./t
  */
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
-export interface PhonePlanInfo {
+export interface PhonePlanCommons {
     dialCode:string;
     trunkCode:string ;
+    minDigits:number ;
+    maxDigits:number ;
     areaCodes?:string[];
-    minDigits?:number ;
-    maxDigits?:number ;
     format?:string ;
     dummies?:string[] ;
+} ;
+
+export interface PhonePlanInfo extends PhonePlanCommons {
+    mobileRegex?:string ;
+    fixedLineRegex?:string ;
+    regex?:string ;
+    note?:string ;
 }
 
-export type PhonePlan = Required<PhonePlanInfo> ;
+export interface PhonePlan extends Required<PhonePlanCommons> {
+    mobileRegex?:RegExp ;
+    fixedLineRegex?:RegExp ;
+    regex?:RegExp ;
+} ;
+
+
+// export type PhonePlan = Required<PhonePlanInfo> ;
 
 export enum PhoneValidity {
-    OK,
-    WrongLength,
-    MalformedNumber,
-    BadCountryNumber,
-    CountryNotFound,
-    MixedCountries
+    OK = 'OK',
+    WrongLength = 'Wrong length',
+    MalformedNumber = 'Malformed number',
+    MissingTrunkCode = 'Missing trunk code',
+    BadCountryNumber = 'Bad country dial code',
+    CountryNotFound = 'Country was not found',
+    MixedCountries = 'Several countries found'
 } ;
 
 
@@ -40,18 +56,18 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
     // the common static method to instantiate a new TSPhoneNumber object
     static fromString(source:Nullable<string>, telcountry?:Nullable<TSCountry>):TSPhoneNumber|null {
         // for now we discard the encountered error
-        const [phoneNumber, phoneCountry, validity] = _phoneFromString(source, telcountry) ;
-        return validity === PhoneValidity.OK ? new TSPhoneNumber(phoneNumber!, phoneCountry!) : null ;
+        const [phoneNumber, phoneCountry, validity, isMobile,] = $phoneFromString(source, telcountry) ;
+        return validity === PhoneValidity.OK ? new TSPhoneNumber(phoneNumber!, phoneCountry!, isMobile) : null ;
     }
 
     // use this static method if you want to know why your phone number is wrong
     static interpret(source:Nullable<string>, telcountry?:Nullable<TSCountry>):TSPhoneNumber|PhoneValidity {
-        const [phoneNumber, phoneCountry, validity] = _phoneFromString(source, telcountry) ;
-        return validity === PhoneValidity.OK ? new TSPhoneNumber(phoneNumber!, phoneCountry!) : validity ;
+        const [phoneNumber, phoneCountry, validity, isMobile,] = $phoneFromString(source, telcountry) ;
+        return validity === PhoneValidity.OK ? new TSPhoneNumber(phoneNumber!, phoneCountry!, isMobile) : validity ;
     }
 
     static validity(source:Nullable<string>, telcountry?:Nullable<TSCountry>):PhoneValidity {
-        const [,,validity] = _phoneFromString(source, telcountry) ; 
+        const [,,validity,,] = $phoneFromString(source, telcountry) ; 
         return validity ;
     }
 
@@ -70,13 +86,15 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
                     s += ref[$random(10)] ;
                     s += parts[i] ;
                 }
-                return new TSPhoneNumber(s, country) ;
+                return this.fromString(s, country) ;
             }
         }
         return null ;
     }
-
-    private constructor(public readonly number:string, public readonly country:TSCountry) {}
+    private _isMobile:boolean|undefined = undefined ;
+    public constructor(public readonly number:string, public readonly country:TSCountry, isMobile?:boolean|undefined) {
+        this._isMobile = isMobile ;
+    }
 
     public get dialCode() { return this.country.phonePlan.dialCode ; }
     public get standardNumber():string {  return this._standardNumber() ; }
@@ -84,6 +102,10 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
     public get alpha2Code():string    { return this.country.alpha2Code ; }
     public get alpha3Code():string    { return this.country.alpha3Code ; }
     public get trunkCode():string    { return this.country.phonePlan.trunkCode ; }
+
+    public get isMobileNumber():boolean { return !!this._isMobile ; }
+    public get isLandLineNumber():boolean { return $defined(this._isMobile) ? !this._isMobile : false ; } 
+    public get isUndeterminedNumber():boolean { return !$defined(this._isMobile) ; }
 
     public clone():TSPhoneNumber { return this ; } // no clone for immutable objects
 
@@ -218,11 +240,13 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
 }
 
 // private  functions
-function _phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountry>):[string|null, TSCountry|null, PhoneValidity] {
-    let s =  $ascii($normspaces(source, { replacer:"", strict:true })) ; // remove all spaces (except new lines) and make the string ASCII
+export function $phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountry>):[string|null, TSCountry|null, PhoneValidity, boolean|undefined, number|undefined] {
+    const ascii =  $ascii($normspaces(source, { replacer:"", strict:true })) ; // remove all spaces (except new lines) and make the string ASCII
+    if (!$ok(ascii)) { return [ascii, null, PhoneValidity.MalformedNumber, false, 0] ; }
+    let s = ascii ;
     let len = s.length ;
     let min = 5 ;
-    
+
     if (s.startsWith('(')) {
         // here if we have something like :
         // (+XXX)nnnn or (00XXX)nnnn or (00<separator>XXX)nnnn 
@@ -231,13 +255,13 @@ function _phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountr
         if (s.slice(1,2) === '+') { s = '+('+s.slice(2) ; }
         else if (s.slice(1,3) === '00') {
             s = s.slice(3) ;
-            if (s.length < 2) { return [null, null, PhoneValidity.MalformedNumber] } ;
+            if (s.length < 2) { return [s, null, PhoneValidity.MalformedNumber, undefined, 1] } ;
             s = '+('+ (_isPhoneSeparator(s[0]) ? s.slice(1) : s) ;
         }
         len = s.length ;
         min += 2 ; // me must have the room for 2 parentheses
     }
-    if (len < min) { return [null, null, PhoneValidity.WrongLength] ; }
+    if (len < min) { return [s, null, PhoneValidity.WrongLength, undefined, 2] ; }
 
     // enougth room to have +Xnnnn or +XXXnn or +(X)nnnn or +(XXX)nn
     let start = 0 ;
@@ -249,53 +273,76 @@ function _phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountr
         // search for dialcode
         start = s[0] === '+' ? 1 : 2 ;
         const ds = _removeSeparators(s.slice(start)) ;
-        if (!$ok(ds)) { return [null, null, PhoneValidity.MalformedNumber] ; }
-        s = ds! ;
+        if (!$ok(ds)) { return [s, null, PhoneValidity.MalformedNumber, undefined, 3] ; }
+        s = ds ;
         len = s.length ;
-        if (len < 5) { return [null, null, PhoneValidity.WrongLength] ; } // enougth to have XXXnn or Xnnnn
+        if (len < 5) { return [s, null, PhoneValidity.WrongLength, undefined, 4] ; } // enougth to have XXXnn or Xnnnn
         [dialCode, countries] = _findDialCode(s) ;
         start = dialCode.length ;
-        if (!start || !countries.length) { return [null, null, PhoneValidity.CountryNotFound] ; }
-        if ($ok(telcountry) && !countries.includes(telcountry!)) { return [null, null, PhoneValidity.BadCountryNumber] ; }
-        else if ($ok(telcountry)) { countries = [telcountry!] ; }
+        if (!start || !countries.length) { return [s, null, PhoneValidity.CountryNotFound, undefined, 5] ; }
+        if ($ok(telcountry)) {
+            if (!countries.includes(telcountry)) { return [s, null, PhoneValidity.BadCountryNumber, undefined, 6] ; }
+            countries = [telcountry] ;
+        }
     }
     else {
         const defaultCountry = $value(telcountry, TSDefaults.defaults().defaultCountry) ;
+        const t = defaultCountry.phonePlan.trunkCode ;
         dialCode = defaultCountry.phonePlan.dialCode ;
         countries = [defaultCountry] ;
         localNumber = true ;
+        if (!s.startsWith(t)) {
+            return [s, defaultCountry, PhoneValidity.MissingTrunkCode, undefined, 7] ;
+        }
     }
     s = s.slice(start) ;
     len = s.length ;
-    countries = countries.filter(c => {
+    const presumedCountry = $count(countries) === 1 ? countries[0] : null ;
+    //const pci = $ok(presumedCountry) ? presumedCountry.alpha2Code : '<unknown>' ;
+    let acceptableCountries = $map(countries, c => {
         const p = c.phonePlan ;
-        let minDigits = p.minDigits ;
-        let maxDigits = p.maxDigits ;
-        if (!localNumber) {
-            const t = p.trunkCode ;
-            const tlen = $length(t) ;
-            if (tlen > 0 && !s.startsWith(t)) {
-                minDigits -= tlen ;
-                maxDigits -= tlen ;
+        const t = p.trunkCode ;
+        const tlen = $length(t) ;
+        let str = tlen > 0 && s.startsWith(t) ? s.slice(tlen) : s ;
+        let strlen = str.length ;
+        if (strlen >= p.minDigits && strlen <= p.maxDigits) {
+            const mobile = $ok(p.mobileRegex) && p.mobileRegex.test(str) ;
+            const landline = $ok(p.fixedLineRegex) && p.fixedLineRegex.test(str) ;
+            if (!mobile && !landline) {
+                if ($ok(p.regex) && p.regex.test(str)) { return { country:c, isMobile:undefined } ; }            
             }
+            else if (mobile && landline) {
+                return { country:c, isMobile:undefined } ;
+            }
+            else if (mobile) {
+                return { country:c, isMobile:true } ;
+            }
+            else if (landline) {
+                return { country:c, isMobile:false } ;
+            }
+            //$logterm(`\n ${pci} ${localNumber?'local ':''}number ${str} length = ${strlen}, did not match any regex`) ;
         }
-        return len >= minDigits && len <= maxDigits ;
+        else {
+            //$logterm(`\n ${pci} ${localNumber?'local ':''}number ${str} length = ${strlen}, min = ${p.minDigits}, max = ${p.maxDigits}`)
+        }
+        return null ;
     }) ;
-    if (!countries.length) { return [null, null, PhoneValidity.WrongLength] ; }
+    if (!acceptableCountries.length) { return [s, presumedCountry, PhoneValidity.CountryNotFound, undefined, 8] ; }
 
-    const countriesWithValidAreaCodes = countries.filter(c => _numberInAreaCodes(s, c)) ;
-    countries = countriesWithValidAreaCodes.length > 0 ? countriesWithValidAreaCodes : countries.filter(c => c.phonePlan.areaCodes.length === 0) ;
-    if (!countries.length) { return [null, null, PhoneValidity.CountryNotFound] ; }
+    const countriesWithValidAreaCodes = acceptableCountries.filter(n => _numberInAreaCodes(s, n.country)) ;
+    acceptableCountries = countriesWithValidAreaCodes.length > 0 ? countriesWithValidAreaCodes : acceptableCountries.filter(n => n.country.phonePlan.areaCodes.length === 0) ;
+    if (!acceptableCountries.length) { return [s, presumedCountry, PhoneValidity.CountryNotFound, undefined, 9] ; }
 
-    const c = countries[0] ;
+    const c = acceptableCountries[0].country ;
+    const isMobile = acceptableCountries[0].isMobile ;
     const t = c.phonePlan.trunkCode ; 
     if (!localNumber && t.length > 0 && !s.startsWith(t)) { s = t + s ;}
 
-    if (countries.length > 1) { return [s, null, PhoneValidity.MixedCountries] ; }
+    if (acceptableCountries.length > 1) { return [s, null, PhoneValidity.MixedCountries, isMobile, 10] ; }
 
-    if ($ok(telcountry) && c !== telcountry) { return [s, c, PhoneValidity.BadCountryNumber] ; }
+    if ($ok(telcountry) && c !== telcountry) { return [s, c, PhoneValidity.BadCountryNumber, isMobile, 11] ; }
 
-    return [s, c, PhoneValidity.OK] ;
+    return [s, c, PhoneValidity.OK, isMobile, undefined] ;
 }
 
 function _numberInAreaCodes(s:string, c:TSCountry):boolean {

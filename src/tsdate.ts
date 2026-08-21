@@ -106,7 +106,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
                         return ;
                     }
                     else {
-                        comps = $isostring2components(t as string) ; 
+                        comps = $isostring2components(t) ; 
                     } 
                 }
 				else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
@@ -151,17 +151,17 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         if (date === TSDate.FUTURE || date === TSDate.PAST || date === Number.POSITIVE_INFINITY || date === Number.NEGATIVE_INFINITY) { 
             return new TSDate(date as any) ;
         }
-        if ($isnumber(date)) { return this.fromTimeStamp(date as number) ; }
-        if (date instanceof Date) { return this.fromDate(date as Date) ; }
-        return this.fromIsoString(date as string) ;
+        if ($isnumber(date)) { return this.fromTimeStamp(date) ; }
+        if (date instanceof Date) { return this.fromDate(date) ; }
+        return this.fromIsoString(date) ;
     }
 
     public static fromTimeStamp(t:Nullable<number>) : TSDate | null {
-        return $isnumber(t) ? new TSDate(t!) : null ;
+        return $isnumber(t) ? new TSDate(t) : null ;
     }
 
     public static fromDate(d:Nullable<Date>) : TSDate | null {
-        return $ok(d) ? new TSDate(d!) : null ;
+        return $ok(d) ? new TSDate(d) : null ;
     }
     
     // usage TSDate.fromComponents(myComponents)
@@ -349,10 +349,10 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         }
 
         if ($isstring(format)) {
-            return $value($components2stringformat($components(this._timestamp+offset), format as string, locale), '') ;
+            return $value($components2stringformat($components(this._timestamp+offset), format, locale), '') ;
         }
         if (!$ok(format)) { format = TSDateForm.Standard ; }
-        return $components2string($components(this._timestamp + offset), format as TSDateForm) ; 
+        return $components2string($components(this._timestamp + offset), format) ; 
     }
 }
 

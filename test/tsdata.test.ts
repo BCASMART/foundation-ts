@@ -1,9 +1,11 @@
 
+import { $random, $randomBytes } from '../src/crypto';
 import { $arrayBufferFromBytes, $bufferFromArrayBuffer } from '../src/data';
 import { FoundationBinaryNewLines, FoundationBinaryWhiteSpaces, FoundationBynaryStrictWhiteSpaces } from '../src/string_tables';
 import { TSData } from '../src/tsdata';
 import { TSTest } from '../src/tstester';
 import { Same, uint8 } from '../src/types';
+import { $hexadump } from '../src/utils';
 
 export const mutableDataGroups = [
     TSTest.group("Testing TSData", async (group) => {
@@ -183,6 +185,72 @@ export const mutableDataGroups = [
         }) ;
     }),
 
+    TSTest.group("Testing data writing and reading", async (group) => {
+        const N = 50 ;
+        group.unary('BE appending and reading', async(t) => {
+            const dataList:Uint8Array[] = []
+            const data:TSData = new TSData() ;
+            let total = 0 ;
+            //console.log('------------------------------') ;
+            for (let i = 0 ; i < N ; i++) {
+                const length = $random(1022)+2 ;
+                //console.log(i,':', length) ;
+                const source = $randomBytes(length) ;
+                //console.log('+') ;
+                dataList[i] = source ;
+                data.appendUInt32BE(length) ;
+                total += 4 ;
+                if (!t.expect(data.length, 'ulen'+i).is(total)) { 
+                    $hexadump(source) ;
+                    //console.log('=====================') ;
+                    $hexadump(data) ;
+                    break ; 
+                }
+                //console.log('++') ;
+                data.appendData(source) ;
+                total += length ;
+                //console.log('+++', total) ;
+                if (!t.expect(data.length, 'tlen'+i).is(total)) { break ; }
+            }
+            //console.log('------------------------------1') ;
+            if (t.expect0(data.length).is(total)) {
+                /*let pos = 0 ;
+                for (let i = 0 ; i < N ; i++) {
+                    const len = data.readUInt32BE(pos) ; pos += 4 ;
+                    const original = dataList[i] ;   
+                    if (!t.expect(len,'bel'+i).is(original.length)) { break ; }
+                    const buf = data.uint8ArraySlice(pos, pos+len) ;
+                    if (!t.expect(buf,'beb'+i).is(dataList[i])) { break ; }
+                    pos += len ;
+                }*/
+            }
+        }) ;
+        /*group.unary('LE appending and reading', async(t) => {
+            const dataList:Uint8Array[] = []
+            const data:TSData = new TSData() ;
+            let total = 0 ;
+            for (let i = 0 ; i < N ; i++) {
+                const length = $random(1024) ;
+                const source = $randomBytes(length) ;
+                dataList[i] = source ;
+                data.appendUInt32LE(source.length) ;
+                total += 4 ;
+                data.appendData(source) ;
+                total += source.length ;
+            }
+            if (t.expect0(data.length).is(total)) {
+                let pos = 0 ;
+                for (let i = 0 ; i < N ; i++) {
+                    const len = data.readUInt32LE(pos) ; pos += 4 ;
+                    const original = dataList[i] ;   
+                    if (!t.expect(len,'lel'+i).is(original.length)) { break ; }
+                    const buf = data.uint8ArraySlice(pos, pos+len) ;
+                    if (!t.expect(buf,'leb'+i).is(dataList[i])) { break ; }
+                    pos += len ;
+                }
+            }
+        }) ;*/
+    }), 
     TSTest.group("Testing data manipulations functions", async (group) => {
         group.unary('$bufferFromArrayBuffer() and $arrayBufferFromBytes() functions', async(t) => {
             const a = new ArrayBuffer(4);

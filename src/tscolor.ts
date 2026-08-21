@@ -71,10 +71,10 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if (!s.length) { return null ; }
 
         let color = TSColor._cachedRGBColor(s) ;
-        if ($defined(color)) { return color! ;}
+        if ($defined(color)) { return color ;}
         const [channels, alpha] = TSColor._parseHexColorString(s) ;
         if ($ok(channels)) {
-            color = new TSColor(TSColorSpace.RGB, channels!, alpha) ;
+            color = new TSColor(TSColorSpace.RGB, channels, alpha) ;
             TSColor._cacheRGBColor(color) ;
             return color ;
         }
@@ -87,11 +87,11 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public static rgb():TSColor {
         if (arguments.length === 1) {
             if ($isstring(arguments[0])) {
-                const fsc = TSColor.fromString(arguments[0] as string) ;
-                if ($ok(fsc)) { return fsc! ;}
+                const fsc = TSColor.fromString(arguments[0]) ;
+                if ($ok(fsc)) { return fsc ;}
             }
             else if ($isunsigned(arguments[0], UINT32_MAX)) {
-                const v = arguments[0] as number;
+                const v = arguments[0] ;
                 // by calling the static methods, the color will be cached.
                 return TSColor.rgb((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 0xff - ((v >> 24) & 0xff)) ;
             }
@@ -103,9 +103,9 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             const B = arguments[2] ;
             const A = arguments.length === 4 ? arguments[3] : 0xFF ;
             if ($isunsigned(R, 0xff) && $isunsigned(G, 0xff) && $isunsigned(B, 0xff) && $isunsigned(A, 0xff)) {
-                const s = _colorToStandardCSS(R,G,B,A) ;
+                const s = _colorToStandardCSS(R as uint8,G as uint8,B as uint8, A as uint8) ;
                 let color = TSColor._cachedRGBColor(s) ;
-                if ($defined(color)) { return color! ;}
+                if ($defined(color)) { return color ;}
                 color = new TSColor(TSColorSpace.RGB, [R,G,B], A) ;
                 TSColor._cacheRGBColor(color) ;
                 return color ;
@@ -688,22 +688,21 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     ] ;
 
     private static _cacheRGBColor(c:TSColor) {
-        if ($ok(c) && $defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache!.size + 7 < TSColor.__colorCacheMaxSize) {
+        if ($ok(c) && $defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache.size + 7 < TSColor.__colorCacheMaxSize) {
             const [R, G, B] = c.rgb() ;
             const s = _colorToStandardCSS(R,G,B, c.alpha) ;
             const l = $length(c.name) ;
-            if ((l > 0 && !TSColor.__colorsCache!.has(c.name)) || (l === 0 && !TSColor.__colorsCache!.has(s))) {
-//            if (!TSColor.__colorsCache!.has(s) && (!c.name.length || !TSColor.__colorsCache!.has(c.name))) {
-                if (l > 0) { TSColor.__colorsCache!.set(c.name, c) ; }
-                TSColor.__colorsCache!.set(s, c) ;
-                TSColor.__colorsCache!.set(s.slice(1), c) ;
+            if ((l > 0 && !TSColor.__colorsCache.has(c.name)) || (l === 0 && !TSColor.__colorsCache.has(s))) {
+                if (l > 0) { TSColor.__colorsCache.set(c.name, c) ; }
+                TSColor.__colorsCache.set(s, c) ;
+                TSColor.__colorsCache.set(s.slice(1), c) ;
                 if (c.alpha === 0xff) {
-                    TSColor.__colorsCache!.set(s.slice(0,7), c) ;
-                    TSColor.__colorsCache!.set(s.slice(1,7), c) ;
+                    TSColor.__colorsCache.set(s.slice(0,7), c) ;
+                    TSColor.__colorsCache.set(s.slice(1,7), c) ;
                     if (_isShortRGB(R,G,B)) {
                         const short = _colorToShortCSS(R,G,B) ;
-                        TSColor.__colorsCache!.set(short, c) ; 
-                        TSColor.__colorsCache!.set(short.slice(1), c) ;
+                        TSColor.__colorsCache.set(short, c) ; 
+                        TSColor.__colorsCache.set(short.slice(1), c) ;
                     }
                 }
             }
@@ -716,12 +715,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             for (let name of $keys(TSColor.__TSWebColorNames)) {
                 const [channels, alpha] = TSColor._parseHexColorString(TSColor.__TSWebColorNames[name]) ;
                 if ($ok(channels)) {
-                    const c = new TSColor(TSColorSpace.RGB, channels!, alpha, name as string) ;
+                    const c = new TSColor(TSColorSpace.RGB, channels, alpha, name as string) ;
                     TSColor._cacheRGBColor(c) ;
                 }
             } ;
         }
-        return TSColor.__colorsCache!.get(c) ;
+        return TSColor.__colorsCache.get(c) ;
     }
 
 
@@ -730,18 +729,18 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if (len < 10) {
             let parser = TSColor.__WebColorsHexParsers[len];
             if ($ok(parser)) {
-                const m = s.match(parser!.rx) ;
+                const m = s.match(parser.rx) ;
                 if ($ok(m)) {
                     let channels:uint8[] = [] ;
                     for (let i = 0 ; i < 3 ; i++) { 
-                        const v = parseInt(m![i+1], 16) ;
+                        const v = parseInt(m[i+1], 16) ;
                         if (!$isunsigned(v,0xFF)) { return [null, UINT8_MIN] ; }
                         channels[i] = <uint8>v ; 
                     }
-                    if (parser!.short) {
+                    if (parser.short) {
                         channels = channels.map(v => ((v<<4) | v) as uint8)
                     }
-                    let alpha = m!.length === 5 ? <uint8>parseInt(m![4], 16) : UINT8_MAX ;
+                    let alpha = m.length === 5 ? <uint8>parseInt(m[4], 16) : UINT8_MAX ;
                     return [channels, alpha] ;
                 }
             }

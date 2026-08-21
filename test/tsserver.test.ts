@@ -7,7 +7,7 @@ import { $UUID, $keys, $length, $string } from "../src/commons";
 import { TSTest } from '../src/tstester';
 import { $absolute, $path, $readBuffer } from "../src/fs";
 import { Languages, TSDictionary, uint16 } from "../src/types";
-import { $inbrowser, $readStreamBuffer } from "../src/utils";
+import { $inbrowser, $jsonparse, $readStreamBuffer } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
 import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
@@ -182,7 +182,7 @@ if (!$inbrowser()) {
             }
             else {
                 console.log("Did encouter error "+resp.status) ;
-                console.log("Error:", JSON.parse(resp.response!.toString())) ;
+                console.log("Error:", $jsonparse(resp.response!.toString())) ;
             }
             const stopped = await TSServer.stop() ;
             t.expectZ(stopped).undef() ;   

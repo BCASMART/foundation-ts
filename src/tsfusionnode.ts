@@ -88,7 +88,7 @@ export class TSFusionTreeNode {
         }
         if (!$ok(this.nodes)) { this.nodes = [] ; }
         let node = new TSFusionTreeNode(type, name, this) ;
-        if ($ok(contextType)) { node.contextType = contextType! ;}
+        if ($ok(contextType)) { node.contextType = contextType ;}
         if ($count(parameters)) { node.parameters = parameters ; }
         node._pathCache = name.split('.') ;
         this.nodes!.push(node) ;
@@ -107,7 +107,7 @@ export class TSFusionTreeNode {
             
             function _addGlobalFunctions(functions:Nullable<TSDictionary<Function>>) {
                 if ($ok(functions)) {
-                    for (let [name, fn] of Object.entries(functions!)) {
+                    for (let [name, fn] of Object.entries(functions)) {
                         if (!$ok(globalContext[name])) { globalContext[name] = fn ; }
                     }    
                 }
@@ -171,7 +171,7 @@ export class TSFusionTreeNode {
         }
         catch (e) {
             if ($ok(options.errors)) {
-                options.errors!.push('Fusion did encounter error:') ;
+                options.errors.push('Fusion did encounter error:') ;
                 $lines($inspect(e)).forEach(l => options.errors?.push(l)) ;
                 options.errors!.push('STACK:') ;
                 $lines((e as Error).stack).forEach(l => options.errors?.push(l)) ;

@@ -7,6 +7,7 @@ import countriesList from './countries.json'
 import { $compare } from './compare';
 import { $ascii, $ftrim, $trim } from './strings';
 import { PhonePlan, PhonePlanInfo } from './tsphonenumber';
+import { TSError } from './tserrors';
 
 /**
  *  WARNING ABOUT countries.json
@@ -82,14 +83,21 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         this.domains = info.domains ;
         this.EEC = info.EEC ;
         this.spokenLanguages = info.spokenLanguages ;
-        this.phonePlan = { 
-            minDigits:10,
-            maxDigits:10,
-            areaCodes:[],
-            dummies:[],
-            format:"+(%d) %n",
-            ... info.phonePlan
+        this.phonePlan = {
+            dialCode:  info.phonePlan.dialCode,
+            trunkCode: info.phonePlan.trunkCode,
+            minDigits: info.phonePlan.minDigits,
+            maxDigits: info.phonePlan.maxDigits,
+            areaCodes: $value(info.phonePlan.areaCodes, []),
+            dummies:   $value(info.phonePlan.dummies, []),
+            format:    $value(info.phonePlan.format, "+(%d) %n"),
         } ;
+        if ($ok(info.phonePlan.mobileRegex)) { this.phonePlan.mobileRegex = new RegExp(info.phonePlan.mobileRegex) ; }
+        if ($ok(info.phonePlan.fixedLineRegex)) { this.phonePlan.fixedLineRegex = new RegExp(info.phonePlan.fixedLineRegex) ; }
+        if ($ok(info.phonePlan.regex)) { this.phonePlan.regex = new RegExp(info.phonePlan.regex) ; }
+        if (!$ok(this.phonePlan.mobileRegex) && !$ok(this.phonePlan.fixedLineRegex) && !$ok(this.phonePlan.regex)) { 
+            TSError.throw(`"TSCountry.constructor: country ${this.alpha2Code} has no valid phone plan regex defined`) ;
+        }
         this.currency = info.currency ;
         this.locales = $ok(info.specificLocales) ? {... locales, ...info.specificLocales!} : {... locales} ;
         this.nativeLanguage = $value(nativeLanguage, $count(this.spokenLanguages) > 0 ? this.spokenLanguages[0] : this.locales.language) ;
@@ -144,7 +152,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         if (c.length) {
             if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
             const ret = TSCountry.__countriesMap.get($ascii(c!.toUpperCase())) ;
-            if ($ok(ret)) { return ret! ; }
+            if ($ok(ret)) { return ret ; }
         }
         return null ;
     }
@@ -174,7 +182,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         vatNumber = $trim(vatNumber).toUpperCase() ;
         if (vatNumber.length >= 3) {
             const vatCountry = TSCountry.country(vatNumber.slice(0,2)) ;
-            if ($ok(vatCountry) && vatCountry!.validateVATNumber(vatNumber) !== null) { return vatCountry ; }
+            if ($ok(vatCountry) && vatCountry.validateVATNumber(vatNumber) !== null) { return vatCountry ; }
         } 
         return null ;
     }
@@ -378,6 +386,7 @@ interface CountryInfo {
     EEC:boolean;
     aliases?:string[];
     specificLocales?:Partial<Locales>;          // specific locales
+    note?:string;                               // optional note about the country
 }
 
 type VATNumberValidator = (s:string) => string|null ;

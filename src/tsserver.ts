@@ -3,12 +3,12 @@ import * as https from "https"
 
 //import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 
-import { $count, $defined, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
+import { $count, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $ftrim } from "./strings";
 import { $isabsolutepath } from "./fs";
 import { TSError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { Nullable, StringDictionary, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
+import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
 import { $inbrowser, $insp, $logterm, $mark } from "./utils";
 import { $conditionalClearMap } from "./mapset";
 import { TSURL } from "./tsurl";
@@ -17,6 +17,7 @@ import Socket = NodeJS.Socket;
 import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
 import { TSServerEndPoint } from "./tsserver_endpoints";
 import { TSStaticWebsite } from "./tsserver_websites";
+import { $bufferFromDataLike } from "./data";
 
 /**
  * This is a minimal singleton HTTP server class provided for testing
@@ -52,8 +53,10 @@ export interface TSServerOptions {
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
     logLevel?:TSServerLogLevel ;
-    key?:Nullable<Buffer> ;
-    certificate?:Nullable<Buffer> ;
+    key?:Nullable<TSDataLike> ;
+    certificate?:Nullable<TSDataLike> ;
+    certificateAuthority?:Nullable<TSDataLike> ;
+    mtls?:Nullable<boolean> ; // if true, the server will request a client certificate for mTLS authentication  
     maxHeaderSize?:Nullable<number> ;
     tlsSecTimeout?:Nullable<number> ; // The number of seconds after which a TLS session will no longer be resumable. default 300.
     handshakeMsTimeout?:Nullable<number> ; // Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
@@ -209,8 +212,13 @@ export class TSServer {
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
 
         if (this.isHTTPs) {
-            this._serverOptions.cert = opts.certificate! ;
-            this._serverOptions.key = opts.key! ;
+            if ($length(opts.certificate)) { this._serverOptions.cert = $bufferFromDataLike(opts.certificate!) ; }
+            if ($length(opts.key)) { this._serverOptions.key = $bufferFromDataLike(opts.key!) ; }
+            if ($length(opts.certificateAuthority)) { this._serverOptions.ca = $bufferFromDataLike(opts.certificateAuthority!) ; }
+            if (!!opts.mtls) { 
+                this._serverOptions.requestCert = true ; 
+                this._serverOptions.rejectUnauthorized = true ; 
+            }
             let t = $unsigned(opts.tlsSecTimeout) ;
             if (t > 0) { this._serverOptions.sessionTimeout = t ; }
             t = $unsigned(opts.handshakeMsTimeout) ;
@@ -228,7 +236,7 @@ export class TSServer {
         // ========= first construct the static websites architecture (only if we're not inside a browser )==========
         this._sites = [] ;
         if ($ok(opts.webSites)) {
-            const keys = $keys(opts.webSites!) ;
+            const keys = $keys(opts.webSites) ;
             if ($inbrowser() && keys.length) { 
                 TSError.throw('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
             }
@@ -253,7 +261,7 @@ export class TSServer {
                     options:opts
                 }) ;
             } 
-            this.port = opts.port!;
+            this.port = opts.port;
         }
         else { this.port = 3000 ; }
 
@@ -286,7 +294,7 @@ export class TSServer {
                 if (sm === 'OPTIONS') {
                     const preflightResponse = await this._preflightControler(url!, req.headers, res) ;
                     if ($ok(preflightResponse)) {
-                        const npfr = _normalizePreflightResponse(preflightResponse!, this._allowedMethodsSet) ;
+                        const npfr = _normalizePreflightResponse(preflightResponse, this._allowedMethodsSet) ;
     
                         res.setHeader("Access-Control-Allow-Origin", npfr.allowedOrigin!);
                         res.setHeader("Access-Control-Allow-Methods", npfr.allowedMethods!);
@@ -333,13 +341,14 @@ export class TSServer {
                 
                 let sep:TSServerEndPoint|undefined = undefined ;
                 let parameters:TSDictionary = {} ;
-                this._endPoints.forEach(ep => {
+
+                for (let ep of this._endPoints) {
                     const params = ep.parametersFromPath(url.pathname) ;
-                    if ($ok(params) && (!$defined(sep) || sep!.depth < ep.depth)) {
-                        sep = ep ;
+                    if ($ok(params) && (!sep || (sep && sep.depth < ep.depth))) {
+                        sep = ep! ;
                         parameters = params!
                     }
-                })
+                }
 
                 if ($ok(sep)) {
                     let preflightResponse = this._preflightResponseCache.get(originKey) ;
@@ -348,7 +357,7 @@ export class TSServer {
                         preflightResponse = undefined ;
                     }
                     if ($ok(preflightResponse?.allowedOrigin)) {
-                        if ($ok(preflightResponse!.timeout) && preflightResponse!.timeout! < $mark()) {
+                        if ($ok(preflightResponse.timeout) && preflightResponse.timeout < $mark()) {
                             res.setHeader('Access-Control-Allow-Origin', preflightResponse!.allowedOrigin!) ;
                         }
                     }
@@ -371,7 +380,7 @@ export class TSServer {
                             if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle static resource '${url.pathname}'.`) ; }
                             res.setHeader('Content-Type', type)
                             res.writeHead(Resp.OK);
-                            res.end(b!) ;
+                            res.end(b) ;
                             return ;
                         }
                     }
@@ -390,7 +399,7 @@ export class TSServer {
                 ret.error = (e as Error).message ; 
                 if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; } ;
                 if ($ok(e.info)) { ret.info = e.info ; }
-                if ($isnumber(e.errorCode)) { ret.errorCode = e.errorCode! ; }
+                if ($isnumber(e.errorCode)) { ret.errorCode = e.errorCode ; }
                 if (this._logWarnings) {
                     await this._logger(this, req, TSServerLogType.Warning, `${ret.status} - ${ret.error}`) ;
                     const errors = ret.info?.errors ;
@@ -464,7 +473,7 @@ export class TSServer {
         if ($ok(this._httpServer)) {
             const ret = await this._internalStopServer() ;
             if ($ok(ret) && this._logErrors) {
-                await this._logger(this, undefined, TSServerLogType.Error, `cannot stop for reason ${ret!.name}:\n${ret!.message}`) ;
+                await this._logger(this, undefined, TSServerLogType.Error, `cannot stop for reason ${ret.name}:\n${ret.message}`) ;
             }
             return ret ;
         } ; 
@@ -507,10 +516,13 @@ export class TSServer {
 // ================ private interfaces =======================
 interface InternalServerOptions {
     cert?:Buffer, 
-    key?:Buffer, 
+    key?:Buffer,
+    ca?:Buffer 
     maxHeaderSize?:number,
     sessionTimeout?:number,
     handshakeTimeout?:number
+    requestCert?:boolean,
+    rejectUnauthorized?:boolean
 }
 
 interface ConnectionStatus {

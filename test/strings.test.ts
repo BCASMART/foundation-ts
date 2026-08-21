@@ -1,6 +1,7 @@
-import { $ascii, $capitalize, $firstcap, $ftrim, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $trim } from "../src/strings";
+import { $ascii, $capitalize, $firstcap, $ftrim, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $strictascii, $trim } from "../src/strings";
 import { FoundationNewLines, FoundationWhiteSpaces } from "../src/string_tables";
 import { TSTest } from "../src/tstester";
+import { $transliterate } from "../src/transliteration";
 
 export const stringGroups = [
     TSTest.group("Commons strings functions", async (group) => {
@@ -91,7 +92,7 @@ export const stringGroups = [
             t.expectC('\n\t'.isNewLine()).false() ;
             t.expectD(NLS.isNewLine()).false() ;
             t.expectE(' '.isNewLine()).false() ;
-            t.expectE('\t'.isNewLine()).false() ;
+            t.expectF('\t'.isNewLine()).false() ;
         }) ;
     
         group.unary("$firstcap() && $capitalize() functions", async(t) => {
@@ -132,15 +133,15 @@ export const stringGroups = [
         }) ;
         group.unary("utf32to ascii with .ascii() method", async(t) => {
             t.expect0('𝚤𝚥𝚨𝚩𝚪𝚫𝚬𝚭𝚮𝚯𝚰𝚱𝚲𝚳𝚴𝚵𝚶𝚷𝚸𝚹𝚺𝚻𝚼𝚽𝚾𝚿𝛀𝛂𝛃𝛄𝛅𝛆𝛇𝛈𝛉𝛊𝛋𝛌𝛍𝛎𝛏𝛐𝛑𝛒𝛓𝛔𝛕𝛖𝛗𝛘𝛙𝛚𝛜𝛝𝛟𝛠𝛢𝛣𝛤𝛥𝛦𝛧𝛨𝛩𝛪𝛫𝛬𝛭𝛮𝛯𝛰𝛱𝛲𝛳𝛴𝛵𝛶𝛷𝛸𝛹𝛺𝛼𝛽𝛾𝛿'.ascii())
-                  .is('ijAVGDEZITHIKLMNXOPRTHSTYFCHPSOavgdezithiklmnxoprsstyfchpsoethfrAVGDEZITHIKLMNXOPRTHSTYFCHPSOavgd') ;
+                  .is('ijABGDEZEThIKLMNXOPRThSTYPhChPsOabgdezethiklmnxoprsstyphchpsoethphrABGDEZEThIKLMNXOPRThSTYPhChPsOabgd') ;
             t.expect1('𝜀𝜁𝜂𝜃𝜄𝜅𝜆𝜇𝜈𝜉𝜊𝜋𝜌𝜍𝜎𝜏𝜐𝜑𝜒𝜓𝜔𝜖𝜗𝜙𝜚𝜜𝜝𝜞𝜟𝜠𝜡𝜢𝜣𝜤𝜥𝜦𝜧𝜨𝜩𝜪𝜫𝜬𝜭𝜮𝜯𝜰𝜱𝜲𝜳𝜴𝜶𝜷𝜸𝜹𝜺𝜻𝜼𝜽𝜾𝜿𝝀𝝁𝝂𝝃𝝄𝝅𝝆𝝇𝝈𝝉𝝊𝝋𝝌𝝍𝝎𝝐𝝑𝝓𝝔𝝖𝝗𝝘𝝙𝝚𝝛𝝜𝝝𝝞𝝟'.ascii())
-                  .is('ezithiklmnxoprsstyfchpsoethfrAVGDEZITHIKLMNXOPRTHSTYFCHPSOavgdezithiklmnxoprsstyfchpsoethfrAVGDEZITHIK') ;
+                  .is('ezethiklmnxoprsstyphchpsoethphrABGDEZEThIKLMNXOPRThSTYPhChPsOabgdezethiklmnxoprsstyphchpsoethphrABGDEZEThIK') ;
             t.expect2('𝝠𝝡𝝢𝝣𝝤𝝥𝝦𝝧𝝨𝝩𝝪𝝫𝝬𝝭𝝮𝝰𝝱𝝲𝝳𝝴𝝵𝝶𝝷𝝸𝝹𝝺𝝻𝝼𝝽𝝾𝝿𝞀𝞁𝞂𝞃𝞄𝞅𝞆𝞇𝞈𝞊𝞋𝞍𝞎𝞐𝞑𝞒𝞓𝞔𝞕𝞖𝞗𝞘𝞙𝞚𝞛𝞜𝞝𝞞𝞟𝞠𝞡𝞢𝞣𝞤𝞥𝞦𝞧𝞨𝞪𝞫𝞬𝞭𝞮𝞯𝞰𝞱𝞲𝞳𝞴𝞵𝞶𝞷𝞸𝞹𝞺𝞻𝞼𝞽𝞾𝞿𝟀𝟁𝟂𝟄𝟅𝟇𝟈'.ascii())
-                  .is('LMNXOPRTHSTYFCHPSOavgdezithiklmnxoprsstyfchpsoethfrAVGDEZITHIKLMNXOPRTHSTYFCHPSOavgdezithiklmnxoprsstyfchpsoethfr') ;
+                  .is('LMNXOPRThSTYPhChPsOabgdezethiklmnxoprsstyphchpsoethphrABGDEZEThIKLMNXOPRThSTYPhChPsOabgdezethiklmnxoprsstyphchpsoethphr') ;
 
             // those specific character after 0xffff are now dropped
-            t.expectX('🆑🆒🆓🆔🆕🆖🆗🆘🆙🆚'.ascii()).is('') ;
-            t.expectY('😠😊💔😕😢😦❤️👿😇😂😗😆👨😐😶😮😡😄😃😈😭😛😝😜😎😓😅😒😉'.ascii()).is("")
+            t.expectX('🆑🆒🆓🆔🆕🆖🆗🆘🆙🆚'.ascii()).is('CLCOOLFREEIDNEWNGOKSOSUP!VS') ;
+            t.expectY('😠😊💔😕😢😦❤️👿😇😂😗😆👨😐😶😮😡😄😃😈😭😛😝😜😎😓😅😒😉'.ascii()).is(":angry::blush::broken_heart::confused::cry::frowning::heart::imp::innocent::joy::kissing::laughing::man::neutral_face::no_mouth::open_mouth::rage::smile::smiley::smiling_imp::sob::stuck_out_tongue::stuck_out_tongue_closed_eyes::stuck_out_tongue_winking_eye::sunglasses::sweat::sweat_smile::unamused::wink:")
         }) ;
     
         group.unary("Other methods on strings", async(t) => {
@@ -162,44 +163,46 @@ export const stringGroups = [
     TSTest.group("$ascii() and such group", async (group) => {
         const S1 = "Texte accentué avec ça et c'est shön";
         const S2 = "Texte accentue avec ca et c'est shon";
-        group.unary("$ascii() function", async(t) => {
-            for(let i=0;i<1;i++) { // change counter here if you want to test the performance
+        group.unary("$transliterate() function", async t => {
+            t.expect0($transliterate("", false)).is("") ;
+            t.expect1($transliterate("", true)).is("") ;
+            t.expect2($transliterate(S1, false)).is(S2) ;
+            t.expect3($transliterate(S1, true)).is(S2) ;
+        }) ;
+        group.unary("$ascii() function ", async t => {
             t.expect1($ascii(S1)).is(S2) ;
             t.expect2($ascii(S1)).is(S2.ascii()) ;
-            t.expect3($ascii('@&é"\'(§è!çà)-#1234567890°_•ë“‘{¶«¡Çø}—´„”’[å»ÛÁØ]–')).is('@&e"\'(e!ca)-#1234567890_.e"\'{"!Co}-""\'[a"UAO]-');
-            t.expect4($ascii('azertyuiop^$AZERTYUIOP¨*æê®†Úºîœπô€Æ‚ÅÊ™ŸªïŒ∏Ô¥')).is('azertyuiop^$AZERTYUIOP*aee(R)UoioepoEURAE\'AETMYaiOEOJPY');
-            t.expect5($ascii('qsdfghjklmù`QSDFGHJKLM%£‡Ò∂ƒﬁÌÏÈ¬µÙ@Ω∑∆·ﬂÎÍË|Ó‰#')).is('qsdfghjklmu`QSDFGHJKLM%GBPOdffiIIEmU@O.flIIE|O#');
-            t.expect6($ascii('<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\±')).is('<wxcvbn,;:=>WXCVBN?./+<=<(C)ss~.../>=>/ci?.\\') ;
-            t.expect7($ascii('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú')).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
-            t.expect8('âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú'.ascii()).is('aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou') ;
-            t.expect9('ΆΏΰαζθφωώϐϑϒϓϔϕΣψῼ'.ascii()).is('AOyazthfoovthYYYfSpsO') ;
-            t.expectA('eine Milliarde sieben­hundert­neun­und­sechzig Millionen fünf­hundert­sieben­und­zwanzig­tausend­ein­hundert­elf'.ascii())
-                .is('eine Milliarde siebenhundertneunundsechzig Millionen funfhundertsiebenundzwanzigtausendeinhundertelf') ;
-            t.expectB('¯ĸƱƼƽɗɤɸʊʰʱʲʳʴʵʶʷʸ˘˙˚˛˜˝ˠˡˢˣͺ;Ϳͻͼͽ'.ascii())
-                .is('qUQqdgfu?Jsss') ;
-            t.expectC('ᶛᶜᶝᶞᶟᶠᶡᶢᶣᶤᶥᶦ'.ascii()).is("") ;
-            t.expectD('ᶧᶨᶩᶪᶫᶬᶭᶮᶯᶰᶱᶲᶳᶴ'.ascii()).is("") ;
-            t.expectE('ᶵᶶᶷᶸᶹᶺᶻᶼᶽᶾᶿ'.ascii()).is("") ;
-            t.expectF('᾽᾿῀῍῎῏ι῝῞῟῾'.ascii()).is("") ;
-            t.expectG('‗\u{2028}\u{2029}‾℞≁≮≯≰≱⍯゛゜・ー㈀㈁㈂㈃㈄㈅㈆㈇㈈㈉㈊㈋㈌㈍㈎㈏㈐㈟㈠㈡㈢㈣㈤㈥㈦㈧㈨㈩㈪㈫㈬㈭㈮㈯㈰㈱㈲㈳㈴㈵㈶㈷㈸㈹㈺㈻㈼㈽㈾㈿㉀㉁㉂㉃'.ascii()).is("") ;
-            t.expectH('\u{3250}㌀㌃㌇㌈㌊㌍㌑㌒㌓㌖㌛㌜㌞㌠㌤㌫㌬㌭㌳㌶㌻㌼㍁㍂㍊㍍㍎㍓㍔'.ascii()).is("") ;
-            t.expectI('\u{AB5C}\u{AB5E}\u{AB69}\u{FC5E}\u{FC5F}\u{FC60}\u{FC61}\u{FC62}\u{FC63}'.ascii()).is("") ;
-            t.expectJ('ﷻﷺ﹉﹊﹋﹌ﹰ'.ascii()).is("") ;
-            t.expectK('﹍﹎﹏﹐﹒ﹲﹴﹶﹺﹼﹾ'.ascii()).is(",.") ;
-            t.expectL('₠₣€₨₧℩Ↄↄ≪≫⋆⋜⋝⍷、㉈㉉㉊㉋㉌㉍㉎㉏'.ascii())
-                .is('EURFRFEURRsPtsiCc<<>>*<=>=e,1020304050607080')
-            t.expectM('ϱϋὗὛὟῆῊῌᾇϴϽϾ'.ascii()).is('ryyYYiIIaTHSS') ;
+            t.expect3($ascii("les aïeux épuisæs")).is("les aieux epuisaes") ;
+            t.expect4($ascii("ǄǶǼǦ")).is("DZHVAEG") ;
+            t.expect5($ascii("azertyuiop^$AZERTYUIOP¨*æê®†Úºîœπô€Æ‚ÅÊ™ŸªïŒ∏Ô¥")).is("azertyuiop^$AZERTYUIOP..*aee(R)+UoioepoEURAE'AETMYaiOEPOJPY") ;
+            t.expect6($ascii("qsdfghjklmù`QSDFGHJKLM%£‡Ò∂ƒﬁÌÏÈ¬µÙ@Ω∑∆·ﬂÎÍË|Ó‰#")).is("qsdfghjklmu`QSDFGHJKLM%GBP++OdffiIIE-mU@OS^.flIIE|O%0#") ;
+            t.expect7($ascii("âêîôûäëïöüÂÊÎÔÛÄËÏÖÜàèìòùÀÈÌÒÙñÑãÃõÕÁÉÍÓÚáéíóú")).is("aeiouaeiouAEIOUAEIOUaeiouAEIOUnNaAoOAEIOUaeiou") ;
+            t.expect8($ascii("ΆΏΰαζθφωώϐϑϒϓϔϕΣψῼ")).is("AOyazthfoovthYYYfSpsO") ;
+            t.expect9($ascii("いまは自分には、幸福も不幸もありません。ただ、一さいは過ぎて行きます。")).is("imahaZiFenniha,XingFumoBuXingmoarimasen.tada,YisaihaGuogiteXingkimasu.") ;
+            t.expectA($ascii("eine Milliarde sieben­hundert­neun­und­sechzig Millionen fünf­hundert­sieben­und­zwanzig­tausend­ein­hundert­elf")).is("eine Milliarde sieben-hundert-neun-und-sechzig Millionen funf-hundert-sieben-und-zwanzig-tausend-ein-hundert-elf") ;
+            t.expectB($ascii("¯ĸƱƼƽɗɤɸʊʰʱʲʳʴʵʶʷʸ˘˙˚˛˜˝ˠˡˢˣͺ;Ϳͻͼͽ")).is("-qU55dgfuhhjrrrRwy(.o,~\"glsxi?Jsss") ;
+            t.expectC($ascii("はつじょうホルモン")).is("hatsujiyouhorumon") ;
+            t.expectD($ascii("１１０３７")).is("11037") ;
+            t.expectE($ascii("ⅩⅩⅩⅨ")).is("XXXIX") ;
+            t.expectF($ascii("<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\\\±")).is("<wxcvbn,;:=>WXCVBN?./+<=<~(C)*ss~inf.../=>=>/csqrti?*\\\\+/-") ;
+            t.expectG($ascii("@&é\"'(§è!çà)-#1234567890°_•ë“‘{¶«¡Çø}—´„”’[å»ÛÁØ]–")).is("@&e\"'(#e!ca)-#1234567890o_*e\"'{\n\"!Co}-'\"\"'[a\"UAO]-") ;
+            t.expectH($ascii("𐘀𐘁𐘂𐘃𐘄𐘅𐘆𐘇𐘈𐘉𐘊𐘋𐘌𐘏𐘘𐘩𐘷𐙇𐙬𐙷𐚊𐚖𐚮𐚺𐜮")).is("")
+            t.expectH($ascii("0྽1࿍2໾3࿬4࿿5Ⴭ6𑁼78")).is("012345AE678") ;
+            t.expectX($ascii(null)).is("") ;
+            t.expectY($ascii(undefined)).is("") ;
+            t.expectZ($ascii("")).is("") ;
 
-            t.expectN('ϝϞϟϷϸϺϻ\u{180E}\u{1680}'.ascii())
-                .is('fKkSHshSs') ;
-            t.expectO('ͱͰ΄ϘϙϚϛϜ'.ascii())
-                .is('hHKkSTstF') ;
-            
-            t.expectP('ᴦᴧᴨᴩᴪᴬᴭᴮᴯᴰᴱᴲᴳᴴᴵᴶᴷᴸᴹᴺᴻᴼᴽᴾᴿᵀᵁᵂᵃᵄᵅᵆᵇᵈᵉᵊᵋᵌᵍᵎᵏᵐᵑᵒᵓᵔᵕᵖᵗᵘᵙᵚᵛᵜᵝᵞᵟᵠᵡᵢᵣᵤᵥᵦᵧᵨᵩᵪᵫᵬᵭᵮᵯᵿ'.ascii())
-                .is('GLPRPSuebdfmu') ;
+        }) ;
+        group.unary("$strictascii() function", async t => {
+            t.expect0($strictascii(null)).null() ;
+            t.expect1($strictascii(undefined)).null() ;
+            t.expect2($strictascii("")).is("") ;
+            t.expect3($strictascii("0྽1࿍2໾3࿬4࿿5Ⴭ6𑁼78")).null() ;
+            t.expect4($strictascii("𐘀𐘁𐘂𐘃𐘄𐘅𐘆𐘇𐘈𐘉𐘊𐘋𐘌𐘏𐘘𐘩𐘷𐙇𐙬𐙷𐚊𐚖𐚮𐚺𐜮")).null() ;
+            t.expect5($strictascii("はつじょうホル𐘊モン")).null() ;
+            t.expect6($strictascii("<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\𐜮\\±")).null() ;
+        }) ;
 
-            }
-        })
     })
 ] ;
 

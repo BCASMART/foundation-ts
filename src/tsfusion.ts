@@ -7,7 +7,7 @@ import { TSDate } from "./tsdate";
 import { TSError } from "./tserrors";
 import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from "./tsfusionnode";
 import { Bytes, NormativeStringEncoding, Nullable, StringEncoding, TSDataLike, TSDictionary, uint, uint8 } from "./types";
-import { $inspect, $logterm } from "./utils";
+import { $inspect, $jsonparse, $logterm } from "./utils";
 
 export type TSFusionProcedure = (data:any, rootData:any, localContext:TSDictionary, globalContext:TSDictionary, system:TSDictionary) => any ;
 /* 
@@ -281,7 +281,7 @@ export abstract class TSFusionTemplate {
                     
                     const ct = TSFusionContextTypes[c] ;
                     if ($ok(ct)) {
-                        fusionContext = ct!
+                        fusionContext = ct
                         tokenPos = i + 1 ;
                         state = State.StartDecodingVariable ;
                     }
@@ -323,7 +323,7 @@ export abstract class TSFusionTemplate {
                     t = TSFusionNodeTypes[c] ;
                     if ($ok(t) || isVariableSpace(c)) {
                         variable = _data2ascii(source.slice(tokenPos,i)) ;
-                        current = current.pushVariable(variable, $ok(t) ? t! : TSFusionNodeType.Variable, fusionContext) ;
+                        current = current.pushVariable(variable, $ok(t) ? t : TSFusionNodeType.Variable, fusionContext) ;
                         store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
                         state = State.PostVariableSpace ;
                         fusionContext = TSFusionContextType.Local ;
@@ -452,13 +452,12 @@ export abstract class TSFusionTemplate {
                     if (c === stringEnder) {
                         currentParameter = currentParameter.toString(paramCharset) ;
                         if (stringEnder === PIPE) {
-                            try { currentParameter =  JSON.parse(<string>currentParameter) ; }
-                            catch (e) {
+                            currentParameter = $jsonparse(currentParameter) ;
+                            if (!$defined(currentParameter)) {
                                 TSError.throw(`Malformed JSON structure terminating at position ${i}. Impossible to parse. See 'parsingError' in complement infos.`, { 
                                     source:source,
                                     position:i,
-                                    state:state,
-                                    parsingError:e                                 
+                                    state:state
                                 }) ;
                             }
                         }
@@ -525,7 +524,7 @@ export abstract class TSFusionTemplate {
                 case State.EndOfParameters:
                     t = TSFusionNodeTypes[c] ;
                     if ($ok(t) || isVariableSpace(c)) {
-                        current = current.pushVariable(variable, $ok(t) ? t! : TSFusionNodeType.Variable, fusionContext, parameters) ;
+                        current = current.pushVariable(variable, $ok(t) ? t : TSFusionNodeType.Variable, fusionContext, parameters) ;
                         store_variable(this._variables, this._contextsVariables, variable, fusionContext) ;
                         state = State.PostVariableSpace ;
                         fusionContext = TSFusionContextType.Local ;
@@ -642,7 +641,7 @@ export abstract class TSFusionTemplate {
                         const parent = current.parent ;
                         if ($ok(parent)) {
                             if (beginText >= 0 && beginText < last) { current.pushData(source.slice(beginText, last)) ; }
-                            current = parent!
+                            current = parent
                             state = State.Text ;
                             beginText = i + 1 ;
                         }
@@ -684,7 +683,7 @@ export abstract class TSFusionTemplate {
         this.source = new TSData(source) ; // we keep a copy of the source
         this._treeRoot = root ;
         this._capacity = $capacityForCount(this.source.length * 1.25) ;
-        if ($ok(opts.procedures)) { this._procedures = opts.procedures!  ; }
+        if ($ok(opts.procedures)) { this._procedures = opts.procedures  ; }
         this._globalFunctions = opts.globalFunctions ;
         this._addStandardGlobalFunctions = !!opts.addStandardGlobalFunctions ;
     }
@@ -1049,7 +1048,7 @@ function _parseHTML(src:Uint8Array, options?:TSFusionTemplateOptions):[TSData, T
                 if ($length(cset)) {
                     const newCharset = TSCharset.charset(_data2ascii(cset)) ;
                     if ($ok(newCharset) && newCharset !== standardCharset) {
-                        currentCharset = newCharset! ;
+                        currentCharset = newCharset ;
                     }     
                 }
                 target.appendBytes(src, last, i) ;

@@ -50,7 +50,7 @@ export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
     const pluralUnitName = sp.length ? sp : unitName ;
     const minU = $ok(opts?.minimalUnit) ? Math.min(0, Math.max(-8, opts!.minimalUnit!)) : -8 ;
     const maxU = $ok(opts?.maximalUnit) ? Math.min(8, Math.max(0, opts!.maximalUnit!)) : 8 ;
-    let   dm = $isunsigned(opts?.decimalPlaces) ? opts!.decimalPlaces as number : 2 ;
+    let   dm = $isunsigned(opts?.decimalPlaces) ? opts.decimalPlaces : 2 ;
     if (v === 0) {
         if (dm === 0 || !!opts?.ignoreZeroDecimals || (minU === 0 && !!opts?.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
         return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;

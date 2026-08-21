@@ -32,5 +32,6 @@
         "stripInternal": true,
         "strict": true,
         "strictNullChecks": true,
+        "types": ["node"]
     }
 }  

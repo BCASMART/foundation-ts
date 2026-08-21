@@ -37,13 +37,13 @@ import {
 
 import { homedir } from 'os';
 
-import { $isbool, $isstring, $isunsigned, $length, $ok, $strings } from './commons';
+import { $isbool, $isstring, $isunsigned, $length, $ok, $strings, $valueornull } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
-import { $inbrowser } from './utils';
+import { $inbrowser, $jsonparse } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { Nullable, StringEncoding, TSDataLike } from './types';
+import { JSONType, Nullable, StringEncoding, TSDataLike } from './types';
 import { $asciifs, $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
@@ -177,8 +177,8 @@ export function $createDirectory(p: Nullable<string>): boolean {
     let ret: boolean = false;
     if ($length(p)) {
         const stats = $stats(p);
-        if ($ok(stats) && stats!.isDirectory()) { ret = true; }
-        else if (!$ok(stats) || !stats!.isFile()) {
+        if ($ok(stats) && stats.isDirectory()) { ret = true; }
+        else if (!$ok(stats) || !stats.isFile()) {
             try {
                 mkdirSync(p!, { recursive: true });
                 ret = true;
@@ -262,8 +262,8 @@ export function $currentdirectory(): string {
 
 export function $path(first: string | boolean, ...paths: string[]): string {
     return $isbool(first) ? 
-           (first as boolean || $inbrowser() ? _internalPath(...paths) : join(...paths)) : 
-           ($inbrowser() ? _internalPath(first as string, ...paths) : join(first as string, ...paths)) ;
+           (first || $inbrowser() ? _internalPath(...paths) : join(...paths)) : 
+           ($inbrowser() ? _internalPath(first, ...paths) : join(first, ...paths)) ;
 }
 
 export function $ext(s: Nullable<string>, internalImplementation: boolean = false): string {
@@ -347,32 +347,18 @@ export function $filename(s: Nullable<string>, internalImplementation: boolean =
 }
 
 // JSON buffer is always considered as UTF8 buffer
-export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): any
+export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): JSONType
 {
-    let ret = null ;
-    let json:string|null = null ;
-
     if ($isstring(source)) {
         TSError.assertNotInBrowser('$loadJSON') ;
-        const s = source as string ;
-        if (s.length > 0) {
+        if (source.length > 0) {
             const extensions = $extset(acceptedExtensions) ;
             if (extensions.size === 0) { extensions.add('json') ; } // if no extensions, we accept json
-            json = extensions.has($ext(s)) ? $readString(s, TSCharset.utf8Charset()) : '' ;    
+            source = extensions.has($ext(source)) ? $readString(source, TSCharset.utf8Charset()) : '' ;    
         }
-    }
-    else {
-        json = TSCharset.utf8Charset().stringFromData(source as TSDataLike) ;
     }
 
-    if ($length(json) > 0 ) {
-        try {
-            ret = JSON.parse(json as string);
-            ret = $ok(ret) ? ret : null;
-        }
-        catch { ret = null ; }
-    }
-    return ret ;
+    return $valueornull($jsonparse(source, true)) ;
 }
 
 export function $readString(src: Nullable<string>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
@@ -454,7 +440,7 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
             // TSData.byteLength may be different from its internal storage buffer length
             // warning: this method works because it's not async so we can
             // consider that TSData is immutable during this scope
-            if (buf instanceof TSData) { [buf,] = (buf as TSData).internalStorage; }
+            if (buf instanceof TSData) { [buf,] = buf.internalStorage; }
 
             try {
                 const fd = openSync(pathToWrite, 'w', mode);

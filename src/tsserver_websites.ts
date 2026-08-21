@@ -22,7 +22,7 @@ export class TSStaticWebsite {
     private _mimeChecker:TSResourceMimeChecker ;
 
     constructor(uri:string, definition:TSWebSiteDefinition|string) {
-        const def = $isstring(definition) ? { folder:definition as string} : definition as TSWebSiteDefinition ;
+        const def = $isstring(definition) ? { folder:definition } : definition ;
         if (!$length(uri)) { 
             TSError.throw(`TSStaticWebsite.constructor(): url not defined for folder '${def.folder}'`, { uri:uri, ...def }) ; 
         }
@@ -59,14 +59,14 @@ export class TSStaticWebsite {
                 if (!this._blacklisted.has(path)) {
                     const cache = this._cache.get(path) ;
                     if ($ok(cache)) {
-                        ret = cache!.buffer ;
+                        ret = cache.buffer ;
                         cache!.usage ++ ;
                     }
                     else {
                         const file = $path(this.folder, path) ;
                         if ($isfile(file)) {
                             ret = $readBuffer(file) ;
-                            if ($ok(ret)) { this._cacheContent(path, ret!) ; }
+                            if ($ok(ret)) { this._cacheContent(path, ret) ; }
                             else { this._blacklist(path) ; }
                         }
                         else { this._blacklist(path) ; }

@@ -1,7 +1,7 @@
 import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet, language, continent, currency, country } from "./types";
 import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull, $isipaddress, $isipv4, $isipv6 } from "./commons";
-import { $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
-import { $ascii, $ftrim, $trim } from "./strings";
+import { $bufferFromHexaString, $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
+import { $ascii, $ftrim } from "./strings";
 
 import { TSCharset } from "./tscharset";
 import { TSColor, TSColorSpace } from "./tscolor";
@@ -13,7 +13,7 @@ import { TSURL } from './tsurl';
 
 import { TSError } from "./tserrors";
 
-import { $inspect } from "./utils";
+import { $inspect, $jsonparse } from "./utils";
 
 
 // WARNING: AS IT IS :
@@ -172,18 +172,14 @@ export abstract class TSParser {
         return this._validate(value, '', opts) ? this.rawEncode(value, opts) : null ;
     }
 
+    // if you parse an empty string or string with whitespaces you'll get undefined as result
     public parse(source:Nullable<string>, errors?:Nullable<string[]>): any {
         const opts:TSParserOptions = { errors:errors, context:TSParserActionContext.json }
-        let value = undefined ;
-        const s = $trim(source) ;
-        if (s.length) {
-            try { value = JSON.parse(s) ; }
-            catch { 
-                value = undefined ;
-                _serror(opts, 'JSON', '.parse(stringSource) did fail') ; 
-            }    
-        }
-        else { _serror(opts, 'stringSource', ' is empty') ; }
+        source = $ftrim(source) ;
+        let value = $jsonparse(source, true) ;
+        if (!$defined(value)) { 
+            _serror(opts, 'JSON', '.parse(stringSource) did fail') ; 
+        }   
         return this.interpret(value, opts) ;
     }
     
@@ -597,7 +593,7 @@ class TSLeafParser extends TSParser {
         'paper':     { valid:_isDocumentFormat, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isDocumentFormat, iskey:true},
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
-        'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && (v as string).length > 0, iskey:true},
+        'string':    { valid:(v:any) => typeof v === 'string', str2v: (s:string) => s, enum:(v) => typeof v === 'string' && v.length > 0, iskey:true},
         'uint8':     { valid:(v:any) => _isInt(v, 0, UINT8_MAX),  str2v:_uint, enum:(v) => _isInt(v, 0, UINT8_MAX), iskey:true },
         'uint16':    { valid:(v:any) => _isInt(v, 0, UINT16_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT16_MAX), iskey:true },
         'uint32':    { valid:(v:any) => _isInt(v, 0, UINT32_MAX), str2v:_uint, enum:(v) => _isInt(v, 0, UINT32_MAX), iskey:true },
@@ -658,7 +654,7 @@ class TSLeafParser extends TSParser {
         else if ($ok(enumeration)) {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
         }
-        if ($ok(node._options)) { this._options = node._options! ;}
+        if ($ok(node._options)) { this._options = node._options ;}
         if ($ok(node._default)) {
             if (mandatory) {
                 this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
@@ -701,7 +697,7 @@ class TSLeafParser extends TSParser {
         if (!$ok(value)) { value = this._defaultValue ; }
         if (!super._validate(value, path, opts)) { return false ; }
         if (this._conversion && $isstring(value)) { 
-            const tag = value as string ;
+            const tag = value ;
             value = this._conversion![tag] ; 
             if (!$ok(value)) {
                 return _serror(opts, path, `has not a valid enum tag ${tag}`) ;
@@ -721,7 +717,7 @@ class TSLeafParser extends TSParser {
     }
 
     private _convertIfString(value:any, opts?:Nullable<TSParserActionOptions>):any
-    { return this._transform($isstring(value) ? this._manager.str2v(value as string, opts) : value, opts) ; }
+    { return this._transform($isstring(value) ? this._manager.str2v(value, opts) : value, opts) ; }
     
     public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value)) { value = this._defaultValue ; }
@@ -767,6 +763,8 @@ export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
     }
 }
 
+export { $bool as $isLE }
+
 export function $validateParsedValue(v:NonNullable<any>, type:TSLeafOptionalNode, opts?:Nullable<TSParserActionOptions>):boolean
 { return $ok(v) && !!TSLeafParser.__managers[type]?.valid(v, opts) ; }
 
@@ -808,11 +806,11 @@ function _isDocumentFormat(v:any):boolean   { return $isstring(v) && $ok(TSDocum
 //function _isIPV4(v:any):boolean             { return $isipv4(v) ; }
 //function _isIPV6(v:any):boolean             { return $isipv6(v) ; }
 function _isLanguage(v:any):boolean         { return $isstring(v) && TSLanguageSet.has($ftrim(v).toLowerCase() as language) ; }
-function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v as string))); }
+function _isNumber(v:any):boolean           { return $isnumber(v) || ($isstring(v) && $isnumber(Number(v))); }
 
 function _isCountry(v:any):boolean { 
     if (v instanceof TSCountry) { return true ; } 
-    if ($isnumber(v) && v >=1 && $ok(TSCountry.alpha2CodeForNumericCode(v as number))) { return true ; }
+    if ($isnumber(v) && v >=1 && $ok(TSCountry.alpha2CodeForNumericCode(v))) { return true ; }
     if ($isstring(v)) {
         const s = $ftrim(v).toUpperCase() ;
         return (s.length === 2 && TSCountrySet.has(s as country)) || (s.length === 3 && $ok(TSCountry.alpha2CodeForAlpha3Code(s)))
@@ -822,7 +820,7 @@ function _isCountry(v:any):boolean {
 
 function _countryTrans(v:any):any { 
     if (v instanceof TSCountry) { return v.alpha2Code ; } 
-    if ($isnumber(v)) { return TSCountry.alpha2CodeForNumericCode(v as number) ; }
+    if ($isnumber(v)) { return TSCountry.alpha2CodeForNumericCode(v) ; }
     return v.length === 3 ? TSCountry.alpha2CodeForAlpha3Code(v) : v ;
 }
 
@@ -833,7 +831,7 @@ function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boole
 }
 
 function _isBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean   
-{ return $isbool(v) || v === 0 || v === 1 || ($isstring(v) && $ok(_stringToBoolean(v as string, opts))) ;}
+{ return $isbool(v) || v === 0 || v === 1 || ($isstring(v) && $ok(_stringToBoolean(v, opts))) ;}
 
 function _isPath(v:any, opts?:Nullable<TSParserActionOptions>):boolean
 { 
@@ -865,7 +863,7 @@ function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
 const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
 const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;
 function _isData(v:any, opts?:Nullable<TSParserActionOptions>):boolean      
-{ return $isdataobject(v) || ($isstring(v) && (opts?.context === TSParserActionContext.url ? _b64URLregex : _b64regex).test(v as string)) ; }
+{ return $isdataobject(v) || ($isstring(v) && (opts?.context === TSParserActionContext.url ? _b64URLregex : _b64regex).test(v)) ; }
 
 function _encodeb64(v:any, opts?:Nullable<TSParserActionOptions>)
 { return opts?.context === TSParserActionContext.url  ? $encodeBase64URL(v) : $encodeBase64(v) ; }
@@ -873,22 +871,21 @@ function _encodeb64(v:any, opts?:Nullable<TSParserActionOptions>)
 function _decodeb64(s:string, opts?:Nullable<TSParserActionOptions>)
 { return opts?.context === TSParserActionContext.url ? $decodeBase64URL(s) : $decodeBase64(s) ; }
 
-function _decodeHexa(s:string):Buffer { return Buffer.from(s, 'hex') ; }
+function _decodeHexa(s:string):Buffer { return $bufferFromHexaString(s)! ; }
 
-const _hexaRegex = /^[A-Fa-f0-9]+$/ ;
 function _isHexaData(v:any):boolean  
-{ return $isdataobject(v) || ($isstring(v) && _hexaRegex.test(v)) ;}
+{ return $isdataobject(v) || ($isstring(v) && $ok($bufferFromHexaString(v))) ;}
 
 function _int(v:any)  { return $int(v) ; }
 function _uint(v:any) { return $unsigned(v) ; }
 function _isInt(v:any, min:number = INT_MIN, max:number = INT_MAX):boolean
-{ return $isint(v, min, max) || ($isstring(v) && $isint(Number(v as string), min, max)) }
+{ return $isint(v, min, max) || ($isstring(v) && $isint(Number(v), min, max)) }
 
 function _isJsDate(v:any):boolean 
-{ return v instanceof Date || ($isstring(v) && v !== '0' && $isnumber(Date.parse(v as string))) ; }
+{ return v instanceof Date || ($isstring(v) && v !== '0' && $isnumber(Date.parse(v))) ; }
 
 function _isTsDate(v:any):boolean
-{ return v instanceof TSDate || ($isstring(v) && $ok($isodate(v as string)))}
+{ return v instanceof TSDate || ($isstring(v) && $ok($isodate(v)))}
 
 function _iscolor(o:any) : boolean
 { return o instanceof TSColor || ($isstring(o)) && $ok(TSColor.fromString(o)) ; }
@@ -914,7 +911,7 @@ const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
 function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSParser|null {
     if ($isstring(node)) {
         let mandatory = (node as TSMandatoryLeafNode).endsWith('!') ;
-        if (mandatory) { node = (node as string).left((node as string).length-1) as TSLeafOptionalNode ; }
+        if (mandatory) { node = node.left(node.length-1) as TSLeafOptionalNode ; }
         return new TSLeafParser({ _type:node as TSLeafOptionalNode, _mandatory:mandatory}) ;
     }
     else if ($isarray(node)) {

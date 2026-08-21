@@ -18,8 +18,8 @@ export const countriesGroups = TSTest.group("Testing TSCountry class", async (gr
     })
 
     group.unary('Countries accepting EURO as currency', async (t) => {
-        t.expect0(C.filter(c => c.currency === Currencies.EUR).length).is(26) ;
-        t.expect1(C.filter(c => c.EEC && c.currency === Currencies.EUR).length).is(20) ;
+        t.expect0(C.filter(c => c.currency === Currencies.EUR).length).is(27) ;
+        t.expect1(C.filter(c => c.EEC && c.currency === Currencies.EUR).length).is(21) ;
         t.expect2(TSCountry.country("croatia")?.currency).is(Currencies.EUR) ;
     }) ;
 

@@ -19,16 +19,20 @@ Finally, it also provides functions to:
 Foundation-ts also define several classes to deal with common data :
 
 * `TSColor` : to manage colors in RGB, GrayScale and CMYK color space
+* `TSCharset` : to manage different specific code pages
 * `TSCountry` : a multi-singleton class holding info like spoken languages, locales, dialCode, used currency, ... on a listed bunch of European countries
 * `TSCouple` : a simple class to manipulate couple patterns
 * `TSData`: a really mutable buffer-like class
-* `TSDataCursor`: a subclass of TSData made for writing and reading things like numbers into or from a buffer
 * `TSDate` : a without time zone date class facilitating the exchange, manipulation and storage of dates
 * `TSDefaults` : a singleton class made to hold standard and your defaults in your app
+* `TSError` : a more complete error management
 * `TSFusionTemplate`: a generic class witch provides a generic and powerfull data, text en html fusion with templates
 * `TSInterval` : an open interval of TSDates
 * `TSList` : a classic double-linked list class
+* `TSParser` : an object to validate/interpret data structs defined by a predetermined formal structure 
+* `TSPhoneNumber` : an object to manage phone numbers
 * `TSQualifier` : a full object-oriented generic SQL-like qualifier constructor with strong typing you may want to use for 1) filter an array 2) subclassing to output specific SQL or ORM requests 3) use complex intersection / inclusion patterns* `TSRange` : a class to manage integer ranges (location + length)
+* `TSRange` : a class managing ranges
 * `TSRangeSet` : a class managing a set of ranges providing inclusion, intersection, union and complementary methods
 * `TSRect` : a class managing rectangles with division, unions, inclusion and intersection methods
 * `TSRequest`: a generic class to be subclassed to easily write API client classes

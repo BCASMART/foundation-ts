@@ -1,11 +1,11 @@
 import { Nullable, TSDictionary } from "./types";
-import { $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
+import { $defined, $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
 import { TSError } from "./tserrors";
 import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
 import { Resp, Verb } from "./tsrequest";
 import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse } from "./tsserver_types";
-import { $inspect, $logterm, $readStreamBuffer } from "./utils";
+import { $inspect, $jsonparse, $logterm, $readStreamBuffer } from "./utils";
 import { TSCharset } from "./tscharset";
 import { ServerResponse } from "http" ;
 
@@ -169,10 +169,10 @@ export class TSServerEndPoint {
                 const m = parametricPart.match(this._pathRegex!) ;
                 if ($ok(m)) {
                     const len = this._tokens.length ;
-                    if (m!.length === len + 1) {
+                    if (m.length === len + 1) {
                         for (let i = 0 ; i < len ; i++ ) {
                             const token = this._tokens[i] ;
-                            const value = m![i+1] ;
+                            const value = m[i+1] ;
                             if (!token.parser.validate(value)) {
                                 TSError.throw(`Bad parameter '${token.name}' of type '${token.parser.nodeType}' in url path '${path}'`, Resp.BadRequest, {
                                     token:token.name,
@@ -250,7 +250,7 @@ class TSServerEndPointManager {
                 _logme(req, 'request headers', params) ;
             }                
 
-            if (!this._queryParser!.validate(params, options)) {
+            if (!this._queryParser.validate(params, options)) {
                 if (!!logme) { _logme(req, 'impossible to validate query') ; }                
                 TSError.throw(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
@@ -259,7 +259,7 @@ class TSServerEndPointManager {
                     serverError:TSServerErrorCodes.BadQueryStructure
                 }) ; 
             }
-            req.query = this._queryParser!.rawInterpret(params) ;
+            req.query = this._queryParser.rawInterpret(params) ;
             if (!!logme) { _logme(req, 'final interpreted query', req.query) ; }                
         }
         if ($ok(this._bodyParser)) {
@@ -268,7 +268,7 @@ class TSServerEndPointManager {
 
             if (!!logme) { _logme(req, 'request body', body) ; }                
 
-            if (!$ok(body) && this._bodyParser!.mandatory) {
+            if (!$ok(body) && this._bodyParser.mandatory) {
                 if (!!logme) { _logme(req, 'missing body content') ; }                
                 TSError.throw(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
@@ -297,13 +297,12 @@ class TSServerEndPointManager {
                 if (mtype === 'application/json') {
                     if (!!logme) { _logme(req, 'json type', true) ; }                
                     options.context = 'json' ;
-                    try { body = JSON.parse(body) ; }
-                    catch (e) { 
+                    body = $jsonparse(body) ;
+                    if (!$defined(body)) { 
                         if (!!logme) { _logme(req, 'impossible to decode JSON body') ; }                
                         TSError.throw(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                             method:this._method,
                             path:$length(req.url.pathname) ? req.url.pathname : '/',
-                            parsingError:e,
                             serverError:TSServerErrorCodes.BadJSONBody
                         }) ;
                     }
@@ -344,13 +343,13 @@ interface TSServerEndPointErrorOptions {
 function _defineParser(node:Nullable<TSNode>, instanceVar:string, errorOptions:TSServerEndPointErrorOptions):TSParser|undefined {
     if ($ok(node)) {
         const errors:string[] = []
-        const parser = TSParser.define(node!, errors) ;
+        const parser = TSParser.define(node, errors) ;
         if (!$ok(parser)) {
             TSError.throw(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has invalid ${instanceVar} definition.`, 
                               { parserErrors:errors, ...errorOptions}) ; 
 
         }
-        return parser! ;
+        return parser ;
     }
     return undefined ;
 }

@@ -27,11 +27,11 @@ export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<n
     if (a instanceof Date) { return _heterogenDateCompare(a, b!) ; }
     if (b instanceof Date) { return _inverseComparison(_heterogenDateCompare(b,a!)) ; }
 
-    if ($isstring(a)) { a = new TSDate(a as string) ; }
-    if (a instanceof TSDate) { return _heterogenTimestampCompare(a.timestamp, 0, b as TSDate | string | number) ; }
+    if ($isstring(a)) { a = new TSDate(a) ; }
+    if (a instanceof TSDate) { return _heterogenTimestampCompare(a.timestamp, 0, b) ; }
 
-    if ($isstring(b)) { b = new TSDate(b as string) ; }
-    if (b instanceof TSDate) { return _inverseComparison(_heterogenTimestampCompare(b.timestamp, 0, a as string | number)) ; }
+    if ($isstring(b)) { b = new TSDate(b) ; }
+    if (b instanceof TSDate) { return _inverseComparison(_heterogenTimestampCompare(b.timestamp, 0, a)) ; }
 
     return undefined ;
 }
@@ -239,9 +239,8 @@ function _heterogenTimestampCompare(ats:number, mts:number, b:TSDate|string|numb
     let ms = 0 ;
     if (b instanceof TSDate) { ts = b.timestamp ; }
     else {
-        const t = typeof b ;
-        if (t === 'number') { ts = Math.trunc(b as number) ; ms = (b as number) - ts ; }
-        else if (t === 'string') { ts = (new TSDate(b as string)).timestamp ; }
+        if (typeof b === 'number') { ts = Math.trunc(b) ; ms = b - ts ; }
+        else { ts = (new TSDate(b)).timestamp ; }
     }
     const c = $numcompare(ats, ts) ;
     return c === Same ? $numcompare(mts, ms) : c ;

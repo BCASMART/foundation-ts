@@ -27,6 +27,7 @@
         "sourceMap": true,
         "strict": true,
         "strictNullChecks": true,
+        "types": ["node"]
     }
 }
     

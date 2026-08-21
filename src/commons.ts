@@ -12,89 +12,89 @@ import { TSCountry } from "./tscountry";
 import { PhoneValidity, TSPhoneNumber } from "./tsphonenumber";
 import { TSURL, TSURLParseOptions } from "./tsurl";
 
-export function $defined(o:any):boolean 
+export function $defined<T>(o: T): o is Exclude<T, undefined>
 { return o !== undefined && typeof o !== 'undefined' }
 
-export function $ok(o:any) : boolean
+export function $ok<T>(o: T): o is NonNullable<T>
 { return o !== null && o !== undefined && typeof o !== 'undefined' ; }
 
 export function $value<T>(o:Nullable<T>, v:T):T
-{ return $ok(o) ? o! : v ; }
+{ return $ok(o) ? o : v ; }
 
 export function $valueornull<T>(o:Nullable<T>):T|null
-{ return $ok(o) ? o! : null ;}
+{ return $ok(o) ? o : null ;}
 
 export function $valueorundefine<T>(o:Nullable<T>):T|undefined
-{ return $ok(o) ? o! : undefined ;}
+{ return $ok(o) ? o : undefined ;}
 
-export function $isstring(o:any) : boolean
+export function $isstring(o: any): o is string
 { return typeof o === 'string' ; }
 
 export function $iswhitespace(s: Nullable<string|number>) : boolean
-{ return $isstring(s) ? FoundationWhiteSpacesStringCodeSet.has(s as string) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s as number) : false) ; }
+{ return typeof s === 'string' ? FoundationWhiteSpacesStringCodeSet.has(s) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s) : false) ; }
 
-export function $isnumber(o:any) : boolean
+export function $isnumber(o: any): o is number
 { return typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
 
-export function $isint(o:any, minimum:number = INT_MIN, maximum:number = INT_MAX) : boolean
+export function $isint(o:any, minimum:number = INT_MIN, maximum:number = INT_MAX) : o is number
 { return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= minimum && <number>o <= maximum; }
 
-export function $isunsigned(o:any, maximum:number=UINT_MAX) : boolean
+export function $isunsigned(o:any, maximum:number=UINT_MAX) : o is number
 { return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= 0 && <number>o <= maximum ; }
 
-export function $isbool(o:any) : boolean
+export function $isbool(o: any): o is boolean
 { return typeof o === 'boolean' ; }
 
-export function $isobject(o:any) : boolean
+export function $isobject(o: any): o is object
 { return $ok(o) && typeof o === 'object' ; }
 
 export function $objectcount(o:any) : number 
 { return o instanceof Map ? o.size : ($isobject(o) ? $keys(o).length : 0) ; }
 
-export function $isarray(o:any) : boolean
+export function $isarray(o:any) : o is any[]
 { return Array.isArray(o) ; }
 
 export function $isiterable(o:any) : boolean 
 { return $isarray(o) || $ismethod(o, Symbol.iterator) ;}
 
-export function $isdate(o:any) : boolean
-{ return (o instanceof Date || o instanceof TSDate || $isstring(o)) && $ok($isodate(o)) ; }
+export function $isdate(o:any) : o is Date | TSDate | string
+{ return (o instanceof Date || o instanceof TSDate || typeof o === 'string') && $ok($isodate(o)) ; }
 
-export function $isemail(o:any) : boolean
-{ return $isstring(o) && $ok($email(o)) ; }
+export function $isemail(o:any) : o is string 
+{ return typeof o === 'string' && $ok($email(o)) ; }
 
-export function $isurl(o:any, opts?:Nullable<TSURLParseOptions>) : boolean
-{ return (o instanceof TSURL) || (o instanceof URL && $ok(TSURL.from(o, opts))) || ($isstring(o) && $ok(TSURL.url(o, opts))) ; }
+export function $isurl(o:any, opts?:Nullable<TSURLParseOptions>) : o is TSURL | URL | string
+{ return (o instanceof TSURL) || (o instanceof URL && $ok(TSURL.from(o, opts))) || (typeof o === 'string' && $ok(TSURL.url(o, opts))) ; }
 
-export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : boolean
-{ return o instanceof TSPhoneNumber || ($isstring(o) && TSPhoneNumber.validity(o as string, country) === PhoneValidity.OK) ; }
+export function $isphonenumber(o:any, country?:Nullable<TSCountry>) : o is TSPhoneNumber | string
+{ return o instanceof TSPhoneNumber || (typeof o === 'string' && TSPhoneNumber.validity(o, country) === PhoneValidity.OK) ; }
 
-export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : boolean
-{ return $isstring(o) && $ok($UUID(o, version)) ; }
+export function $isuuid(o:any, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : o is string
+{ return typeof o === 'string' && $ok($UUID(o, version)) ; }
 
 // a very restrictive test excluding arrays of numbers or other kind of object
-export function $isdataobject(o:any)
+export function $isdataobject(o:any) : o is TSData | Uint8Array | ArrayBuffer
 { return o instanceof TSData || o instanceof Uint8Array || o instanceof ArrayBuffer ; }
 
-export function $isfunction(o:any):boolean { return typeof o === 'function' ; }
+export function $isfunction(o:any):o is Function { return typeof o === 'function' ; }
 
 export function $isproperty(obj:any, prop:string):boolean
 { return prop.length > 0 && $isobject(obj) && (prop in obj) ; }
 
 export function $ismethod(obj:any, meth:Nullable<string|symbol>):boolean
-{ return (typeof meth === 'symbol' || $length(meth) > 0) && $ok(obj) && $isfunction(obj![meth!]) ; }
+{ return (typeof meth === 'symbol' || $length(meth) > 0) && $ok(obj) && $isfunction(obj[meth!]) ; }
 
-export function $isipv4(obj:any):boolean
-{ return typeof obj === 'string' && __IPV4Regex.test($ftrim(obj)) ; }
+export function $isipv4(o:any):o is string
+{ return typeof o === 'string' && __IPV4Regex.test($ftrim(o)) ; }
 
-export function $isipv6(obj:any):boolean
-{ return typeof obj === 'string' && __IPV6Regex.test($ftrim(obj)) ; }
+export function $isipv6(o:any):boolean
+{ return typeof o === 'string' && __IPV6Regex.test($ftrim(o)) ; }
 
-export function $isipaddress(obj:any):boolean
+export function $isipaddress(o:any):o is string
 { 
-    if (typeof obj !== 'string') { return false ; }
-    obj = $ftrim(obj) ; 
-    return __IPV4Regex.test(obj) || __IPV6Regex.test(obj) ; 
+    if (typeof o !== 'string') { return false ; }
+    o = $ftrim(o) ; 
+    return __IPV4Regex.test(o) || __IPV6Regex.test(o) ; 
 }
 
 export function $hasproperties(obj:any, properties:Nullable<string[]>)
@@ -107,9 +107,9 @@ export function $hasproperties(obj:any, properties:Nullable<string[]>)
 export function $intornull(n:Nullable<string|number|bigint>) : int | null
 {
 	if (!$ok(n)) { return null ; }
-	else if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+	else if (typeof n === 'string') { n = parseInt(n, 10) ; }
     else if (typeof n === 'bigint') {
-        return n >= INT_MIN_BIG && n <= INT_MAX_BIG ? Number(n as bigint) as int : null ;
+        return n >= INT_MIN_BIG && n <= INT_MAX_BIG ? Number(n) as int : null ;
     
     }
 	return $isint(n) ? <int>n : null ;
@@ -134,7 +134,7 @@ export function $url(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>) : ur
 { return $valueornull(TSURL.url(s, opts)?.href); }
 
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
-{ return $isstring(s) ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s, UUID_LENGTH, UUID_LENGTH) : null ; }
+{ return typeof s === 'string' ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s, UUID_LENGTH, UUID_LENGTH) : null ; }
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -142,18 +142,18 @@ export function $isodate(s:Nullable<Date|TSDate|string>, format:IsoDateFormat=TS
 {
     let cps:TSDateComp|null = null ;
     if ($ok(s)) {
-        if (s instanceof Date) { cps = $components(s as Date) ; }
-        else if (s instanceof TSDate) { cps = (s as TSDate).toComponents() ; }
-        else if ($isstring(s)) { cps = $parsedatetime($ftrim(s as string), format) ; } // we parse the string to verify it
+        if (s instanceof Date) { cps = $components(s) ; }
+        else if (s instanceof TSDate) { cps = s.toComponents() ; }
+        else if (typeof s === 'string') { cps = $parsedatetime($ftrim(s), format) ; } // we parse the string to verify it
     }
-    return $ok(cps) ? <isodate>$components2string(cps!, format) : null ;
+    return $ok(cps) ? <isodate>$components2string(cps, format) : null ;
 }
 export function $address(a:Nullable<Address>) : Address | null 
 {
     if (!$isobject(a)) { return null ; }
     const city = $ftrim(a?.city) ;
     const country = $country(a?.country) ;
-    if (!$isstring(city) || !$length(city) || !$ok(country)) { return null ; }
+    if (typeof city !== 'string' || city.length === 0 || !$ok(country)) { return null ; }
 
     let ret:Address = {...a!} ;
     ret.city = city! ;
@@ -165,9 +165,9 @@ export function $address(a:Nullable<Address>) : Address | null
 export function $unsignedornull(n:Nullable<string|number|bigint>) : uint | null
 {
 	if (!$ok(n)) { return null ; }
-	else if ($isstring(n)) { n = parseInt(<string>n, 10) ; }
+	else if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
     else if (typeof n === 'bigint') {
-        return n >= UINT_MIN_BIG && n <= UINT_MAX_BIG ? Number(n as bigint) as uint : null ;
+        return n >= UINT_MIN_BIG && n <= UINT_MAX_BIG ? Number(n) as uint : null ;
     }
 	return $isunsigned(n) ? n as uint : null ;
 }
@@ -179,20 +179,20 @@ export function $toint(v:Nullable<string|number|bigint>, defaultValue:int=<int>0
 {
     if (!$ok(v)) { return defaultValue ; }
     else if (typeof v === 'bigint') {
-        v = v >= INT_MIN_BIG && v <= INT_MAX_BIG ? Number(v as bigint) : defaultValue ;
+        v = v >= INT_MIN_BIG && v <= INT_MAX_BIG ? Number(v) : defaultValue ;
     }
-    else if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
-    return isNaN(v as number) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v as number, INT_MAX))) as int ;
+    else if (typeof v === 'string') { v = parseInt(v, 10) ; }
+    return isNaN(v) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v, INT_MAX))) as int ;
 }
 
 export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
 {
     if (!$ok(v)) { return defaultValue ; }
     else if (typeof v === 'bigint') {
-        v = v >= UINT_MIN_BIG && v <= UINT_MAX_BIG ? Number(v as bigint) : defaultValue ;
+        v = v >= UINT_MIN_BIG && v <= UINT_MAX_BIG ? Number(v) : defaultValue ;
     }
-    else if ($isstring(v)) { v = parseInt(<string>v, 10) ; }
-    return isNaN(v as number) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v as number, UINT_MAX))) as uint ;
+    else if (typeof v === 'string') { v = parseInt(v, 10) ; }
+    return isNaN(v) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v, UINT_MAX))) as uint ;
 }
 
 export function $string(v:any, yesOrNo?:Nullable<boolean>) : string {
@@ -218,12 +218,12 @@ export function $strings(...values: Array<Nullable<string[] | string>>) : string
         case 0: 
             return [] ;
         case 1: 
-            return $isstring(values[0]) ? values as string[] : ($isarray(values[0]) ? values[0] as string[] : []) ;
+            return typeof values[0] === 'string' ? values as string[] : ($isarray(values[0]) ? values[0] : []) ;
         default:{
             const ret:string[] = [] ;
             values.forEach(v => {
-                if ($isstring(v)) { ret.push(v as string) ; }
-                else if ($isarray(v)) { (v as string[]).forEach(s => ret.push(s))}
+                if (typeof v === 'string') { ret.push(v) ; }
+                else if ($isarray(v)) { v.forEach(s => ret.push(s))}
             });
             return ret ;        
         }
@@ -328,14 +328,14 @@ export function $objectMap<T = object>(source:Nullable<T>, callback?:(key:any, v
         const entries = (source as Map<any, any>).entries() ;
         for (let [k0, v0] of entries) {
             const [k, v] = callback!(k0, v0) ;
-            if ($defined(v) && $defined(v)) { map.set(k!, v!) ;}
+            if ($defined(k) && $defined(v)) { map.set(k, v) ;}
         }
     }
     else {
         const keys = $keys(source) ;
         for (let key of keys) {
             const [k, v] = callback!(key as string, (source as T)[key]) ;
-            if ($defined(v) && $defined(v)) { map.set(k!, v!) ;}
+            if ($defined(k) && $defined(v)) { map.set(k, v) ;}
         }    
     }
     return map ;
@@ -343,7 +343,7 @@ export function $objectMap<T = object>(source:Nullable<T>, callback?:(key:any, v
 
 export function $includesdict(source:Nullable<object>, dict:TSDictionary, keys?:string[]):boolean {
     if ($ok(source)) {
-        keys = $ok(keys) ? keys! : $keys(dict) as string[] ;
+        keys = $ok(keys) ? keys : $keys(dict) as string[] ;
         if (keys.length) {
             const v = source as TSDictionary ;
             for (let k of keys) { if (!$equal(v[k], dict[k])) { return false ; }}
@@ -372,8 +372,8 @@ export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T
 
     let [ret, n] = $partial(a, opts.A) ;
     let fopts:_fillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
-    if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays! ; }
-    if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects! ; }
+    if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays ; }
+    if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects ; }
     n += _fillObject<T,U>('fusion', ret, b, fopts) ;
     return [ret as any, n] ;
 }
@@ -411,7 +411,7 @@ function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:N
 	const v = $ftrim(s) ;
     const min = $value(minLength, 1) ;
     const max = $value(maxLength, UINT_MAX) ;
-	if (v.length < min || v.length > max || !regex.test(<string>v)) { return null ; }
+	if (v.length < min || v.length > max || !regex.test(v)) { return null ; }
 	return <T><unknown>v ;
 }
 
@@ -431,17 +431,17 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObje
         opts.filter = $isfunction(opts.filter) ? opts.filter! : (v:T[keyof T]) => $ok(v) && typeof v !== 'function' ? v : undefined ; 
         
         for (let p of opts.properties) {
-            if (!$isstring(p)) { 
+            if (typeof p !== 'string') { 
                 TSError.throw(`$${fn}() needs to have valid string properties`, 
                 { function:fn, source:source, destination:destination, options:opts}) ; 
             }
             const v = opts.filter(source[p]) ; 
             if ($defined(v)) {
                 if (fusion_arrays && $isarray(v) && $isarray(destination[p])) { 
-                    destination[p] = opts.fusionArrays!(destination[p], v as unknown as Array<any>) ;
+                    destination[p] = opts.fusionArrays!(destination[p], v) ;
                 }
                 else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
-                    destination[p] = opts.fusionObjects!(destination[p], v as unknown as object) ;
+                    destination[p] = opts.fusionObjects!(destination[p], v) ;
                 }
                 else { destination[p] = v ; }
                 ret++ ; 

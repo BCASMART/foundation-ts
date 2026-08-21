@@ -72,7 +72,7 @@ export class TSError extends Error {
     public constructor(message:string, errorCode:Nullable<number>, info:Nullable<TSDictionary>) ;
 	public constructor() {
 		const n = arguments.length ;
-        const s = n > 0 ? $ftrim(arguments[0] as string): "" ;
+        const s = n > 0 ? $ftrim(arguments[0]): "" ;
         
         super(s.length?s:TSError.DefaultMessage) ;
 

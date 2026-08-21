@@ -10,21 +10,21 @@ import { $declareAccessor } from "./object";
 // is consistant with $mapmap()
 export function $setmap<T, U=T>(set:Nullable<Set<T>>, mapFunction:(element:T)=>Nullable<U>):Set<U> {
     const ret = new Set<U>() ;
-    set?.forEach(e => { const u = mapFunction(e) ; if ($ok(u)) { ret.add(u!) ; }}) ;
+    set?.forEach(e => { const u = mapFunction(e) ; if ($ok(u)) { ret.add(u) ; }}) ;
     return ret ;
 }
 
 export function $mapmap<K,V,U=V>(map:Nullable<Map<K,V>>, mapFunction:(key:K, value:V)=>Nullable<U>):Map<K,U> {
     const ret = new Map<K,U>() ;
-    map?.forEach((v,k) => { const u = mapFunction(k, v) ; if ($ok(u)) { ret.set(k,u!) ; }}) ;
+    map?.forEach((v,k) => { const u = mapFunction(k, v) ; if ($ok(u)) { ret.set(k,u) ; }}) ;
     return ret ;
 }
 
 export function $conditionalClearSet<T>(set:Nullable<Set<T>>, clearFunction:(element:T)=>boolean):uint {
     if ($ok(set)) {
         const toBeCleared:T[] = [] ;
-        set!.forEach(e => { if (clearFunction(e)) { toBeCleared.push(e) ; }}) ;
-        toBeCleared.forEach(e => set!.delete(e)) ;
+        set.forEach(e => { if (clearFunction(e)) { toBeCleared.push(e) ; }}) ;
+        toBeCleared.forEach(e => set.delete(e)) ;
         return toBeCleared.length as uint ;
     }
     return UINT_MIN ;
@@ -33,8 +33,8 @@ export function $conditionalClearSet<T>(set:Nullable<Set<T>>, clearFunction:(ele
 export function $conditionalClearMap<K,V>(map:Nullable<Map<K,V>>, clearFunction:(element:K, value:V)=>boolean):uint {
     if ($ok(map)) {
         const toBeCleared:K[] = [] ;
-        map!.forEach((v,k) => { if (clearFunction(k,v)) { toBeCleared.push(k) ; }}) ;
-        toBeCleared.forEach(k => map!.delete(k)) ;
+        map.forEach((v,k) => { if (clearFunction(k,v)) { toBeCleared.push(k) ; }}) ;
+        toBeCleared.forEach(k => map.delete(k)) ;
         return toBeCleared.length as uint ;
     }
     return UINT_MIN ;
@@ -45,7 +45,7 @@ export function $dictionaryFromMap<K,V, U=V>(map:Nullable<Map<K,V>>, mapFunction
     const fn = $ok(mapFunction) ? mapFunction! : _simpleConvert ;
     map?.forEach((v0,k0) => { 
         const [k,u] = fn(k0, v0) ; 
-        if ($ok(u) && $length(k) > 0) { ret[k!] = u! ; }
+        if ($ok(u) && $length(k) > 0) { ret[k!] = u ; }
     }) ;
     return ret ;
 }

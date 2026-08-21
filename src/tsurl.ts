@@ -191,7 +191,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
 
     public get href():url { 
         if (!$defined(this._href)) { this._href = this._calculated_href() ; }
-        return this._href! ; 
+        return this._href ; 
     }
 
     public get w3c():boolean { return this._w3cProtocol ; }
@@ -208,7 +208,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         if (!$defined(this._searchParams)) { 
             this._searchParams = new URLSearchParams(this.search) ;
         }
-        return this._searchParams! ;
+        return this._searchParams ;
     }
 
     public get auth():string { return this._auth ; }
@@ -341,7 +341,7 @@ function _parseHostAndPort(s:string):[string, string] {
     s = $ascii($ftrim(s)).toLowerCase()
     const m = __portRegex.exec(s) ;
     if ($ok(m)) {
-        const port = m![0] ;
+        const port = m[0] ;
         return [s.slice(0, s.length - port.length), port.slice(1)] ;
     }
     return [s, ''] ;
@@ -370,8 +370,8 @@ function _validateHostName(hostname:string):[string, string] {
                 const invalidParts = hostparts.slice(i+1) ;
                 const m = part.match(__hostnamePartStartRegex);
                 if ($ok(m)) {
-                    validParts.push(m![1]);
-                    invalidParts.unshift(m![2]);
+                    validParts.push(m[1]);
+                    invalidParts.unshift(m[2]);
                 }
                 return [validParts.join('.'), invalidParts.length ? '/'+invalidParts.join('.') : ''] ;
             }

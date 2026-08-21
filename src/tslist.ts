@@ -44,7 +44,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 
     public constructor(list?:Iterable<T>) {
         if ($defined(list)) {
-            for (let object of list!) { this.add(object) ; }
+            for (let object of list) { this.add(object) ; }
         }
     }
 
@@ -188,7 +188,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
     }
 
 	public toString(opts:TSListToStringOptions<T> = { prefix:'(', separator:',', suffix:')'}):string {
-		let s = $ok(opts.prefix) ? opts.prefix as string : '' ;
+		let s = $ok(opts.prefix) ? opts.prefix : '' ;
 		if (!$ok(opts.printer)) opts.printer = d => (d as any).toString() ;
 
 		if (this._f) {

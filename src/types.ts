@@ -71,10 +71,11 @@ export type StringEncoding = NormativeStringEncoding |
 export type Bytes = uint8[]|Uint8Array|Buffer ;
 export type TSDataLike = Bytes|ArrayBuffer|TSData ;
 
+export type JSONType = null|string|number|boolean|Array<any>|{[key:string]:any} ;
+
 export type UUIDVersion = 1 | 4 ; 
 export const UUIDv1:UUIDVersion = 1 ;
 export const UUIDv4:UUIDVersion = 4 ;
-
 
 // ========== comparison types =====================
 export const Ascending = -1 ;
@@ -91,7 +92,10 @@ export enum TSUnicity {
 } ;
 
 // ========== system types =========================
-export type TSEndianness = 'BE' | 'LE' ;
+export const TSEndianness = {
+  LE: true,
+  BE: false,
+} as const;
 
 // ========== enumerated types =====================
 // continents

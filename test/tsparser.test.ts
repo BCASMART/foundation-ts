@@ -8,7 +8,7 @@ import { $absolute, $filename, $loadJSON } from "../src/fs";
 import { Continents, Countries, Currencies, Languages, UINT32_MAX, UUID } from "../src/types";
 import { $uuid } from "../src/crypto";
 import { TSURL } from "../src/tsurl";
-import { $decodeBase64 } from "../src/data";
+import { $bufferFromHexaString, $decodeBase64 } from "../src/data";
 import { TSCharset } from "../src/tscharset";
 import { TSData } from "../src/tsdata";
 import { TSCountry } from "../src/tscountry";
@@ -161,7 +161,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
     group.unary('TSParser unary data parser', async(t) => {
 
         const b64decoded = $decodeBase64(photoBase64Value) ;
-        const hexaDecoded = Buffer.from(photoHexaValue, 'hex') ;
+        const hexaDecoded = $bufferFromHexaString(photoHexaValue) ;
         t.expect0(hexaDecoded).is(b64decoded) ;
 
         const def = {
@@ -171,20 +171,20 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const [struct, _v] = _define(0, t, def, 'unary hexa data parser') ;
         if ($ok(struct)) {    
             if (_v(0, photoHexaValue)) {
-                const res = struct!.rawInterpret(photoHexaValue) ;
+                const res = struct.rawInterpret(photoHexaValue) ;
                 t.expect1(res).is(b64decoded) ;
             }
             if (_v(1, hexaDecoded)) {
-                const res = struct!.rawInterpret(hexaDecoded) ;
+                const res = struct.rawInterpret(hexaDecoded) ;
                 t.expect3(res).is(b64decoded) ;
             }
             if (_v(2, b64decoded)) {
-                const res = struct!.rawInterpret(b64decoded) ;
+                const res = struct.rawInterpret(b64decoded) ;
                 t.expect4(res).is(hexaDecoded) ;
             }
             const data_object = new TSData(b64decoded) ;
             if (_v(3, data_object)) {
-                const res = struct!.rawInterpret(data_object) ;
+                const res = struct.rawInterpret(data_object) ;
                 t.expect5(res instanceof TSData).OK() ;
                 t.expect6(res).is(hexaDecoded) ;
             }
@@ -198,20 +198,20 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const [struct64, _v64] = _define(1, t, def64, 'unary base64 data parser') ;
         if ($ok(struct64)) {    
             if (_v64(0, photoBase64Value)) {
-                const res = struct64!.rawInterpret(photoBase64Value) ;
+                const res = struct64.rawInterpret(photoBase64Value) ;
                 t.expect2(res).is(hexaDecoded) ;
             }
             if (_v64(1, b64decoded)) {
-                const res = struct64!.rawInterpret(b64decoded) ;
+                const res = struct64.rawInterpret(b64decoded) ;
                 t.expect3(res).is(hexaDecoded) ;
             }
             if (_v64(2, hexaDecoded)) {
-                const res = struct64!.rawInterpret(hexaDecoded) ;
+                const res = struct64.rawInterpret(hexaDecoded) ;
                 t.expect4(res).is(b64decoded) ;
             }
             const data_object = new TSData(hexaDecoded) ;
             if (_v64(3, data_object)) {
-                const res = struct64!.rawInterpret(data_object) ;
+                const res = struct64.rawInterpret(data_object) ;
                 t.expect5(res instanceof TSData).OK() ;
                 t.expect6(res).is(b64decoded) ;
             }
@@ -227,7 +227,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             if (_v(2, v)) {
                 const res = struct!.rawInterpret(v) ;
                 if (!t.expect3(res).is(parserStructureTestInterpretation())) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
             }
             v = parserStructureTestValue() ;
@@ -241,9 +241,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             if (_v(14, v)) {
                 const r = parserStructureTestInterpretation() ;
                 r.language = 'fr' ;
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expectA(res).is(r)) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
             }
             v = parserStructureTestValue() ;
@@ -298,9 +298,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             let v = parserStructureTestValue() ;
             if (_v(2, v)) {
                 const r = parserStructureTestInterpretation() ;
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expect3(res).is(r)) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
                 else {
                     let out = parserStructureTestValue() ;
@@ -312,8 +312,8 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                     
                     // here, the exported office type is the string of the enum
 
-                    if (!t.expect4(struct!.rawEncode(res)).is(out)) {
-                        console.log($inspect(struct!.toJSON(), 10)) ;
+                    if (!t.expect4(struct.rawEncode(res)).is(out)) {
+                        console.log($inspect(struct.toJSON(), 10)) ;
                     }
                 }
             }
@@ -403,9 +403,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             
             if (_v(2, v)) {
                 const r = parserStructureTestInterpretation() ;
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expect3(res).is(r)) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
                 else {
                     let out = parserStructureTestValue() ;
@@ -418,8 +418,8 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                     out.company.job = out.company.position ; delete out.company.position ;
                     out.company.offices[0].officeType = 2 ; // TODO: export the enum value ?
 
-                    if (!t.expect4(struct!.rawEncode(res)).is(out)) {
-                        console.log($inspect(struct!.toJSON(), 10)) ;
+                    if (!t.expect4(struct.rawEncode(res)).is(out)) {
+                        console.log($inspect(struct.toJSON(), 10)) ;
                     }
                 }
 
@@ -478,9 +478,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             for (let i = 0 ; i < n ; i++) {
                 const v = values[i] ;
                 if (_v(i, v)) {
-                    const res = struct!.rawInterpret(v) ;
+                    const res = struct.rawInterpret(v) ;
                     if (t.expect(res, 'raw'+i).is(decodedValues[i])) {
-                        t.expect(struct!.rawEncode(res), 'enc'+i).is(exportedValues[i]) ;
+                        t.expect(struct.rawEncode(res), 'enc'+i).is(exportedValues[i]) ;
                     }
                 }
             }
@@ -517,7 +517,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const [struct, _v, _i] = _define(0, t, def, 'emulating insensitive keys entries' ) ;
         if ($ok(struct)) {
             if (_v(0, value)) {
-                const res = struct!.rawInterpret(value) ;
+                const res = struct.rawInterpret(value) ;
                 t.expect0(res).is(interpretedValue)
             }
         }
@@ -533,10 +533,10 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const [struct1, _v1, _i1] = _define(1, t, def, 'emulating insensitive keys entries with other aliases' ) ;
         if ($ok(struct1)) {
             if (_v1(1, value1)) {
-                const res = struct1!.rawInterpret(value1) ;
+                const res = struct1.rawInterpret(value1) ;
                 if (t.expect1(res).is(interpretedValue1)) {
-                    if (!t.expect2(struct1!.rawEncode(res)).is({ "field-name":"John DOE", "document-format":"ledger" })) {
-                        console.log($inspect(struct1!.toJSON(), 10)) ;
+                    if (!t.expect2(struct1.rawEncode(res)).is({ "field-name":"John DOE", "document-format":"ledger" })) {
+                        console.log($inspect(struct1.toJSON(), 10)) ;
                     }
                 }
             }
@@ -678,7 +678,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 "\\/server/volume/folder/folder2"            
             ] ;
             if (_v(2, v)) {
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expect0(res).is(v)) {
                     console.log('\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', v) ;
                 }
@@ -729,7 +729,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
 
             const v5 = TSCountry.alpha3Codes() ;
             if (_v(5, v5)) {
-                const res = struct!.rawInterpret(v5) ;
+                const res = struct.rawInterpret(v5) ;
                 t.expect5(res).is(v4) ;
             }
 
@@ -753,9 +753,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             const v = ['http://localhost', 'http://localhost/', 'http://localhost:8000', 'http://localhost:8000/toto'] ;
             const vr = v.map(s => TSURL.url(s)) ;
             if (_v(2, v)) {
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expect0(res).is(vr)) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
             }
         }
@@ -775,9 +775,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 for (let j = 0 ; j < i ; j++) { v.push($uuid()) ; }
                 if (i <= 4 ? _v(i, v) : _i(i, v)) {
                     if (i <= 4) {
-                        const res = struct!.rawInterpret(v) ;
+                        const res = struct.rawInterpret(v) ;
                         if (!t.expect(res, 'res'+i).is(v)) {
-                            console.log($inspect(struct!.toJSON(), 10)) ;
+                            console.log($inspect(struct.toJSON(), 10)) ;
                         }
                     } 
                 }
@@ -791,9 +791,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         if ($ok(struct)) {            
             const v = parserStructureTestValue() ;         
             if (_v(2, v)) {
-                const res = struct!.rawInterpret(v) ;
+                const res = struct.rawInterpret(v) ;
                 if (!t.expect3(res).is(parserStructureTestInterpretation())) {
-                    console.log($inspect(struct!.toJSON(), 10)) ;
+                    console.log($inspect(struct.toJSON(), 10)) ;
                 }
             }
         }
@@ -851,6 +851,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                 months:['string!', 12, 12],
                 monthsList:months,
                 names:names,
+                ordinals:['string'],
                 partialTimeFormat:'string!',
                 shortDateFormat:'string!',
                 shortDateTimeFormat:'string!',
@@ -889,11 +890,15 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
                     dialCode:'string!',
                     trunkCode:'string!',
                     areaCodes:['string!'],
-                    minDigits:'uint8',
-                    maxDigits:'uint8',
+                    minDigits:'uint8!',
+                    maxDigits:'uint8!',
                     format:'string',
+                    regex:'string',
+                    mobileRegex:'string',
+                    fixedLineRegex:'string',
+                    note:'string',
                     dummies:['string!'],
-                    _checker: (v:any) => !$ok(v.minDigits) || !$ok(v.maxDigits) || v.minDigits <= v.maxDigits
+                    _checker: (v:any) => v.minDigits <= v.maxDigits
                 },
                 aliases:['string!'],
                 localeLanguage:'language',
@@ -949,7 +954,9 @@ function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {
                 $logterm('&0\n&x=================================================================') ;
                 $logterm(`&0&x Faulty JSON &R&w ${file} &0&x":`) ;
                 $logterm('&0&x=================================================================') ;
-                $logterm(`&0&a${$inspect(json)}`)
+                $logterm(`&0&a${$inspect(json)}`) ;
+                $logterm('&0&x=================================================================') ;
+                $logterm(`&0&x End of faulty JSON &R&w ${file} &0&x":`) ;
                 $logterm('&0&x=================================================================&0') ;
             }
         }

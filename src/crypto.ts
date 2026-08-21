@@ -10,9 +10,10 @@ import {
     randomUUID 
 } from 'crypto';
 
+
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
 import { $isstring, $length, $ok, $tounsigned, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
-import { $bufferFromBytes, $bufferFromDataLike, $uint8ArrayFromDataLike } from './data';
+import { $bufferFromBytes, $bufferFromDataLike, $bufferFromHexaString, $uint8ArrayFromDataLike } from './data';
 import { $charset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
 import { $logterm } from './utils';
@@ -94,7 +95,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
     if (!charset) { return null; }
     
-    const source = $isstring(src) ? charset!.uint8ArrayFromString(src as string) : $uint8ArrayFromDataLike(src as TSDataLike);
+    const source = $isstring(src) ? charset!.uint8ArrayFromString(src) : $uint8ArrayFromDataLike(src);
     if (!$length(source)) { return null; }
 
     let returnValue = null ;
@@ -106,7 +107,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
         let encrypted = addIV ? new TSData(iv) : new TSData() ; 
         encrypted.appendBytes(cipher.update(source)) ;
         encrypted.appendBytes(cipher.final()) ;
-        returnValue = !opts?.dataOutput ? encrypted.toString('hex') : encrypted; // output is a TSData OR an hexa string
+        returnValue = !opts?.dataOutput ? encrypted.hexaString() : encrypted; // output is a TSData OR an hexa string
     }
     catch (e) {
         console.log(e) ;
@@ -127,9 +128,9 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, o
     const isString = $isstring(source) ;
     const len = $length(source) ;
     
-    // AES encryption generate data whith multiple of 16 bytes (32 hex chars) length. 
-    // The minimal encrypted data length, without any IV is 16 bytes (32 if hex string). 
-    // With an IV, it's 32 bytes (64 if hex string)
+    // AES encryption generate data whith multiple of 16 bytes (32 hexa chars) length. 
+    // The minimal encrypted data length, without any IV is 16 bytes (32 if hexa string). 
+    // With an IV, it's 32 bytes (64 if hexa string)
     if (len % (isString ? 32 : 16) !== 0 || len < (hasVector ? (isString ? 64 : 32) : (isString ? 32 : 16)) ) { return null ; }
     
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
@@ -138,21 +139,23 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, o
     let returnValue = null ;
 
     try {
-        let src:Buffer ;
-        let iv:Buffer ;
+        let src:Nullable<Buffer> ;
+        let iv:Nullable<Buffer> ;
         
         if (isString) {
             // this is an hexadecimal string source. IV is always 16 bytes, so 32 hexa characters
-            src = Buffer.from(hasVector ? (source as string).slice(32) : source as string, 'hex') ;
-            iv = hasVector ? Buffer.from((source as string).slice(0, 32), 'hex') : __CommonInitializationVector ;
+            src = $bufferFromHexaString(hasVector ? (source as string).slice(32) : source as string) ;
+            if (!$ok(src)) { return null ; }
+            iv = hasVector ? $bufferFromHexaString((source as string).slice(0, 32)) : __CommonInitializationVector ;
+            if (!$ok(iv)) { return null ; }
         }
         else {
             // this is a data source
             src = $bufferFromDataLike(source as TSDataLike, { start:hasVector?16:0 }) ;
             iv = hasVector ? $bufferFromDataLike(source as TSDataLike, { end:16 }) : __CommonInitializationVector ;
         }
-        let decipher = createDecipheriv(algo, key, iv);
-        let decrypted = new TSData(decipher.update(src));
+        let decipher = createDecipheriv(algo, key, iv!);
+        let decrypted = new TSData(decipher.update(src!));
         decrypted.appendBytes(decipher.final());
         returnValue = !opts?.dataOutput ? decrypted.toString(charset) : decrypted ;
     }
@@ -274,7 +277,7 @@ export function $randomBytes(length:number):Uint8Array {
 export function $shuffle<T = any>(values:Nullable<ArrayLike<T>|Iterable<T>>, max?:Nullable<number>): T[] {
     const ret:Array<T> = [] ;
     if ($ok(values)) {
-        const source = Array.from(values!) ;
+        const source = Array.from(values) ;
         let n = source.length ;
         if (n > 0) {
             const m = Math.min(n, $tounsigned(max, n as uint)) ;
@@ -429,8 +432,8 @@ const __TSHashMethodRef:StringDictionary = {
 
 function _uint8ArrayFromStringOrDataLike(source:string|TSDataLike, encoding: Nullable<StringEncoding | TSCharset>) {
     return $isstring(source) ?
-           $charset(encoding, TSCharset.binaryCharset())!.uint8ArrayFromString(source as string) :
-           $uint8ArrayFromDataLike(source as TSDataLike);
+           $charset(encoding, TSCharset.binaryCharset())!.uint8ArrayFromString(source) :
+           $uint8ArrayFromDataLike(source);
 }
 
 function _randomFromBytes(m:uint, bytes:Buffer, is32bits:boolean):uint {
@@ -467,7 +470,7 @@ function _charsetKeyAndAlgo(skey: string | TSDataLike, opts?: Nullable<$encryptO
     const defaultCharset = TSCharset.binaryCharset() ;
     const keyCharset = $charset(opts?.keyEncoding, defaultCharset);
     const algo = _algo(opts?.algorithm) ;
-    const key = $isstring(skey) ? keyCharset.uint8ArrayFromString(skey as string) : $uint8ArrayFromDataLike(skey as TSDataLike) ;
+    const key = $isstring(skey) ? keyCharset.uint8ArrayFromString(skey) : $uint8ArrayFromDataLike(skey) ;
     if (key.length !== __TSEncryptKeyLength[algo]) { return [null, key, __TSEncryptAlgoRef[AES256]]; }
     return [$charset(opts?.encoding, defaultCharset), key, __TSEncryptAlgoRef[algo]]
 }

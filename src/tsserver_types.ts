@@ -136,13 +136,13 @@ function _returnObject(r:TSServerResponse, args:ArrayLike<any>) {
     }
     if ($ok(r.responseParser)) {
         const opts:TSParserOptions = { errors:[], context:'json' }
-        if (!r.responseParser!.validate(v, opts)) { 
+        if (!r.responseParser.validate(v, opts)) { 
             TSError.throw('TSServerResponse.returnObject(): Invalid structured response', { 
                 errors: opts.errors,
                 serverError:TSServerErrorCodes.BadResponseStructure
             }) ; 
         }
-        v = r.responseParser!.rawEncode(v, opts) ;
+        v = r.responseParser.rawEncode(v, opts) ;
     } 
     _statusAndType(r, 'returnObject', 'application/json', args) ;
     r.response.end(JSON.stringify(v, undefined, 2)) ;

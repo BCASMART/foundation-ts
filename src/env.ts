@@ -79,7 +79,7 @@ function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinitio
         if (debug) { $logterm("&R&w $env(): called with a null or undefined source  &0") ; }
         return ret ;
     }
-    const lines = $lines($isstring(source) ? source as string : $charset(opts?.encoding).stringFromData(source as TSDataLike)) ;
+    const lines = $lines($isstring(source) ? source : $charset(opts?.encoding).stringFromData(source)) ;
     for (let i = 0, n = lines.length ; i < n ; i++) {
         const [key, value] = _interpretEnvLine(ret, lines[i].rtrim(), i + 1, ref, underscoreMax, variableMax, debug) ;
         if (key === 'void') { continue ; }
@@ -202,7 +202,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
                         const def:TSArgumentParser = { name:name, positive:isBoolean ? true : undefined } ;
                         (parserStructure as any)[name] = ds.struct ;
                         nameSet.add(name) ;
-                        if ($ok(ds.defaultValue)) { defaults.push({name:name, value:ds.defaultValue!}) ; }
+                        if ($ok(ds.defaultValue)) { defaults.push({name:name, value:ds.defaultValue}) ; }
                         ref.set(prefix+name, def) ; 
                         if (doubledash) { ref.set(prefix+prefix+name, def) ; }
                         if (prefix.length >= 0 && short.length === 1) { ref.set(prefix+short, def) ; }
@@ -243,16 +243,16 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
             if (!$ok(dict) && $ok(opts?.errors)) {
                 interpretErrors.forEach(e => {
                     const m = e.match(/^object\.(\S+)\s+(.+)$/) ;
-                    if ($ok(m)) { opts?.errors?.push(`Argument '-${m![1]}' ${m![2]}`) ; }
+                    if ($ok(m)) { opts?.errors?.push(`Argument '-${m[1]}' ${m[2]}`) ; }
                 }) ;
             }
         }
     }
-    if ($isnumber(opts?.exitError) && opts?.exitError !== 0) {
-        $argCheck($toint(opts?.exitError), opts?.errors, opts?.processName) ;
+    if ($isnumber(opts?.exitError) && opts.exitError !== 0) {
+        $argCheck($toint(opts.exitError), opts.errors, opts.processName) ;
     }
     if ($ok(dict)) {
-        defaults.forEach(c => { if (!$ok(dict![c.name])) { dict![c.name] = c.value ; }})
+        defaults.forEach(c => { if (!$ok(dict[c.name])) { dict[c.name] = c.value ; }})
     }
     return [dict, args] ;
 }
@@ -283,13 +283,13 @@ function _dictionaryFromURLQuery(url:TSURL, ref:Map<string, TSArgumentParser>, e
             const def = ref.get(key) ;
             if (!$ok(def)) { errors?.push(`Unknown argument '${key}'.`) ; doomed = true ; }
             if ($ok(def?.positive)) {
-                dict[def!.name] = def?.positive ? value :_inversedValue(value) ; 
+                dict[def.name] = def.positive ? value :_inversedValue(value) ; 
             }
-            else {
-                const v = dict[def!.name] ;
-                if (!$ok(v)) { dict[def!.name] = value ; }
+            else if ($ok(def?.name)) {
+                const v = dict[def.name] ;
+                if (!$ok(v)) { dict[def.name] = value ; }
                 else if ($isarray(v)) { v.push(value) ; }
-                else { dict[def!.name] = [v, value] ; }
+                else { dict[def.name] = [v, value] ; }
             }
         }
     }

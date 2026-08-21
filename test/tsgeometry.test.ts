@@ -107,7 +107,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         const formatKeys = $keys(TSDocumentFormats) ;
         for (let f of formatKeys) {
             const newRect = new TSRect(f) ;
-            t.expect(newRect.size,f as string).is(TSDocumentFormats[f]) ;
+            t.expect(newRect.size,f).is(TSDocumentFormats[f]) ;
         }
     }) ;
 
@@ -134,8 +134,8 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectG(TSAssertFormat({w:NaN,h:NaN})).is(dflt) ;
         t.expectH(TSAssertFormat({w:20000,h:Infinity})).is(maxi) ;
         t.expectI(TSAssertFormat({w:Infinity,h:20000})).is(maxi) ;
-        t.expectJ(TSAssertFormat({w:100,h:Infinity})).is(mini) ;
-        t.expectK(TSAssertFormat({w:Infinity,h:100})).is(mini) ;
+        t.expectJ(TSAssertFormat({w:10,h:Infinity})).is(mini) ;
+        t.expectK(TSAssertFormat({w:Infinity,h:10})).is(mini) ;
     }) ;
 
 }) ;

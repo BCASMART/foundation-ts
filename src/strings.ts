@@ -1,59 +1,57 @@
 import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID, $value } from "./commons";
-import { FoundationASCIIConversion, FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { $transliterate, $transliterateCP } from "./transliteration";
 import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
 import { TSPhoneNumber } from "./tsphonenumber";
 import { int, Nullable, uint } from "./types";
 
-// for now $ascii() does not mak any transliterations from
-// non-latin languages like Greek
+// $ascii() and $strictascii() functions performs state of the art transliterations
+// conforms to bca-foundation-rs code
 export function $ascii(source: Nullable<string>): string {
-    const l = $length(source);
-    if (!l) return '';
-    let s = (source as string).replace(/≠|¯|ͺ|΄|ι|≁|[\u226C-\u22C4]|[\u1D2B-\u1D6A]/g, "") ;
-    s = s.replace(/;/g, '?').replace(/ɸ/g, 'f') ;
-    s = s.normalize("NFD").replace(/[\u02B0-\u036f]|[\u0400-\u05FF]|[\u0700-\u1CFF]|[\u1D9B-\u1DFF]|[\u1FBD-\u1FC0]|[\u1FCD-\u1FCF]|[\u1FDD-\u1FDF]|[\u237B-\u245F]|[\u2500-\u2638]|[\u263C-\u2752]|[\u27F0-\u2982]|[\u2A7F-\u2C5F]|[\u2C80-\u2FFF]|[\u3002-\u3247]|[\u3260-\u32B0]|[\u32D0-\u3357]|[\u3400-\uA725]|[\uA7B6-\uA7F1]|[\uA800-\uD7FF]|[\uFB07-\uFB28]|[\uFB2A-\uFE0F]|[\uFE49-\uFE4F]|[\uFE6C-\uFEFE]|[\uFF66-\uFF6F]|[\uFF71-\uFFDF]|[\uFFE6-\uFFFF]|\u00a8|\u00ad|\u00b4|\u1680|\u180E|\u1FFE|\u2017|\u3250|\u1D78|\u2028|\u2029|\u203E|\u211E|\u236F\u2241/g, "").normalize("NFKD"); // does most of the job
-    // finally we will try to convert (or remove) the remaining non ascii characters
-    return s.replace(/[^\x00-\x7F]/g, x => FoundationASCIIConversion[x] || '');
+    return $length(source) ? $transliterate(source!, false)! : '';
+}
+
+export function $strictascii(source: Nullable<string>): string | null {
+    return $ok(source) ? $transliterate(source!, true)! : null ;
 }
 
 // warning: use this function only on path component, never on paths !
-export function $asciifs(source: Nullable<string>, posix:boolean = false): string
-{
-    source = $ftrim(source) ; 
-    if (!source.length) { return '' } ;
-    source = $ascii(source).replace(/[\x00-\x1F]/g, "") ;
-    if (!source.length) { return '' } ;
-    return !posix ? 
-           source.replace(/[<>:\"\/\\\*\?\|]/g, '_') :
-           source?.replace(/[^A-Za-z0-9\._-]/g, "_" )
-    ; 
+export function $asciifs(source: Nullable<string>, posix: boolean = false): string {
+    source = $ftrim(source);
+    if (!source.length) { return '' };
+    source = $ascii(source).replace(/[\x00-\x1F]/g, "");
+    if (!source.length) { return '' };
+    return !posix ?
+        source.replace(/[<>:\"\/\\\*\?\|]/g, '_') :
+        source?.replace(/[^A-Za-z0-9\._-]/g, "_")
+        ;
 }
 
 /**
  *   We don't use standard trim because it does not trim all unicode whitespaces! 
  */
 // left-trim
-export function $ltrim(s: Nullable<string>): string { return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "") : ''; }
+export function $ltrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationLeftTrimRegex, "") : ''; }
 
 // right-trim
-export function $rtrim(s: Nullable<string>): string { return $length(s) ? (s as string).replace(FoundationRightTrimRegex, "") : ''; }
+export function $rtrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationRightTrimRegex, "") : ''; }
 
 // full-trim
-export function $ftrim(s: Nullable<string>): string { return $length(s) ? (s as string).replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : ''; }
+export function $ftrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : ''; }
 
 export { $ftrim as $trim }
 
-export function $left(source: Nullable<string>, leftPart?:Nullable<number>): string {
-    const l = $length(source) ;
-    let n = $unsigned(leftPart) ; if (!n) (n = 1 as uint)
-    return l > 0 ? (n >= l ? source! : source!.slice(0, n)) : '' ;
+export function $left(source: Nullable<string>, leftPart?: Nullable<number>): string {
+    const l = $length(source);
+    let n = $unsigned(leftPart); if (!n) (n = 1 as uint)
+    return l > 0 ? (n >= l ? source! : source!.slice(0, n)) : '';
 }
 
-export function $right(source: Nullable<string>, rightPart?:Nullable<number>): string {
-    const l = $length(source) ;
-    let n = $unsigned(rightPart) ; if (!n) (n = 1 as uint)
-    return l > 0 ? (n >= l ? source! : source!.slice(l-n, l)) : '' ;
+export function $right(source: Nullable<string>, rightPart?: Nullable<number>): string {
+    const l = $length(source);
+    let n = $unsigned(rightPart); if (!n) (n = 1 as uint)
+    return l > 0 ? (n >= l ? source! : source!.slice(l - n, l)) : '';
 }
 
 /*
@@ -68,64 +66,64 @@ export function $right(source: Nullable<string>, rightPart?:Nullable<number>): s
  */
 export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = false): string[] {
     const len = $length(s)
-    const ret: string[] = [] ;
+    const ret: string[] = [];
     if (len > 0) {
-        enum LCState { CR, NewLine, Other } ;
-        const [CR, LF, FF, NEL, LS, PS] = [0x000D, 0x000A, 0x000C, 0x0085, 0x02028, 0x02029] ;
-        const isOtherLineSeparator = useOnlyASCIISeparators ? (_:number) => false : (c:number) => c === LS || c === PS || c === NEL || c === FF ;
+        enum LCState { CR, NewLine, Other };
+        const [CR, LF, FF, NEL, LS, PS] = [0x000D, 0x000A, 0x000C, 0x0085, 0x02028, 0x02029];
+        const isOtherLineSeparator = useOnlyASCIISeparators ? (_: number) => false : (c: number) => c === LS || c === PS || c === NEL || c === FF;
 
-        let lcstate:LCState = LCState.Other ;
-        let lastPosition = 0, pos = 0 ;
+        let lcstate: LCState = LCState.Other;
+        let lastPosition = 0, pos = 0;
 
         while (pos < len) {
-            const c = s!.charCodeAt(pos) ;
+            const c = s!.charCodeAt(pos);
             if (lcstate === LCState.CR) {
-                ret.push(s!.slice(lastPosition, pos - 1)) ;
-                if (c === LF) { lastPosition = pos + 1 ; lcstate = LCState.NewLine ; }
-                else if (isOtherLineSeparator(c)) { ret.push('') ; lastPosition = pos + 1 ; lcstate = LCState.NewLine ; }
-                else { lcstate = LCState.Other ; lastPosition = pos-- ; } // we rewind the last char as if the precedent one was not CR
+                ret.push(s!.slice(lastPosition, pos - 1));
+                if (c === LF) { lastPosition = pos + 1; lcstate = LCState.NewLine; }
+                else if (isOtherLineSeparator(c)) { ret.push(''); lastPosition = pos + 1; lcstate = LCState.NewLine; }
+                else { lcstate = LCState.Other; lastPosition = pos--; } // we rewind the last char as if the precedent one was not CR
             }
-            else if (c === CR) { lcstate = LCState.CR ; }
+            else if (c === CR) { lcstate = LCState.CR; }
             else if (c === LF || isOtherLineSeparator(c)) {
                 ret.push(s!.slice(lastPosition, pos));
-                lastPosition = pos + 1 ;
-                lcstate = LCState.NewLine ;
+                lastPosition = pos + 1;
+                lcstate = LCState.NewLine;
             }
-            else { lcstate = LCState.Other ; }
-            pos++ ;
+            else { lcstate = LCState.Other; }
+            pos++;
         }
         switch (lcstate) {
             case LCState.CR:
                 ret.push(s!.slice(lastPosition, pos - 1));
                 ret.push('');
-                break ;
+                break;
             case LCState.NewLine:
-                ret.push('') ;
-                break ;
+                ret.push('');
+                break;
             case LCState.Other:
-                if (lastPosition < pos) { ret.push(s!.slice(lastPosition, pos)) ; }
-                break ;
+                if (lastPosition < pos) { ret.push(s!.slice(lastPosition, pos)); }
+                break;
         }
     }
-    else if ($ok(s)) { ret.push('') ; }
-    return ret ;
+    else if ($ok(s)) { ret.push(''); }
+    return ret;
 }
 export interface $normspacesOpions {
-    replacer?:string,
-    strict?:boolean
+    replacer?: string,
+    strict?: boolean
 }
 
-export function $normspaces(s: Nullable<string>, opts:$normspacesOpions = {}): string { 
+export function $normspaces(s: Nullable<string>, opts: $normspacesOpions = {}): string {
     return $ftrim(s).replace(
-        opts.strict ? FoundationFindStrictWhitespacesRegex : FoundationFindAllWhitespacesRegex, 
+        opts.strict ? FoundationFindStrictWhitespacesRegex : FoundationFindAllWhitespacesRegex,
         $value(opts.replacer, " ")
-    ); 
+    );
 }
 
 export function $firstcap(s: Nullable<string>): string { return _capitalize(s, 1); }
 export function $capitalize(s: Nullable<string>): string { return _capitalize(s); }
-export function $camelCase(s: Nullable<string>): string { return _camelCase(s) ; } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
-export function $snakeCase(s: Nullable<string>): string { return _snakeCase(s) ; } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
+export function $camelCase(s: Nullable<string>): string { return _camelCase(s); } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
+export function $snakeCase(s: Nullable<string>): string { return _snakeCase(s); } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
 
 export function $HTML(s: Nullable<string>, reference: string[] = FoundationHTMLEncoding): string {
     const len = $length(s);
@@ -144,140 +142,152 @@ export class HTMLContent extends String {
 
 declare global {
     export interface String {
-        ascii:              (this: string) => string;
-        asciifs:            (this: string, posix:boolean) => string;
-        camelCase:          (this: string) => string;
-        capitalize:         (this: string) => string;
-        doubleEscape:       (this: string, char:string) => string ;
-        firstCap:           (this: string) => string;
-        ftrim:              (this: string) => string;
-        left:               (this: string, leftPart?:Nullable<number>) => string;
-        isDate:             (this: string) => boolean;
-        isEmail:            (this: string) => boolean;
-        isNewLine:          (this: string) => boolean;
+        ascii: (this: string) => string;
+        asciifs: (this: string, posix: boolean) => string;
+        camelCase: (this: string) => string;
+        capitalize: (this: string) => string;
+        doubleEscape: (this: string, char: string) => string;
+        firstCap: (this: string) => string;
+        ftrim: (this: string) => string;
+        left: (this: string, leftPart?: Nullable<number>) => string;
+        isDate: (this: string) => boolean;
+        isEmail: (this: string) => boolean;
+        isNewLine: (this: string) => boolean;
         isStrictWhiteSpace: (this: string) => boolean;
-        isUrl:              (this: string) => boolean;
-        isUUID:             (this: string) => boolean;
-        isWhiteSpace:       (this: string) => boolean;
-        lines:              (this: string, useOnlyASCIISeparators?:boolean) => string[];
-        ltrim:              (this: string) => string;
-        normalizeSpaces:    (this: string, opts?: $normspacesOpions) => string;
-        right:              (this: string, rightPart?:Nullable<number>) => string;
-        rtrim:              (this: string) => string;
-        singular:           (this: string) => boolean ;
-        snakeCase:          (this: string) => string;
-        toDate:             (this: string) => Date|null ;
-        toHTML:             (this: string) => string;
-        toHTMLContent:      (this: string) => HTMLContent ;
-        toInt:              (this: string, defaultValue?: int) => int;
-        toPhoneNumber:      (this: string, defaultCountry?:Nullable<TSCountry>) => TSPhoneNumber|null;
-        toTSDate:           (this: string) => TSDate|null ;
-        toUnsigned:         (this: string, defaultValue?: uint) => uint;
+        isUrl: (this: string) => boolean;
+        isUUID: (this: string) => boolean;
+        isWhiteSpace: (this: string) => boolean;
+        lines: (this: string, useOnlyASCIISeparators?: boolean) => string[];
+        ltrim: (this: string) => string;
+        normalizeSpaces: (this: string, opts?: $normspacesOpions) => string;
+        right: (this: string, rightPart?: Nullable<number>) => string;
+        rtrim: (this: string) => string;
+        singular: (this: string) => boolean;
+        snakeCase: (this: string) => string;
+        strictAscii: (this: string) => string | null;
+        toDate: (this: string) => Date | null;
+        toHTML: (this: string) => string;
+        toHTMLContent: (this: string) => HTMLContent;
+        toInt: (this: string, defaultValue?: int) => int;
+        toPhoneNumber: (this: string, defaultCountry?: Nullable<TSCountry>) => TSPhoneNumber | null;
+        toTSDate: (this: string) => TSDate | null;
+        toUnsigned: (this: string, defaultValue?: uint) => uint;
     }
     export interface HTMLContent {
-        toHTML:             (this: any) => string;
+        toHTML: (this: any) => string;
     }
 
 }
-String.prototype.ascii              = function ascii(this: string): string { return $ascii(this); } ;
-String.prototype.asciifs            = function asciifs(this: string, posix?:boolean): string { return $asciifs(this, posix); } ;
-String.prototype.camelCase          = function camelCase(this: string): string { return _camelCase(this) ; }
-String.prototype.capitalize         = function capitalize(this: string): string { return $capitalize(this); } ;
-String.prototype.doubleEscape       = function doubleEscape(this:string, c:string) { return _doubleEscape(this, c) ; }
-String.prototype.firstCap           = function firstCap(this: string): string { return $firstcap(this); } ;
-String.prototype.ftrim              = function ftrim(this: string): string { return $ftrim(this); } ;
-String.prototype.isDate             = function isDate(this: string): boolean { return $ok($isodate(this)); } ;
-String.prototype.isEmail            = function isEmail(this: string): boolean { return $ok($email(this)); } ;
-String.prototype.isNewLine          = function isNewLine(this: string): boolean { return FoundationNewLineStringCodeSet.has(this) }
+String.prototype.ascii = function ascii(this: string): string { return this.length ? $transliterate(this, false)! : ''; };
+String.prototype.strictAscii = function strictAscii(this: string): string | null { return this.length ? $transliterate(this, true) : null; }
+String.prototype.asciifs = function asciifs(this: string, posix?: boolean): string { return $asciifs(this, posix); };
+String.prototype.camelCase = function camelCase(this: string): string { return _camelCase(this); }
+String.prototype.capitalize = function capitalize(this: string): string { return $capitalize(this); };
+String.prototype.doubleEscape = function doubleEscape(this: string, c: string) { return _doubleEscape(this, c); }
+String.prototype.firstCap = function firstCap(this: string): string { return $firstcap(this); };
+String.prototype.ftrim = function ftrim(this: string): string { return $ftrim(this); };
+String.prototype.isDate = function isDate(this: string): boolean { return $ok($isodate(this)); };
+String.prototype.isEmail = function isEmail(this: string): boolean { return $ok($email(this)); };
+String.prototype.isNewLine = function isNewLine(this: string): boolean { return FoundationNewLineStringCodeSet.has(this) }
 String.prototype.isStrictWhiteSpace = function isStrictWhiteSpace(this: string): boolean { return FoundationStrictWhiteSpacesStringCodeSet.has(this); }
-String.prototype.isUrl              = function isUrl(this: string): boolean { return $ok($url(this)); }
-String.prototype.isUUID             = function isUUID(this: string): boolean { return $ok($UUID(this)); }
-String.prototype.isWhiteSpace       = function isWhiteSpace(this: string): boolean { return FoundationWhiteSpacesStringCodeSet.has(this); }
-String.prototype.left               = function left(this: string, leftPart?:Nullable<number>): string { return $left(this, leftPart) ; }
-String.prototype.lines              = function lines(this: string, useOnlyASCIISeparators?:boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
-String.prototype.ltrim              = function ltrim(this: string): string { return $ltrim(this); }
-String.prototype.normalizeSpaces    = function normalizeSpaces(this: string, opts?: $normspacesOpions): string { return $normspaces(this, opts); }
-String.prototype.right              = function right(this: string, rightPart?:Nullable<number>): string { return $right(this, rightPart) ; }
-String.prototype.rtrim              = function rtrim(this: string): string { return $rtrim(this); }
-String.prototype.singular           = function singular(this:string) { return this.toUnsigned() === 1 ; }
-String.prototype.snakeCase          = function snakeCase(this: string): string { return _snakeCase(this) ; }
-String.prototype.toDate             = function toDate(this:string):Date|null { return $isdate(this) ? new Date(this) : null ; }
-String.prototype.toHTML             = function toHTML(this: any): string { return $HTML(this); }
-String.prototype.toHTMLContent      = function toHTMLContent(this:string): HTMLContent { return new HTMLContent(this) ; }
-String.prototype.toInt              = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }
-String.prototype.toTSDate           = function toTSDate(this:string):TSDate|null { return TSDate.fromIsoString(this) ; }
-String.prototype.toPhoneNumber      = function toPhoneNumber(this:string, defaultCountry?:Nullable<TSCountry>):TSPhoneNumber|null { return TSPhoneNumber.fromString(this, defaultCountry) ; }
-String.prototype.toUnsigned         = function toUnsigned(this: string, defaultValue?: uint): uint { return $tounsigned(this, defaultValue); }
+String.prototype.isUrl = function isUrl(this: string): boolean { return $ok($url(this)); }
+String.prototype.isUUID = function isUUID(this: string): boolean { return $ok($UUID(this)); }
+String.prototype.isWhiteSpace = function isWhiteSpace(this: string): boolean { return FoundationWhiteSpacesStringCodeSet.has(this); }
+String.prototype.left = function left(this: string, leftPart?: Nullable<number>): string { return $left(this, leftPart); }
+String.prototype.lines = function lines(this: string, useOnlyASCIISeparators?: boolean): string[] { return $lines(this, useOnlyASCIISeparators); }
+String.prototype.ltrim = function ltrim(this: string): string { return $ltrim(this); }
+String.prototype.normalizeSpaces = function normalizeSpaces(this: string, opts?: $normspacesOpions): string { return $normspaces(this, opts); }
+String.prototype.right = function right(this: string, rightPart?: Nullable<number>): string { return $right(this, rightPart); }
+String.prototype.rtrim = function rtrim(this: string): string { return $rtrim(this); }
+String.prototype.singular = function singular(this: string) { return this.toUnsigned() === 1; }
+String.prototype.snakeCase = function snakeCase(this: string): string { return _snakeCase(this); }
+String.prototype.toDate = function toDate(this: string): Date | null { return $isdate(this) ? new Date(this) : null; }
+String.prototype.toHTML = function toHTML(this: any): string { return $HTML(this); }
+String.prototype.toHTMLContent = function toHTMLContent(this: string): HTMLContent { return new HTMLContent(this); }
+String.prototype.toInt = function toInt(this: string, defaultValue?: int): int { return $toint(this, defaultValue); }
+String.prototype.toTSDate = function toTSDate(this: string): TSDate | null { return TSDate.fromIsoString(this); }
+String.prototype.toPhoneNumber = function toPhoneNumber(this: string, defaultCountry?: Nullable<TSCountry>): TSPhoneNumber | null { return TSPhoneNumber.fromString(this, defaultCountry); }
+String.prototype.toUnsigned = function toUnsigned(this: string, defaultValue?: uint): uint { return $tounsigned(this, defaultValue); }
 
-HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML(''+this, FoundationHTMLStructureEncoding); }
+HTMLContent.prototype.toHTML = function toHTML(this: any): string { return $HTML('' + this, FoundationHTMLStructureEncoding); }
 
 // ================================== private functions ==============================
-function _doubleEscape(source:string, esc:string):string {
-    let ret = '' ;
-    const esc2 = esc + esc ;
-    for (let c of source) { ret += c === esc ? esc2 : c ; }
-    return ret ;
+function _doubleEscape(source: string, esc: string): string {
+    let ret = '';
+    const esc2 = esc + esc;
+    for (let c of source) { ret += c === esc ? esc2 : c; }
+    return ret;
 }
 
 function _snakeCase(source: Nullable<string>): string {
-    const s = $ascii($normspaces(source, { strict:true, replacer:''})) ;
+    if (!$length(source)) { return '' };
+    const s = $transliterate($normspaces(source!, { strict: true, replacer: '' }))!;
     const len = s.length;
-    let ret = '' ;
+    let ret = '';
     let lastCharWasDash = false;
 
     for (let i = 0; i < len; i++) {
-        const c = s.charAt(i) ;
-        if (c === '_' || c === '-') { lastCharWasDash = true ; continue ; }
-        else if (lastCharWasDash) { ret += '_' ; }
-        ret += c.toLowerCase() ;
-        lastCharWasDash = false ;
+        const c = s.charAt(i);
+        if (c === '_' || c === '-') { lastCharWasDash = true; continue; }
+        else if (lastCharWasDash) { ret += '_'; }
+        ret += c.toLowerCase();
+        lastCharWasDash = false;
     }
     // we remove trailing dashes
-
-    return ret ;
-}
-
-function _camelCase(source: Nullable<string>): string {
-    const s = $ascii($normspaces(source, { strict:true, replacer:''})) ;
-    const len = s.length;
-    let ret = '' ;
-    let lastCharWasDash = false;
-
-    for (let i = 0; i < len; i++) {
-        const c = s.charAt(i) ;
-        if (c === '_' || c === '-') { lastCharWasDash = true ; continue ; }
-        else if (lastCharWasDash && c >= 'a' && c <= 'z') { ret += c.toUpperCase() ; }
-        else { ret += c ; }
-        lastCharWasDash = false ;
-    }    
-    // we remove trailing dashes
-
-    return ret ;
-}
-
-function _capitalize(s: Nullable<string>, max: number = 0): string {
-    const len = $length(s);
-    let ret = "";
-    if (!max) { max = len };
-    let lastCharWasNotLetter = true;
-    let n = 0;
-
-    for (let i = 0; i < len; i++) {
-        const c = s!.charAt(i);
-        const isLetter = _charAssimilableAsLetter(c);
-        if (isLetter && lastCharWasNotLetter && n < max) { ret += c.toUpperCase(); n++; }
-        else { ret += c; }
-        lastCharWasNotLetter = !isLetter;
-    }
 
     return ret;
 }
 
+function _camelCase(source: Nullable<string>): string {
+    if (!$length(source)) { return '' };
+    const s = $transliterate($normspaces(source!, { strict: true, replacer: '' }))!;
+    const len = s.length;
+    let ret = '';
+    let lastCharWasDash = false;
+
+    for (let i = 0; i < len; i++) {
+        const c = s.charAt(i);
+        if (c === '_' || c === '-') { lastCharWasDash = true; continue; }
+        else if (lastCharWasDash && c >= 'a' && c <= 'z') { ret += c.toUpperCase(); }
+        else { ret += c; }
+        lastCharWasDash = false;
+    }
+    // we remove trailing dashes
+
+    return ret;
+}
+
+
+function _capitalize(s: Nullable<string>, max: number = 0): string {
+    let ret = "";
+    const len = $length(s) ; if (len === 0) { return ret ;}
+    if (!max) { max = len };
+    const str = s! ;
+    let lastCharWasNotLetter = true;
+    let n = 0;
+
+    for (let i = 0 ; i < len ; ) {
+        const code = str.codePointAt(i)!;
+        const trans = $transliterateCP(code, false);
+        
+        const isLetter = _charAssimilableAsLetter(trans!) ;
+        if (isLetter && lastCharWasNotLetter && n < max) { 
+            ret += (String.fromCodePoint(code)).toUpperCase(); 
+            n++; 
+        }
+        else {
+            ret += String.fromCodePoint(code) ;
+        }
+        lastCharWasNotLetter = !isLetter;
+        i += code > 0xFFFF ? 2 : 1 ;
+    }
+    return ret ;
+}
+
 function _charAssimilableAsLetter(c: string): boolean {
-    c = $ascii(c);
     if (c.length) {
         const v = c.charCodeAt(0) & ~32;
-        return v >= 65 && v <= 90;
+        return v >= 65 && v <= 90 ;
     }
     return false;
 }
