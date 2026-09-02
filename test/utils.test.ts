@@ -1,6 +1,7 @@
-import { $inbrowser, $insp, $mark, $sleep, $term, $termclean } from "../src/utils";
-import { TSTest } from '../src/tstester';
 import { inspect } from "util";
+
+import { $inbrowser, $insp, $jsonparse, $jsonstrip, $mark, $sleep, $term, $termclean } from "../src/utils";
+import { TSTest } from '../src/tstester';
 import { TSDate } from "../src/tsdate";
 import { TSRange } from "../src/tsrange";
 import { TSColor } from "../src/tscolor";
@@ -106,8 +107,11 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         const start = $mark();
         await $sleep(150);
         const end = $mark();
+        // setTimeout never fires early, so the meaningful assertion is the lower
+        // bound ; the upper bound only guards against $sleep() hanging and must
+        // stay loose enough for a loaded event loop / a slow headless engine.
         t.expect0(end-start).gte(0.145) ;
-        t.expect1(end-start).lte(0.155) ;
+        t.expect1(end-start).lte(0.5) ;
     });
 
     group.unary("$term() && $termclean() functions()", async (t) => {
@@ -124,6 +128,38 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         t.expect4($termclean(v3)).is(v4);
         t.expect5($termclean(v5)).is(v6);
     });
+
+    group.unary("$jsonstrip() && $jsonparse() functions", async (t) => {
+        // $jsonstrip() removes // and /* */ comments but keeps them inside strings
+        t.expect0($jsonstrip(null)).is("") ;
+        t.expect1($jsonstrip("")).is("") ;
+        t.expect2($jsonstrip(`{"a":1} // trailing`)).is(`{"a":1} `) ;
+        t.expect3($jsonstrip(`{ /* c */ "a":1 }`)).is(`{  "a":1 }`) ;
+        t.expect4($jsonstrip(`{"u":"http://x/y","s":"a//b"}`)).is(`{"u":"http://x/y","s":"a//b"}`) ;
+        t.expect5($jsonstrip(`{"s":"a\\"b//c"}`)).is(`{"s":"a\\"b//c"}`) ;   // escaped quote inside the string
+        t.expect6($jsonstrip("[1] /* unclosed")).is("[1] ") ;
+
+        // $jsonparse() : trims, optionally strips comments, returns undefined on failure
+        t.expect7($jsonparse(`  {"a":1,"b":[2,3]}  `)).is({ a:1, b:[2,3] }) ;
+        t.expect8($jsonparse(`{"a":1} // x`, true)).is({ a:1 }) ;
+        t.expect9($jsonparse(`{"a":1} // x`)).undef() ;   // no strip -> invalid JSON
+        t.expectA($jsonparse(null)).undef() ;
+        t.expectB($jsonparse("   ")).undef() ;
+        t.expectC($jsonparse("not json")).undef() ;
+        t.expectD($jsonparse(TSData.fromString(`/*c*/[1,2,3]`), true)).is([1,2,3]) ;   // UTF-8 data source
+
+        // the optional reviver is forwarded to JSON.parse()
+        const dateReviver = (k:string, v:any) => k === 'd' ? new Date(v) : v ;
+        const revived = $jsonparse(`{"d":"2020-01-02T00:00:00.000Z","n":5}`, false, dateReviver) ;
+        t.expectE(revived?.d instanceof Date).true() ;
+        t.expectF(revived?.n).is(5) ;
+        // reviver + comment stripping together
+        t.expectG($jsonparse(`/*c*/{"d":"2020-01-02T00:00:00.000Z"}`, true, dateReviver)?.d instanceof Date).true() ;
+        // a throwing reviver is swallowed like any other parse failure
+        t.expectH($jsonparse(`{"a":1}`, false, () => { throw new Error('boom') ; })).undef() ;
+        // reviver can drop keys (returning undefined)
+        t.expectI($jsonparse(`{"a":1,"secret":2}`, false, (k:string, v:any) => k === 'secret' ? undefined : v)).is({ a:1 }) ;
+    }) ;
 
     group.description("==========================================");
     if ($inbrowser()) {

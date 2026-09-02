@@ -74,11 +74,14 @@ function _acceptableDateParameter(a:Nullable<number|string|Date|TSDate>, future:
     if (!$ok(a)) { return !future ? TSDate.past() : TSDate.future() ; }
     if (a === Number.POSITIVE_INFINITY) { return TSDate.future() ; }
     if (a === Number.NEGATIVE_INFINITY) { return TSDate.past() ; }
-    
     if (a instanceof Date || a instanceof TSDate) { return a ; }
-    if (typeof a === 'string') { return new TSDate(a) ; }
-
-    if (isNaN(a)) { TSError.throw('$timeBetweenDates() cannot handle NaN as numbers') ; }
-    return a ;
-
+    switch (typeof a) {
+        case 'number': 
+            if (isNaN(a)) { TSError.throw('$timeBetweenDates() cannot handle NaN as numbers') ; }
+            return a ;
+        case 'string': 
+            return new TSDate(a) ;
+        default:
+            TSError.throw(`$timeBetweenDates() cannot handle value of type ${typeof a} as date parameter`) ;
+    }
 }

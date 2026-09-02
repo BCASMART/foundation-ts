@@ -1,5 +1,5 @@
 
-import { $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isemail, $isurl, $isuuid, $keys, $ok, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID } from "../src/commons";
+import { $address, $array, $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $keys, $lengthin, $objectMap, $ok, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -8,7 +8,76 @@ import { FoundationWhiteSpaces } from "../src/string_tables";
 import { TSDateForm } from "../src/tsdatecomp";
 import { $equal, $objectsequal } from "../src/compare";
 
-export const commonsGroups = TSTest.group("Commons interpretation functions", async (group) => {
+export const commonsGroups = [
+
+TSTest.group("Commons — misc predicates & helpers", async (group) => {
+
+    group.unary('$iswhitespace()', async (t) => {
+        t.expect0($iswhitespace(' ')).true() ;
+        t.expect1($iswhitespace('\t')).true() ;
+        t.expect2($iswhitespace(' ')).true() ;
+        t.expect3($iswhitespace('a')).false() ;
+        t.expect4($iswhitespace('  ')).false() ;          // set holds single code points
+        t.expect5($iswhitespace(0x20)).true() ;           // by code point
+        t.expect6($iswhitespace(0x41)).false() ;
+        t.expect7($iswhitespace(null)).false() ;
+        t.expect8($iswhitespace(undefined)).false() ;
+    }) ;
+
+    group.unary('$isiterable()', async (t) => {
+        t.expect0($isiterable([1, 2])).true() ;
+        t.expect1($isiterable('str')).true() ;
+        t.expect2($isiterable(new Set())).true() ;
+        t.expect3($isiterable(new Map())).true() ;
+        t.expect4($isiterable({})).false() ;
+        t.expect5($isiterable(42)).false() ;
+        t.expect6($isiterable(null)).false() ;
+    }) ;
+
+    group.unary('$isipaddress()', async (t) => {
+        t.expect0($isipaddress('192.168.1.1')).true() ;
+        t.expect1($isipaddress('  10.0.0.255  ')).true() ;         // trimmed
+        t.expect2($isipaddress('::1')).true() ;
+        t.expect3($isipaddress('2001:db8::ff00:42:8329')).true() ;
+        t.expect4($isipaddress('999.1.1.1')).false() ;
+        t.expect5($isipaddress('not an ip')).false() ;
+        t.expect6($isipaddress(123 as any)).false() ;
+    }) ;
+
+    group.unary('$address()', async (t) => {
+        t.expect0($address({ city:'Paris', country:'FR' })).is({ city:'Paris', country:'FR' as any }) ;
+        t.expect1($address({ city:' Lyon ', country:'france', zipCode:'69000' } as any))
+         .is({ city:'Lyon', country:'FR' as any, zipCode:'69000' } as any) ;   // city trimmed, country normalised
+        t.expect2($address({ city:'', country:'FR' } as any)).null() ;
+        t.expect3($address({ city:'X', country:'ZZ' } as any)).null() ;         // unknown country
+        t.expect4($address(null)).null() ;
+        t.expect5($address('x' as any)).null() ;
+    }) ;
+
+    group.unary('$array() / $totype() / $lengthin()', async (t) => {
+        t.expect0($array(1, 2, 3)).is([1, 2, 3]) ;
+        t.expect1($array()).is([]) ;
+        t.expect2($totype<string>('hi')).is('hi') ;
+        t.expect3($totype<string>(null)).null() ;
+        t.expect4($totype<string>(undefined)).null() ;
+        t.expect5($lengthin('abc', 1, 5)).true() ;
+        t.expect6($lengthin('abc', 4)).false() ;
+        t.expect7($lengthin('abcdef', 0, 3)).false() ;
+        t.expect8($lengthin(null, 0, 3)).true() ;               // length 0
+        t.expect9($lengthin(Buffer.from([1, 2]), 2, 2)).true() ;
+    }) ;
+
+    group.unary('$objectMap()', async (t) => {
+        t.expect0($objectMap({ a:1, b:2 })).is(new Map([['a', 1], ['b', 2]])) ;
+        t.expect1($objectMap(new Map<any, any>([[1, 'x'], [2, 'y']]))).is(new Map([['1', 'x'], ['2', 'y']])) ;
+        t.expect2($objectMap(null)).is(new Map()) ;
+        const doubled = $objectMap({ a:1, b:2, c:3 }, (k, v) => [k === 'b' ? undefined : `${k}${k}`, v * 2]) ;
+        t.expect3(doubled).is(new Map([['aa', 2], ['cc', 6]])) ;   // 'b' dropped (undefined key)
+        t.expect4($objectMap({ x:undefined })).is(new Map()) ;     // undefined value dropped
+    }) ;
+}),
+
+TSTest.group("Commons interpretation functions", async (group) => {
     const A = "1984-06-11";
     const AT = new TSDate(A);
     const S = "1966-04-13T12:05:22";
@@ -72,7 +141,7 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     group.unary("$unsignedornull() function", async(t) => {
         t.expect1($unsignedornull(null)).null();
         t.expect2($unsignedornull(undefined)).null();
-        t.expect3($unsignedornull(NaN)).is(null);
+        t.expect3($unsignedornull(NaN)).null();
         t.expect4($unsignedornull(Number.MAX_SAFE_INTEGER)).null();
         t.expect5($unsignedornull(UINT_MAX)).is(UINT_MAX);
         t.expect6($unsignedornull(0)).is(0);
@@ -143,6 +212,11 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectG($toint(-UINT_MAX)).is(INT_MIN);
         t.expectH($toint(-1.5)).is(-1);
         t.expectI($toint(-1.6)).is(-1);
+        // safe integers in the ]int32, uint32] range must be kept as-is (not int32-wrapped)
+        t.expectJ($toint(3000000000)).is(3000000000);
+        t.expectK($toint(3000000000.7)).is(3000000000);
+        t.expectL($toint(-3000000000)).is(-3000000000);
+        t.expectM($toint(4294967295)).is(4294967295);
     }) ;
 
     group.unary("$tounsigned() function", async(t) => {
@@ -159,6 +233,10 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expectA($tounsigned(-Infinity)).is(0);
         t.expectB($tounsigned(1.5)).is(1);
         t.expectC($tounsigned(1.6)).is(1);
+        // safe integers in the ]int32, uint32] range must be kept as-is (not int32-wrapped to a negative then clamped to 0)
+        t.expectD($tounsigned(3000000000)).is(3000000000);
+        t.expectE($tounsigned(3000000000.7)).is(3000000000);
+        t.expectF($tounsigned(4294967295)).is(4294967295);
     }) ;
 
     group.unary("$isdate(d) function", async(t) => {
@@ -246,8 +324,8 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
     group.unary("$url() function", async(t) => {
         t.expect0($url('http://example.com')).is('http://example.com/') ;
         t.expect1($url('https://example.com')).is('https://example.com/') ;
-        t.expect3($url('//example.com')).is(null) ;
-        t.expect4($url('//example')).is(null) ;
+        t.expect3($url('//example.com')).null() ;
+        t.expect4($url('//example')).null() ;
         t.expect5($url('/example.com')).null() ;
         t.expect6($url('/example')).null() ;
         t.expect7($url('example')).null() ;
@@ -321,6 +399,28 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
         t.expect7($strings(null, '1', undefined, ["2"], null, ['3', '4'], '5', [], ['6'])).is(['1', '2', '3', '4', '5', '6']) ;
         t.expect8($strings([])).is([]) ;
         t.expect9($strings(null, [], undefined, null,[])).is([]) ;
+    }) ;
+
+    group.unary("$string() function", async(t) => {
+        t.expect0($string("abc")).is("abc") ;
+        t.expect1($string("")).is("") ;
+        t.expect2($string(undefined)).is("") ;
+        t.expect3($string(null)).is("") ;
+        t.expect4($string(42)).is("42") ;
+        t.expect5($string(-3.5)).is("-3.5") ;
+        t.expect6($string(42n)).is("42") ;
+        t.expect7($string(true)).is("true") ;
+        t.expect8($string(false)).is("false") ;
+        t.expect9($string(true, true)).is("YES") ;
+        t.expectA($string(false, true)).is("NO") ;
+        t.expectB($string(false, false)).is("false") ;
+        t.expectC($string([1, 2, 3])).is("1,2,3") ;
+        t.expectD($string({ toString:() => "custom" })).is("custom") ;
+        t.expectE($string({ a:1 })).is("[object Object]") ;
+        // symbols: the description / registered key is returned, not "Symbol(x)"
+        t.expectF($string(Symbol("foo"))).is("foo") ;
+        t.expectG($string(Symbol())).is("") ;
+        t.expectH($string(Symbol.for("global-key"))).is("global-key") ;
     }) ;
 
     group.unary('$objectsequal() function', async(t) => {
@@ -484,4 +584,6 @@ export const commonsGroups = TSTest.group("Commons interpretation functions", as
 
 
 
-}) ;
+}),
+
+] ;

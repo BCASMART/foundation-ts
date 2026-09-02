@@ -1,0 +1,14 @@
+{
+    // Editor-only project. The command-line test build uses ../tsconfig.test.json
+    // (see package.json "test" / "test:jsdom" / "test:chrome"). VS Code's TS server
+    // only auto-discovers files literally named "tsconfig.json", and the root
+    // tsconfig.json deliberately excludes ./test/**, so without this file the
+    // editor type-checks the *.test.ts files in a loose "inferred project"
+    // (no skipLibCheck, different lib/strict/module settings) and reports errors
+    // -- typically on Buffer.from(...) -- that the real build does not have.
+    "extends": "../tsconfig.test.json",
+    "compilerOptions": {
+        "noEmit": true
+    },
+    "include": ["./**/*", "../src/**/*"]
+}

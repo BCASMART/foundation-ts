@@ -3,7 +3,7 @@ import { $bool, TSCase, TSExtendedArrayNode, TSNode, TSObjectNode, TSParser, TSP
 import { $ok, $phonenumber, $string } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { TSColor } from "../src/tscolor";
-import { $inspect, $logterm } from "../src/utils";
+import { $inbrowser, $inspect, $logterm } from "../src/utils";
 import { $absolute, $filename, $loadJSON } from "../src/fs";
 import { Continents, Countries, Currencies, Languages, UINT32_MAX, UUID } from "../src/types";
 import { $uuid } from "../src/crypto";
@@ -799,6 +799,9 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         }
     }) ;
 
+    // these four validate JSON files read from disk ($loadJSON/$absolute assert
+    // against a browser environment): skip them under jsdom / headless Chrome.
+    if (!$inbrowser()) {
     group.unary("Currencies JSON", async(t) => {
         const def:TSObjectNode = {
             _mandatory:true,
@@ -941,6 +944,42 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             }
         } ;
         _validateJSON(t, def, 'tdist/src/countries.json') ;
+    }) ;
+    }
+
+    group.unary('encode() / stringify() / parse() round-trip', async (t) => {
+        const def:TSNode = { _mandatory:true, name:'string!', when:'date!', color:'color', count:'uint8', tags:['string'] } ;
+        const p = TSParser.define(def)! ;
+        t.expect0(p).OK() ;
+
+        const nat = { name:'Bob', when:new TSDate(2020, 3, 15), color:TSColor.rgb('red'), count:3, tags:['a', 'b'] } ;
+        const encoded = p.encode(nat) ;
+        t.expect1(encoded).is({ name:'Bob', when:'2020-03-15T00:00:00', color:'#ff0000ff', count:3, tags:['a', 'b'] }) ;
+
+        const str = p.stringify(nat)! ;
+        t.expect2(JSON.parse(str)).is(encoded) ;
+
+        const back = p.parse(str) ;
+        t.expect3(back?.name).is('Bob') ;
+        t.expect4(back?.when instanceof TSDate).true() ;
+        t.expect5((back?.when as TSDate).toIsoString()).is('2020-03-15T00:00:00') ;
+        t.expect6(back?.color instanceof TSColor).true() ;
+        t.expect7(back?.count).is(3) ;
+
+        t.expect8(p.validate(nat)).true() ;
+        t.expect9(p.validate({ name:123 })).false() ;
+        t.expectA(p.toString().length).gt(0) ;
+    }) ;
+
+    group.unary('parse() / stringify() failures', async (t) => {
+        const p = TSParser.define({ _mandatory:true, a:'uint8!' })! ;
+        const errs:string[] = [] ;
+        t.expect0(p.parse('{ not json', errs)).null() ;
+        t.expect1(errs.length).gt(0) ;
+        t.expect2(p.parse(null)).null() ;
+        t.expect3(p.parse('{"a":999}')).null() ;         // 999 not a uint8
+        t.expect4(p.stringify({ a:'x' })).null() ;        // not encodable
+        t.expect5(p.stringify({ a:7 })).is('{"a":7}') ;
     }) ;
 
 }) ;

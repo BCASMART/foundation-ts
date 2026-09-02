@@ -1,5 +1,5 @@
-import { $string } from "../src/commons";
-import { $args, $env, $parsedenv, TSArgument, TSArgumentDictionary } from "../src/env";
+import { $ok, $string } from "../src/commons";
+import { $argCheck, $args, $env, $parsedenv, TSArgument, TSArgumentDictionary } from "../src/env";
 import { $ext, $withoutext } from "../src/fs";
 import { TSDate } from "../src/tsdate";
 import { TSLeafNode } from "../src/tsparser";
@@ -7,7 +7,9 @@ import { TSTest } from "../src/tstester";
 import { StringDictionary, TSDictionary } from "../src/types";
 import { $inbrowser } from "../src/utils";
 
-export const envGroups = TSTest.group("Environment manipulation functions", async (group) => {
+export const envGroups = [
+
+TSTest.group("Environment manipulation functions", async (group) => {
     group.unary("$args() function", async (t) => {
         const limit:TSArgument = {
             struct:'boolean',
@@ -181,4 +183,83 @@ export const envGroups = TSTest.group("Environment manipulation functions", asyn
 
     }) ;
 
-}) ;
+}),
+
+TSTest.group("$parsedenv() / $argCheck() / $args() edge cases", async (group) => {
+
+    group.unary('$parsedenv() — parser definition validation', async (t) => {
+        t.expect0(() => $parsedenv('A=1', { parser:{ '':'uint32' } as any })).throws(/empty name/) ;
+        t.expect1(() => $parsedenv('A=1', { parser:{ 'x':'uint32' } as any })).throws(/bad name/) ;      // < 2 chars
+        t.expect2(() => $parsedenv('A=1', { parser:{ 'a b':'uint32' } as any })).throws(/bad name/) ;
+        t.expect3(() => $parsedenv('A=1', { parser:{ 'AB':'notatype' } as any })).throws(/parser/) ;
+        t.expect4(() => $parsedenv('A=1', { parser:{} })).throws(/no definition found/) ;
+        t.expectA(() => $parsedenv('A=1', { parser:{ 'AB':{ notype:1 } } as any })).throws(/bad parser definition/) ;
+    }) ;
+
+    group.unary('$parsedenv() — interpretation', async (t) => {
+        t.expect0($parsedenv('ONE=1\nTWO=hello', { parser:{ ONE:'uint32!', TWO:'string!' } })).is({ ONE:1, TWO:'hello' }) ;
+        t.expect1($parsedenv('ONE=notanumber', { parser:{ ONE:'uint32!' } })).null() ;                  // fails to parse
+        t.expect2($parsedenv('ONE=1\nEXTRA=z', { parser:{ ONE:'uint32!' } })).null() ;                  // unknown key rejected
+        t.expect3($parsedenv('ONE=1\nEXTRA=z', { parser:{ ONE:'uint32!' }, acceptsUnparsed:true })).is({ ONE:1, EXTRA:'z' }) ;
+        t.expect4($parsedenv(null, { parser:{ ONE:'uint32!' } })).is({}) ;                              // null source -> {}
+        t.expect5($ok($parsedenv('ONE=5', { parser:{ ONE:'uint32!' }, merge:{ TWO:'kept' } }))).true() ;
+    }) ;
+
+    group.unary('$argCheck()', async (t) => {
+        // no errors -> silent, no exit
+        t.expect0(() => $argCheck(0, [])).doesNotThrow() ;
+        t.expect1(() => $argCheck(0, null)).doesNotThrow() ;
+        t.expect2(() => $argCheck(0, { errors:[] })).doesNotThrow() ;
+        // with errors but exitStatus 0 -> prints, does not exit
+        t.expect3(() => $argCheck(0, ['problem one', 'problem two'], 'mytool')).doesNotThrow() ;
+        t.expect4(() => $argCheck(0, { errors:['from opts'] })).doesNotThrow() ;
+    }) ;
+
+    group.unary('$args() — definition validation & no-args', async (t) => {
+        t.expect0(() => $args({ '':'string' })).throws(/empty name/) ;
+        t.expect1(() => $args({ 'a b':'string' })).throws(/bad name/) ;
+        t.expect2(() => $args({ 'x':'string' })).throws(/bad name/) ;         // single char
+        t.expect3(() => $args({})).throws(/no arguments defined/) ;
+    }) ;
+
+    group.unary('$args() — negative flags & defaults', async (t) => {
+        const def:TSArgumentDictionary = {
+            verbose:{ struct:'boolean', short:'v', negative:'no-verbose', negativeShort:'q' },
+            level:{ struct:'number', short:'l', defaultValue:3 },
+        } ;
+        const [d0] = $args(def, { arguments:['-v'] }) ;
+        t.expect0(d0).is({ verbose:true, level:3 }) ;                         // default applied
+        const [d1] = $args(def, { arguments:['--no-verbose'] }) ;
+        t.expect1(d1?.verbose).is(false) ;
+        const [d2] = $args(def, { arguments:['-q', '-l', '7'] }) ;
+        t.expect2(d2).is({ verbose:false, level:7 }) ;
+        const errs:string[] = [] ;
+        const [d3] = $args(def, { arguments:['-l', 'notanumber'], errors:errs }) ;
+        t.expect3(d3).null() ;
+        t.expect4(errs.length).gt(0) ;
+    }) ;
+
+    group.unary('$args() — arguments taken from a URL query', async (t) => {
+        const def:TSArgumentDictionary = {
+            verbose:{ struct:'boolean', short:'v' },
+            input:'string!',
+            history:{ struct:'number', short:'n' },
+            limit:{ struct:'boolean', short:'l', negative:'no-limit' },
+        } ;
+        const run = (query:string) => {
+            const errors:string[] = [] ;
+            const [d] = $args(def, { errors, arguments:new URL('https://host/path?' + query) }) ;
+            return { d, errors } ;
+        } ;
+
+        t.expect0(run('verbose=1&input=foo.txt&history=5').d).is({ verbose:true, input:'foo.txt', history:5 }) ;
+        t.expect1(run('input=a&no-limit=1').d?.limit).is(false) ;      // _inversedValue('1') -> false
+        t.expect2(run('input=a&no-limit=yes').d?.limit).is(false) ;    // _inversedValue('yes') -> false
+        t.expect3(run('input=a&no-limit=0').d?.limit).is(true) ;       // _inversedValue('0') -> true
+        const bad = run('nope=1') ;
+        t.expect4(bad.d).null() ;
+        t.expect5(bad.errors.join(' ').includes("Unknown argument 'nope'")).true() ;
+    }) ;
+}),
+
+] ;

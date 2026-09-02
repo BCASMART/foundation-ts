@@ -160,12 +160,13 @@ export function $componentshavetime(c:TSDateComp) : boolean {
 
 export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
 	if (!$length(s)) { return null ; }
+	// res[1] = hours-or-packed-number, res[3] = minutes, res[5] = seconds
 	const m = (<string>s).match(/^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
-	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN }
+	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN } ;
 
-	_parseTime(c, res, 0, res.length) ;
+	if (!_fillTime(c, res[1], res[3], res[5])) { return null ; }
 	return $timeisvalid(c.hour, c.minute, c.second) ? c : null ;
 }
 
@@ -980,104 +981,92 @@ function _completeWithToday(c:TSDateComp) {
 	}
 }
 
+// fills c.hour/minute/second from three regex capture groups. When the minutes
+// group is absent the hours group is read as a single packed number:
+// H | HH | HMM | HHMM | HMMSS | HHMMSS. A no-op when the hours group is absent.
+function _fillTime(c:TSTimeComp, hoursGroup:Nullable<string>, minutesGroup:Nullable<string>, secondsGroup:Nullable<string>):boolean {
+	if (!$length(hoursGroup)) { return true ; }
+	if (!$length(minutesGroup)) {
+		const v = $unsigned(hoursGroup) ;
+		switch (hoursGroup!.length) {
+			case 1: case 2: c.hour = <uint>v ; break ;
+			case 3: case 4: c.hour = <uint>$div(v, 100) ; c.minute = <uint>(v % 100) ; break ;
+			case 5: case 6:
+				c.hour = <uint>$div(v, 10000) ;
+				c.minute = <uint>($div(v, 100) % 100) ;
+				c.second = <uint>(v % 100) ;
+				break ;
+			default: return false ;
+		}
+	}
+	else {
+		c.hour = $unsigned(hoursGroup) ;
+		c.minute = $unsigned(minutesGroup) ;
+		if ($length(secondsGroup)) { c.second = $unsigned(secondsGroup) ; }
+	}
+	return true ;
+}
+
 function _parsedt(s:Nullable<string>, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
 	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C || form === TSDateForm.ISO8601L) { return $isostring2components(s, opts) ; }
 	if (!$length(s)) { return null ; }
 	const m = (<string>s).match(regexp) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
-	const l = res.length ;
+	// regex layout: res[1] first number, res[3] second number, res[5] third number,
+	//               res[7]/res[9]/res[11] hours/minutes/seconds (absent for $parsedate).
+	// A missing res[3] means the source was a single packed number with no separator.
+	const hasN2 = $length(res[3]) > 0 ;
+	const hasN3 = $length(res[5]) > 0 ;
 	const c:TSDateComp = { year:UINT_MIN, month:UINT_MIN, day:UINT_MIN, hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN }
 
 	switch (form) {
 		case TSDateForm.Standard:
-			const ds = $unsigned(res[1]) ;
-			if (l === 2) {
-				if (ds >= 1010001) { c.year = <uint>(ds % 10000) ; c.month = <uint>$div(ds % 1000000, 10000) ; c.day = <uint>$div(ds, 1000000) ; }
-				else if ( ds >= 10101) { c.year = _adjustYear(ds % 100) ; c.month = <uint>$div(ds % 10000, 100) ; c.day = <uint>$div(ds, 10000) ;  }
-				else if ( ds >= 101) { c.month = <uint>(ds % 100) ; c.day = <uint>$div(ds, 100) ; _completeWithToday(c) ; }
-				else { c.day = ds ; _completeWithToday(c) ; }
+		case TSDateForm.English: {
+			const english = form === TSDateForm.English ;
+			const n1 = $unsigned(res[1]) ;
+			if (!hasN2) {
+				// one packed number, no separator: DDMMYYYY / DDMMYY / DDMM / DD
+				// (day & month positions are swapped for the English form)
+				let lo:number, hi:number ;   // lo -> month (Standard) / day (English) ; hi -> the other
+				if (n1 >= 1010001)    { c.year = <uint>(n1 % 10000) ;     lo = $div(n1 % 1000000, 10000) ; hi = $div(n1, 1000000) ; }
+				else if (n1 >= 10101) { c.year = _adjustYear(n1 % 100) ;  lo = $div(n1 % 10000, 100) ;     hi = $div(n1, 10000) ; }
+				else if (n1 >= 101)   { lo = n1 % 100 ; hi = $div(n1, 100) ; }
+				else                  { lo = 0 ; hi = n1 ; }   // just a day
+				c.month = <uint>(english ? hi : lo) ;
+				c.day   = <uint>(english ? lo : hi) ;
+				if (!c.year) { _completeWithToday(c) ; }
 			}
 			else {
-				c.day = ds ;
-				c.month = $unsigned(res[3]) ;
-				if (l >= 6) { 
-					c.year = _yearFrom(res[5]) ; 
-					if (l > 6) { _parseTime(c, res, 5, l-5) }
+				if (english) { c.month = <uint>n1 ; c.day = $unsigned(res[3]) ; }
+				else         { c.day = <uint>n1 ; c.month = $unsigned(res[3]) ; }
+				if (hasN3) {
+					c.year = _yearFrom(res[5]) ;
+					if (!_fillTime(c, res[7], res[9], res[11])) { return null ; }
 				}
 				else { _completeWithToday(c) ; }
 			}
 			break ;
-		case TSDateForm.English:
-			const me = $unsigned(res[1]) ;
-			if (l === 2) {
-				if (me >= 1010001) { c.year = <uint>(me % 10000) ; c.day = <uint>$div(me % 1000000, 10000) ; c.month = <uint>$div(me, 1000000) ; }
-				else if ( me >= 10101) { c.year = _adjustYear(me % 100) ; c.day = <uint>$div(me % 10000, 100) ; c.month = <uint>$div(me,  10000) ; }
-				else if ( me >= 101) { c.day = <uint>(me % 100) ; c.month = <uint>$div(me, 100) ; }
-			}
-			else {
-				c.month = me ;
-				c.day = $unsigned(res[3]) ;
-				if (l >= 6) { 
-					c.year = _yearFrom(res[5]) ; 
-					if (l > 6) { _parseTime(c, res, 5, l-5) }
-				}
-				else { _completeWithToday(c) ; }
-			}
-			break ;
-		case TSDateForm.Computer:
+		}
+		case TSDateForm.Computer: {
 			const yc = $unsigned(res[1]) ;
-			if (l === 2) {
+			if (!hasN2) {
 				if (res[1].length !== 8) { return null ; } // in computer form we need all the digits
-				c.year = <uint>$div(yc,10000) ;
+				c.year  = <uint>$div(yc, 10000) ;
 				c.month = <uint>($div(yc, 100) % 100) ;
-				c.day = <uint>$div(yc, 100) ;
+				c.day   = <uint>(yc % 100) ;
 			}
-			else if (l >= 6) {
-				c.year = yc ;
+			else if (hasN3) {
+				c.year  = <uint>yc ;
 				c.month = $unsigned(res[3]) ;
-				c.day = $unsigned(res[5]) ;
-				if (l > 6) { _parseTime(c, res, 5, l-5) }
+				c.day   = $unsigned(res[5]) ;
+				if (!_fillTime(c, res[7], res[9], res[11])) { return null ; }
 			}
-			else {
-				return null ;
-			}
+			else { return null ; }
 			break ;
+		}
 		default:
 			return null ;
 	}
 	return $componentsarevalid(c) ? c : null ;
-}
-
-function _parseTime(c:TSTimeComp, m:RegExpMatchArray, start:number, len:number)
-{
-	let v = $unsigned(m[start+1]) ;
-	if (len === 2) {
-		// we have a single number representing the full time
-		// like H or HH or HMM or HHMM or HMMSS or HHMMSS
-		switch(m[start+1].length) {
-			case 1:
-			case 2:
-				c.hour = v ; 
-				break ;
-			case 3:
-			case 4:
-				c.hour = <uint>$div(v, 100) ;
-				c.minute = <uint>(v%100) ;
-				break ;
-			case 5:
-			case 6:
-				c.hour = <uint>$div(v, 10000) ;
-				c.minute = <uint>($div(v,100) % 100) ;
-				c.second = <uint>(v%100) ;
-				break ;
-		}
-	}
-	else {
-		c.hour = v ;
-		c.minute = $unsigned(m[start+2]) ;
-		if (len > 4) {
-			c.second = $unsigned(m[start+4]) ;
-		}
-	}
 }

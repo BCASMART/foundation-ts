@@ -5,12 +5,14 @@ import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
 import { $components, $durationcomponents, $durationDescription, $durationDescriptionOptions, $durationNumber2StringFormat, TSDateComp, TSDurationComp } from "./tsdatecomp";
 import { $unitDefinition, Locales } from "./tsdefaults";
-import { country, int, INT32_MIN, language, Nullable, uint, UINT32_MAX } from "./types";
+import { country, int, INT32_MAX, language, Nullable, uint } from "./types";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
 
+// truncate toward zero ; the `| 0` fast path is only valid inside the signed
+// int32 range, otherwise it would overflow (eg. 3_000_000_000 | 0 === -1294967296)
 export function $icast(v:number):number
-{ return v >= 0 ? (v <= UINT32_MAX ? v | 0 : Math.floor(v)) : (v >= INT32_MIN ? -((-v) | 0) : -Math.floor(-v)) ; }
+{ return v >= 0 ? (v <= INT32_MAX ? v | 0 : Math.floor(v)) : (v >= -INT32_MAX ? -((-v) | 0) : -Math.floor(-v)) ; }
 
 export function $round(v:number, decimalPlaces:number = 0):number {
     const p = Math.pow(10, $toint(decimalPlaces));

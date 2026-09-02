@@ -1,11 +1,13 @@
 import { $round } from '../src/number';
 import { TSColor, TSColorSpace } from '../src/tscolor';
 import { TSTest } from '../src/tstester';
-import { uint8 } from '../src/types';
+import { Ascending, Descending, Same, uint8 } from '../src/types';
 
 // TOTO
 
-export const colorGroups = TSTest.group("TSColor class ", async (group) => {
+export const colorGroups = [
+
+TSTest.group("TSColor class ", async (group) => {
     const yellowRGB = TSColor.rgb('Yellow') ;
     const yellowCMYK = TSColor.yellow() ;
     const realGray = TSColor.grayscale(0.5) ;
@@ -129,4 +131,113 @@ export const colorGroups = TSTest.group("TSColor class ", async (group) => {
         t.expect5(yellowRGB.toString({ rgbaCSSLike:true })).is('#ffff00ff') ;
         t.expect6(yellowRGB.toOpacity(0.5).toString({ rgbaCSSLike:true })).is('#ffff007f') ;
     }) ;
-}) ;
+}),
+
+TSTest.group("TSColor — named colours, channels, numeric & JSON forms", async (group) => {
+    const red  = TSColor.rgb(255, 0, 0) ;
+    const navy = TSColor.rgb(0, 0, 128) ;
+    const gray = TSColor.grayscale(0.5) ;
+    const cyan = TSColor.cyan() ;
+
+    group.unary('static named colours', async (t) => {
+        t.expect0(TSColor.black().rgb()).is([0, 0, 0]) ;
+        t.expect1(TSColor.white().rgb()).is([255, 255, 255]) ;
+        t.expect2(TSColor.magenta().rgb()).is([255, 0, 255]) ;
+        t.expect3(TSColor.red().rgb()).is([255, 0, 0]) ;
+        t.expect4(TSColor.green().rgb()).is([0, 255, 0]) ;
+        t.expect5(TSColor.blue().rgb()).is([0, 0, 255]) ;
+        t.expect6(TSColor.cyan().rgb()).is([0, 255, 255]) ;
+        t.expect7(TSColor.yellow().rgb()).is([255, 255, 0]) ;
+    }) ;
+
+    group.unary('channel getters', async (t) => {
+        t.expect0([red.red, red.green, red.blue]).is([255, 0, 0]) ;
+        t.expect1([red.alpha, red.transparency]).is([255, 0]) ;
+        t.expect2(red.toAlpha(128 as uint8).transparency).is(127) ;
+        t.expect3([cyan.cyan, cyan.magenta, cyan.yellow, cyan.black]).is([1, 0, 0, 0]) ;
+        t.expect4(gray.gray).is(0.5) ;
+        t.expect5(red.opacity).is(1) ;
+        t.expect6(gray.opacity).is(1) ;
+    }) ;
+
+    group.unary('valueOf / toUnsigned / toNumber', async (t) => {
+        t.expect0(red.valueOf()).is(0xff0000) ;
+        t.expect1(navy.valueOf()).is(0x000080) ;
+        t.expect2(red.toUnsigned()).is(0xff0000) ;
+        t.expect3(red.toNumber()).is(0xff0000) ;
+        t.expect4(+red).is(0xff0000) ;                       // valueOf via unary plus
+    }) ;
+
+    group.unary('toJSON / toArray per colour space', async (t) => {
+        t.expect0(red.toJSON()).is('#ff0000') ;
+        t.expect1(red.toArray()).is([255, 0, 0, 255]) ;
+        t.expect2(gray.toJSON()).is({ grayscale:0.5, opacity:1 }) ;
+        t.expect3(cyan.toJSON()).is({ cyan:1, magenta:0, yellow:0, black:0, opacity:1 }) ;
+    }) ;
+
+    group.unary('compare / clone', async (t) => {
+        t.expect0(red.compare(TSColor.rgb(255, 0, 0))).is(Same) ;
+        t.expect1(navy.compare(red)).is(Ascending) ;         // 0x80 < 0xff0000
+        t.expect2(red.compare(navy)).is(Descending) ;
+        t.expect3(red.compare('x')).is(undefined) ;
+        t.expect4(red.clone() === red).true() ;              // immutable -> identity
+    }) ;
+
+    group.unary('lighterColor / darkerColor / matchingColor', async (t) => {
+        // grayscale: lighter is brighter, darker is dimmer
+        t.expect0(gray.lighterColor().gray > 0.5).true() ;
+        t.expect1(gray.darkerColor().gray < 0.5).true() ;
+        t.expect2(gray.lightestColor().gray >= gray.lighterColor().gray).true() ;
+        t.expect3(gray.darkestColor().gray <= gray.darkerColor().gray).true() ;
+        // CMYK path
+        t.expect4(cyan.lighterColor().luminance > cyan.luminance).true() ;
+        t.expect5(cyan.darkerColor().luminance < cyan.luminance).true() ;
+        // matchingColor: pale -> darkest, dark -> lightest
+        t.expect6(TSColor.white().isPale).true() ;
+        t.expect7(TSColor.white().matchingColor().luminance < TSColor.white().luminance).true() ;
+        t.expect8(navy.isPale).false() ;
+        t.expect9(navy.matchingColor().luminance > navy.luminance).true() ;
+    }) ;
+}),
+
+TSTest.group("TSColor — CMYK / grayscale spaces, factories guards & toString forms", async (group) => {
+    group.unary('factory guards & fallbacks', async (t) => {
+        t.expect0(TSColor.fromString('notacolor')).null() ;
+        t.expect1(TSColor.rgb({} as any).toString()).is('#000000') ;             // bad single param -> black
+        t.expect2(() => TSColor.rgbcomponents('x' as any, 0, 0)).throws(/Bad parameters/) ;
+        t.expect3(() => TSColor.cmyk('x' as any, 0, 0, 0)).throws(/Bad parameters/) ;
+        t.expect4(() => TSColor.grayscale('x' as any)).throws(/Bad parameters/) ;
+    }) ;
+
+    group.unary('CMYK color space', async (t) => {
+        const c = TSColor.cmyk(0.1, 0.2, 0.3, 0.4) ;
+        t.expect0(c.colorSpace).is(TSColorSpace.CMYK) ;
+        t.expect1($round(c.cyan, 2)).is(0.1) ;
+        t.expect2($round(c.black, 2)).is(0.4) ;
+        t.expect3(c.opacity).is(1) ;
+        t.expect4(c.toString()).is('cmyk(0.1,0.2,0.3,0.4)') ;
+        t.expect5(TSColor.cmyk(0.1, 0.2, 0.3, 0.4, 0.5).toString()).is('cmyka(0.1,0.2,0.3,0.4,0.5)') ;
+    }) ;
+
+    group.unary('grayscale color space', async (t) => {
+        const g = TSColor.grayscale(0.5) ;
+        t.expect0(g.colorSpace).is(TSColorSpace.Grayscale) ;
+        t.expect1($round(g.gray, 2)).is(0.5) ;
+        t.expect2(g.toString()).is('gray(0.5)') ;
+        t.expect3(TSColor.grayscale(0.5, 0.5).toString()).is('gray(0.5, 0.5)') ;
+        t.expect4(g.toGrayscale()).is(g) ;                                       // already grayscale -> identity
+    }) ;
+
+    group.unary('rgba() string form & darker/darkest chain', async (t) => {
+        t.expect0(TSColor.rgb(10, 20, 30, 128).toString().startsWith('rgba(10,20,30,0.50')).true() ;
+        const grey = TSColor.rgb(100, 100, 100) ;
+        t.expect1(grey.darkerColor().toString()).is('#464646') ;
+        t.expect2(grey.darkestColor().toString()).is('#333333') ;
+    }) ;
+
+    group.unary('logColorCache() does not throw', async (t) => {
+        t.expect0(() => TSColor.logColorCache()).doesNotThrow() ;
+    }) ;
+}),
+
+] ;

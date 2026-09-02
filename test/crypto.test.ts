@@ -1,5 +1,5 @@
-import { $isuuid } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA384, SHA512, SHA224, $password, $shuffle, $randomBytes, $nativeHash, $sha1, $sha256, $sha512 } from "../src/crypto";
+import { $isuuid, $ok } from "../src/commons";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $commonInitializationVectorCopy, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA256, SHA384, SHA512, SHA224, $password, $shuffle, $randomBytes, $nativeHash, $sha1, $sha224, $sha256, $sha384, $sha512, $setCryptoProvider, $cryptoProvider } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
@@ -296,6 +296,19 @@ export const cryptoGroups = [
             t.expectB($uuidVersion('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).is(UUIDv4) ;
             t.expectC($uuidVersion('a14ceb40-ac4f-11hd-b648-67a97617e043')).undef() ;
             t.expectD($uuidVersion('3C244E6D-A03E-4D45-A87C-B1E1F967B36')).undef() ;
+
+            // both the native path ($uuid(false)) and the forced internal $slowuuid path
+            // ($uuid(true)) must yield well-formed, distinct v4 UUIDs
+            const seen = new Set<string>() ;
+            let allV4 = true ;
+            for (let i = 0 ; i < 1000 ; i++) {
+                const a = $uuid(true) ;
+                const b = $uuid(false) ;
+                if (!$isuuid(a, UUIDv4) || !$isuuid(b, UUIDv4)) { allV4 = false ; }
+                seen.add(a) ; seen.add(b) ;
+            }
+            t.expectE(allV4).true() ;
+            t.expectF(seen.size).is(2000) ;
         }) ;
 
         group.unary("$crc16() function", async(t) => {
@@ -359,6 +372,124 @@ export const cryptoGroups = [
             t.expectD(set2.size).is(N) ;
 
         }) ;
-    
+
+    }),
+
+    TSTest.group("Pluggable crypto provider ($setCryptoProvider)", async (group) => {
+
+        group.unary("provider is empty by default", async (t) => {
+            $setCryptoProvider(null) ;
+            t.expect($cryptoProvider()).is({}) ;
+        }) ;
+
+        group.unary("randomBytes override drives $randomBytes / $random / internal $uuid", async (t) => {
+            let calls = 0 ;
+            $setCryptoProvider({ randomBytes:(n) => {
+                calls++ ; const a = new Uint8Array(n) ;
+                for (let i = 0 ; i < n ; i++) { a[i] = i & 0xff ; }
+                return a ;
+            }}) ;
+            try {
+                t.expect0(Array.from($randomBytes(5))).is([0, 1, 2, 3, 4]) ;
+                t.expect1(calls > 0).true() ;
+                t.expect2($random(1000)).is($random(1000)) ;         // deterministic source -> stable
+                t.expect3($random(1000) < 1000).true() ;
+                t.expect4($uuid(true)).is($uuid(true)) ;             // internal uuid draws from the same source
+            }
+            finally { $setCryptoProvider(null) ; }
+        }) ;
+
+        group.unary("randomUUID override drives $uuid()", async (t) => {
+            const FAKE = "12345678-1234-4321-8abc-1234567890ab" ;
+            $setCryptoProvider({ randomUUID:() => FAKE }) ;
+            try {
+                t.expect0($uuid()).is(FAKE as any) ;
+                t.expect1($uuid(true) === FAKE).false() ;            // internal impl ignores the provider
+            }
+            finally { $setCryptoProvider(null) ; }
+        }) ;
+
+        group.unary("createHash override routes $nativeHash()", async (t) => {
+            let seen = "" ;
+            $setCryptoProvider({ createHash:(algo) => {
+                seen = algo ;
+                return { update() {}, digest() { return "deadbeef" ; } } ;
+            }}) ;
+            try {
+                t.expect0($nativeHash("whatever", SHA256)).is("deadbeef") ;
+                t.expect1(seen).is("sha256") ;
+            }
+            finally { $setCryptoProvider(null) ; }
+        }) ;
+
+        group.unary("createCipheriv / createDecipheriv overrides are consulted", async (t) => {
+            const KEY = "0123456789abcdef0123456789abcdef" ;
+            let encAlgo = "" ; let decCalled = false ;
+            const identityCipher = () => ({ update:(d:Uint8Array) => d, final:() => new Uint8Array() }) ;
+            $setCryptoProvider({
+                createCipheriv:(algo) => { encAlgo = algo ; return identityCipher() ; },
+                createDecipheriv:() => { decCalled = true ; return identityCipher() ; },
+            }) ;
+            try {
+                $encrypt("0123456789abcdef", KEY) ;
+                t.expect0(encAlgo).is("aes-256-cbc") ;
+                $decrypt("0".repeat(64), KEY) ;
+                t.expect1(decCalled).true() ;
+            }
+            finally { $setCryptoProvider(null) ; }
+        }) ;
+
+        group.unary("clearing the provider restores the built-in encryption round-trip", async (t) => {
+            $setCryptoProvider({}) ;
+            t.expect0($cryptoProvider()).is({}) ;
+            const KEY = "0123456789abcdef0123456789abcdef" ;
+            const enc = $encrypt("secret message", KEY) as string ;
+            t.expect1($ok(enc)).true() ;
+            t.expect2($decrypt(enc, KEY)).is("secret message") ;
+        }) ;
+    }),
+    TSTest.group("crypto.ts — IV copy, prototype wrappers, data-source decrypt", async (group) => {
+        group.unary("$commonInitializationVectorCopy() returns an independent copy", async (t) => {
+            const a = $commonInitializationVectorCopy() ;
+            const b = $commonInitializationVectorCopy() ;
+            t.expect0(a.length).is(16) ;
+            t.expect1(a).is(b) ;
+            a[0] = a[0] ^ 0xff ;
+            t.expect2(a).isnot($commonInitializationVectorCopy()) ;   // mutating the copy left the source alone
+        }) ;
+
+        group.unary("String / non-Buffer Uint8Array crc & hash prototype wrappers", async (t) => {
+            const u = new Uint8Array([49, 50, 51, 52, 53, 54, 55, 56, 57]) ;   // "123456789"
+            t.expect0('123456789'.crc16()).is(0xBB3D) ;
+            t.expect1('123456789'.crc32()).is(0xCBF43926) ;
+            t.expect2(u.crc16()).is(0xBB3D) ;
+            t.expect3(u.crc32()).is(0xCBF43926) ;
+            t.expect4(u.hash(SHA256)).is('15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225') ;
+            t.expect5(Buffer.from(u.slowhash({ method:SHA256, dataOutput:true }) as Uint8Array).toString('hex'))
+                .is('15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225') ;
+        }) ;
+
+        group.unary("$sha224 / $sha384 direct string & data output", async (t) => {
+            const abc = Buffer.from('abc') ;
+            t.expect0($sha224(abc)).is('23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7') ;
+            t.expect1($sha384(abc)).is('cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7') ;
+            t.expect2(Buffer.from($sha224(abc, true) as Uint8Array).toString('hex')).is('23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7') ;
+        }) ;
+
+        group.unary("$slowhash unknown method throws", async (t) => {
+            t.expect0(() => $slowhash('x', { method:'MD5' as any })).throws(/hashing method is unknown/) ;
+        }) ;
+
+        group.unary("$decrypt from a TSData source (not an hexa string)", async (t) => {
+            const key256 = "my32octetskeyforcryptingZPOL1na0" ;
+            const enc = $encrypt("secret message", key256, { dataOutput:true }) ;
+            t.expect0(enc).filled() ;
+            const dec = $decrypt(enc!, key256, { dataOutput:true }) ;
+            t.expect1(`${dec}`).is("secret message") ;
+
+            const enc2 = $encrypt("hello world", "crypt16octetskey", { algorithm:AES128, noInitializationVector:true, dataOutput:true }) ;
+            const dec2 = $decrypt(enc2!, "crypt16octetskey", { algorithm:AES128, noInitializationVector:true }) ;
+            t.expect2(dec2).is("hello world") ;
+        }) ;
     })
 ] ;

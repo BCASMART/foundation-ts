@@ -1,6 +1,6 @@
-import { $bytes, $fpad, $meters, $round, $unit } from "../src/number";
+import { $bytes, $div, $fpad, $icast, $meters, $round, $unit } from "../src/number";
 import { TSTest } from "../src/tstester";
-import { UINT32_MAX, UINT_MAX } from "../src/types";
+import { INT32_MAX, UINT32_MAX, UINT_MAX } from "../src/types";
 
 export const numberGroups = TSTest.group("Commons number functions", async (group) => {
     group.unary("$round() function", async(t) => {
@@ -33,6 +33,37 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectX(NaN.round(7)).toBeNaN() ;
         t.expectY(Number.NEGATIVE_INFINITY.round(7)).is(Number.NEGATIVE_INFINITY) ;
         t.expectZ(Number.POSITIVE_INFINITY.round(7)).is(Number.POSITIVE_INFINITY) ;
+    }) ;
+    group.unary("$icast() && $div() functions", async(t) => {
+        t.expect0($icast(0)).is(0) ;
+        t.expect1($icast(1.9)).is(1) ;
+        t.expect2($icast(-1.9)).is(-1) ;
+        t.expect3($icast(INT32_MAX)).is(INT32_MAX) ;
+        t.expect4($icast(-INT32_MAX)).is(-INT32_MAX) ;
+        // values in the ]int32, uint32] range must NOT overflow to a negative number
+        t.expect5($icast(2147483648)).is(2147483648) ;
+        t.expect6($icast(3000000000)).is(3000000000) ;
+        t.expect7($icast(4294967295)).is(4294967295) ;
+        t.expect8($icast(3000000000.9)).is(3000000000) ;
+        t.expect9($icast(-3000000000.9)).is(-3000000000) ;
+        t.expectA($icast(-2147483648)).is(-2147483648) ;   // int32 min
+        t.expectB($icast(Number.MAX_SAFE_INTEGER)).is(Number.MAX_SAFE_INTEGER) ;
+        t.expectC($icast(-Number.MAX_SAFE_INTEGER)).is(-Number.MAX_SAFE_INTEGER) ;
+        t.expectD($div(9000000000, 3)).is(3000000000) ;
+        t.expectE($div(7, 2)).is(3) ;
+        t.expectF($div(-7, 2)).is(-3) ;
+        t.expectG((3000000000).icast()).is(3000000000) ;
+        t.expectH($div(-9000000000, 3)).is(-3000000000) ;   // truncation toward zero, no int32 wrap
+        t.expectI($div(9000000001, 3)).is(3000000000) ;
+        // exact int32 boundaries ±1
+        t.expectJ($icast(INT32_MAX + 1)).is(INT32_MAX + 1) ;
+        t.expectK($icast(-INT32_MAX - 1)).is(-INT32_MAX - 1) ;
+        t.expectL($icast(UINT32_MAX + 1)).is(UINT32_MAX + 1) ;
+        // the fix must propagate through the $toint()/$tounsigned()-backed Number methods
+        t.expectM((3000000000).toInt()).is(3000000000) ;
+        t.expectN((4294967295).toInt()).is(4294967295) ;
+        t.expectO((3000000000.7).toUnsigned()).is(3000000000) ;
+        t.expectP((-3000000000).toInt()).is(-3000000000) ;
     }) ;
     group.unary("$fpad() functions", async(t) => {
         const n = 12 ;

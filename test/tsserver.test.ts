@@ -108,6 +108,37 @@ export const serverGroups = [
         group.unary(`api '/v{vers}/session2/{sid:boolean}'`, async (t) => {
             t.expect(objects[10]).def();
         });
+    }),
+
+    TSTest.group("TSServerEndPoint — constructor validation", async (group) => {
+        const fn = async (_r:TSServerRequest, _s:TSServerResponse):Promise<void> => {} ;
+        const mk = (path:string, def:any) => () => new TSServerEndPoint(path, def) ;
+
+        group.unary('rejects malformed definitions', async (t) => {
+            t.expect0(mk('/', { GET:fn })).throws(/too short/) ;
+            t.expect1(mk('', { GET:fn })).throws(/too short/) ;
+            t.expect2(mk('/api', {})).throws(/no method defined/) ;
+            t.expect3(mk('/api', { FOO:fn })).throws(/invalid 'FOO' request method/) ;
+            t.expect4(mk('api/x', { GET:fn })).throws(/not absolute/) ;
+            t.expect5(mk('/a}b', { GET:fn })).throws(/Misplaced '\}'/) ;
+            t.expect6(mk('/a[b]', { GET:fn })).throws(/forbidden character/) ;
+            t.expect7(mk('/a\\b', { GET:fn })).throws(/forbidden character/) ;
+            t.expect8(mk('/a|b', { GET:fn })).throws(/forbidden character/) ;
+            t.expect9(mk('/v{9bad}', { GET:fn })).throws(/forbidden first character/) ;
+            t.expectA(mk('/v{name:notatype}', { GET:fn })).throws() ;
+        }) ;
+
+        group.unary('accepts the valid shapes', async (t) => {
+            t.expect0(new TSServerEndPoint('/plain/path', { GET:fn }).uri).is('/plain/path') ;
+            t.expect1(new TSServerEndPoint('/shorthand', fn).uri).is('/shorthand') ;                 // bare controller -> GET
+            t.expect2(new TSServerEndPoint('/ctrl', { controller:fn } as any).uri).is('/ctrl') ;     // {controller} -> GET
+            const ep = new TSServerEndPoint('/v{vers}/user/{id}', { GET:fn, POST:fn }) ;
+            t.expect3(ep.uri).is('/v') ;            // uri is the static prefix, stops at the first parametric token
+            t.expect4(ep.depth).is(3) ;
+            t.expectG(new TSServerEndPoint('/v{vers}/user/{id:boolean}', { GET:fn }).uri).is('/v') ; // typed token
+            t.expect5(new TSServerEndPoint('/a-b.c(d)/x', { GET:fn }).uri).is('/a-b.c(d)/x') ;        // special chars kept in the static part
+            t.expect6(new TSServerEndPoint('/MixedCase', { GET:fn }).uri).is('/mixedcase') ;         // static part lower-cased
+        }) ;
     })
 ];
 
@@ -338,8 +369,78 @@ if (!$inbrowser()) {
                     t.expectD(ret).is(content) ;
                 }
                 const stopped = await TSServer.stop() ;
-                t.expectZ(stopped).toBeUndefined() ;    
+                t.expectZ(stopped).toBeUndefined() ;
             }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServer — response types, 404, CORS preflight", async (group) => {
+        const port = 8399 as uint16 ;
+        const base = `http://localhost:${port}/` ;
+        const opts:TSServerOptions = { port, logLevel:TSServerLogLevel.None, preflightController:'permisive' } ;
+
+        const endpoints:TSDictionary<TSEndpointsDefinition> = {
+            '/text':    async (_r, resp) => { resp.returnString('plain text', Resp.OK) ; },
+            '/obj':     async (_r, resp) => { resp.returnObject({ ok:true, n:42 }) ; },
+            '/nocontent': async (_r, resp) => { resp.returnEmpty() ; },
+            '/boom':    async (_r, resp) => { resp.returnError({ error:'nope' }, Resp.Forbidden) ; },
+            '/echo/{id}': { GET: {
+                controller: async (req, resp) => { resp.returnObject({ id:req.parameters['id'], q:req.query }) ; },
+                query: { a:'uint32', b:'string' },
+            } },
+        } ;
+
+        group.unary('stop() on a non-running server is a no-op', async (t) => {
+            t.expect0(await TSServer.isRunning()).false() ;
+            t.expect1(await TSServer.stop()).undef() ;
+        }) ;
+
+        group.unary('response types & error responses', async (t) => {
+            const st = await TSServer.start(endpoints as any, opts) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+
+                const s = await client.req('text', Verb.Get, RespType.String) ;
+                t.expect1(s.status).is(Resp.OK) ;
+                t.expect2(s.response).is('plain text') ;
+
+                const o = await client.req('obj', Verb.Get, RespType.Json) ;
+                t.expect3(o.status).is(Resp.OK) ;
+                t.expect4((o.response as any).n).is(42) ;
+
+                const e = await client.req('nocontent', Verb.Get, RespType.OptionalJson) ;
+                t.expect5(e.status).is(Resp.NoContent) ;
+                t.expect6(e.response).null() ;
+
+                const b = await client.req('boom', Verb.Get, RespType.Json) ;
+                t.expect7(b.status).is(Resp.Forbidden) ;
+
+                const nf = await client.req('does/not/exist', Verb.Get, RespType.OptionalJson) ;
+                t.expect8(nf.status).is(Resp.NotFound) ;
+
+                const echo = await client.req('echo/xyz?a=1&b=two', Verb.Get, RespType.Json) ;
+                t.expect9((echo.response as any).id).is('xyz') ;
+                t.expectA((echo.response as any).q).is({ a:1, b:'two' }) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('CORS preflight (OPTIONS) with a permisive controller', async (t) => {
+            const st = await TSServer.start(endpoints as any, opts) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+                const resp = await client.req('obj', 'OPTIONS' as Verb, RespType.String, null, {
+                    'origin':'https://foo.example',
+                    'access-control-request-method':'GET',
+                }) ;
+                t.expect1(resp.status).is(Resp.NoContent) ;
+                const acao = resp.headers.get('access-control-allow-origin') ;
+                t.expect2($length(acao)).gt(0) ;
+                t.expect3($length(resp.headers.get('access-control-allow-methods'))).gt(0) ;
+            }
+            finally { await TSServer.stop() ; }
         }) ;
     })) ;
 }

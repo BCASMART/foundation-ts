@@ -192,18 +192,18 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 		if (!$ok(opts.printer)) opts.printer = d => (d as any).toString() ;
 
 		if (this._f) {
-			const hasSepa = $length(opts.separator) > 0 ;
+			const sepa = $length(opts.separator) > 0 ? opts.separator : undefined ;
 			const printMe = (node:TSListNode<T>) => {
 				const element = opts.printer!(node.data) ;
 				if ($ok(element)) { s = s + element ; }
 				if (node.next !== null) {
-					if (hasSepa) { s = s + opts.suffix ; }
+					if (sepa) { s = s + sepa ; }
 					printMe(node.next) ;
 				}
 			} ;
 			printMe(this._f) ;
 		}
-		if ($length(opts.suffix)) s = s + opts.suffix ;
+		if ($length(opts.suffix)) { s = s + opts.suffix ; }
 		return s ;
 	}
 

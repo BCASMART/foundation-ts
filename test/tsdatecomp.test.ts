@@ -1,5 +1,5 @@
 import { TSDate, TSDay, TSHour, TSMinute } from "../src/tsdate";
-import { $components, $components2StringWithOffset, $components2timestamp, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, $timezoneOffsetWithComponents, TSDurationComp } from "../src/tsdatecomp";
+import { $components, $components2StringWithOffset, $components2stringformat, $components2timestamp, $componentshavetime, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, $durationNumber2StringFormat, $parsedate, $parsedatetime, $parsetime, $timecomponents, $timezoneOffsetWithComponents, TSDateForm, TSDurationComp } from "../src/tsdatecomp";
 import { uint } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $timeBetweenDates } from "../src/date";
@@ -29,11 +29,8 @@ export const dateCompGroups = [
             t.expect9($components(Number.POSITIVE_INFINITY)).is(future) ;
 
             function _rt(nr:number, obj:any, inverse:boolean = false) {
-                let didraise = false ;
-                try { $components(obj) ; }
-                catch { didraise = true ; }
-                if (inverse) { t.expect(didraise, 'ERR'+nr).false() ; }
-                else { t.expect(didraise, 'ERR'+nr).true() ; }
+                const e = t.expect(() => $components(obj), 'ERR'+nr) ;
+                if (inverse) { e.notToThrow() ; } else { e.toThrow() ; }
             }
             _rt(0, {}) ;
             _rt(1, 'tryme') ;
@@ -195,5 +192,196 @@ export const dateCompGroups = [
             const TZD = new TSDate(2024, 7, 8, 23, 1, 35) ;
             t.expect0($timezoneOffsetWithComponents('Europe/Paris', TZD.toComponents())).is(120) ;
         }) ;
-    })
+    }),
+
+    TSTest.group("tsdatecomp — time components & parsing", async (group) => {
+        const d = new TSDate(1945, 5, 8, 23, 1, 35) ;
+
+        group.unary('$timecomponents() / $componentshavetime()', async (t) => {
+            t.expect0($timecomponents(d.timestamp)).is({ hour:23, minute:1, second:35 }) ;
+            t.expect1($timecomponents(new Date(2020, 0, 1, 3, 4, 5))).is({ hour:3, minute:4, second:5 }) ;
+            t.expect2($timecomponents(d)).is({ hour:23, minute:1, second:35 }) ;
+            const now = $timecomponents(null) ;                                  // current time
+            t.expect3(now.hour >= 0 && now.hour <= 23).true() ;
+            t.expect4($componentshavetime($components(d))).true() ;
+            t.expect5($componentshavetime($components(new TSDate(2020, 1, 1)))).false() ;
+        }) ;
+
+        group.unary('$parsetime() — colon / dot forms', async (t) => {
+            t.expect0($parsetime("14:30:05")).is({ hour:14, minute:30, second:5 }) ;
+            t.expect1($parsetime("14:30")).is({ hour:14, minute:30, second:0 }) ;
+            t.expect2($parsetime("14.30.05")).is({ hour:14, minute:30, second:5 }) ;   // dot separator
+            t.expect3($parsetime("9:7")).is({ hour:9, minute:7, second:0 }) ;
+            t.expect4($parsetime("  8 : 5 : 3 ")).is({ hour:8, minute:5, second:3 }) ; // whitespace tolerated
+            t.expect5($parsetime("07")).is({ hour:7, minute:0, second:0 }) ;
+        }) ;
+
+        group.unary('$parsetime() — packed number forms', async (t) => {
+            t.expect0($parsetime("7")).is({ hour:7, minute:0, second:0 }) ;
+            t.expect1($parsetime("900")).is({ hour:9, minute:0, second:0 }) ;          // HMM
+            t.expect2($parsetime("1430")).is({ hour:14, minute:30, second:0 }) ;       // HHMM
+            t.expect3($parsetime("0930")).is({ hour:9, minute:30, second:0 }) ;
+            t.expect4($parsetime("143005")).is({ hour:14, minute:30, second:5 }) ;     // HHMMSS
+            t.expect5($parsetime("235959")).is({ hour:23, minute:59, second:59 }) ;
+        }) ;
+
+        group.unary('$parsetime() — rejects out-of-range / malformed', async (t) => {
+            t.expect0($parsetime(null)).null() ;
+            t.expect1($parsetime("")).null() ;
+            t.expect2($parsetime("nonsense")).null() ;
+            t.expect3($parsetime("24:00")).null() ;
+            t.expect4($parsetime("14:60")).null() ;
+            t.expect5($parsetime("14:30:60")).null() ;
+            t.expect6($parsetime("1260")).null() ;          // 12:60 packed
+            t.expect7($parsetime("99:99:99")).null() ;
+            t.expect8($parsetime("1:2:3:4")).null() ;       // too many parts
+            t.expect9($parsetime("12:5:")).null() ;         // trailing separator
+            t.expectA($parsetime("-1:00")).null() ;
+        }) ;
+
+        group.unary('$parsedate()', async (t) => {
+            t.expect0($parsedate("2020-03-15", TSDateForm.ISO8601)).is({ year:2020, month:3, day:15, hour:0, minute:0, second:0 }) ;
+            t.expect1($parsedate("garbage")).null() ;
+            t.expect2($parsedate(null)).null() ;
+            t.expect3($parsedate("15/03/2020")).is({ year:2020, month:3, day:15, hour:0, minute:0, second:0 }) ;
+            t.expect4($parsedate("2020.03.15", TSDateForm.Computer)).is({ year:2020, month:3, day:15, hour:0, minute:0, second:0 }) ;
+        }) ;
+
+        group.unary('$parsedatetime() Standard — date + time forms', async (t) => {
+            const D = { year:2020, month:3, day:15 } ;
+            t.expect0($parsedatetime("15/03/2020 14:30:05")).is({ ...D, hour:14, minute:30, second:5 }) ;
+            t.expect1($parsedatetime("15/03/2020 14:30")).is({ ...D, hour:14, minute:30, second:0 }) ;
+            t.expect2($parsedatetime("15/03/2020 14")).is({ ...D, hour:14, minute:0, second:0 }) ;
+            t.expect3($parsedatetime("15/03/2020 143005")).is({ ...D, hour:14, minute:30, second:5 }) ; // packed time
+            t.expect4($parsedatetime("15/03/2020")).is({ ...D, hour:0, minute:0, second:0 }) ;
+            t.expect5($parsedatetime("15-03-2020 9.7.3")).is({ ...D, hour:9, minute:7, second:3 }) ;    // '-' & '.' separators
+            t.expect6($parsedatetime("15.03.20")).is({ ...D, hour:0, minute:0, second:0 }) ;           // 2-digit year
+        }) ;
+
+        group.unary('$parsedatetime() English & Computer forms', async (t) => {
+            const D = { year:2020, month:3, day:15 } ;
+            t.expect0($parsedatetime("03/15/2020 14:30:05", TSDateForm.English)).is({ ...D, hour:14, minute:30, second:5 }) ;
+            t.expect1($parsedatetime("03-15-2020", TSDateForm.English)).is({ ...D, hour:0, minute:0, second:0 }) ;
+            t.expect2($parsedatetime("2020/03/15 14:30:05", TSDateForm.Computer)).is({ ...D, hour:14, minute:30, second:5 }) ;
+            t.expect3($parsedatetime("2020/03", TSDateForm.Computer)).null() ;     // Computer needs full date
+        }) ;
+
+        group.unary('$parsedatetime() packed all-in-one number', async (t) => {
+            const D = { year:2020, month:3, day:15, hour:0, minute:0, second:0 } ;
+            t.expect0($parsedatetime("15032020")).is(D) ;                          // DDMMYYYY
+            t.expect1($parsedatetime("150320")).is(D) ;                            // DDMMYY
+            t.expect2($parsedatetime("03152020", TSDateForm.English)).is(D) ;      // MMDDYYYY
+            t.expect3($parsedatetime("20200315", TSDateForm.Computer)).is(D) ;     // YYYYMMDD
+        }) ;
+
+        group.unary('$parsedatetime() completes missing month / year with today', async (t) => {
+            const now = new Date() ;
+            const y = now.getFullYear(), mo = now.getMonth() + 1 ;
+            t.expect0($parsedatetime("15/03")).is({ year:y, month:3, day:15, hour:0, minute:0, second:0 }) ;
+            t.expect1($parsedatetime("15")).is({ year:y, month:mo, day:15, hour:0, minute:0, second:0 }) ;
+        }) ;
+
+        group.unary('$parsedatetime() rejects invalid dates / times', async (t) => {
+            t.expect0($parsedatetime("garbage")).null() ;
+            t.expect1($parsedatetime(null)).null() ;
+            t.expect2($parsedatetime("32/03/2020")).null() ;
+            t.expect3($parsedatetime("15/13/2020")).null() ;
+            t.expect4($parsedatetime("15/03/2020 25:00")).null() ;
+            t.expect5($parsedatetime("15/03/2020 12:70")).null() ;
+        }) ;
+
+        group.unary('TSDate.fromString() with a non-ISO form + time', async (t) => {
+            t.expect0(TSDate.fromString("15/03/2020 14:30:05")?.toIsoString()).is("2020-03-15T14:30:05") ;
+            t.expect1(TSDate.fromString("03/15/2020 14:30:05", TSDateForm.English)?.toIsoString()).is("2020-03-15T14:30:05") ;
+            t.expect2(TSDate.fromString("2020/03/15 14:30:05", TSDateForm.Computer)?.toIsoString()).is("2020-03-15T14:30:05") ;
+            t.expect3(TSDate.fromString("15/03/2020")?.toIsoString()).is("2020-03-15T00:00:00") ;
+        }) ;
+    }),
+
+    TSTest.group("tsdatecomp — $components2stringformat directives", async (group) => {
+        const c = $components(new TSDate(1945, 5, 8, 23, 1, 35)) ;
+        const F = (fmt:string, loc?:any) => $components2stringformat(c, fmt, loc) ;
+
+        group.unary('individual directives', async (t) => {
+            t.expect0(F("%Y")).is("1945") ;
+            t.expect1(F("%y")).is("45") ;
+            t.expect2(F("%m")).is("05") ;
+            t.expect3(F("%d")).is("08") ;
+            t.expect4(F("%e", "fr")).is("8") ;
+            t.expect5(F("%H:%M:%S")).is("23:01:35") ;
+            t.expect6(F("%p")).is("23:01") ;
+            t.expect7(F("%A", "fr")).is("mardi") ;
+            t.expect8(F("%a", "en")).is("Tue.") ;
+            t.expect9(F("%B", "fr")).is("mai") ;
+            t.expectA(F("%b", "de")).is("Mai") ;
+            t.expectB(F("100%% done")).is("100% done") ;
+            t.expectC(F("%Z")).is("%Z") ;                                        // unknown directive passes through
+        }) ;
+
+        group.unary('remaining individual directives', async (t) => {
+            t.expect0(F("%z")).is("1945") ;
+            t.expect1(F("%n")).is("5") ;
+            t.expect2(F("%E")).is("8e") ;
+            t.expect3(F("%E", "en")).is("8th") ;
+            t.expect4(F("%f")).is("2") ;                     // Tuesday, 0 = Sunday
+            t.expect5(F("%F", "fr")).is("1") ;               // Tuesday, 0 = Monday in France
+            t.expect6(F("%J")).is("11") ;                    // 24h -> padded 12h
+            t.expect7(F("%K")).is("11") ;
+            t.expect8(F("%I")).is("23") ;
+            t.expect9(F("%N")).is("1") ;
+            t.expectA(F("%T")).is("35") ;
+            t.expectB(F("%P")).is("PM") ;
+            t.expectC(F("%q")).is("128") ;
+            t.expectD(F("%r")).is("128") ;
+            t.expectE(F("%v", "fr")).is("19") ;
+            t.expectF(F("%w", "fr")).is("19") ;
+            t.expectG(F("%x", "fr")).is("08/05/45") ;
+            t.expectH(F("%X", "fr")).is("08/05/1945") ;
+            t.expectI(F("%t", "fr")).is("23:01:35") ;
+            const morning = $components2stringformat($components(new TSDate(2001, 1, 3, 9, 5, 7)), "%J %K %P") ;
+            t.expectJ(morning).is("09 9 AM") ;               // morning branch of %J / %K / %P
+        }) ;
+
+        group.unary('predefined formats & invalid components', async (t) => {
+            t.expect0(F("date-time", "fr")).is("08/05/1945 23:01:35") ;
+            t.expect1(F("short-time", "fr")).is("23:01") ;
+            t.expect2(F("time", "fr")).is("23:01:35") ;
+            t.expect3($components2stringformat({ year:0, month:99, day:1, hour:0, minute:0, second:0 } as any, "%Y")).null() ;
+        }) ;
+    }),
+
+    TSTest.group("tsdatecomp — $durationDescription & $durationNumber2StringFormat", async (group) => {
+        group.unary('$durationDescription() depths & options', async (t) => {
+            t.expect0($durationDescription({ days:3, hours:13, minutes:0, seconds:0 } as any, { depth:'days' })).is("4 jours") ;
+            t.expect1($durationDescription({ days:3, hours:5, minutes:0, seconds:0 } as any, { depth:'days' })).is("3 jours") ;
+            t.expect2($durationDescription({ days:1, hours:2, minutes:40, seconds:0 } as any, { depth:'hours' })).is("1 jour 3 heures") ;
+            t.expect3($durationDescription({ days:0, hours:1, minutes:5, seconds:40 } as any, { depth:'minutes' })).is("1 heure 6 minutes") ;
+            t.expect4($durationDescription({ days:0, hours:0, minutes:0, seconds:7 } as any, { depth:'seconds' })).is("7 secondes") ;
+            t.expect5($durationDescription({ days:2, hours:3, minutes:0, seconds:0 } as any, { noDays:true })).is("51 heures") ;
+            t.expect6($durationDescription({ days:1, hours:2, minutes:0, seconds:0 } as any, { locale:'en' })).is("1 day 2 hours") ;
+            t.expect7($durationDescription({ days:0, hours:0, minutes:0, seconds:0 } as any)).is("") ;
+            t.expect8($durationDescription(3725)).is("1 heure 2 minutes 5 secondes") ;
+        }) ;
+
+        group.unary('$durationNumber2StringFormat() & $duration2String() with format', async (t) => {
+            t.expect0($durationNumber2StringFormat(93784)).is("1-02:03:04") ;
+            t.expect1($durationNumber2StringFormat(null)).is("00:00") ;
+            t.expect2(() => $durationNumber2StringFormat(-5)).throws(/positive or 0/) ;
+            t.expect3($durationNumber2StringFormat(93784, "%(%d days %)%H:%M:%S")).is("1 days 02:03:04") ;
+            t.expect4($durationNumber2StringFormat(3600, "%(%d days %)%H:%M:%S")).is("01:00:00") ;
+            t.expect5($duration2String({ days:0, hours:1, minutes:2, seconds:3 } as any, "%H h %M m")).is("01 h 02 m") ;
+        }) ;
+
+        group.unary('$durationNumber2StringFormat() day/hour directives & else-parts', async (t) => {
+            const dur = 2 * 86400 + 3 * 3600 + 4 * 60 + 5 ;   // 2d 3h 4m 5s
+            t.expect0($durationNumber2StringFormat(dur, "%D days")).is("02 days") ;              // %D 2-digit days
+            t.expect1($durationNumber2StringFormat(dur, "%E days")).is("002 days") ;             // %E 3-digit days
+            t.expect2($durationNumber2StringFormat(dur, "%i h")).is("51 h") ;                    // %i hours incl. days
+            t.expect3($durationNumber2StringFormat(dur, "%I h")).is("51 h") ;                    // %I 2-digit
+            t.expect4($durationNumber2StringFormat(dur, "%J h")).is("051 h") ;                   // %J 3-digit
+            t.expect5($durationNumber2StringFormat(3600, "%(%d%p<%x>%)")).is("<%x>") ;           // _default(c) in else part
+            t.expect6($durationNumber2StringFormat(3600, "%(%d%p100%%%)")).is("100%") ;          // _default('%') in else part
+            t.expect7($durationNumber2StringFormat(30, "%(%dd%pno days%)")).is("no days") ;      // plain text else part
+        }) ;
+    }),
 ] ;

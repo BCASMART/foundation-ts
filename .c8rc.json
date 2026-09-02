@@ -1,0 +1,18 @@
+{
+  "//": "Coverage config for `npm run coverage`. Measures the Node run only.",
+  "all": true,
+  "src": ["tdist/src"],
+  "include": ["tdist/src/**/*.js"],
+  "exclude": [
+    "tdist/test/**",
+    "tdist/tools/**",
+    "**/SetupPackage.js",
+    "tdist/src/index.js",
+    "**/*.json"
+  ],
+  "excludeNodeModules": true,
+  "reporter": ["text", "html", "lcov", "json"],
+  "reports-dir": "coverage",
+  "clean": true,
+  "skip-full": false
+}

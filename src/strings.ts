@@ -1,6 +1,6 @@
 import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID, $value } from "./commons";
 import { FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
-import { $transliterate, $transliterateCP } from "./transliteration";
+import { $transliterate } from "./transliteration";
 import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
 import { TSPhoneNumber } from "./tsphonenumber";
@@ -258,6 +258,13 @@ function _camelCase(source: Nullable<string>): string {
 }
 
 
+// a code point is considered to start / continue a word (and thus to be
+// "capitalizable") if it is a Unicode letter or a combining mark. The test is
+// done on the original code point — not on its transliteration — so that the
+// result does not depend on the quality/shape of the transliteration tables
+// (e.g. 'ع' transliterates to "'" but still is a letter).
+const FoundationLetterRegex = /[\p{L}\p{M}]/u ;
+
 function _capitalize(s: Nullable<string>, max: number = 0): string {
     let ret = "";
     const len = $length(s) ; if (len === 0) { return ret ;}
@@ -267,27 +274,18 @@ function _capitalize(s: Nullable<string>, max: number = 0): string {
     let n = 0;
 
     for (let i = 0 ; i < len ; ) {
-        const code = str.codePointAt(i)!;
-        const trans = $transliterateCP(code, false);
-        
-        const isLetter = _charAssimilableAsLetter(trans!) ;
-        if (isLetter && lastCharWasNotLetter && n < max) { 
-            ret += (String.fromCodePoint(code)).toUpperCase(); 
-            n++; 
+        const code = str.codePointAt(i)! ;
+        const c = String.fromCodePoint(code) ;
+        const isLetter = FoundationLetterRegex.test(c) ;
+        if (isLetter && lastCharWasNotLetter && n < max) {
+            ret += c.toUpperCase() ;
+            n++ ;
         }
         else {
-            ret += String.fromCodePoint(code) ;
+            ret += c ;
         }
         lastCharWasNotLetter = !isLetter;
         i += code > 0xFFFF ? 2 : 1 ;
     }
     return ret ;
-}
-
-function _charAssimilableAsLetter(c: string): boolean {
-    if (c.length) {
-        const v = c.charCodeAt(0) & ~32;
-        return v >= 65 && v <= 90 ;
-    }
-    return false;
 }

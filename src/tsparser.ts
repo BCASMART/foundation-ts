@@ -871,7 +871,7 @@ function _encodeb64(v:any, opts?:Nullable<TSParserActionOptions>)
 function _decodeb64(s:string, opts?:Nullable<TSParserActionOptions>)
 { return opts?.context === TSParserActionContext.url ? $decodeBase64URL(s) : $decodeBase64(s) ; }
 
-function _decodeHexa(s:string):Buffer { return $bufferFromHexaString(s)! ; }
+function _decodeHexa(s:string):Buffer { return $bufferFromHexaString(s)! ; } // here we are sure that the string is a valid hexa string, so we can use the ! operator   
 
 function _isHexaData(v:any):boolean  
 { return $isdataobject(v) || ($isstring(v) && $ok($bufferFromHexaString(v))) ;}

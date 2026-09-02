@@ -4,7 +4,7 @@ import { TSCountry } from "../src/tscountry";
 import { TSError } from "../src/tserrors";
 import { $phoneFromString, PhoneValidity, TSPhoneNumber } from "../src/tsphonenumber";
 import { TSTest, TSUnaryTest } from "../src/tstester";
-import { $insp, $logterm } from "../src/utils";
+import { $inbrowser, $insp, $logterm } from "../src/utils";
 
 
 export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) => {
@@ -114,7 +114,9 @@ export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) =>
         t.expect2($isophone('(00 33)01.45.24.7000')).is(N) ;
     }) ;
 
-    group.unary('Phone recognition from JSON test base', async t => {
+    // the fixture is loaded from disk through $loadJSON()/$absolute(), which
+    // assert against a browser environment: skip it under jsdom / headless Chrome.
+    if (!$inbrowser()) { group.unary('Phone recognition from JSON test base', async t => {
         const phonedb = _loadPhoneTestBase() ;
         t.expect0(phonedb).toBeNotEmpty() ;
         const acceptableCountries = new Set(TSCountry.alpha2Codes() as string[]) ;
@@ -153,7 +155,7 @@ export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) =>
             t.register(`Wrong phone entry ${i}:${entry.phone} of ${entry.country}`, `step:${step}, result:'${pn}'. validity:${v}, country:${$value(c?.alpha2Code, 'none')}, mobile:${p?.isMobileNumber}=>\n${$insp(entry)}`)
 
         }
-    }) ;
+    }) ; }
 }) ;
 
 

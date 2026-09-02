@@ -1,6 +1,6 @@
 # Foundation-ts
 
-Foundation-ts is a small library meant to be the core of all Business Card Associates Typescript projects. It was designed to have minimal dependencies and maximal functionalities. In fact, foundation-ts has only two development dependancies which are typescript language and @types/node.
+Foundation-ts is a small library meant to be the core of all Business Card Associates Typescript projects. It was designed to have minimal dependencies and maximal functionalities. It ships with **no runtime dependency**; its development dependencies are limited to the typescript language, @types/node, jsdom (browser-simulation test-suite), esbuild + playwright-core (real headless-browser test-suite) and c8 (coverage).
 
 Foundation-ts is a collection of functions and classes aiming at facilitating developing web apps in Typescript, both on server or client side. It defines some types and functions for manipulating, checking and converting some basic data like integers, language, countries, emails, addresses, URLs, geometric points, etc.
 
@@ -41,7 +41,15 @@ Foundation-ts also define several classes to deal with common data :
 * `TSUniqueError` / `TSError` : simple Error subclasses managing singleton errors, errors with info and errors with code or status
 * `TSURL` : a local, non dependant, URL management class
 
-Foundation-ts is a full-Typescript project, coming with its own unary tests (`npm run test`). It can be uses as any npm module and is full open source with an MIT license.
+Foundation-ts is a full-Typescript project, coming with its own unary tests. Several runs are available:
+
+- `npm run test` — Node.
+- `npm run test:jsdom` — every group that does not need real file I/O, a live socket or `process.argv`, run under a jsdom simulation with `$inbrowser()` forced on.
+- `npm run test:chrome` / `test:firefox` / `test:webkit` — those same groups bundled with esbuild and run in a real headless browser through playwright-core (`test:browsers` runs the three in a row).
+- `npm run test:all` — chains Node + jsdom + the three engines.
+- `npm run coverage` — runs the Node suite under [`c8`](https://github.com/bcoe/c8) and writes a line/branch/function report (`text` to the console, browsable HTML + `lcov.info` in `coverage/`, remapped to the `src/*.ts` sources).
+
+`test:chrome` uses the **system** Google Chrome (no download). Firefox and WebKit use Playwright's own builds: run `npm run playwright:install` once (~500 MB, cached in `~/.cache/ms-playwright`). It can be uses as any npm module and is full open source with an MIT license.
 
 Foundation-ts is a work in progress used in our own project. We provide it as it is, with no guarantee and we want you to be aware that regularly, we change things in it which can break your inclusions. Don't panic, nothing may be lost : we only add new functions or methods or change algorithms or source code files organization like we did in version 1.3.
 

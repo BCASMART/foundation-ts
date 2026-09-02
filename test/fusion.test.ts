@@ -70,7 +70,9 @@ function htmlName(data:any, rootData:any, localContext:TSDictionary, context:TSD
 
 
 
-export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
+export const fusionGroups = [
+
+TSTest.group("Fusion tests", async (group) => {
     const p = new PI('M.', 'John', 'Smith') ;
     p.addCollaborator({title:'M.', firstName:'John', lastName:'Adams', isMan:true}) ;
     p.addCollaborator({title:'gal',firstName:'Georges', lastName:'Washington', isMan:true}) ;
@@ -337,4 +339,118 @@ export const fusionGroups = TSTest.group("Fusion tests", async (group) => {
         }
 
     }) ;
-}) ;
+}),
+
+TSTest.group("Fusion — operators, params, constants", async (group) => {
+    const S = (s:string, data:any, opts:any = {}) => {
+        const tpl = TSFusionTemplate.fromString(s, opts) ;
+        if (!tpl) return { r:undefined as any, e:['PARSE-NULL'] } ;
+        const e:string[] = [] ;
+        return { r:tpl.fusionWithDataContext(data, {}, e), e } ;
+    } ;
+
+    group.unary('negative test {{path!:...}}', async (t) => {
+        t.expect0(S('{{flag!:HIDDEN}}', { flag:true }).r).is('') ;
+        t.expect1(S('{{flag!:SHOWN}}', { flag:false }).r).is('SHOWN') ;
+        t.expect2(S('{{missing!:SHOWN}}', {}).r).is('SHOWN') ;
+        t.expect3(S('{{items.length!:EMPTY}}', { items:[] }).r).is('EMPTY') ;
+        t.expect4(S('{{items.length!:EMPTY}}', { items:[1] }).r).is('') ;
+    }) ;
+
+    group.unary('positive test & nested test/enum', async (t) => {
+        t.expect0(S('{{n?:YES}}', { n:0 }).r).is('') ;          // 0 is falsy
+        t.expect1(S('{{n?:YES}}', { n:5 }).r).is('YES') ;
+        t.expect2(S('{{s?:YES}}', { s:'' }).r).is('') ;
+        t.expect3(S('{{a?:{{b#:[{{self}}]}}}}', { a:1, b:['x', 'y'] }).r).is('[x][y]') ;
+        t.expect4(S('{{items.length?:HAS}}', { items:[1, 2] }).r).is('HAS') ;
+    }) ;
+
+    group.unary('enumeration system variables', async (t) => {
+        const res = S('{{items#:{{_position}}/{{_count}}/{{_remaining}}/{{_index}} }}', { items:['a', 'b', 'c'] }).r ;
+        t.expect0(res).is('1/3/2/0 2/3/1/1 3/3/0/2 ') ;
+        t.expect1(S('{{x#:[{{self}}]}}', { x:'solo' }).r).is('[solo]') ;   // enum on a scalar -> single iteration
+    }) ;
+
+    group.unary('method calls & parameter literals', async (t) => {
+        t.expect0(S("{{d.toString('%Y-%m-%d')}}", { d:new TSDate(2020, 3, 15) }).r).is('2020-03-15') ;
+        t.expect1(S('{{o.f(42)}}', { o:{ f:(n:number) => n * 2 } }).r).is('84') ;
+        t.expect2(S('{{o.f(-5)}}', { o:{ f:(n:number) => n + 1 } }).r).is('-4') ;
+        t.expect3(S('{{o.f(1,2,3)}}', { o:{ f:(a:number, b:number, c:number) => a + b + c } }).r).is('6') ;
+        t.expect4(S("{{o.f('hi')}}", { o:{ f:(s:string) => s.toUpperCase() } }).r).is('HI') ;
+        t.expect5(S('{{o.f(true)}}', { o:{ f:(b:any) => b === true ? 'T' : 'F' } }).r).is('T') ;
+        t.expect6(S('{{o.f(NaN)}}', { o:{ f:(x:any) => Number.isNaN(x) ? 'NAN' : '?' } }).r).is('NAN') ;
+        t.expect7(S('{{o.g(2,undefined)}}', { o:{ g:(a:number, b:any) => `${a}:${b}` } }).r).is('2:undefined') ;
+        t.expect8(S('{{o.f(PAST)}}', { o:{ f:(d:any) => (d?.isEqual && d.isEqual(TSDate.past())) ? 'ISPAST' : '?' } }).r).is('ISPAST') ;
+    }) ;
+
+    group.unary('standard global functions (in nested form)', async (t) => {
+        const o = { addStandardGlobalFunctions:true } ;
+        t.expect0(S('[{{x#:{{$max(3,9)}}}}]', { x:1 }, o).r).is('[9]') ;
+        t.expect1(S('[{{x#:{{$octets(1536,1)}}}}]', { x:1 }, o).r).is('[1.5 ko]') ;
+        t.expect2(S('[{{n#:{{$meters(current,0)}}}}]', { n:5 }, o).r).is('[5 m]') ;
+    }) ;
+
+    group.unary('value rendering by type', async (t) => {
+        t.expect0(S('v={{n}}', { n:3.14 }).r).is('v=3.14') ;
+        t.expect1(S('v={{b}}', { b:false }).r).is('v=false') ;
+        t.expect2(S('v={{d}}', { d:new TSDate(2020, 1, 1) }).r).is('v=2020-01-01T00:00:00') ;
+        t.expect3(S('v={{d}}', { d:TSData.fromString('abc') }).r).is('v=abc') ;
+    }) ;
+
+    group.unary('error reporting', async (t) => {
+        const miss = S('[{{nope}}]', {}) ;
+        t.expect0(miss.r).is('[]') ;
+        t.expect1(miss.e.some(m => m.startsWith('WARNING:'))).true() ;
+
+        const noProc = S('{{*noproc}}', {}, {}) ;
+        t.expect2(noProc.e.some(m => m.includes('Procedure noproc() does not exist'))).true() ;
+
+        const throwProc = S('{{*boom}}', {}, { procedures:{ boom:() => { throw new Error('x') ; } } }) ;
+        t.expect3(throwProc.e.some(m => m.includes('Procedure boom() execution did fail'))).true() ;
+
+        const dotted = S('{{*a.b}}', {}, { procedures:{} }) ;
+        t.expect4(dotted.e.some(m => m.includes('Malformed procedure name'))).true() ;
+    }) ;
+
+    group.unary('parse failures return null', async (t) => {
+        t.expect0(TSFusionTemplate.fromString(null as any)).null() ;
+        t.expect1(TSFusionTemplate.fromString('hello {{unbalanced')).null() ;
+        t.expect2(TSFusionTemplate.fromString('x', { startingMark:'' })).null() ;             // marks may not be empty
+        t.expect3(TSFusionTemplate.fromString('x', { separator:'=' })).null() ;               // separator collides with a mark char class
+        t.expect4(TSFusionTemplate.fromData(Buffer.from('x'), 'hex')).null() ;                // forbidden encoding
+        t.expect5(TSFusionTemplate.fromData(Buffer.from('x'), 'utf16le')).null() ;
+    }) ;
+
+    group.unary('fromData / fromHTMLData round-trips', async (t) => {
+        const d = TSData.fromString('Hi {{name}}') ;
+        const tpl = TSFusionTemplate.fromData(d!) ;
+        t.expect0(tpl).OK() ;
+        const e1:string[] = [] ;
+        t.expect1(tpl!.fusionStringWithDataContext({ name:'Bob' }, {}, e1)).is('Hi Bob') ;
+
+        const h = TSData.fromString('<p>Hi <fusion path="name"/></p>') ;
+        const htpl = TSFusionTemplate.fromHTMLData(h!) ;
+        t.expect2(htpl).OK() ;
+        const e2:string[] = [] ;
+        t.expect3(htpl!.fusionStringWithDataContext({ name:'Bob' }, {}, e2)).is('<p>Hi Bob</p>') ;
+    }) ;
+
+    group.unary('enumeration over Set / Map and key-path error reporting', async (t) => {
+        const run = (s:string, data:any) => {
+            const errors:string[] = [] ;
+            const tpl = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
+            const res = tpl!.fusionStringWithDataContext(data, {}, errors) ;
+            return { res, errors:errors.join('\n') } ;
+        } ;
+
+        t.expect0(run("{{tags#:[{{self}}]}}", { tags:new Set(['a', 'b', 'c']) }).res).is('[a][b][c]') ;
+        t.expect1(run("{{m#:{{key}}={{value}} }}", { m:new Map([['x', 1], ['y', 2]]) }).res).is('x=1 y=2 ') ;
+
+        t.expect2(run("{{a..b}}", { a:{ b:1 } }).errors.includes("contains internal '..'")).true() ;
+        t.expect3(run("{{a.zz}}", { a:{ b:1 } }).errors.includes("unknown method or preperty 'zz'")).true() ;
+        t.expect4(run("{{a.foo}}", { a:{ foo:(x:number) => x } }).errors.includes("is not an sinple accessor")).true() ;
+        t.expect5(run("{{a.n}}", { a:{ n:NaN } }).errors.includes("would return NaN which was transformed to null")).true() ;
+    }) ;
+}),
+
+] ;

@@ -1,4 +1,4 @@
-import { $ascii, $capitalize, $firstcap, $ftrim, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $strictascii, $trim } from "../src/strings";
+import { $ascii, $asciifs, $camelCase, $capitalize, $firstcap, $ftrim, $HTML, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $snakeCase, $strictascii, $trim } from "../src/strings";
 import { FoundationNewLines, FoundationWhiteSpaces } from "../src/string_tables";
 import { TSTest } from "../src/tstester";
 import { $transliterate } from "../src/transliteration";
@@ -20,6 +20,20 @@ export const stringGroups = [
             t.expectA(S1.left(160)).is(S1) ;
             t.expectB($right(S1, 160)).is(S1) ;
             t.expectC(S1.right(160)).is(S1) ;
+
+            // count edge cases: 0 / negative / fractional all fall back to 1
+            t.expectD($left("hello", 0)).is("h") ;
+            t.expectE($left("hello", -3)).is("h") ;
+            t.expectF($left("hello", 1.9)).is("h") ;
+            t.expectG($right("hello", 0)).is("o") ;
+            t.expectH($right("hello", -3)).is("o") ;
+            t.expectI($left("hello", 5)).is("hello") ;      // n === length
+            t.expectJ($right("hello", 5)).is("hello") ;
+            // nullish / empty source
+            t.expectK($left(null)).is("") ;
+            t.expectL($left(undefined, 3)).is("") ;
+            t.expectM($right("")).is("") ;
+            t.expectN($left("", 3)).is("") ;
         }) ;
         group.unary("$trim(), $rtrim(), $ltrim() functions", async(t) => {
             const w = "TEST ME, I'M A CENTRAL\u0009PHRASE" ;
@@ -52,6 +66,27 @@ export const stringGroups = [
             t.expect2($normspaces(null)).is("") ;
             t.expect3($normspaces(undefined)).is("") ;
             t.expect4(str.normalizeSpaces()).is("I'm a super function") ;
+
+            // replacer option
+            t.expect5($normspaces("a  b\tc", { replacer:"_" })).is("a_b_c") ;
+            t.expect6($normspaces("  a  b  ", { replacer:"" })).is("ab") ;
+            // strict option: only strict whitespaces (space/tab...) are collapsed, not newlines
+            t.expect7($normspaces("a \n b", { strict:true })).is("a \n b") ;
+            t.expect8($normspaces("a \n b")).is("a b") ;                    // non-strict collapses the newline too
+            t.expect9($normspaces("a  b", { replacer:"-" })).is("a-b") ;  // NBSP is a whitespace
+        }) ;
+
+        group.unary("$asciifs() function", async(t) => {
+            t.expect0($asciifs(null)).is("") ;
+            t.expect1($asciifs("  ")).is("") ;
+            t.expect2($asciifs("Rapport été 2024.pdf")).is("Rapport ete 2024.pdf") ;
+            // forbidden filename characters are replaced by '_'
+            t.expect3($asciifs('a<b>c:d"e/f\\g*h?i|j')).is("a_b_c_d_e_f_g_h_i_j") ;
+            // control chars are stripped
+            t.expect4($asciifs("ab")).is("ab") ;
+            // posix mode keeps only [A-Za-z0-9._-]
+            t.expect5($asciifs("café (final) v2.pdf", true)).is("cafe__final__v2.pdf") ;
+            t.expect6($asciifs("normal-name_v2.txt", true)).is("normal-name_v2.txt") ;
         }) ;
     
         group.unary("string.isWhiteSpace() method", async(t) => {
@@ -105,8 +140,34 @@ export const stringGroups = [
             t.expect5($capitalize(undefined)).is("") ;
             t.expect6(str.firstCap()).is(" , Jean-françois is my !!friend. yes!") ;
             t.expect7(str.capitalize()).is(" , Jean-François Is My !!Friend. Yes!") ;
+
+            // capitalization relies on the original code point being a Unicode letter,
+            // not on the shape of its transliteration
+            t.expect8($capitalize("ålborg über ЯНДЕКС")).is("Ålborg Über ЯНДЕКС") ;         // non-ASCII letters get capitalized, already-uppercase script is kept
+            t.expect9($capitalize("école")).is("École") ;
+            t.expectA($capitalize("east 东京tokyo and 北京beijing")).is("East 东京tokyo And 北京beijing") ; // CJK glued to latin stays a single word
+            t.expectB($capitalize("عربى test")).is("عربى Test") ;                            // caseless script = a word, latin word still capitalized
+            t.expectC($firstcap("über alles")).is("Über alles") ;
+            t.expectD($firstcap("éléonore aime rené")).is("Éléonore aime rené") ;
+            t.expectE("über".firstCap()).is("Über") ;
+            t.expectF("éa ét".capitalize()).is("Éa Ét") ;
         }) ;
-    
+
+        group.unary("$capitalize()/$firstcap() Unicode code-point handling", async(t) => {
+            // NFD input: base letter + combining mark must stay aligned (mark is \p{M} => a letter continuation)
+            const nfd = "école" ;                       // "école" fully decomposed
+            t.expect0($capitalize(nfd)).is("École") ;
+            t.expect1($firstcap(nfd)).is("École") ;
+            // astral (surrogate-pair) non-letters must be stepped over without desync
+            t.expect2($capitalize("👍 hello 👨‍👩‍👧")).is("👍 Hello 👨‍👩‍👧") ;
+            t.expect3($firstcap("😀abc def")).is("😀Abc def") ;
+            t.expect4($capitalize("🚀")).is("🚀") ;             // lone emoji: no length drift / trailing garbage
+            // astral LETTERS (Deseret) are \p{L} and get upper-cased across the surrogate pair
+            t.expect5($capitalize("\u{10428}b \u{10429}c")).is("\u{10400}b \u{10401}c") ;
+            // digits / connector punctuation are not letters => the next letter starts a new word
+            t.expect6($capitalize("3d _x y2z")).is("3D _X Y2Z") ;
+        }) ;
+
         group.unary("$lines() function", async(t) => {
             const str = `  Testing \n\tsplit ${FoundationNewLines}function` ;
             const fnla:string[] = [] ;
@@ -158,7 +219,26 @@ export const stringGroups = [
             t.expectA("1.0".singular()).true() ;
             t.expectB('This is a "new world"'.doubleEscape('"')).is('This is a ""new world""') ;
             t.expectC('\n&Y&b  REGISTERED ITEMS  &0'.doubleEscape('&')).is('\n&&Y&&b  REGISTERED ITEMS  &&0') ;
-        }) ;    
+        }) ;
+
+        group.unary("$camelCase(), $snakeCase() && $HTML() functions", async(t) => {
+            // identifier oriented: spaces are stripped, '-' and '_' mark word boundaries, non-ASCII is transliterated
+            t.expect0($camelCase("foo-bar_baz")).is("fooBarBaz") ;
+            t.expect1($camelCase("Été-préféré")).is("EtePrefere") ;
+            t.expect2($camelCase(null)).is("") ;
+            t.expect3($camelCase("")).is("") ;
+            t.expect4("foo_bar".camelCase()).is("fooBar") ;
+            t.expect5($snakeCase("fooBar-baz")).is("foobar_baz") ;
+            t.expect6($snakeCase("Été préféré")).is("eteprefere") ;
+            t.expect7($snakeCase(null)).is("") ;
+            t.expect8("a-b-c".snakeCase()).is("a_b_c") ;
+
+            t.expectA($HTML(null)).is("") ;
+            t.expectB($HTML("")).is("") ;
+            t.expectC($HTML(`<a href="x">R&D</a>`)).is("&lt;a href=&quot;x&quot;&gt;R&amp;D&lt;/a&gt;") ;
+            t.expectD($HTML("plain text")).is("plain text") ;
+            t.expectE("<b>".toHTML()).is("&lt;b&gt;") ;
+        }) ;
     }),
     TSTest.group("$ascii() and such group", async (group) => {
         const S1 = "Texte accentué avec ça et c'est shön";

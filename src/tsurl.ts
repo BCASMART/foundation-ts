@@ -229,7 +229,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
             else { path += TSURL.AutoEscapeCharSet.has(c) ? encodeURIComponent(c) : c ; }
         }
         if (!path.length) { path = '/' ; }
-        this.pathname = path ;
+        this._pathname = path ;
         this._href = undefined ;
     }
 

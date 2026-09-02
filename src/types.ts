@@ -71,8 +71,6 @@ export type StringEncoding = NormativeStringEncoding |
 export type Bytes = uint8[]|Uint8Array|Buffer ;
 export type TSDataLike = Bytes|ArrayBuffer|TSData ;
 
-export type JSONType = null|string|number|boolean|Array<any>|{[key:string]:any} ;
-
 export type UUIDVersion = 1 | 4 ; 
 export const UUIDv1:UUIDVersion = 1 ;
 export const UUIDv4:UUIDVersion = 4 ;

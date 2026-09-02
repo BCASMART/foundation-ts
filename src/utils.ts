@@ -3,7 +3,7 @@ import { inspect } from "util";
 import { $count, $defined, $isarray, $isfunction, $isint, $ismethod, $isproperty, $isstring, $length, $ok, $unsigned } from "./commons";
 import { $HTML, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
-import { JSONType, Nullable, TSDataLike } from './types';
+import { Nullable, TSDataLike } from './types';
 import { $bytesFromDataLike } from "./data";
 import { $unit } from "./number";
 import { Stream } from "stream";
@@ -12,7 +12,7 @@ import { TSCharset } from "./tscharset";
 
 export const $noop = () => {} ;
 
-enum TSBrowserOS {
+export enum TSBrowserOS {
     notInBrowser,
     unknownOS,
     android,
@@ -248,16 +248,17 @@ export function $writeterm(format: string, ...args: any[]) {
 }
 /**
  * 
- * @param source a string or a DataLike containing UTF-8 encoded JSON data
- * @param strip do we try to string the JSON string from comments ?
+ * @param source    A string or a DataLike containing UTF-8 encoded JSON data
+ * @param strip     Do we try to strip the JSON string from comments ?
+ * @param reviver   Same param as JSON.parse() reviver
  * @returns undefined if there is no JSON or if we cannot parse it, otherwise the parsed value
  */
-export function $jsonparse(source: Nullable<string | TSDataLike>, strip?: Nullable<boolean>): JSONType|undefined {
+export function $jsonparse(source: Nullable<string | TSDataLike>, strip?: Nullable<boolean>, reviver?: (this: any, key: string, value: any) => any): any {
     if (!$length(source)) { return undefined; }
     if (!$isstring(source)) { source = TSCharset.utf8Charset().stringFromData(source!); }
     if (!!strip) { source = $jsonstrip(source); }
-    try { return JSON.parse(source) ; }
-    catch { return undefined; }
+    try { return JSON.parse(source, reviver) ; }
+    catch { return undefined ; }
 }
 
 export function $jsonstrip(source: Nullable<string>): string {

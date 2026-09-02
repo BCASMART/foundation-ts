@@ -1,13 +1,9 @@
 import { createReadStream } from 'fs';
-import { 
-    createCipheriv, 
-    createDecipheriv, 
-    createHash, 
-    Hash, 
+import {
+    createCipheriv,
+    createDecipheriv,
+    createHash,
     randomBytes,
-    getRandomValues, 
-    randomInt, 
-    randomUUID 
 } from 'crypto';
 
 
@@ -34,11 +30,62 @@ export type  EncryptionAlgorithm = 'AES128' | 'AES256' ;
 export const AES128:EncryptionAlgorithm = 'AES128' ;
 export const AES256:EncryptionAlgorithm = 'AES256' ;
 
+const __wcENGINE = (): Crypto | undefined => (globalThis as any).crypto ?? undefined ;
+
+// ================= pluggable crypto provider =================
+//
+// By default foundation-ts resolves each primitive as:
+//   provider  ->  node:crypto (createHash/createCipheriv/randomBytes)
+//             ->  globalThis.crypto (getRandomValues/randomUUID)
+//             ->  pure JS (TSCrypto for hashing, Math.random for bytes)
+//
+// A consumer (typically a browser bundle whose crypto polyfill lacks some
+// primitives, or a test needing a deterministic engine) can override any subset:
+//
+//   import { $setCryptoProvider } from 'foundation-ts/crypto' ;
+//   $setCryptoProvider({ getRandomValues, randomUUID }) ;   // e.g. from globalThis.crypto
+//
+// Pass null / {} to clear all overrides and return to the built-in resolution.
+
+export interface TSHasher {
+    update(data: Uint8Array | string): unknown ;
+    digest(encoding: 'hex'): string ;
+}
+export interface TSCipher {
+    update(data: Uint8Array): Uint8Array ;
+    final(): Uint8Array ;
+}
+export interface TSCryptoProvider {
+    randomBytes?:      (size: number) => Uint8Array ;
+    getRandomValues?:  (view: Uint8Array<ArrayBuffer>) => unknown ; // ArrayBuffer, not …Like: matches Crypto.getRandomValues
+    randomUUID?:       () => string ;
+    createHash?:       (algorithm: string) => TSHasher ;
+    createCipheriv?:   (algorithm: string, key: Uint8Array, iv: Uint8Array) => TSCipher ;
+    createDecipheriv?: (algorithm: string, key: Uint8Array, iv: Uint8Array) => TSCipher ;
+}
+
+let __cryptoProvider: TSCryptoProvider = {} ;
+
+export function $setCryptoProvider(provider: Nullable<TSCryptoProvider>): void
+{ __cryptoProvider = $ok(provider) ? { ...provider } : {} ; }
+
+export function $cryptoProvider(): Readonly<TSCryptoProvider> { return __cryptoProvider ; }
+
+function _providerFn<K extends keyof TSCryptoProvider>(k:K): NonNullable<TSCryptoProvider[K]> | undefined {
+    const fn = __cryptoProvider[k] ;
+    return typeof fn === 'function' ? fn as NonNullable<TSCryptoProvider[K]> : undefined ;
+}
+
 /* we only generate UUID v4. Note that when internal implementation is unknown, we use our own */
 export function $uuid(internalImplementation: boolean = false): UUID {
-    if (!internalImplementation && typeof randomUUID === 'function') {
-        try { return <UUID>(randomUUID as ()=>string)(); }
-        catch { $logterm('Warning:crypto.randomUUID() is not available') ; }    
+    if (!internalImplementation) {
+        const provided = _providerFn('randomUUID') ;
+        const engine = __wcENGINE() ;
+        const impl = provided ?? (typeof engine?.randomUUID === 'function' ? engine.randomUUID.bind(engine) : undefined) ;
+        if ($ok(impl)) {
+            try { const u = impl() ; if ($length(u) === 36) { return u as UUID ; } }
+            catch {}
+        }
     }
     return $slowuuid(true) ;
 }
@@ -88,7 +135,7 @@ export interface $encryptOptions {
 // default output is an hexa string
 // FIXME: have a replacement in browser when not available
 export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
-    if (typeof createCipheriv === 'undefined') {
+    if (!_cipherAvailable(false)) {
         TSError.throw(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
     }
 
@@ -103,8 +150,8 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
         const addIV = !opts?.noInitializationVector ;
         const iv = addIV ? _randomBytes(16) : __CommonInitializationVector ;
 
-        const cipher = createCipheriv(algo, key, iv);
-        let encrypted = addIV ? new TSData(iv) : new TSData() ; 
+        const cipher = _createCipher(false, algo, key, iv);
+        let encrypted = addIV ? new TSData(iv) : new TSData() ;
         encrypted.appendBytes(cipher.update(source)) ;
         encrypted.appendBytes(cipher.final()) ;
         returnValue = !opts?.dataOutput ? encrypted.hexaString() : encrypted; // output is a TSData OR an hexa string
@@ -120,7 +167,7 @@ export interface $decryptOptions extends $encryptOptions {}
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
 export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
-    if (typeof createDecipheriv === 'undefined') {
+    if (!_cipherAvailable(true)) {
         TSError.throw(`$decrypt() : function createDecipheriv() is not available in your system.`, { source:source, options:opts }) ;
     }
 
@@ -154,7 +201,7 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, o
             src = $bufferFromDataLike(source as TSDataLike, { start:hasVector?16:0 }) ;
             iv = hasVector ? $bufferFromDataLike(source as TSDataLike, { end:16 }) : __CommonInitializationVector ;
         }
-        let decipher = createDecipheriv(algo, key, iv!);
+        let decipher = _createCipher(true, algo, key, iv!);
         let decrypted = new TSData(decipher.update(src!));
         decrypted.appendBytes(decipher.final());
         returnValue = !opts?.dataOutput ? decrypted.toString(charset) : decrypted ;
@@ -191,7 +238,7 @@ export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, e
 
 export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
     let ret: string | null = null;
-    if (typeof createHash !== 'undefined') {
+    if (_hashAvailable()) {
         // if we have an internal implementation, we use it
         try {
             const source = _uint8ArrayFromStringOrDataLike(buf, encoding);
@@ -249,24 +296,24 @@ export async function $hashfile(filePath: Nullable<string>, method?: Nullable<Ha
     });
 }
 
-// QUESTION: protect $random() with a try/catch ?
+// $random(max) returns a uniformly-distributed unsigned integer in [0, max).
+// Unbiased: a raw 53-bit value is drawn and rejection-sampled so that the kept
+// range is an exact multiple of `max` before the final modulo. The byte source
+// is _randomBytes() (node crypto / globalThis.crypto / Math.random fallback).
 export function $random(max?: Nullable<number>): uint {
-    let m = $unsigned(max) ; if (!m) { m = UINT32_MAX ; } 
-    
-    if (typeof randomInt === 'function') {
-        return randomInt(Math.min(m, UINT_MAX)) as uint ; 
+    let m:number = $unsigned(max) ; if (!m) { m = UINT32_MAX ; }
+    m = Math.min(m, UINT_MAX) ;
+    if (m <= 1) { return 0 as uint ; }
+
+    const SPAN = 9007199254740992 ;          // 2**53, exact as a double
+    const limit = SPAN - (SPAN % m) ;        // largest exact multiple of m <= 2**53
+    let v = limit ;
+    for (let guard = 0 ; v >= limit && guard < 64 ; guard++) {
+        const b = _randomBytes(7) ;          // 56 bits, top byte masked to 5 -> 53 bits
+        v = b[0] + b[1] * 0x100 + b[2] * 0x10000 + b[3] * 0x1000000 +
+            b[4] * 0x100000000 + b[5] * 0x10000000000 + (b[6] & 0x1f) * 0x1000000000000 ;
     }
-    else if (typeof randomBytes === 'function') {
-        const is32bits = m <= UINT32_MAX ;
-        return _randomFromBytes(m, randomBytes(is32bits?4:8), is32bits) ;
-    }
-    else if (typeof getRandomValues === 'function') {
-        const is32bits = m <= UINT32_MAX ;
-        return _randomFromBytes(m, getRandomValues(Buffer.allocUnsafe(is32bits?4:8)), is32bits) ;
-    }
-    else {
-        return Math.floor(Math.random() * Math.min(m, UINT_MAX)) as uint ;
-    }
+    return (v % m) as uint ;
 }
 
 export function $randomBytes(length:number):Uint8Array {
@@ -387,27 +434,27 @@ $declareMethod(Array, {
 }) ;
 
 export function $sha1(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source!) : undefined ;
+    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
     return !dataoutput ? TSCrypto.sha1String(buf) : TSCrypto.sha1(buf) ;
 }
 
 export function $sha224(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source!) : undefined ;
+    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
     return !dataoutput ? TSCrypto.sha224String(buf) : TSCrypto.sha224(buf) ;
 }
 
 export function $sha256(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source!) : undefined ;
+    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
     return !dataoutput ? TSCrypto.sha256String(buf) : TSCrypto.sha256(buf) ;
 }
 
 export function $sha384(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source!) : undefined ;
+    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
     return !dataoutput ? TSCrypto.sha384String(buf) : TSCrypto.sha384(buf) ;
 }
 
 export function $sha512(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source!) : undefined ;
+    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
     return !dataoutput ? TSCrypto.sha512String(buf) : TSCrypto.sha512(buf) ;
 }
 
@@ -436,12 +483,6 @@ function _uint8ArrayFromStringOrDataLike(source:string|TSDataLike, encoding: Nul
            $uint8ArrayFromDataLike(source);
 }
 
-function _randomFromBytes(m:uint, bytes:Buffer, is32bits:boolean):uint {
-    return is32bits ? 
-           (bytes.readUInt32LE(0) % m) as uint :
-           ((bytes.readUInt32LE(0) << 20) + (bytes.readUInt32LE(4) & 0x000fffff)) % Math.min(m, UINT_MAX) as uint ;
-}
-
 function _algo(algo:Nullable<string>):string
 {
     const a = $trim(algo).toUpperCase() ;
@@ -449,22 +490,55 @@ function _algo(algo:Nullable<string>):string
 }
 
 function _randomBytes(length:number):Uint8Array {
+    const providedBytes = _providerFn('randomBytes') ;
+    if (providedBytes) { return providedBytes(length) ; }
+
+    const providedGRV = _providerFn('getRandomValues') ;
+    if (providedGRV) { return _fillRandom(providedGRV, length) ; }
+
     if (typeof randomBytes === 'function') { return randomBytes(length) ; }
-    else {
-        const array = new Uint8Array(length) ;
-        if (typeof getRandomValues === 'function') { return getRandomValues(array) ; }
-        else if (typeof randomInt === 'function') {
-            for (let i = 0 ; i < length ; i++) { array[i] = randomInt(255) ; }
-        }
-        else {
-            for (let i = 0 ; i < length ; i++) { array[i] = Math.floor(Math.random() * 255) ;}
-        }
-        return array ;
+
+    const engine = __wcENGINE() ;
+    if ($ok(engine) && typeof engine.getRandomValues === 'function') {
+        return _fillRandom(v => engine.getRandomValues(v), length) ;
     }
+
+    const array = new Uint8Array(length) ;
+    for (let i = 0 ; i < length ; i++) { array[i] = Math.floor(Math.random() * 256) ; }
+    return array ;
 }
 
-function _createHash(method?:Nullable<HashMethod>):Hash
-{ return createHash($value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256')) ; }
+// fills `length` bytes through a getRandomValues-like function, in <=64KiB
+// chunks (the Web Crypto quota) so large requests do not throw. The view is
+// always backed by a fresh ArrayBuffer (never SharedArrayBuffer), which is what
+// Crypto.getRandomValues() now requires in its type signature.
+function _fillRandom(grv:(view:Uint8Array<ArrayBuffer>) => unknown, length:number):Uint8Array {
+    const array = new Uint8Array(length) ;
+    for (let o = 0 ; o < length ; o += 65536) {
+        grv(array.subarray(o, Math.min(o + 65536, length))) ;
+    }
+    return array ;
+}
+
+function _createHash(method?:Nullable<HashMethod>):TSHasher {
+    const algo = $value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256') ;
+    const provided = _providerFn('createHash') ;
+    return provided ? provided(algo) : createHash(algo) ;
+}
+
+function _hashAvailable():boolean
+{ return $ok(_providerFn('createHash')) || typeof createHash !== 'undefined' ; }
+
+function _createCipher(decrypt:boolean, algo:string, key:Uint8Array, iv:Uint8Array):TSCipher {
+    const provided = _providerFn(decrypt ? 'createDecipheriv' : 'createCipheriv') ;
+    if (provided) { return provided(algo, key, iv) ; }
+    return decrypt ? createDecipheriv(algo, key, iv) : createCipheriv(algo, key, iv) ;
+}
+
+function _cipherAvailable(decrypt:boolean):boolean {
+    return $ok(_providerFn(decrypt ? 'createDecipheriv' : 'createCipheriv')) ||
+           typeof (decrypt ? createDecipheriv : createCipheriv) !== 'undefined' ;
+}
 
 function _charsetKeyAndAlgo(skey: string | TSDataLike, opts?: Nullable<$encryptOptions>): [TSCharset | null, Uint8Array, string] {
     const defaultCharset = TSCharset.binaryCharset() ;

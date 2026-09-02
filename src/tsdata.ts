@@ -150,56 +150,56 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this._splice($tounsigned(targetStart), len, datasource, start, end) ; 
     }
 
-    public getInt8(byteOffset:number):number { return this.internalDataView.getInt8(byteOffset) ; }
-    public getUint8(byteOffset:number):number { return this.internalDataView.getUint8(byteOffset) ; }
-    public getInt16(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getInt16(byteOffset, littleEndian) ; }
-    public getUint16(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getUint16(byteOffset, littleEndian) ; }
-    public getInt32(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getInt32(byteOffset, littleEndian) ; }
-    public getUint32(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getUint32(byteOffset, littleEndian) ; }
-    public getFloat32(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getFloat32(byteOffset, littleEndian) ; }
-    public getFloat64(byteOffset:number, littleEndian?:boolean):number { return this.internalDataView.getFloat64(byteOffset, littleEndian) ; }
-    public getBigInt64(byteOffset:number, littleEndian?:boolean):bigint { return this.internalDataView.getBigInt64(byteOffset, littleEndian) ; }
-    public getBigUint64(byteOffset:number, littleEndian?:boolean):bigint { return this.internalDataView.getBigUint64(byteOffset, littleEndian) ; }
+    public getInt8(byteOffset:number = 0):number { return this._checkedDataView(byteOffset, 1).getInt8(byteOffset) ; }
+    public getUint8(byteOffset:number = 0):number { return this._checkedDataView(byteOffset, 1).getUint8(byteOffset) ; }
+    public getInt16(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 2).getInt16(byteOffset, littleEndian) ; }
+    public getUint16(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 2).getUint16(byteOffset, littleEndian) ; }
+    public getInt32(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 4).getInt32(byteOffset, littleEndian) ; }
+    public getUint32(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 4).getUint32(byteOffset, littleEndian) ; }
+    public getFloat32(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 4).getFloat32(byteOffset, littleEndian) ; }
+    public getFloat64(byteOffset:number = 0, littleEndian?:boolean):number { return this._checkedDataView(byteOffset, 8).getFloat64(byteOffset, littleEndian) ; }
+    public getBigInt64(byteOffset:number = 0, littleEndian?:boolean):bigint { return this._checkedDataView(byteOffset, 8).getBigInt64(byteOffset, littleEndian) ; }
+    public getBigUint64(byteOffset:number = 0, littleEndian?:boolean):bigint { return this._checkedDataView(byteOffset, 8).getBigUint64(byteOffset, littleEndian) ; }
 
     public setInt8(byteOffset:number, value:number) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 1) ; 
-        this.internalDataView.setInt8(byteOffset, value) ; 
+        this._internalDataView.setInt8(byteOffset, value) ; 
     }
     public setUint8(byteOffset:number, value:number) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 1) ; 
-        this.internalDataView.setUint8(byteOffset, value) ; 
+        this._internalDataView.setUint8(byteOffset, value) ; 
     }
     public setInt16(byteOffset:number, value:number, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 2) ; 
-        this.internalDataView.setInt16(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setInt16(byteOffset, value, littleEndian) ; 
     }    
     public setUint16(byteOffset:number, value:number, littleEndian?:boolean)  {
         byteOffset = this._mayGrowAtOffset(byteOffset, 2) ; 
-        this.internalDataView.setUint16(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setUint16(byteOffset, value, littleEndian) ; 
     }
     public setInt32(byteOffset:number, value:number, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 4) ; 
-        this.internalDataView.setInt32(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setInt32(byteOffset, value, littleEndian) ; 
     }
     public setUint32(byteOffset:number, value:number, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 4) ; 
-        this.internalDataView.setUint32(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setUint32(byteOffset, value, littleEndian) ; 
     }
     public setFloat32(byteOffset:number, value:number, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 4) ; 
-        this.internalDataView.setFloat32(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setFloat32(byteOffset, value, littleEndian) ; 
     }
     public setFloat64(byteOffset:number, value:number, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 8) ; 
-        this.internalDataView.setFloat64(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setFloat64(byteOffset, value, littleEndian) ; 
     }
     public setBigInt64(byteOffset:number, value:bigint, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 8) ; 
-        this.internalDataView.setBigInt64(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setBigInt64(byteOffset, value, littleEndian) ; 
     }
     public setBigUint64(byteOffset:number, value:bigint, littleEndian?:boolean) {
         byteOffset = this._mayGrowAtOffset(byteOffset, 8) ; 
-        this.internalDataView.setBigUint64(byteOffset, value, littleEndian) ; 
+        this._internalDataView.setBigUint64(byteOffset, value, littleEndian) ; 
     }
 
 
@@ -224,17 +224,10 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public get mutableBuffer():Buffer { return this._len === this.capacity ? this._buf : this._buf.subarray(0, this._len) ; }
     public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
     
-    protected get internalDataView():DataView {
-        if (!$ok(this._dataView)) {
-            this._dataView = new DataView(this._buf.buffer, this._buf.byteOffset, this._buf.byteLength) ;
-        }
-        return this._dataView! ;
-    }
-
     public set length(n:number) {
         if (!$isunsigned(n)) { TSError.throw(`TSDate.length = ${n} is not valid.`, { data:this, length:n}) ; }
         if (n > this._len) { 
-            this._willGrow(this._len - n) ; 
+            this._willGrow(n-this._len) ; 
             if (this._allocFn !== Buffer.alloc) { while (this._len < n) { this._buf[this._len++] = 0 ; }}
         }
         else { this._len = n ; }
@@ -309,7 +302,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
     public uint8ArraySlice(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Uint8Array {
         const [, start, end, len] = $lse(this, sourceStart, sourceEnd) ;
-        const ret = new Uint8Array()
+        const ret = new Uint8Array(len)
         if (len) { this._buf.copy(ret, 0, start, end) ; }
         return ret ;
     } 
@@ -552,7 +545,25 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         }
     }
 
-    // this method prepare a new buffer with padded 0 
+    protected get _internalDataView():DataView {
+        if (!$ok(this._dataView)) {
+            this._dataView = new DataView(this._buf.buffer, this._buf.byteOffset, this._buf.byteLength) ;
+        }
+        return this._dataView ;
+    }
+
+    // this method checks that a [byteOffset, byteOffset + size[ read stays
+    // inside the significant part of the data (ie [0, this._len[) and throws
+    // otherwise. It prevents reading uninitialized capacity bytes through
+    // the internal DataView (whose own bounds are the buffer capacity).
+    protected _checkedDataView(byteOffset:number, size:number):DataView {
+        if (!$isunsigned(byteOffset) || byteOffset + size > this._len) {
+            TSError.throw(`TSData.get(${byteOffset}) out of bound [0,${this._len}]`, { data:this, offset:byteOffset, size:size }) ;
+        }
+        return this._internalDataView ;
+    }
+
+    // this method prepare a new buffer with padded 0
     // if necessary and set the new length depending on
     // offset + n ;
     protected _mayGrowAtOffset(offset:number, n:number):number {
@@ -560,7 +571,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         const endPos = offset + n ;
         if (endPos > this._len) { 
             this._willGrow(endPos-this._len) ; 
-            for (let i = this._len ; i < offset ; i++) { this._buf[0] = 0 ; }
+            for (let i = this._len ; i < offset ; i++) { this._buf[i] = 0 ; }
             this._len = endPos ;
         }
         return offset ;

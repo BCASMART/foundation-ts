@@ -2,7 +2,8 @@ node_modules
 dist
 exe
 tdist
-browser
+coverage
+.nyc_output
 local
 package-lock.json
 .DS_Store

@@ -222,6 +222,111 @@ export const qualifierGroups = [
 
         }) ;
 
+    }),
 
-    })
+    TSTest.group("TSQualifier — comparison operators", async (group) => {
+        const idx = (q:TSQualifier<People>) => q.filterValues(peoples).map(p => peoples.indexOf(p)) ;
+
+        group.unary('EQ / NEQ / KO', async (t) => {
+            t.expect0(idx(TSQualifier.EQ<People>('lastName', 'Durand'))).is([2, 5]) ;
+            t.expect1(idx(TSQualifier.NEQ<People>('lastName', 'Durand')).length).is(peoples.length - 2) ;
+            t.expect2(idx(TSQualifier.KO<People>('age'))).is([0, 8]) ;               // #0 and #8 have no age
+            t.expect3(TSQualifier.KO<People>('age').isKeyValue).false() ;
+        }) ;
+
+        group.unary('LT / LTE / GT / GTE', async (t) => {
+            t.expect0(idx(TSQualifier.LT<People>('age', 15))).is([7]) ;             // age 9
+            t.expect1(idx(TSQualifier.LTE<People>('age', 15))).is([6, 7]) ;
+            t.expect2(idx(TSQualifier.GT<People>('age', 38))).is([5]) ;             // age 47
+            t.expect3(idx(TSQualifier.GTE<People>('age', 38))).is([4, 5]) ;
+        }) ;
+
+        group.unary('IN / NIN — normal, single-value collapse, empty throw', async (t) => {
+            t.expect0(idx(TSQualifier.IN<People>('age', [23, 47]))).is([2, 5]) ;
+            t.expect1(TSQualifier.IN<People>('age', [23]).operator).is('EQ') ;      // 1 value -> EQ
+            t.expect2(TSQualifier.NIN<People>('age', [9]).operator).is('NEQ') ;
+            t.expect3(idx(TSQualifier.NIN<People>('age', [9, 15, 23])).includes(2)).false() ;
+            t.expect4(() => TSQualifier.IN<People>('age', [])).throws(/empty values/) ;
+            t.expect5(() => TSQualifier.NIN<People>('age', [])).throws(/empty values/) ;
+        }) ;
+
+        group.unary('NOT / inverse()', async (t) => {
+            const durand = TSQualifier.EQ<People>('lastName', 'Durand') ;
+            t.expect0(idx(TSQualifier.NOT<People>(durand)).includes(2)).false() ;
+            t.expect1(TSQualifier.NOT<People>(durand).isComposite).true() ;
+            t.expect2(idx(durand.inverse()).length).is(peoples.length - 2) ;
+            t.expect3(durand.inverse().operator).is('NOT') ;
+        }) ;
+
+        group.unary('INRANGE collapses to EQ for a length-1 range, throws on empty', async (t) => {
+            t.expect0(TSQualifier.INRANGE<People>('age', [23, 1]).operator).is('EQ') ;
+            t.expect1(idx(TSQualifier.INRANGE<People>('age', [23, 1]))).is([2]) ;
+            t.expect2(() => TSQualifier.INRANGE<People>('age', [0, 0])).throws() ;
+        }) ;
+    }),
+
+    TSTest.group("TSQualifier — INCLUDES / INCLUDED / INTERSECTS / builder guards", async (group) => {
+        interface Slot { a:number, b:number, start?:number, end?:number }
+        const slots:Slot[] = [
+            { a:0, b:10, start:0,  end:10 },
+            { a:5, b:15, start:5,  end:15 },
+            { a:20, b:30, start:20, end:30 },
+            { a:0, b:100 },
+        ] ;
+        const sidx = (q:TSQualifier<Slot>) => q.filterValues(slots).map(s => slots.indexOf(s)) ;
+
+        group.unary('INCLUDES(key1,key2,value)', async (t) => {
+            // a <= 7 && b > 7
+            t.expect0(sidx(TSQualifier.INCLUDES<Slot>('a', 'b', 7))).is([0, 1, 3]) ;
+            t.expect1(() => TSQualifier.INCLUDES<Slot>('a', 'b', null)).throws() ;
+        }) ;
+
+        group.unary('INCLUDED(key,v1,v2) and INTERSECTS(k1,k2,v1,v2)', async (t) => {
+            t.expect0(TSQualifier.INCLUDED<Slot>('a', 5, 25).operator).is('AND') ;
+            t.expect1(sidx(TSQualifier.INTERSECTS<Slot>('start', 'end', 6, 25)).includes(2)).true() ; // [20,30] overlaps [6,25]
+            t.expect2(() => TSQualifier.INCLUDED<Slot>('a', null, null)).throws() ;
+            // canUnspecify path
+            const q = TSQualifier.INTERSECTS<Slot>('start', 'end', 6, 25, true) ;
+            t.expect3(q.operator).is('AND') ;
+            t.expect4(sidx(q).includes(3)).false() ;   // EQ(key,null) does not match a *missing* key
+            t.expect5(sidx(q).includes(0)).true() ;
+        }) ;
+
+        group.unary('builder methods throw on non-AND/OR qualifiers', async (t) => {
+            const eq = TSQualifier.EQ<People>('lastName', 'x') ;
+            t.expect0(() => (eq as any).is('a', 1)).throws(/on EQ qualifier/) ;
+            t.expect1(() => (eq as any).and()).throws() ;
+            t.expect2(() => (eq as any).condition({})).throws() ;
+            t.expect3(() => TSQualifier.NOT<People>(eq).is('a', 1)).throws(/on NOT qualifier/) ;
+        }) ;
+
+        group.unary('instance includes() / included() / intersects()', async (t) => {
+            t.expect0(TSQualifier.AND<Slot>().includes('a', 'b', 7).conditions().length).is(2) ; // AND flattened
+            t.expect1(TSQualifier.AND<Slot>().included('a', 5, 25).conditions().length).gt(0) ;
+            t.expect2(TSQualifier.AND<Slot>().intersects('start', 'end', 6, 25).conditions().length).gt(0) ;
+            t.expect3(sidx(TSQualifier.AND<Slot>().includes('a', 'b', 7))).is([0, 1, 3]) ;
+        }) ;
+
+        group.unary('if() / mayIs()', async (t) => {
+            const and = TSQualifier.AND<People>() ;
+            t.expect0(and.if(false)).undef() ;
+            t.expect1(and.if(true)).is(and) ;
+            and.mayIs(false, 'lastName', 'x') ;
+            t.expect2(and.conditions().length).is(0) ;
+            and.mayIs(true, 'lastName', 'Durand') ;
+            t.expect3(and.conditions().length).is(1) ;
+        }) ;
+
+        group.unary('validateValue() with a per-condition callback (raw dict conditions)', async (t) => {
+            const q = TSQualifier.AND<People>([{ minAge:20 } as any]) ;
+            const cb = (p:People, cond:any) => (p.age ?? 0) >= cond.minAge ;
+            t.expect0(q.validateValue(peoples[5], cb)).true() ;    // age 47
+            t.expect1(q.validateValue(peoples[7], cb)).false() ;   // age 9
+            t.expect2(() => q.validateValue(peoples[5])).throws(/callback/) ;  // no callback -> throw
+            const orq = TSQualifier.OR<People>([{ minAge:40 } as any]) ;
+            t.expect3(orq.validateValue(peoples[5], cb)).true() ;
+            const notq = TSQualifier.NOT<People>({ minAge:40 } as any) ;
+            t.expect4(notq.validateValue(peoples[7], cb)).true() ;
+        }) ;
+    }),
  ] ;

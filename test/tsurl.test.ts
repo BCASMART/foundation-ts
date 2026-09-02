@@ -1,5 +1,5 @@
 import { TSTest } from "../src/tstester";
-import { TSDictionary } from "../src/types";
+import { Same, TSDictionary } from "../src/types";
 import { TSURL } from "../src/tsurl";
 import { $length } from "../src/commons";
 
@@ -589,7 +589,67 @@ export const TSURLGroups = [
                     }
                 }
             })
-        })  
-    })
+        })
+    }),
+
+    TSTest.group("TSURL — accessors, setters, TSObject conformance", async (group) => {
+        const U = 'https://user:pw@example.com:8443/a/b?x=1&y=2#frag' ;
+
+        group.unary('read accessors', async (t) => {
+            const u = TSURL.url(U)! ;
+            t.expect0(u.href).is(U) ;
+            t.expect1(u.w3c).true() ;
+            t.expect2(u.origin).is('https://example.com:8443') ;
+            t.expect3(u.host).is('example.com:8443') ;
+            t.expect4(u.hostname).is('example.com') ;
+            t.expect5(u.port).is('8443') ;
+            t.expect6(u.protocol).is('https:') ;
+            t.expect7(u.auth).is('user:pw') ;
+            t.expect8(u.hash).is('#frag') ;
+            t.expect9(u.search).is('?x=1&y=2') ;
+            t.expectA(u.pathname).is('/a/b') ;
+            t.expectB(u.searchParams.get('y')).is('2') ;
+            t.expectC(u.toString()).is(U) ;
+            t.expectD(`${u}`).is(U) ;                          // Symbol.toPrimitive
+            t.expectE(TSURL.url('file:///tmp/x')!.w3c).true() ;
+        }) ;
+
+        group.unary('setters rebuild href', async (t) => {
+            const u = TSURL.url('https://example.com/p')! ;
+            u.pathname = '/new/path' ;
+            t.expect0(u.pathname).is('/new/path') ;
+            t.expect1(u.href).is('https://example.com/new/path') ;
+            u.pathname = '  bad path{}' ;                      // unsafe chars escaped
+            t.expect2(u.pathname.includes('%20')).true() ;
+            u.pathname = '' ;
+            t.expect3(u.pathname).is('/') ;                    // empty -> "/"
+            u.port = '9000' ;
+            t.expect4(u.port).is('9000') ;
+            t.expect5(u.href.includes(':9000/')).true() ;
+            u.protocol = 'http:' ;
+            t.expect6(u.protocol).is('http:') ;
+            t.expect7(u.href.startsWith('http://')).true() ;
+            t.expect8(() => { u.protocol = 'ht!tp' ; }).throws(/Impossible to set new protocol/) ;
+        }) ;
+
+        group.unary('from() / compose() / TSObject conformance', async (t) => {
+            const u = TSURL.url(U)! ;
+            t.expect0(TSURL.from(new URL('https://foo.bar/baz'))?.href).is('https://foo.bar/baz') ;
+            t.expect1(TSURL.compose('https://api.test', '/v1/users')?.href).is('https://api.test/v1/users') ;
+            t.expect2(TSURL.compose(null, 'x')?.href).is('http://localhost/x') ; // default origin
+            t.expect3(TSURL.url(null)).null() ;
+            t.expect4(TSURL.url('not a url')).null() ;
+
+            const c = u.clone() ;
+            t.expect5(c === u).false() ;
+            t.expect6(c.isEqual(u)).true() ;
+            t.expect7(u.isEqual(u)).true() ;
+            t.expect8(u.isEqual('x')).false() ;
+            t.expect9(c.compare(u)).is(Same) ;
+            t.expectA(u.compare(TSURL.url('https://a.com/')!)).isnot(undefined) ;
+            t.expectB(u.compare('x')).is(undefined) ;
+            t.expectC(u.toArray()).is([u]) ;
+        }) ;
+    }),
 ] ;
 

@@ -51,6 +51,11 @@ import { structureGroups } from './tsparser.test';
 import { envGroups } from './env.test';
 import { mapsetGroups } from './mapset.test';
 import { TSURLGroups } from './tsurl.test';
+import { objectGroups } from './object.test';
+import { coupleGroups } from './tscouple.test';
+import { listGroups } from './tslist.test';
+import { charsetGroups } from './tscharset.test';
+import { contractGroups } from './contract.test';
 
 const dumper = args.length === 1 && args.first() === '-list' ;
 const tester = new TSTester("Foundation-ts unary tests") ;
@@ -85,20 +90,26 @@ tester.addGroups(phoneGroups,       "phones") ;
 tester.addGroups(structureGroups,   "parser") ;
 tester.addGroups(decoratorGroups,   "decorators") ;
 tester.addGroups(TSURLGroups,       "url") ;
+tester.addGroups(objectGroups,      "objects") ;
+tester.addGroups(coupleGroups,      "couples") ;
+tester.addGroups(listGroups,        "lists") ;
+tester.addGroups(charsetGroups,     "charsets") ;
+tester.addGroups(contractGroups,    "contract") ;
 
 tester.addGroup("Testing tester system itself", async (group) => {
     const setA = new Set(tester.names) ;
     const setB = new Set([
-        "commons", "strings", "numbers", "arrays", 
+        "commons", "strings", "numbers", "arrays",
         "compare", "countries", "crypto", "dates", "decorators",
-        "defaults", "env", "intervals", "ranges", "ranges", 
+        "defaults", "env", "intervals", "ranges", "ranges",
         "requests", "server", "utils", "data", "url",
         "colors", "geometry", "qualifiers", "errors", "mapset",
-        "fs", "fusion", "phones", "parser", "internals"]) ;
+        "fs", "fusion", "phones", "parser", "internals",
+        "objects", "couples", "lists", "charsets", "contract"]) ;
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {
-        t.expect0(tester.names.length).is(28) ;
+        t.expect0(tester.names.length).is(33) ;
         t.expect1(setA).is(setB) ;
     }) ;
     
@@ -131,6 +142,52 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expectC(["eee"]).filled() ;
     }) ;
 
+    group.unary("t.expect(...).throws() / doesNotThrow() / rejects()", async (t) => {
+        const boom = () => { throw new Error("kaboom 42") ; } ;
+        t.expect0(boom).throws() ;
+        t.expect1(boom).throws(/kaboom \d+/) ;
+        t.expect2(boom).throws("kaboom") ;
+        t.expect3(boom).throws((e:any) => e instanceof Error) ;
+        t.expect4(() => 1 + 1).doesNotThrow() ;
+        t.expect5(() => { throw "a bare string" ; }).throws("bare string") ;
+        await t.expect6(async () => { throw new Error("async boom") ; }).rejects(/async boom/) ;
+        await t.expect7(Promise.reject(new Error("rejected promise"))).rejects("rejected") ;
+    }) ;
+
+    group.unary("t.expect(...) type-predicate assertions", async (t) => {
+        t.expect0("x").notnull() ;
+        t.expect1(3.14).isnumber() ;
+        t.expect2(42).isint() ;
+        t.expect3(7).isuint() ;
+        t.expect4(true).isbool() ;
+        t.expect5("a@b.com").isemail() ;
+        t.expect6("http://example.com").isurl() ;
+        t.expect7("123e4567-e89b-12d3-a456-426614174000").isuuid() ;
+        t.expect8({ a:1 }).isobject() ;
+        t.expect9(new TSDate()).isdate() ;
+        t.expectA([1, 2]).isiterable() ;
+        t.expectB(() => 1).isfunction() ;
+        t.expectC(__filename).isfile() ;
+        t.expectD(__dirname).isdir() ;
+        t.expectE("192.168.0.1").isipv4() ;
+        t.expectF("::1").isipv6() ;
+        t.expectG("10.0.0.1").isip() ;
+        t.expectH("+33 1 45 24 70 00").isphone() ;
+        t.expectI(TSData.fromString("payload")).isdata() ;
+    }) ;
+
+    group.unary("unary catchFunction / catched / stopped / stop()", async (t) => {
+        t.catchFunction = async (tt, e) => {
+            tt.expect0(tt.catched).true() ;
+            tt.expect1((e as Error).message).is("intentional unary failure") ;
+            tt.expect2(tt.stopped).false() ;
+            tt.stop("done exercising catch path") ;
+            tt.expect3(tt.stopped).true() ;
+            tt.stop() ;
+        } ;
+        throw new Error("intentional unary failure") ;
+    }) ;
+
     if (args.length > 0 && !dumper) {
         group.focused = true ;
         group.silent = true ;
@@ -143,14 +200,14 @@ tester.addGroup("Testing tester system itself", async (group) => {
 }, "internals") ;
 
 (async () => {
-    await tester.run({
-        focusNames:args, 
-        clearScreen:!dumper, 
-        listTests:dumper, 
-        stopItCallback:async (t) => { 
-            if (!TSTester.globalOptions.silent) { $logterm(`&0&o** ${t.desc} STOPPED **&0`) ; } 
+    const res = await tester.run({
+        focusNames:args,
+        clearScreen:!dumper,
+        listTests:dumper,
+        stopItCallback:async (t) => {
+            if (!TSTester.globalOptions.silent) { $logterm(`&0&o** ${t.desc} STOPPED **&0`) ; }
         }
     }) ;
-    $exit() ;
+    $exit(res.failures > 0 ? 1 : 0) ;
 })();
 

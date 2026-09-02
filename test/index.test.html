@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta charset="utf-8">
+        <title>foundation-ts browser test</title>
         <style>
             body {
                 font-family: 'Helvetica', sans-serif ;
@@ -19,6 +20,7 @@
                 margin: auto;
                 padding: 10px;
                 text-align: start;
+                white-space: pre-wrap;
             }
         </style>
     </head>
@@ -26,6 +28,7 @@
         <h1>foundation-ts browser test</h1>
         <hr/>
         <div id="ftsconsole"></div>
-        <script src="browser.test.js"></script>
+        <!-- bundle produced by `node test/browser-build.mjs` (see `npm run test:chrome`) -->
+        <script src="../tdist/test/browser.test.js"></script>
     </body>
 </html>

@@ -1,7 +1,8 @@
 import { $length } from '../src/commons';
 import { $randomBytes } from '../src/crypto';
-import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $blobFromBytes, $bufferFromBlob, $decodeBase64URL, $uint32ArrayFromUint8Array, $encodeBytesToHexa, $bufferFromHexaString, $uint8ArrayFromHexaString } from '../src/data';
-import { TSCharset } from '../src/tscharset';
+import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $arrayFromDataLike, $arrayBufferFromDataLike, $arrayBufferFromHexaString, $blobFromDataLike, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromBlob, $blobFromBytes, $bufferFromBlob, $decodeBase64URL, $decodeHexa, $dataXOR, $encodeHexa, $uint32ArrayFromDataLike, $uint32ArrayFromUint8Array, $encodeBytesToHexa, $bufferFromHexaString, $uint8ArrayFromHexaString } from '../src/data';
+import { TSData } from '../src/tsdata';
+import { $charsetFromBytes, TSCharset } from '../src/tscharset';
 import { TSTest } from '../src/tstester';
 import { TSEndianness } from '../src/types';
 
@@ -144,6 +145,96 @@ export const dataGroups = [
                 const Z = $uint32ArrayFromUint8Array(bufs[i], TSEndianness.LE, false) ;
                 t.expect(Z, `BLQ${i}`).is(refl0[i]) ;
             }
+        }) ;
+
+        group.unary("hexa string parsing edge cases", async(t) => {
+            t.expect0($bufferFromHexaString("DEADBEEF")).is(Buffer.from([0xDE, 0xAD, 0xBE, 0xEF])) ;
+            t.expect1($bufferFromHexaString("deadbeef")).is(Buffer.from([0xDE, 0xAD, 0xBE, 0xEF])) ;
+            t.expect2($bufferFromHexaString("")).is(Buffer.alloc(0)) ;    // empty string -> empty buffer
+            t.expect3($bufferFromHexaString(undefined)).undef() ;
+            t.expect4($bufferFromHexaString(null)).null() ;
+            t.expect5($bufferFromHexaString("abc")).null() ;             // odd length
+            t.expect6($bufferFromHexaString("xyzw")).null() ;           // non-hex chars
+            t.expect7($bufferFromHexaString("0xDEAD")).null() ;         // no 0x prefix accepted
+            t.expect8($bufferFromHexaString("DE AD")).null() ;          // no whitespace accepted
+            t.expect9($uint8ArrayFromHexaString("nothex")).null() ;
+            t.expectA($arrayBufferFromHexaString("41424344")).is($arrayBufferFromBytes(Buffer.from("ABCD"))) ;
+            t.expectB($arrayBufferFromHexaString("zz")).null() ;
+            // $encodeHexa round-trips, case controlled by the flag
+            t.expectC($encodeHexa(Buffer.from([0x0A, 0xFF, 0x10]))).is("0AFF10") ;
+            t.expectD($encodeHexa(Buffer.from([0x0A, 0xFF, 0x10]), true)).is("0aff10") ;
+            t.expectE($decodeHexa($encodeHexa(Buffer.from("round-trip me")))).is(Buffer.from("round-trip me")) ;
+            t.expectF(() => $decodeHexa("nothex")).toThrow() ;
+        }) ;
+
+        group.unary("$dataXOR() function", async(t) => {
+            const a = Buffer.from([0xFF, 0x0F, 0xAA, 0x55]) ;
+            const key = Buffer.from([0x0F, 0xF0, 0xAA, 0x55]) ;
+            t.expect0($dataXOR(a, key)).is(Buffer.from([0xF0, 0xFF, 0x00, 0x00])) ;
+            // XOR is its own inverse
+            t.expect1($dataXOR($dataXOR(a, key), key)).is(a) ;
+            // mismatched lengths: result length is max(), the longer tail passes through unchanged
+            t.expect2($dataXOR(Buffer.from([0xFF, 0xAA, 0x0F]), Buffer.from([0x0F]))).is(Buffer.from([0xF0, 0xAA, 0x0F])) ;
+            t.expect3($dataXOR(Buffer.from([0x0F]), Buffer.from([0xFF, 0xAA, 0x0F]))).is(Buffer.from([0xF0, 0xAA, 0x0F])) ;
+            t.expect4($dataXOR(Buffer.alloc(0), Buffer.alloc(0)).length).is(0) ;
+            t.expect5($dataXOR(new Uint8Array([1, 2]), Buffer.from([3, 4]))).is(Buffer.from([2, 6])) ;
+        }) ;
+
+        group.unary("charset detection ($charsetFromBytes / TSCharset.isUTF8Charset / charsetFromDataLike)", async(t) => {
+            const utf8   = TSCharset.utf8Charset() ;
+            const asciiBytes = Buffer.from("plain ascii text") ;
+            const utf8Bytes  = utf8.uint8ArrayFromString("café €uro — déjà") ;
+            const latin1Bytes = Buffer.from([0x41, 0xE9, 0xE8, 0xEA]) ;      // "Aéèê" in latin1, invalid UTF-8
+            const utf16leBytes = Buffer.from([0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00]) ; // BOM + "AB"
+
+            t.expect0($charsetFromBytes([])).null() ;
+            t.expect1($charsetFromBytes(asciiBytes)).is(TSCharset.asciiCharset()) ;
+            t.expect2($charsetFromBytes(utf8Bytes)).is(utf8) ;
+            t.expect3($charsetFromBytes(latin1Bytes)).is(TSCharset.latin1Charset()) ;
+            t.expect4($charsetFromBytes(utf16leBytes)).is(TSCharset.unicodeCharset()) ;
+
+            t.expect5(TSCharset.isUTF8Charset(asciiBytes)).true() ;          // ASCII is a subset of UTF-8
+            t.expect6(TSCharset.isUTF8Charset(utf8Bytes)).true() ;
+            t.expect7(TSCharset.isUTF8Charset(latin1Bytes)).false() ;
+            t.expect8(TSCharset.isUTF8Charset(Buffer.from([]))).false() ;
+            t.expect9(TSCharset.isUTF8Charset(utf16leBytes)).false() ;       // UTF-16 LE BOM
+
+            t.expectA(TSCharset.charsetFromDataLike(utf8Bytes)).is(utf8) ;
+            t.expectB(TSCharset.charsetFromDataLike(utf16leBytes)).is(TSCharset.unicodeCharset()) ;
+        }) ;
+    }),
+    TSTest.group("data.ts — DataLike conversions & prototype extensions", async (group) => {
+        group.unary("$arrayFromDataLike / $arrayBufferFromDataLike / $uint32ArrayFromDataLike", async (t) => {
+            t.expect0($arrayFromDataLike(new Uint8Array([1, 2, 3]).buffer)).is([1, 2, 3]) ;
+            t.expect1($arrayFromDataLike(new TSData(Buffer.from([4, 5, 6])))).is([4, 5, 6]) ;
+            const sliced = $arrayBufferFromDataLike($arrayBufferFromBytes(Buffer.from([9, 8, 7])), { start:1 }) ;
+            t.expect2(Buffer.from(sliced).toString('hex')).is('0807') ;
+            t.expect3($uint32ArrayFromDataLike(new Uint8Array([1, 0, 0, 0]), true)).is([1]) ;
+        }) ;
+
+        group.unary("$blobFromDataLike / $uint8ArrayFromBlob", async (t) => {
+            t.expect0($blobFromDataLike(new Uint8Array([1, 2, 3])).size).is(3) ;
+            t.expect1($blobFromDataLike(TSData.fromString('ab')).size).is(2) ;
+            t.expect2($blobFromDataLike(new ArrayBuffer(4)).size).is(4) ;
+            const back = await $uint8ArrayFromBlob($blobFromBytes(new Uint8Array([5, 6, 7]))) ;
+            t.expect3(Buffer.from(back!).toString('hex')).is('050607') ;
+        }) ;
+
+        group.unary("$bufferFromBytes generic-array copy path", async (t) => {
+            t.expect0(Buffer.from($bufferFromBytes([10, 20, 30, 40, 50] as any, { start:1, end:4 })).toString('hex')).is('141e28') ;
+        }) ;
+
+        group.unary("String / Uint8Array / ArrayBuffer base64URL & hexa & XOR", async (t) => {
+            t.expect0('>> ~~'.base64URL()).is('Pj4gfn4') ;
+            t.expect1(Buffer.from('-vv8_Q'.decodeBase64URL()).toString('hex')).is('fafbfcfd') ;
+            const u8 = new Uint8Array([250, 251, 252, 253]) ;
+            t.expect2(u8.base64URL()).is('-vv8_Q') ;
+            t.expect3(u8.hexaString()).is('FAFBFCFD') ;
+            t.expect4(u8.hexaString(true)).is('fafbfcfd') ;
+            t.expect5((u8.buffer as ArrayBuffer).base64URL()).is('-vv8_Q') ;
+            t.expect6((u8.buffer as ArrayBuffer).hexaString()).is('FAFBFCFD') ;
+            t.expect7(Buffer.from(new Uint8Array([0xff, 0x0f]).XOR(new Uint8Array([0x0f, 0xff])) as Uint8Array).toString('hex')).is('f0f0') ;
+            t.expect8(Buffer.from((new Uint8Array([0xaa, 0xbb]).buffer as ArrayBuffer).XOR(new Uint8Array([0xff, 0xff])) as Uint8Array).toString('hex')).is('5544') ;
         }) ;
     })
 ] ;

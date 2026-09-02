@@ -40,6 +40,37 @@ export const intervalGroups = [
             t.expect2(A.compare(AB)).is(Same) ;
             t.expect3(A.compare(B)).toBeUndefined() ;
         }) ;
+
+        // TSInterval.compare() implements a PARTIAL (precedence / Allen "before"-"after")
+        // order, exactly like TSRange.compare(): two intervals are only ordered when one
+        // lies entirely at or before the other. Overlapping non-equal intervals -> undefined.
+        // This is by design, not a bug.
+        group.unary(`compare() is a partial precedence order`, async (t) => {
+            const m = (mo:number) => new TSDate(2024, mo, 1) ;
+            const janFeb = new TSInterval(m(1), m(2)) ;
+            const marApr = new TSInterval(m(3), m(4)) ;
+            const febMar = new TSInterval(m(2), m(3)) ;   // touches janFeb at its end
+            const janMar = new TSInterval(m(1), m(3)) ;   // overlaps janFeb (shared start)
+            const fromMar = new TSInterval(m(3), null) ;  // [Mar 1, +inf)
+            const untilJan = new TSInterval(null, m(1)) ; // (-inf, Jan 1)
+
+            // disjoint intervals are strictly ordered, antisymmetrically
+            t.expect0(janFeb.compare(marApr)).is(Ascending) ;
+            t.expect1(marApr.compare(janFeb)).is(Descending) ;
+            // adjacency counts as "before" (end <= start)
+            t.expect2(janFeb.compare(febMar)).is(Ascending) ;
+            t.expect3(febMar.compare(janFeb)).is(Descending) ;
+            // genuine overlap -> no precedence relation
+            t.expect4(janFeb.compare(janMar)).undef() ;
+            t.expect5(janMar.compare(janFeb)).undef() ;
+            // half-infinite intervals still order against a disjoint bounded one
+            t.expect6(janFeb.compare(fromMar)).is(Ascending) ;
+            t.expect7(fromMar.compare(janFeb)).is(Descending) ;
+            t.expect8(janFeb.compare(untilJan)).is(Descending) ;
+            t.expect9(untilJan.compare(janFeb)).is(Ascending) ;
+            // the fully-infinite interval cannot be ordered against a bounded one
+            t.expectA(janFeb.compare(new TSInterval(null, null))).undef() ;
+        }) ;
     
         group.unary(`test significant ranges`, async (t) => {
             t.expectA(A.hasSignificantRange).true() ;
@@ -121,6 +152,88 @@ export const intervalGroups = [
             t.expect8(D.continuousWith(A)).false() ;
             t.expect9(Y.continuousWith(A)).false() ;
         }) ;
-    
-    })
+
+    }),
+
+    TSTest.group("TSInterval — daysInterval / hasSameRange / containsDate / JSON", async (group) => {
+        const day  = new TSDate(2000, 1, 10) ;                       // 2000-01-10 00:00
+        const noon = new TSDate(2000, 1, 10, 12, 0, 0) ;
+        const eve  = new TSDate(2000, 1, 10, 18, 0, 0) ;
+        const d20  = new TSDate(2000, 1, 20, 12, 0, 0) ;
+        const before = new TSDate(1999, 12, 31) ;
+        const after  = new TSDate(2000, 2, 1) ;
+
+        group.unary('daysInterval()', async (t) => {
+            t.expect0(new TSInterval(noon, d20).daysInterval())
+             .is(new TSInterval(new TSDate(2000, 1, 10), new TSDate(2000, 1, 20))) ;
+            t.expect1(new TSInterval(noon, noon).daysInterval())     // empty -> single day
+             .is(new TSInterval(day, day)) ;
+            t.expect2(new TSInterval(noon, eve).daysInterval())      // same day, not empty -> +1 day
+             .is(new TSInterval(day, new TSDate(2000, 1, 11))) ;
+            t.expect3(new TSInterval(noon, null).daysInterval())
+             .is(new TSInterval(day, null)) ;
+            t.expect4(new TSInterval(null, d20).daysInterval())
+             .is(new TSInterval(null, new TSDate(2000, 1, 20))) ;
+            t.expect5(new TSInterval(null, null).daysInterval())
+             .is(new TSInterval(null, null)) ;
+        }) ;
+
+        group.unary('hasSameRange()', async (t) => {
+            const a = new TSInterval(noon, d20) ;
+            t.expect0(a.hasSameRange(a.clone())).true() ;
+            t.expect1(a.hasSameRange(new TSInterval(noon, eve))).false() ;
+            t.expect2(a.hasSameRange(new TSInterval(noon, null))).false() ;   // infinite: never
+            t.expect3(new TSInterval(noon, null).hasSameRange(new TSInterval(noon, null))).false() ;
+        }) ;
+
+        group.unary('containsDate()', async (t) => {
+            const a = new TSInterval(noon, d20) ;
+            t.expect0(a.containsDate(new TSDate(2000, 1, 15))).true() ;
+            t.expect1(a.containsDate(noon)).true() ;
+            t.expect2(a.containsDate(d20)).false() ;                          // half-open
+            t.expect3(a.containsDate(before)).false() ;
+            t.expect4(new TSInterval(noon, noon).containsDate(noon)).false() ; // empty
+            t.expect5(new TSInterval(null, null).containsDate(after)).true() ; // both-infinite
+            // one-sided intervals (semantics as implemented)
+            t.expect6(new TSInterval(noon, null).containsDate(before)).true() ;
+            t.expect7(new TSInterval(noon, null).containsDate(after)).false() ;
+            t.expect8(new TSInterval(null, d20).containsDate(before)).true() ;
+            t.expect9(new TSInterval(null, d20).containsDate(after)).false() ;
+        }) ;
+
+        group.unary('toJSON() / toArray() / start / end / make', async (t) => {
+            const a = TSInterval.make(noon, d20) ;
+            t.expect0(a.toArray()).is([a]) ;
+            const j = a.toJSON() ;
+            t.expect1(j.start).is(noon.toJSON()) ;
+            t.expect2(j.end).is(d20.toJSON()) ;
+            t.expect3(new TSInterval(null, null).start.isEqual(new TSDate(TSDate.PAST))).true() ;
+            t.expect4(new TSInterval(null, null).end.isEqual(new TSDate(TSDate.FUTURE))).true() ;
+        }) ;
+    }),
+
+    TSTest.group("TSInterval — infinite-interval compare / contains / intersects", async (group) => {
+        const d1 = new TSDate(2000, 1, 10) ;
+        const d2 = new TSDate(2000, 1, 20) ;
+        const from2  = new TSInterval(d2, null) ;    // [d2, +inf)
+        const until1 = new TSInterval(null, d1) ;    // (-inf, d1)
+        const from1  = new TSInterval(d1, null) ;
+        const until2 = new TSInterval(null, d2) ;
+
+        group.unary('compare() between one-sided infinite intervals', async (t) => {
+            t.expect0(until1.compare(from2)).is(Ascending) ;    // (-inf,d1) before [d2,+inf)
+            t.expect1(from2.compare(until1)).is(Descending) ;
+            t.expect2(from1.compare(from2)).is(undefined) ;     // both open on the right
+            t.expect3(until1.compare(until2)).is(undefined) ;
+        }) ;
+
+        group.unary('contains() / intersects() with one-sided intervals', async (t) => {
+            t.expect0(from1.contains(from2)).true() ;           // [d1,+inf) contains [d2,+inf)
+            t.expect1(from2.contains(from1)).false() ;
+            t.expect2(until2.contains(until1)).true() ;
+            t.expect3(from1.intersects(from2)).true() ;
+            t.expect4(until1.intersects(from2)).false() ;
+            t.expect5(from1.intersects(new TSInterval(null, null))).true() ;
+        }) ;
+    }),
 ] ;

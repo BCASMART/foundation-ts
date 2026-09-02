@@ -1,7 +1,7 @@
 import { $average, $first, $includesequal, $includesvisual, $last, $map, $arrayset, $max, $min, $sum } from "../src/array";
 import { $count, $defined, $ok } from "../src/commons";
 import { TSTest } from "../src/tstester";
-import { TSUnicity } from "../src/types";
+import { Ascending, Descending, Same, TSUnicity } from "../src/types";
 
 export const arrayGroups = TSTest.group("Commons array functions", async (group) => {
     group.unary("functions $map(), $arrayset(), $includesequal(), $includesvisual", async(t) => {
@@ -81,6 +81,63 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expectU($max(values2)).toBeUndefined() ;
         t.expectV(values3.min()).toBeUndefined() ;
         t.expectW(values3.max()).toBeUndefined() ;
+    }) ;
+
+    group.unary("$map() / $arrayset() over non-array iterables and options forms", async(t) => {
+        function* gen() { yield 1 ; yield 2 ; yield 3 ; yield 2 ; }
+        t.expect0($map(new Set([1, 2, 3]), e => e * 10)).is([10, 20, 30]) ;
+        t.expect1($map(gen(), e => e)).is([1, 2, 3, 2]) ;
+        t.expect2($map("abc", c => c.toUpperCase())).is(["A", "B", "C"]) ;   // strings are iterable
+        // options object with an explicit callback + unicity
+        t.expect3($map(gen(), { callback:e => e, unicity:TSUnicity.Equality })).is([1, 2, 3]) ;
+        // the index argument is the running index over the iterable
+        t.expect4($map(["a", "b", "c"], (_, i) => i)).is([0, 1, 2]) ;
+        t.expect5($arrayset(gen())).is(new Set([1, 2, 3])) ;
+        t.expect6($arrayset(new Set([1, 2]), e => e % 2 === 0 ? e : null)).is(new Set([2])) ;
+        t.expect7($map(null, e => e)).is([]) ;
+        t.expect8($arrayset(undefined)).is(new Set()) ;
+    }) ;
+
+    group.unary("$sum() numeric coercion via valueOf / Symbol.toPrimitive", async(t) => {
+        t.expect0($sum([1, { valueOf:():number => 10 }, 2])).is(13) ;
+        t.expect1($sum([new Date(1000), new Date(2000)])).is(3000) ;      // Date -> primitive number
+        t.expect2($sum(["1", "2", "3"])).is(6) ;                          // numeric strings
+        t.expect3($sum(["1", "not-a-number"])).undef() ;                  // one bad conversion kills the sum
+        t.expect4($sum([1, null, undefined, 2])).is(3) ;                  // null/undefined counted as 0
+        t.expect5($sum([{ valueOf:():string => "oops" }])).undef() ;
+    }) ;
+
+    group.unary("$average() count options", async(t) => {
+        const v = [2, 4, null, undefined, 6] ;                            // sum 12
+        t.expect0($average(v)).is(12 / 5) ;                               // default: counts everything
+        t.expect1($average(v, { countsOnlyDefinedItems:true })).is(12 / 4) ; // excludes undefined only
+        t.expect2($average(v, { countsOnlyOKItems:true })).is(12 / 3) ;   // excludes null and undefined
+        t.expect3($average([])).undef() ;
+    }) ;
+
+    group.unary("$min() / $max() ordering, single element, strings", async(t) => {
+        t.expect0($min([5])).is(5) ;
+        t.expect1($max([5])).is(5) ;
+        t.expect2($min([3, 1, 2])).is(1) ;
+        t.expect3($max([3, 1, 2])).is(3) ;
+        t.expect4($min(["banana", "apple", "cherry"])).is("apple") ;
+        t.expect5($max(["banana", "apple", "cherry"])).is("cherry") ;
+        t.expect6($min([])).undef() ;
+        t.expect7($max(null)).undef() ;
+        t.expect8($min([1, null, 2])).undef() ;                           // a nullish element voids the result
+    }) ;
+
+    group.unary("Array.prototype.compare() / isEqual()", async(t) => {
+        t.expect0([1, 2, 3].isEqual([1, 2, 3])).true() ;
+        t.expect1([1, 2, 3].isEqual([1, 2])).false() ;
+        t.expect2([1, 2, 3].isEqual([1, 2, 4])).false() ;
+        t.expect3([1, 2, 3].isEqual("not an array" as any)).false() ;
+        t.expect4([1, 2, 3].compare([1, 2, 3])).is(Same) ;
+        t.expect5([1, 2, 3].compare([1, 2, 4])).is(Ascending) ;
+        t.expect6([1, 2, 4].compare([1, 2, 3])).is(Descending) ;
+        t.expect7([1, 2].compare([1, 2, 3])).is(Ascending) ;              // shorter prefix sorts first
+        t.expect8([1, 2, 3].compare([1, 2])).is(Descending) ;
+        t.expect9([1, 2, 3].compare({} as any)).undef() ;
     }) ;
 
     group.unary("Array.singular() method", async (t) => {

@@ -2,36 +2,63 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.1
+
+#### Corrections
+
+- potential bug corrected in `$timeBetweenDates()` in case of the passed parameters where not strictly of the right types.
+- `$icast()` function rewrited to avoid overflow
+- `$firstcap()` and `$capitalize()` common core rewritten to be fully conform to unicode specs
+- `TSData set length()` accessor was completly wrong. Corrected.
+- `TSData`'s `getInt8`, `getUint8`, ... `getBigInt64`, `getBigUint64` methods where rewritten to avoid reading in non used buffer parts
+- bug correction in `TSData uint8ArraySlice()` instance method which returned a wrong array
+- bug correction in `TSList toString()` instance method which did use the wrong separator
+- did rewrite static method `TSError.assert()` (no more duplicated dead code)
+- crypto functions does not rely anymore to import of { Hash, getRandomValues, randomInt, RandomUUID } from crypto
+- A`TSRangeSet` built from another set (`clone()`, `union()`, `substraction()`, `intersection()`, `complement()`) now clones its ranges: those methods no longer mutate the source set
+- function`$parsetime()` was broken for `HH:MM` / `HH:MM:SS` / packed-number forms (only the hour was read, minutes & seconds came out as 0). Rewritten to read the right regex groups and to support `H`, `HH`, `HMM`, `HHMM`, `HMMSS`, `HHMMSS` packed forms
+- Fixed`$parsedatetime()` / `$parsedate()` / `TSDate.fromString()` (non-ISO `Standard` / `English` / `Computer` forms) which had the same time-parsing bug
+- Fixed`TSRequest.setToken()` was a no-op (it computed the bearer string but did not assign `this.token`)
+- Fixed`TSURL` `set pathname` : it assigned to itself (`this.pathname = …` instead of `this._pathname = …`) and infinitely recursed / stack-overflowed.
+
+#### What's new ?
+
+- new function `$setCryptoProvider()` in crypto.ts so you can use your own functions to randomize, hash, get random UUID, cypher and decypher.
+- new function `$cryptoProvider()`to access the functions you defined.
+- removed `JSONType` as a type. Replaced by type `any` in order to avoid anoying mandatory casting.
+- `$uuid()` function does not log anymore if `randomUUI()` is not available in execution context.
+- did make `enum TSBrowserOS` public
+- `$jsonparse()`function now accepts common `reviver` parameter
+- new methods `toBeAFile()`, `toBeADirectory()`, `toBeAnIPv6()`, `toBeAnIPv4()`, `toBeAnIPAddress()`, `toBeAPhoneNumber()`, `toBeADataObject()`, `toThrow()`, `notToThwo()`, `toReject()` in `TSExpectAgent` class
+- new alias methods in `TSExpectAgent`: `isnumber`, `isint`, `isuint`, `isstring`, `isbool`, `isemail`, `isurl`, `isuuid`, `isobject`, `isiterable`, `isarray`, `isdate`, `isfunction`, `isfile`, `isdir`, `isipv4`, `isipv6`, `isip`, `isphone`, `isdata`, `throws`, `doesNotThrow`, `rejects`
+- more tests for everything: we have now more than 22800 tests covering more than 95% of the code
+- new `npm run test:jsdom` in order to validate foundation-ts functions and classes inside a browser-like environment
+- new `npm run test:chrome`, `test:firefox` and `test:webkit` in order to validate foundation-ts inside a real headless browser (Chromium/Chrome, Firefox, WebKit) through playwright-core ; `test:browsers` runs the three
+- new `npm run test:all` in order to validate foundation-ts in Node + jsdom + the three browser engines
+- `npm run playwright:install` downloads the Playwright Firefox & WebKit builds (test:chrome uses the system Chrome, no download)
+- new `npm run coverage` : runs the Node suite under `c8` and reports line/branch/function coverage (console + HTML + lcov in `coverage/`, remapped to `src/*.ts`)
+
+<hr/>
+
 ## version 1.8.0
 
 #### Corrections
 
 - functions $ok(), $defined() … $isstring() conform to type management for the following code (issue #11)
-
 - new implementation for $ascii() function (issue #6)
-
 - TSEndianness is no more a type but a constant object with BE = false and LE = true (issue #5)
-
 - new function $uint32ArrayFromUint8Array() replacing $uint32ArrayFromBuffer() (issue #5)
-
 - modify read/write number functions implementation in order to use new DataView methods (issue #5)
-
 - remove read/write number functions from Uint8Array (data.ts) since we prefer developers directly use DataView methods (issue #5)
-
 - Improved TSPhoneNumber class with more accuracy, tests and methods to know if a phone number is mobile, and land line or undetermined  (issue #9)
-
 - Did add TSReques's defined RespType.OptionalJson in order to manage request with JSON wich may not be present in requests' responses (issue #10)
 
 #### What's new ?
 
 - removed wrongly conceived TSDataCursor class (issue #5)
-
 - new $strictascii() function which returns null if some charaters cannot be represented in ASCII  (issue #6)
-
 - new $jsonparse() function replacing JSON.parse() and permitting to ignore commentaries in parsing (issue #8)
-
 - new $jsonstrip() function removing // and /* .. */ commentaries in JSON string (issue #8)
-
 - did add reading DataView methods to TSData (issue #5)
 
   ```typescript
@@ -46,7 +73,6 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
   getBigInt64(byteOffset:number, littleEndian?:boolean):bigint // Reads a 64-bit signed integer as BigInt.
   getBigUint64(byteOffset:number, littleEndian?:boolean):bigint // Reads a 64-bit unsigned integer as BigInt.
   ```
-
 - did add writing DataView methods to TSData (issue #5)
 
   ```typescript
@@ -61,20 +87,12 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
   setBigInt64(byteOffset:number, value:bigint, littleEndian?:boolean) // Writes a 64-bit signed integer BigInt.
   setBigUint64(byteOffset:number, value:bigint, littleEndian?:boolean) // Writes a 64-bit unsigned integer BigInt.
   ```
-
-
 - add function $bufferFromHexaString(s:string):Buffer|null. Please use it instead of Buffer.from(xxx, 'hex') which may silently fail (issue #4)
-
 - add function $uint8ArrayFromHexaString(s:string):Uint8Array|null. (issue #4)
-
 - add function $arrayBufferFromHexaString(s:string):ArrayBuffer|null. (issue #4)
-
 - declare fromHex() method on Uint8ArrayConstructor because it was not done by Typescript itself (issue #4)
-
 - add static methods TSData.fromHexaString(), TSData.fromBase64String(), TSData.fromBase64URLString() (issue #4)
-
 - did add ordinals values in Locales.json in order to manage %E indicator in date formats (issue #2)
-
 - did add 'pdf-max' and 'pdf-min' document formats (issue #7)
 
 <hr/>
@@ -99,7 +117,7 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 - $uuidhash() and $uuidhashfile() functions were discarted
 - $sha256partial() function was discarded
 - uuidhash() method was discarted from all classes
-- TSData now respons to hexaString(), base64String() and base64URL() common methods (previous were keeped for backward compatibility) 
+- TSData now respons to hexaString(), base64String() and base64URL() common methods (previous were keeped for backward compatibility)
 - separator field was discarted $hashOptions parameters
 - separator parameter was discarted in functions $sha1(), $sha224(), $sha256(), $sha384() and $sha512() function
 - $exit() function now returns never
@@ -165,17 +183,11 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 #### What's new ?
 
 - new method  `addPaths()` (or `addPath()`) usable on strings.
-
 - new method `extension()` (or `ext()`  usable on strings)
-
 - new methods `directory()`, `filename()` and `safeFilename()`  usable on strings
-
 - new method `hasExtension()` (which is case insensitive) usable on strings
-
 - new method `newExtension()` usable on strings
-
 - new method `isAbsolutePath()` usable on strings
-
 - new method `normalizePath()` usable on strings
 
   All these methods are usable in node.js and in a web browser.. Tests add been added accordingly.
@@ -198,11 +210,11 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 #### What's updated ?
 
--  `$inbrowser()` function now use `$browserOS()` function for its implementation
--  `$ascii()` function now makes better transformation
--  `TSEndPoint` interface does now contains a context `TSDictionary` which can be used in `TSEndPointController` which now includes a 3rd optional parameter wich is this `TSDictionary`. This new parameter may be used to keep infos through all script's life
--  numeric operations on Arrays now use `valueOf()` and `[Symbol.toPrimitive]` methods 
--  tests were updated in order to reflect all modifications
+- `$inbrowser()` function now use `$browserOS()` function for its implementation
+- `$ascii()` function now makes better transformation
+- `TSEndPoint` interface does now contains a context `TSDictionary` which can be used in `TSEndPointController` which now includes a 3rd optional parameter wich is this `TSDictionary`. This new parameter may be used to keep infos through all script's life
+- numeric operations on Arrays now use `valueOf()` and `[Symbol.toPrimitive]` methods
+- tests were updated in order to reflect all modifications
 
 #### Bug corrections
 
@@ -215,44 +227,29 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 #### What's new ?
 
 - foundation-ts needs now **Node.js 20.0.0** to run. a new `engines` section in `package.json` and a new `.npmrc` file are here to enforce this.
-
 - new `$randomBytes()` function in for generating random bytes arrays
-
 - new `$arrayBufferFromBlob()`,  `$bufferFromBlob()`, `$uint8ArrayFromBlob()`, `$blobFromBytes()` and  `$blobFromDataLike()` functions to convert data from and to blobs.
-
 - new `$encodeHewa()` and `$encodeBytesToHexa()` functions
-
 - new `toHexa()` method on `Uint8Array`, `ArrayBuffer` and `TSData` instances
-
 - new `$asciifs()` function which concerts any string to ASCII and replaces non recognized ASCII characters in file systems by `'_'`.
-
 - new `asciifs` method on String objects.
-
 - new `$safeFilename()` function which converts any filename in a safe filename using `$asciifs()`
-
 - new `$timezoneOffsetWithComponents()` function which calculate any time zone offset from specific date, time and timezone name
-
 - `TSDate` has a new `toTimezoneString()` and `toUTCDate()` methods
-
 - `TSPhoneNumber` class now provides new static method `exampleNumber()` for generating, if possible dummy phone numbers.
-
 - `TSPhoneNumber` class now provides new instance methods
 
   - `toJSON()` => a valid phone's string representation for JSON
-
   - `compactNumber()` => something like +33145247000
-
   - `alpha2Code()` => phone's country alpha2 code
-
   - `alpha3Code()` => phone's country alpha3 code
-
   - `toString()` => which provides a way to format your phone number as you wish with the following format tags :
 
     ```typescript
     /*
       if format undefined => returns standard non compact string
       if format null or empty uses standard country format
-    
+
       Format composition
       ---------------------
       %c      country label
@@ -272,27 +269,19 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
       %X      country alpha3 code   
       %%      a percent
     */
-    
-    ```
 
+    ```
 - `TSUnaryTest` class has now a boolean `logAllTests` you can activate to show all expected tests to log PASS and FAIL
 
 #### What's updated ?
 
--  `$length()` function now works with Blob
-
+- `$length()` function now works with Blob
 - `$ascii()` function does now a better job in converting Unicode strings to ASCII (for example it removes all characters considered as modifiers) and is now restricted in convertinf UTF16 characters (all character after 0xFFFF are dropped)
-
 - `TSCountry` class now accepts in its countries.json definition file standard phone formats and dummies phone range templates. Accordingly `PhonePlanInfo` interface now contains `format` and `dummies` new fields
-
-- `TSDate` max time stamp is now `31/12/275760 23:59:59` 
-
+- `TSDate` max time stamp is now `31/12/275760 23:59:59`
 - `TSCouple`, `TSData` and `TSList` have now a standard `Symbol.iterator` method.
-
 - `$components2date()` function has now 2 optional parameters in order to pass `milliseconds` and if you want a current `Date` or an `UTC` `Date`
-
 - `TSRequest` class now use internal Node `fetch()` function to send HTTP requests. In short: we drop the use of Axios module.
-
 - interface `TSServerOptions` has now a `logLevel` field use to choose what to log. The log level is defined by the explicit new enum:
 
   ```typescript
@@ -313,7 +302,6 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 #### Work in progress (stay tuned for for future versions)
 
--  `Locales` interface now have a `ordinals` array wich will in the future be used by `%E` date format and will output 1st, 2nd, 3e … 
+- `Locales` interface now have a `ordinals` array wich will in the future be used by `%E` date format and will output 1st, 2nd, 3e …
 
 <hr />
-

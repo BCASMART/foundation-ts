@@ -43,7 +43,7 @@ import { $uuid } from './crypto';
 import { $inbrowser, $jsonparse } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { JSONType, Nullable, StringEncoding, TSDataLike } from './types';
+import { Nullable, StringEncoding, TSDataLike } from './types';
 import { $asciifs, $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
@@ -347,16 +347,14 @@ export function $filename(s: Nullable<string>, internalImplementation: boolean =
 }
 
 // JSON buffer is always considered as UTF8 buffer
-export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): JSONType
+export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): any
 {
-    if ($isstring(source)) {
-        TSError.assertNotInBrowser('$loadJSON') ;
-        if (source.length > 0) {
-            const extensions = $extset(acceptedExtensions) ;
-            if (extensions.size === 0) { extensions.add('json') ; } // if no extensions, we accept json
-            source = extensions.has($ext(source)) ? $readString(source, TSCharset.utf8Charset()) : '' ;    
-        }
-    }
+    TSError.assertNotInBrowser('$loadJSON') ;
+    if (!$isstring(source) || !source.length) { return null ; }
+
+    const extensions = $extset(acceptedExtensions) ;
+    if (extensions.size === 0) { extensions.add('json') ; } // if no extensions, we accept json
+    source = extensions.has($ext(source)) ? $readString(source, TSCharset.utf8Charset()) : '' ;    
 
     return $valueornull($jsonparse(source, true)) ;
 }

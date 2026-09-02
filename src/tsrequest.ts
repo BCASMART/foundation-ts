@@ -234,12 +234,7 @@ export class TSRequest {
 
     // if you pass a string it's a base64string. If you pass a data, it is converted to base64
 	public setToken(token?:Nullable<string|TSDataLike>) {
-		if ($length(token)) {
-			token = $barerauth(token!) ;
-		}
-		else {
-			this.token = '' ;
-		}
+		this.token = $length(token) ? $barerauth(token!) : '' ;
 	}
 
     // we keep this method for backward compatibility

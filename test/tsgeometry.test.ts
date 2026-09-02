@@ -1,5 +1,6 @@
 import { $keys } from '../src/commons';
-import { TSAssertFormat, TSDocumentFormats, TSmm2Pixels, TSRect } from '../src/tsgeometry';
+import { Ascending, Descending, Same } from '../src/types';
+import { TSAssertFormat, TSDocumentFormats, TSmm2Pixels, TSRect, TSRectEdge } from '../src/tsgeometry';
 import { TSTest } from '../src/tstester';
 
 export const geometryGroups = TSTest.group("Geometry functions and classes", async (group) => {
@@ -94,13 +95,125 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect4(G.union([10,15,1000,2000])).is(new TSRect(0,0,1010, 2015)) ;
         t.expect5(G.union([1000,1000,1000,2000])).is(new TSRect(0,0,2000,3000)) ;
 
-        let equality = false ;
-        try {
-            // G.union should throw if the passed array parameter is not a valid TSRect
-            equality = G.union([10,15,NaN,2000]).isEqual(new TSRect(0,0,1010, 2015)) ;
-        }
-        catch { equality = false ;}
-        t.expectA(equality).false() ;
+        // union() throws when the passed array parameter is not a valid TSRect
+        t.expectA(() => G.union([10,15,NaN,2000])).toThrow() ;
+    }) ;
+
+    group.unary("TSRect getters, clone(), toArray() && toJSON()", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;
+        t.expect0(R.minX).is(10) ;
+        t.expect1(R.minY).is(20) ;
+        t.expect2(R.maxX).is(110) ;
+        t.expect3(R.maxY).is(60) ;
+        t.expect4(R.midX).is(60) ;
+        t.expect5(R.midY).is(40) ;
+        t.expect6(R.width).is(100) ;
+        t.expect7(R.height).is(40) ;
+        t.expect8(R.origin).is({ x:10, y:20 }) ;
+        t.expect9(R.size).is({ w:100, h:40 }) ;
+        t.expectA(R.frame).is({ x:10, y:20, w:100, h:40 }) ;
+        t.expectB(R.isEmpty).false() ;
+        t.expectC(new TSRect(10, 20, 0, 40).isEmpty).true() ;
+        t.expectD(new TSRect(10, 20, 100, 0).isEmpty).true() ;
+        t.expectE(new TSRect().isEmpty).true() ;
+        // toArray() sends [minX, minY, maxX, maxY] -- NOT [x, y, w, h]
+        t.expectF(R.toArray()).is([10, 20, 110, 60]) ;
+        t.expectG(R.toJSON()).is({ x:10, y:20, w:100, h:40 }) ;
+        const c = R.clone() ;
+        t.expectH(c).is(R) ;
+        t.expectI(c === R).false() ;
+        c.x = 999 ;
+        t.expectJ(R.minX).is(10) ;   // clone is independent
+    }) ;
+
+    group.unary("TSRect.offset() && inset()", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;
+        t.expect0(R.offset(5, -3)).is(new TSRect(15, 17, 100, 40)) ;
+        t.expect1(R.offset(0, 0)).is(R) ;
+        t.expect2(R.offsetRect(-10, -20)).is(new TSRect(0, 0, 100, 40)) ;
+        // inset() with a positive amount actually grows the rect (negative amount shrinks it)
+        t.expect3(R.inset(10, 5)).is(new TSRect(0, 15, 120, 50)) ;
+        t.expect4(R.inset(-10, -5)).is(new TSRect(20, 25, 80, 30)) ;
+        t.expect5(R.insetRect(0, 0)).is(R) ;
+
+        t.expect6(() => R.offset(NaN, 0)).toThrow() ;
+        t.expect7(() => R.inset(-60, 0)).toThrow() ;   // would make width negative
+    }) ;
+
+    group.unary("TSRect.divide()", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;   // maxX 110, maxY 60
+
+        let [slice, rem] = R.divide(30, TSRectEdge.TSMinXEdge) ;
+        t.expect0(slice).is(new TSRect(10, 20, 30, 40)) ;
+        t.expect1(rem).is(new TSRect(40, 20, 70, 40)) ;
+
+        [slice, rem] = R.divide(200, TSRectEdge.TSMinXEdge) ;   // amount > width
+        t.expect2(slice).is(new TSRect(10, 20, 100, 40)) ;
+        t.expect3(rem).is(new TSRect(110, 20, 0, 40)) ;
+
+        [slice, rem] = R.divide(10, TSRectEdge.TSMinYEdge) ;
+        t.expect4(slice).is(new TSRect(10, 20, 100, 10)) ;
+        t.expect5(rem).is(new TSRect(10, 30, 100, 30)) ;
+
+        [slice, rem] = R.divide(30, TSRectEdge.TSMaxXEdge) ;
+        t.expect6(slice).is(new TSRect(80, 20, 30, 40)) ;
+        t.expect7(rem).is(new TSRect(10, 20, 70, 40)) ;
+
+        [slice, rem] = R.divide(10, TSRectEdge.TSMaxYEdge) ;
+        t.expect8(slice).is(new TSRect(10, 50, 100, 10)) ;
+        t.expect9(rem).is(new TSRect(10, 20, 100, 30)) ;
+
+        [slice, rem] = R.divide(Number.POSITIVE_INFINITY, TSRectEdge.TSMinXEdge) ;   // amount clamped to max(w,h)
+        t.expectA(slice).is(new TSRect(10, 20, 100, 40)) ;
+        t.expectB(rem).is(new TSRect(110, 20, 0, 40)) ;
+
+        [slice, rem] = R.divide(-5, TSRectEdge.TSMinXEdge) ;   // negative amount clamped to 0
+        t.expectC(slice).is(new TSRect(10, 20, 0, 40)) ;
+        t.expectD(rem).is(new TSRect(10, 20, 100, 40)) ;
+
+        t.expectE(() => R.divide(10, 99 as TSRectEdge)).toThrow() ;   // invalid edge
+    }) ;
+
+    group.unary("TSRect.containsPoint(), containsRect() && containedIn()", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;
+        t.expect0(R.containsPoint({ x:60, y:40 })).true() ;
+        t.expect1(R.containsPoint([60, 40])).true() ;
+        t.expect2(R.containsPoint([10, 20])).true() ;          // border is inside
+        t.expect3(R.containsPoint([9, 40])).false() ;
+        t.expect4(R.containsPoint([60, 40, 1, 1])).false() ;   // a 4-element array is not a point
+
+        t.expect5(R.containsRect(new TSRect(20, 30, 10, 10))).true() ;
+        t.expect6(R.containsRect([20, 30, 10, 10])).true() ;
+        t.expect7(R.containsRect([200, 200, 10, 10])).false() ;
+        t.expect8(R.containsRect([60, 40])).false() ;          // a 2-element array is not a rect
+
+        t.expect9(R.containedIn(new TSRect(0, 0, 200, 200))).true() ;
+        t.expectA(R.containedIn([0, 0, 200, 200])).true() ;
+        t.expectB(R.containedIn(R)).true() ;
+        t.expectC(R.containedIn(new TSRect(0, 0, 50, 50))).false() ;
+        t.expectD(R.containedIn(null)).false() ;
+        t.expectE(R.containedIn([0, 0, NaN, 200])).false() ;   // invalid array -> false, no throw
+    }) ;
+
+    group.unary("TSRect.compare()", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;
+        const A = new TSRect(0, 0, 10, 10) ;     // area 100
+        const B = new TSRect(5, 5, 10, 10) ;     // area 100, origin > A on both axis
+        const C = new TSRect(0, 0, 5, 5) ;       // area 25
+        const D = new TSRect(0, 7, 10, 10) ;     // area 100, same minX as A
+        const A2 = new TSRect(0, 5, 10, 10) ;    // area 100
+        const E = new TSRect(5, 0, 10, 10) ;     // area 100, origin not comparable to A2
+
+        t.expect0(R.compare(R)).is(Same) ;
+        t.expect1(R.compare(R.clone())).is(Same) ;
+        t.expect2(A.compare(B)).is(Ascending) ;
+        t.expect3(B.compare(A)).is(Descending) ;
+        t.expect4(C.compare(A)).is(Ascending) ;      // smaller area
+        t.expect5(A.compare(C)).is(Descending) ;
+        t.expect6(A.compare(D)).is(Ascending) ;      // same area, same minX, A above D
+        t.expect7(A2.compare(E)).undef() ;     // same area, origins not comparable
+        t.expect8(R.compare('not a rect' as any)).undef() ;
+        t.expect9(R.compare(null as any)).undef() ;
     }) ;
 
     group.unary("TSRect creation with formats", async(t) => {

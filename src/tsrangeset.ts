@@ -13,8 +13,11 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		super() ;
 		if ($ok(v)) {
 			if (v instanceof TSRangeSet) {
-				v.forEach(r => super.add(r)) ; // super here is just like this. This is JS at its best OOD.
-				return ;	
+				// clone the ranges: _removeRange() mutates node data in place, so a
+				// set built from another (clone(), union(), substraction(), …) must
+				// not share TSRange instances with its source.
+				v.forEach(r => super.add(r.clone())) ; // super here is just like this. This is JS at its best OOD.
+				return ;
 			}
             if (!$isarray(v)) {
                 if ($isnumber(v)) {

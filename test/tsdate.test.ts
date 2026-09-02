@@ -11,7 +11,8 @@ import {
     TSDay,
     $timestampWithoutTime,
     TSMaxTimeStamp,
-    TSWeek
+    TSWeek,
+    $weekOfYear
 } from "../src/tsdate";
 import { $components2timestamp, TSDateComp, TSDateForm } from "../src/tsdatecomp";
 import { Ascending, Comparison, Descending, Same, uint } from "../src/types";
@@ -212,8 +213,43 @@ export const dateGroups = [
             t.expect4($timeBetweenDates(R.toDate(), D)).is(-T) ;
             t.expect5(R.toDate().timeSinceDate(D.toDate())).is(T) ;
         });
-        group.unary('d.firstDateOfYear()', async (t) => { 
-            t.expect(D.firstDateOfYear().toString(full)).is("1945/01/01-00:00:00") ; 
+        group.unary('$timeBetweenDates() parameter type dispatch', async (t) => {
+            // number / number : plain subtraction, sign symmetric
+            t.expect0($timeBetweenDates(100, 250)).is(150) ;
+            t.expect1($timeBetweenDates(250, 100)).is(-150) ;
+            t.expect2($timeBetweenDates(100, 250)).is(-$timeBetweenDates(250, 100)) ;
+
+            // string / string : parsed as TSDate
+            t.expect3($timeBetweenDates('2024-01-01T00:00:00', '2024-01-02T00:00:00')).is(TSDay) ;
+            t.expect4($timeBetweenDates('2024-01-02T00:00:00', '2024-01-01T00:00:00')).is(-TSDay) ;
+
+            // ±Infinity collapses to TSDate.future()/past()
+            t.expect5($timeBetweenDates(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)).is(0) ;
+            t.expect6($timeBetweenDates(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)).gt(0) ;
+            t.expect7($timeBetweenDates(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY)).lt(0) ;
+
+            // null/undefined => first arg is TSDate.past(), second is TSDate.future()
+            t.expect8($timeBetweenDates(null, null)).gt(0) ;
+            t.expect9($timeBetweenDates(undefined, undefined)).gt(0) ;
+
+            // NaN is explicitly rejected
+            t.expectA(() => $timeBetweenDates(NaN, 0)).toThrow(/NaN/) ;
+            t.expectB(() => $timeBetweenDates(0, NaN)).toThrow(/NaN/) ;
+
+            // unsupported types are rejected (were silently mishandled before)
+            t.expectC(() => $timeBetweenDates(true as any, 0)).toThrow(/type boolean/) ;
+            t.expectD(() => $timeBetweenDates({} as any, 0)).toThrow(/type object/) ;
+            t.expectE(() => $timeBetweenDates(10n as any, 0)).toThrow(/type bigint/) ;
+            t.expectF(() => $timeBetweenDates(0, Symbol() as any)).toThrow(/type symbol/) ;
+
+            // supported object forms still work
+            const d0 = new TSDate(2024, 1, 1) ;
+            const d1 = d0.dateByAddingHours(1) ;
+            t.expectG($timeBetweenDates(d0, d1)).is(TSHour) ;
+            t.expectH($timeBetweenDates(d1, d0)).is(-TSHour) ;
+        }) ;
+        group.unary('d.firstDateOfYear()', async (t) => {
+            t.expect(D.firstDateOfYear().toString(full)).is("1945/01/01-00:00:00") ;
         });
         group.unary('d.lastDateOfYear()', async (t) => { 
             t.expect(D.lastDateOfYear().toString(full)).is("1945/12/31-00:00:00") ; 
@@ -372,7 +408,90 @@ export const dateGroups = [
         }) ;
 
 
-    })
+    }),
+
+    TSTest.group("TSDate — static factories, granular accessors, conversions", async (group) => {
+        const D = new TSDate(2020, 3, 15, 10, 20, 30) ;
+
+        group.unary('static factories', async (t) => {
+            t.expect0(TSDate.epoch().toIsoString()).is('1970-01-01T00:00:00') ;
+            t.expect1(TSDate.isDateSource(D)).true() ;
+            t.expect2(TSDate.isDateSource(new Date())).true() ;
+            t.expect3(TSDate.isDateSource('2020-03-15')).true() ;
+            t.expect4(TSDate.isDateSource(1234567)).true() ;
+            t.expect5(TSDate.isDateSource({})).false() ;
+            t.expect6(TSDate.from(D.timestamp)?.timestamp).is(D.timestamp) ;
+            t.expect7(TSDate.from('1966-04-13T12:05:22')?.toIsoString()).is('1966-04-13T12:05:22') ;
+            t.expect8(TSDate.from(new Date(2020, 2, 15))?.toIsoString()).is('2020-03-15T00:00:00') ;
+            t.expect9(TSDate.from(null)).null() ;
+            t.expectA(TSDate.from('garbage')).null() ;
+            t.expectB(TSDate.fromTimeStamp(D.timestamp)?.timestamp).is(D.timestamp) ;
+            t.expectC(TSDate.fromDate(new Date(2020, 2, 15))?.toIsoString()).is('2020-03-15T00:00:00') ;
+            t.expectD(TSDate.fromDate(null)).null() ;
+            t.expectE(TSDate.fromDateString('15/03/2020')?.toIsoString()).is('2020-03-15T00:00:00') ;
+            t.expectF(TSDate.fromDateString('nope')).null() ;
+        }) ;
+
+        group.unary('predicates', async (t) => {
+            t.expect0(new TSDate(2020, 1, 1).isLeap()).true() ;      // 2020 is a leap year
+            t.expect1(new TSDate(2021, 1, 1).isLeap()).false() ;
+            t.expect2(TSDate.future().isFuture()).true() ;
+            t.expect3(TSDate.past().isPast()).true() ;
+            t.expect4(D.isFuture()).false() ;
+            t.expect5(D.isPast()).false() ;
+            t.expect6(D.isFinite()).true() ;
+            t.expect7(TSDate.future().isFinite()).false() ;
+            t.expect8(TSDate.past().isFinite()).false() ;
+        }) ;
+
+        group.unary('granular dateByAdding* helpers', async (t) => {
+            t.expect0(D.dateByAddingYears(2).toIsoString()).is('2022-03-15T10:20:30') ;
+            t.expect1(D.dateByAddingMonths(-2).toIsoString()).is('2020-01-15T10:20:30') ;
+            t.expect2(D.dateByAddingDays(10).toIsoString()).is('2020-03-25T10:20:30') ;
+            t.expect3(D.dateByAddingMinutes(5).toIsoString()).is('2020-03-15T10:25:30') ;
+            t.expect4(D.dateByAddingSeconds(30).toIsoString()).is('2020-03-15T10:21:00') ;
+        }) ;
+
+        group.unary('numeric & Date conversions', async (t) => {
+            t.expect0(D.valueOf()).is(D.timestamp) ;
+            t.expect1(D.toNumber()).is(D.timestamp) ;
+            t.expect2(+D).is(D.timestamp) ;
+            t.expect3(D.toArray()).is([D]) ;
+            const ud = D.toUTCDate() ;
+            t.expect4(ud instanceof Date).true() ;
+            t.expect5(ud.getUTCFullYear()).is(2020) ;
+            t.expect6(ud.getUTCHours()).is(10) ;
+        }) ;
+    }),
+    TSTest.group("TSDate — constructor guards, dateByAdding edges, $timestamp & $weekOfYear", async (group) => {
+        group.unary('constructor rejects malformed arguments', async (t) => {
+            t.expect0(() => new TSDate(2020, 13, 1)).throws() ;
+            t.expect1(() => new (TSDate as any)(2020, 1, 1, 5)).throws() ;          // 4 args
+            t.expect2(() => new TSDate(2020, 1, 1, 25, 0, 0)).throws() ;            // bad hours
+            t.expect3(() => new (TSDate as any)(1, 2)).throws() ;                   // 2 args
+            t.expect4(() => new TSDate({} as any)).throws() ;                       // bad unique argument
+        }) ;
+
+        group.unary('dateByAdding month/year boundary & day clamping', async (t) => {
+            const D = new TSDate(2020, 3, 15, 10, 20, 30) ;
+            t.expect0(D.dateByAdding(0, -5).toIsoString()).is('2019-10-15T10:20:30') ;      // months < 1 -> previous year
+            t.expect1(new TSDate(2020, 1, 1).dateByAdding(-3000).isPast()).true() ;          // years < 1 -> past()
+            t.expect2(new TSDate(2020, 1, 31).dateByAdding(0, 1).toIsoString()).is('2020-02-29T00:00:00') ; // clamp to leap Feb
+            t.expect3(new TSDate(2021, 1, 31).dateByAdding(0, 1).toIsoString()).is('2021-02-28T00:00:00') ; // clamp to non-leap Feb
+            t.expect4(() => D.dateByAdding(1.5)).throws() ;                                  // non-integer argument
+        }) ;
+
+        group.unary('$timestamp() argument validation', async (t) => {
+            t.expect0(() => $timestamp(2020, 2, 30)).throws(/wrong day definition/) ;
+            t.expect1(() => $timestamp(2020, 1, 1, 25, 0, 0)).throws(/wrong time arguments/) ;
+        }) ;
+
+        group.unary('$weekOfYear() ISO edge weeks', async (t) => {
+            t.expect0($weekOfYear(new TSDate(2021, 1, 1).timestamp, 1)).is(53) ;   // belongs to previous year's week 53
+            t.expect1($weekOfYear(new TSDate(2020, 12, 31).timestamp, 1)).is(53) ;
+            t.expect2($weekOfYear(new TSDate(2018, 12, 31).timestamp, 1)).is(1) ;  // week 53 collapses to week 1
+        }) ;
+    }),
 ] ;
 
 interface DCouple {

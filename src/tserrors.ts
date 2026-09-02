@@ -1,4 +1,4 @@
-import { $isint, $isunsigned, $ok } from "./commons";
+import { $isint, $isunsigned, $length, $ok } from "./commons";
 import { $ftrim } from "./strings";
 import { TSLeafInspect } from "./tsobject";
 import { Resp } from "./tsrequest";
@@ -55,15 +55,14 @@ export class TSError extends Error {
     public static assert(condition:boolean, message:string, errorCode:Nullable<number|TSDictionary>):void ;
     public static assert(condition:boolean, message:string, info:Nullable<TSDictionary>, errorCode:Nullable<number>):void ;
     public static assert(condition:boolean, message:string, errorCode:Nullable<number>, info:Nullable<TSDictionary>):void ;
-    public static assert():void {
-		const n = arguments.length ;
-        switch (n) {
-            case 0: break ;
-            case 1: if (!arguments[0]) { throw new this(`${this.name}.assert() did fail`) ; } break ;
-            case 1: if (!arguments[0]) { throw new this(arguments[1]) ; } break ;
-            case 2: if (!arguments[0]) { throw new this(arguments[1], arguments[2]) ; } break ; 
-            default: if (!arguments[0]) { throw new this(arguments[1], arguments[2], arguments[3]) ; } break ; 
-        }        
+    public static assert(condition:boolean, ...rest:any[]):void {
+        if (condition) { return ; }
+        const message = $length(rest[0]) ? rest[0] as string : `${this.name}.assert() did fail` ;
+        switch (rest.length) {
+            case 0: case 1: throw new this(message) ;
+            case 2:         throw new this(message, rest[1]) ;
+            default:        throw new this(message, rest[1], rest[2]) ;
+        }
     }
 
     public constructor(message:string) ;

@@ -1,4 +1,4 @@
-import { $count, $defined, $isarray, $isbool, $isdataobject, $isdate, $isemail, $isfunction, $isint, $isnumber, $isobject, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok } from "./commons";
+import { $count, $defined, $isarray, $isbool, $isdataobject, $isdate, $isemail, $isfunction, $isint, $isipaddress, $isipv4, $isipv6, $isiterable, $isnumber, $isobject, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $ok, $string } from "./commons";
 import { $compare, $equal, $unorderedEqual } from "./compare";
 import { TSRange } from "./tsrange";
 import { TSRangeSet } from "./tsrangeset";
@@ -7,6 +7,7 @@ import { Ascending, Descending, Nullable, TSDictionary } from "./types";
 import { $inspect, $logterm, $term, $writeterm, $mark, $ellapsed } from "./utils";
 import { TSList } from "./tslist";
 import { $left } from "./strings";
+import { $isdirectory, $isfile } from "./fs";
 
 export type groupFN = (t:TSTestGroup) => Promise<void> ;
 export type unaryFN = (t:TSUnaryTest) => Promise<void> ;
@@ -26,6 +27,18 @@ export interface TSTesterOptions {
     listTests?:boolean ;
     stopItCallback?:(tester:TSTester) => Promise<void>
 }
+
+export interface TSTesterResult {
+    groups:number ;         // number of groups actually run
+    passed:number ;         // groups with no failed expectation
+    silent:number ;         // passed groups run in silent mode
+    failed:number ;         // groups with at least one failed expectation
+    expectations:number ;   // total expectations evaluated
+    failures:number ;       // total failed expectations
+    stopped:boolean ;       // run interrupted by stopOnFirstFail
+}
+
+const _emptyTesterResult:TSTesterResult = { groups:0, passed:0, silent:0, failed:0, expectations:0, failures:0, stopped:false } ;
 
 export class TSTester {
     public static globalOptions:TSTesterGlobalOptions = {} ;
@@ -81,11 +94,11 @@ export class TSTester {
         }
     }
 
-    public async run(opts:TSTesterOptions = {}) {
+    public async run(opts:TSTesterOptions = {}):Promise<TSTesterResult> {
 
         if (opts.listTests) {
             await this.dumpGroupsList(opts.clearScreen) ;
-            return ;
+            return { ..._emptyTesterResult } ;
         }
 
         const start = $mark() ;
@@ -137,6 +150,14 @@ export class TSTester {
                 this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
             }
         }
+
+        return {
+            groups: passed + silent + failed,
+            passed, silent, failed,
+            expectations,
+            failures: expectationsFailed,
+            stopped: stopit,
+        } ;
     }
 }
 
@@ -243,6 +264,7 @@ export class TSTestDescriptor extends TSGenericTest {
     }
 
 }
+export type TSUnaryTestCatch = (t:TSUnaryTest, e:Error) => Promise<void> ;
 export class TSUnaryTest extends TSGenericTest {
     public readonly group:TSTestGroup ;
     public logAllTests:boolean = false ;
@@ -250,6 +272,9 @@ export class TSUnaryTest extends TSGenericTest {
     private _failed:number = 0 ;
     private _passed:number = 0 ;
     private _expected:number = 0 ;
+    private _stopped:string|undefined = undefined ;
+    private _catched:boolean = false ;
+    private _catchFunction:TSUnaryTestCatch|undefined ;
     private _registrations:TSDictionary = {} ;
 
     public constructor(g:TSTestGroup, s:string, f:unaryFN, opts?:TSGenericTestOptions) {
@@ -258,16 +283,28 @@ export class TSUnaryTest extends TSGenericTest {
         if (opts?.focusGroup) { g.focused = true ; }
     }
 
+    public get stopped() { return $ok(this._stopped) ; }
+    public get catched() { return this._catched ; }
+
+    public set catchFunction(fn:TSUnaryTestCatch) { this._catchFunction = fn ; }
+
     public description(str:string) { this.group.description(str) ; }
     public override log(format:string, ...args:any[]) { super.log('    '+format, args) ; }
 
     public override async run():Promise<[number, number, boolean]> {
         this._passed = 0 ;
         this._failed = 0 ;
+        this._stopped = undefined ;
+        this._catched = false ;
 
         if (!this.silent) { $writeterm(`&x     ➤ &ltesting &B&w ${this.desc} &0`) ; }
 
-        await this.fn(this) ;
+        try { await this.fn(this) ; }
+        catch (e) {
+            this._catched = true ;
+            if ($ok(this._catchFunction)) { await this._catchFunction(this, e as Error) ; }
+            else { throw e ; }
+        }
 
         if (!this.silent) {
             if (this._failed > 0) { 
@@ -350,6 +387,9 @@ export class TSUnaryTest extends TSGenericTest {
     public fail():boolean { this._failed ++ ; return false ; }
     public pass():boolean { this._passed ++ ; return true ; }
 
+    public stop(reason?:Nullable<string>) { 
+        this._stopped = $length(reason) ? reason! : "By user command." ; 
+    }
 }
 
 export class TSExpectAgent {
@@ -375,20 +415,26 @@ export class TSExpectAgent {
     public toBeNotOK():boolean          { return $ok(this._value)           ? this._elogfail('<a null or undefined value>') : this._logpass() ; }
 
     public toBeNaN():boolean            { return !isNaN(this._value)        ? this._elogfail(NaN)                : this._logpass() ; }
-    public toBeANumber():boolean        { return !$isnumber(this._value)    ? this._elogfail('<a valid number>') : this._logpass() ; }
-    public toBeAnInt():boolean          { return !$isint(this._value)       ? this._elogfail('<an integer>')     : this._logpass() ; }
-    public toBeAnUnsigned():boolean     { return !$isunsigned(this._value)  ? this._elogfail('<an unsigned>')    : this._logpass() ; }
-    public toBeAString():boolean        { return !$isstring(this._value)    ? this._elogfail('<a string>')       : this._logpass() ; }
-    public toBeBool():boolean           { return !$isbool(this._value)      ? this._elogfail('<a boolean>')      : this._logpass() ; }
-
-    public toBeAnEmail():boolean        { return !$isemail(this._value)     ? this._elogfail('<an email>')       : this._logpass() ; }
-    public toBeAnUrl():boolean          { return !$isurl(this._value)       ? this._elogfail('<an url>')         : this._logpass() ; }
-    public toBeAnUUID():boolean         { return !$isuuid(this._value)      ? this._elogfail('<an UUID>')        : this._logpass() ; }
-
-    public toBeAnObject():boolean       { return !$isobject(this._value)    ? this._elogfail('<an object>')      : this._logpass() ; }
-    public toBeArray():boolean          { return !$isarray(this._value)     ? this._elogfail('<an array>')       : this._logpass() ; }
-    public toBeADate():boolean          { return !$isdate(this._value)      ? this._elogfail('<a date>')         : this._logpass() ; }
-    public toBeAFunction():boolean      { return !$isfunction(this._value)  ? this._elogfail('<a function>')     : this._logpass() ; }
+    public toBeANumber():boolean        { return this._toBe('a valid number>', $isnumber) ; }
+    public toBeAnInt():boolean          { return this._toBe('an integer>', $isint) ; }
+    public toBeAnUnsigned():boolean     { return this._toBe('an unsigned>', $isunsigned) ; }
+    public toBeAString():boolean        { return this._toBe('a string>', $isstring) ; }
+    public toBeBool():boolean           { return this._toBe('a boolean>', $isbool) ; }
+    public toBeAnEmail():boolean        { return this._toBe('an email>', $isemail) ; }
+    public toBeAnUrl():boolean          { return this._toBe('an url>', $isurl) ; }
+    public toBeAnUUID():boolean         { return this._toBe('an UUID>', $isuuid) ; }
+    public toBeAnObject():boolean       { return this._toBe('an object>', $isobject) ; }
+    public toBeArray():boolean          { return this._toBe('an array>', $isarray) ; }
+    public toBeADate():boolean          { return this._toBe('a date>', $isdate) ; }
+    public toBeIterable():boolean       { return this._toBe('an iterable object', $isiterable) ;; }
+    public toBeAFunction():boolean      { return this._toBe('a function>', $isfunction) ; }
+    public toBeAFile():boolean          { return this._toBe('a file>', $isfile) ; }
+    public toBeADirectory():boolean     { return this._toBe('a folder>', $isdirectory) ; }
+    public toBeAnIPv4():boolean         { return this._toBe('a folder>', $isipv4) ; }
+    public toBeAnIPv6():boolean         { return this._toBe('a folder>', $isipv6) ; }
+    public toBeAnIPAddress():boolean    { return this._toBe('a folder>', $isipaddress) ; }
+    public toBeAPhoneNumber():boolean   { return this._toBe('a phone number>', $isphonenumber) ; }
+    public toBeADataObject():boolean    { return this._toBe('a data object', $isdataobject) ; }
 
     public toBeEmpty():boolean {
         if (this._value instanceof Set) { return this._value.size > 0       ? this._elogfail('<an empty Set>')   : this._logpass() ; }
@@ -423,6 +469,34 @@ export class TSExpectAgent {
     public toBeUnordered(aValue:Set<any>|Array<any>)
     { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._step.pass() ; }
 
+    // the tested value must be a 0-ary function ; it is invoked and the assertion
+    // passes if it throws. An optional matcher constrains the thrown value :
+    //   - a RegExp is tested against the error message (or its string form)
+    //   - a string must be a substring of that message
+    //   - a function is used as a predicate on the thrown value
+    public toThrow(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean {
+        if (!$isfunction(this._value)) { return this._elogfail('<a function to invoke>') ; }
+        let thrown:any = undefined ;
+        let didThrow = false ;
+        try { this._value() ; } catch (e) { didThrow = true ; thrown = e ; }
+        if (!didThrow) { return this._elogfail('<the function to throw>') ; }
+        return _errorMatches(thrown, matcher) ? this._logpass() : this._elogfail(`<a thrown value matching ${$inspect(matcher)}>`) ;
+    }
+
+    public notToThrow():boolean {
+        if (!$isfunction(this._value)) { return this._elogfail('<a function to invoke>') ; }
+        try { this._value() ; } catch (e) { return this._elogfail(`<no error but got ${$inspect(e)}>`) ; }
+        return this._logpass() ;
+    }
+
+    // async variant : the tested value must be a function returning a promise
+    // (or a promise itself) ; the assertion passes if the promise rejects.
+    public async toReject(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):Promise<boolean> {
+        try { await ($isfunction(this._value) ? this._value() : this._value) ; }
+        catch (e) { return _errorMatches(e, matcher) ? this._logpass() : this._elogfail(`<a rejection matching ${$inspect(matcher)}>`) ; }
+        return this._elogfail('<the promise to reject>') ;
+    }
+
     public eq = this.toBe ;
     public neq = this.notToBe ;
 
@@ -432,18 +506,45 @@ export class TSExpectAgent {
     public lte(aValue:any):boolean      { return $compare(aValue, this._value) === Ascending  ? this._compfail(aValue, '≤') : this._logpass() ; }
 
     // simpler methods
-    public is = this.toBe ;
-    public isnot = this.notToBe ;
-    public OK = this.toBeOK ;
-    public KO = this.toBeNotOK ;
-    public def = this.toBeDefined ;
-    public undef = this.toBeUndefined ;
-    public notnull = this.toBeNotNull ;
-    public null = this.toBeNull ;
-    public empty = this.toBeEmpty ;
-    public filled = this.toBeNotEmpty ;
-    public true = this.toBeTruthy ;
-    public false = this.toBeFalsy ;
+    public is           = this.toBe ;
+    public isnot        = this.notToBe ;
+    public OK           = this.toBeOK ;
+    public KO           = this.toBeNotOK ;
+    public def          = this.toBeDefined ;
+    public undef        = this.toBeUndefined ;
+    public notnull      = this.toBeNotNull ;
+    public null         = this.toBeNull ;
+    public empty        = this.toBeEmpty ;
+    public filled       = this.toBeNotEmpty ;
+    public true         = this.toBeTruthy ;
+    public false        = this.toBeFalsy ;
+    public isnumber     = this.toBeANumber ;
+    public isint        = this.toBeAnInt ;
+    public isuint       = this.toBeAnUnsigned ;
+    public isstring     = this.toBeAString ;
+    public isbool       = this.toBeBool ;
+    public isemail      = this.toBeAnEmail ;
+    public isurl        = this.toBeAnUrl ;
+    public isuuid       = this.toBeAnUUID ;
+    public isobject     = this.toBeAnObject ;
+    public isiterable   = this.toBeIterable ;
+    public isarray      = this.toBeArray ;
+    public isdate       = this.toBeADate ;
+    public isfunction   = this.toBeAFunction ;
+    public isfile       = this.toBeAFile ;
+    public isdir        = this.toBeADirectory ;
+    public isipv4       = this.toBeAnIPv4 ;
+    public isipv6       = this.toBeAnIPv6 ;
+    public isip         = this.toBeAnIPAddress ;
+    public isphone      = this.toBeAPhoneNumber ;
+    public isdata       = this.toBeADataObject ;
+    public throws       = this.toThrow ;
+    public doesNotThrow = this.notToThrow ;
+    public rejects      = this.toReject ;
+
+    private _toBe(t:string,f:(x:any)=>boolean):boolean { 
+        return !f(this._value) ? this._elogfail(`<${t}>`) : this._logpass() ;
+    }
 
     private _logpass():boolean {
         if (this._step.logAllTests) {
@@ -478,5 +579,13 @@ export class TSExpectAgent {
         $writeterm(`\n&y${this._message}&0 `) ;
         return l > 0 ? "".padStart(l+1, " ") : "" ;
     }
+}
+
+function _errorMatches(thrown:any, matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean {
+    if (!$ok(matcher)) { return true ; }
+    if ($isfunction(matcher)) { return !!(matcher as (e:any)=>boolean)(thrown) ; }
+    const message = $isstring(thrown) ? thrown : $string((thrown as any)?.message ?? thrown) ;
+    if (matcher instanceof RegExp) { return matcher.test(message) ; }
+    return message.indexOf(matcher as string) >= 0 ;
 }
 

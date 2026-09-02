@@ -124,5 +124,54 @@ export const rangeGroups = [
             t.expect3(TSRange.make(1,2).continuousWith(TSRange.make(4,8))).false() ;
             t.expect4(TSRange.make(1,2).continuousWith(TSRange.make(-2,2))).false() ;
         }) ;
+    }),
+    TSTest.group("TSRange — constructor guards, setters & TSObject conformance", async (group) => {
+        const significantInterval = { range:new TSRange(3, 4), hasSignificantRange:true, isValid:true, isEmpty:false } ;
+        const emptyInterval = { range:TSRange.make(0, 0), hasSignificantRange:false, isValid:false, isEmpty:true } ;
+        const hugeInterval = { range:{ location:Number.MAX_SAFE_INTEGER, length:10 } as any, hasSignificantRange:true, isValid:true, isEmpty:false } ;
+
+        group.unary(`constructor rejects bad arguments`, async (t) => {
+            t.expect0(() => new (TSRange as any)()).throws() ;                       // no arguments
+            t.expect1(() => new (TSRange as any)(5)).throws() ;                      // only location
+            t.expect2(() => new TSRange([1, 2, 3] as any)).throws() ;               // not a range array
+            t.expect3(() => new TSRange([NaN, 3] as any)).throws() ;                // bad range array
+            t.expect4(() => new TSRange(hugeInterval)).throws() ;                   // interval too large
+            t.expect5(() => new TSRange(new TSDate(2000, 1, 2), new TSDate(2000, 1, 1))).throws() ; // anterior date
+            t.expect6(() => new TSRange(1.5, 2)).throws() ;                         // non-int location
+            t.expect7(() => new (TSRange as any)(1, 2, 3)).throws() ;               // too many arguments
+        }) ;
+
+        group.unary(`constructor accepts interval shapes`, async (t) => {
+            t.expect0(new TSRange(significantInterval).isEqual(new TSRange(3, 4))).true() ;
+            const bad = new TSRange(emptyInterval) ;
+            t.expect1(bad.isValid).false() ;
+            t.expect2(bad.length).is(0) ;
+        }) ;
+
+        group.unary(`location / length setters`, async (t) => {
+            const r = new TSRange(2, 5) ;
+            r.location = NaN ;
+            t.expect0(r.isValid).false() ;
+            t.expect1(r.length).is(0) ;
+            const r2 = new TSRange(2, 5) ;
+            r2.length = NaN ;
+            t.expect2(r2.isValid).false() ;
+            t.expect3(r2.length).is(0) ;
+            t.expect4(() => { new TSRange(2, 5).location = 1.5 ; }).throws() ;
+            t.expect5(() => { new TSRange(2, 5).length = -1 ; }).throws() ;
+            const r3 = new TSRange(2, 5) ;
+            r3.location = 10 ;
+            t.expect6(r3.location).is(10) ;
+        }) ;
+
+        group.unary(`get range / contains(number) / JSON forms`, async (t) => {
+            const r = new TSRange(4, 6) ;
+            t.expect0(r.range).is(r) ;
+            t.expect1(r.contains(5)).true() ;
+            t.expect2(r.contains(20)).false() ;
+            t.expect3(r.toJSON()).is({ location:4, length:6 }) ;
+            t.expect4(r.toString()).is('{\n  "location": 4,\n  "length": 6\n}') ;
+            t.expect5(r.toArray()).is([r]) ;
+        }) ;
     })
 ] ;
