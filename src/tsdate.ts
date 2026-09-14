@@ -199,13 +199,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     public valueOf():number { return this._timestamp ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        if (hint === "number" || hint === "default") {
-          return this._timestamp ;
-        }
-        if (hint === "string") {
-          return this.toIsoString() ;
-        }
-        return null;
+        return hint === 'string' ? this.toIsoString() : this._timestamp ;
     }
 
     public isLeap() : boolean { return $isleap($components(this._timestamp).year); }

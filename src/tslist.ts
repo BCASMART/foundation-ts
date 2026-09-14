@@ -22,7 +22,7 @@ export class TSListNode<T> implements TSObject {
     }
 	public toJSON():any { return $jsonobj(this.data) ; }
 	public toString():string { return $string(this.data) ; }
-	public toArray():any[] { return [this] ; }
+	public toArray():any[] { return [this.data] ; }
 }
 
 export interface TSListToStringOptions<T> {

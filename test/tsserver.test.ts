@@ -12,6 +12,7 @@ import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
 import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
 import { TSServerEndPoint } from "../src/tsserver_endpoints";
+import { TSStaticWebsite } from "../src/tsserver_websites";
 import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
 import { TSObjectNode, TSParser } from "../src/tsparser";
 import { TSColor } from "../src/tscolor";
@@ -441,6 +442,155 @@ if (!$inbrowser()) {
                 t.expect3($length(resp.headers.get('access-control-allow-methods'))).gt(0) ;
             }
             finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServer — developer logging & request-validation errors", async (group) => {
+        const port = 8402 as uint16 ;
+        const base = `http://localhost:${port}/` ;
+        // Developer log level + the default internal logger exercises the debug/logme code paths
+        const opts:TSServerOptions = { port, logLevel:TSServerLogLevel.Developer } ;
+
+        const endpoints:any = {
+            '/echo': {
+                GET: {
+                    controller: async (req:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ q:req.query }) ; },
+                    query: { _mandatory:true, n:'uint32!' },
+                },
+                POST: {
+                    controller: async (req:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ b:req.body }) ; },
+                    body: { _mandatory:true, name:'string!' },
+                },
+            },
+            '/p/{id:int}': {
+                GET: async (req:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ id:req.parameters['id'] }) ; },
+            },
+        } ;
+
+        group.unary('successful requests with developer logging', async (t) => {
+            const st = await TSServer.start(endpoints as any, opts) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+
+                const g = await client.req('echo?n=7', Verb.Get, RespType.Json) ;
+                t.expect1(g.status).is(Resp.OK) ;
+                t.expect2((g.response as any).q.n).is(7) ;
+
+                const p = await client.req('echo', Verb.Post, RespType.Json, { name:'Bob' }) ;
+                t.expect3(p.status).is(Resp.OK) ;
+                t.expect4((p.response as any).b.name).is('Bob') ;
+
+                const par = await client.req('p/42', Verb.Get, RespType.Json) ;
+                t.expect5(par.status).is(Resp.OK) ;
+                t.expect6((par.response as any).id).is(42) ;
+                t.expectC((await client.req('p/notanumber', Verb.Get, RespType.OptionalJson)).status).is(Resp.BadRequest) ; // bad path param
+
+                // default preflight controller (no custom preflightController in opts)
+                const pf = await client.req('echo', 'OPTIONS' as Verb, RespType.String, null, {
+                    'origin':'https://x.example',
+                    'access-control-request-method':'GET',
+                    'access-control-allow-headers':'x-custom',
+                }) ;
+                t.expect7(pf.status).is(Resp.NoContent) ;
+
+                // clearCaches on a running server
+                await TSServer.clearCaches() ;
+                t.expect8(await TSServer.isRunning()).true() ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('request-validation error responses', async (t) => {
+            const st = await TSServer.start(endpoints as any, opts) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+
+                t.expect1((await client.req('echo?n=notanumber', Verb.Get, RespType.OptionalJson)).status).is(Resp.BadRequest) ; // bad query
+                t.expect2((await client.req('echo', Verb.Post, RespType.OptionalJson, { wrong:'shape' })).status).is(Resp.BadRequest) ; // bad body
+                t.expect3((await client.req('echo', Verb.Post, RespType.OptionalJson, 'not json{', { 'content-type':'application/json' })).status).is(Resp.BadRequest) ; // bad JSON
+                t.expect4((await client.req('p/notanint', Verb.Get, RespType.OptionalJson)).status).is(Resp.BadRequest) ;   // bad path parameter
+                t.expect5((await client.req('echo', Verb.Delete, RespType.OptionalJson)).status).gte(Resp.BadRequest) ; // method not implemented on that endpoint
+                t.expect6((await client.req('nowhere', Verb.Get, RespType.OptionalJson)).status).is(Resp.NotFound) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServer — preflight refusal, default port, forbidden root", async (group) => {
+        group.unary('OPTIONS refused when the preflight controller returns nothing', async (t) => {
+            const port = 8404 as uint16 ;
+            const st = await TSServer.start(
+                { '/x': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; } } as any,
+                { port, logLevel:TSServerLogLevel.Warnings, preflightController: async () => null as any },
+            ) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(`http://localhost:${port}/`) ;
+                const resp = await client.req('x', 'OPTIONS' as Verb, RespType.String, null, {
+                    'origin':'https://y.example',
+                    'access-control-request-method':'GET',
+                }) ;
+                t.expect1(resp.status).is(Resp.NotAllowed) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('default port (3000) and forbidden root', async (t) => {
+            const st = await TSServer.start(
+                { '/here': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; } } as any,
+                { logLevel:TSServerLogLevel.None },   // no port -> defaults to 3000
+            ) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest('http://localhost:3000/') ;
+                t.expect1((await client.req('', Verb.Get, RespType.OptionalJson)).status).is(Resp.Forbidden) ; // root not accessible
+                t.expect2((await client.req('here', Verb.Get, RespType.OptionalJson)).status).is(Resp.NoContent) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSStaticWebsite — cache / blacklist / clearCaches", async (group) => {
+        const folder = $absolute('test/main') ;
+
+        group.unary('constructor validation', async (t) => {
+            t.expect0(() => new TSStaticWebsite('', folder)).throws(/url not defined/) ;
+            t.expect1(() => new TSStaticWebsite('/', '/no/such/folder/anywhere')).throws(/was not found on disk/) ;
+            t.expect2(new TSStaticWebsite('/', folder).folder).is(folder) ;
+        }) ;
+
+        group.unary('resource resolution, cache hit, blacklist and clearCaches', async (t) => {
+            const site = new TSStaticWebsite('/', { folder } as any) ;
+
+            const [b1, type1] = site.getStaticResource('/index.html') ;
+            t.expect0(b1).OK() ;
+            t.expect1(type1).is('text/html') ;
+
+            const [b2] = site.getStaticResource('/index.html') ;   // served from cache this time
+            t.expect2(b2).is(b1) ;
+
+            const [bmiss, tmiss] = site.getStaticResource('/does-not-exist.html') ; // -> blacklisted
+            t.expect3(bmiss).undef() ;
+            t.expect4(tmiss).is('text/html') ;
+
+            const [bmiss2] = site.getStaticResource('/does-not-exist.html') ;        // still blacklisted, no read
+            t.expect5(bmiss2).undef() ;
+
+            const [bunknown, tunknown] = site.getStaticResource('/thing.unknownext') ; // no known mime -> nothing
+            t.expect6(bunknown).undef() ;
+            t.expect7(tunknown).is('') ;
+
+            const [boutside] = site.getStaticResource('/other/path.html') ;          // outside site uri prefix logic
+            t.expect8(boutside).undef() ;
+
+            site.clearCaches() ;                                                     // exercise cache eviction
+            const [b3] = site.getStaticResource('/index.html') ;                     // usage was reset then re-read/cached
+            t.expect9(b3).OK() ;
+            site.clearCaches() ;
+            site.clearCaches() ;                                                     // second pass drops the now-unused entry
+            t.expectA(true).true() ;
         }) ;
     })) ;
 }

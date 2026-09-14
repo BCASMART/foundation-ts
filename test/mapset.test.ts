@@ -1,5 +1,6 @@
 import { TSTest } from "../src/tstester";
-import "../src/mapset"
+import { $conditionalClearMap, $conditionalClearSet } from "../src/mapset"
+import { Same } from "../src/types"
 
 export const mapsetGroups = TSTest.group("Commons map and set additions", async (group) => {
     const base = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0,1,2,3,4,5,6,7,8,9".split(',') ;
@@ -53,6 +54,27 @@ export const mapsetGroups = TSTest.group("Commons map and set additions", async 
         t.expect6(new Set([undefined,undefined]).length).is(1) ;
         t.expect7(new Set([13,13]).length).is(1) ;
     }) ;
+    group.unary("Set/Map compare(), Map.toArray() and null-guarded conditionalClear", async (t) => {
+        const s1 = new Set([1, 2, 3]) ;
+        const s2 = new Set([3, 2, 1]) ;
+        const s3 = new Set([1, 2]) ;
+        t.expect0(s1.compare(s2)).is(Same) ;
+        t.expect1(s1.compare(s3)).is(undefined) ;
+        t.expect2(s1.compare(42)).is(undefined) ;               // not a Set
+
+        const m1 = new Map<string, number>([['a', 1], ['b', 2]]) ;
+        const m2 = new Map<string, number>([['b', 2], ['a', 1]]) ;
+        const m3 = new Map<string, number>([['a', 1]]) ;
+        t.expect3(m1.compare(m2)).is(Same) ;
+        t.expect4(m1.compare(m3)).is(undefined) ;
+        t.expect5(m1.compare('x')).is(undefined) ;              // not a Map
+        t.expect6(m1.toArray()).is([['a', 1], ['b', 2]]) ;
+
+        // null / undefined sources -> UINT_MIN (0), no throw
+        t.expect7($conditionalClearSet(null, () => true)).is(0) ;
+        t.expect8($conditionalClearMap(undefined, () => true)).is(0) ;
+    }) ;
+
     group.unary("Set.singular() method", async (t) => {
         t.expect0(new Set([]).singular()).false() ;
         t.expect1(new Set([10]).singular()).true() ;

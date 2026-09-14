@@ -317,6 +317,21 @@ export const qualifierGroups = [
             t.expect3(and.conditions().length).is(1) ;
         }) ;
 
+        group.unary('instance comparison / set / not / ko builders', async (t) => {
+            const q = TSQualifier.AND<People>() ;
+            q.isNot('lastName', 'x') ;
+            q.gt('age' as any, 10) ;
+            q.lt('age' as any, 90) ;
+            q.lte('age' as any, 89) ;
+            q.in('lastName', ['a', 'b']) ;
+            q.nin('lastName', ['c']) ;
+            q.ko('firstName') ;
+            t.expect0(q.conditions().length).gt(6) ;
+
+            const notq = TSQualifier.AND<People>().not({ lastName:'y' } as any) ;
+            t.expect1(notq.conditions().length).gt(0) ;
+        }) ;
+
         group.unary('validateValue() with a per-condition callback (raw dict conditions)', async (t) => {
             const q = TSQualifier.AND<People>([{ minAge:20 } as any]) ;
             const cb = (p:People, cond:any) => (p.age ?? 0) >= cond.minAge ;

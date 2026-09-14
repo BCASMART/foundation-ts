@@ -339,13 +339,9 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public toNumber():number { return this.valueOf() ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        if (hint === "number" || hint === "default") {
-            return this.valueOf() ; // convert in a RGB number for comparison
-        }
-        if (hint === "string") {
-          return this.toString() ;
-        }
-        return null ;
+        const [R,G,B] = this.rgb() ;
+        if (hint === "string") { return _colorToStandardCSS(R, G, B, this.alpha) ; }
+        return ((0xff - this.alpha) << 24) | (R << 16) | (G << 8) | B ;
     }
 
     public isSimilar(other:TSColor):boolean {

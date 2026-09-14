@@ -42,6 +42,9 @@ export interface TSFusionOptions {
     errors?:Nullable<string[]> ;
     addStandardGlobalFunctions?:Nullable<boolean> ;
 }
+
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
 export class TSFusionTreeNode {
     type:TSFusionNodeType ;
     value?:string|Bytes  ;
@@ -68,6 +71,12 @@ export class TSFusionTreeNode {
         }
     }
     
+    public toString():string { return `[FusionNode ${this.label}]` ; }
+    public leafInspect(): string  { return this.toString() ; }
+
+    // @ts-ignore
+    [customInspectSymbol]() { return this.leafInspect() ; }
+
     public get isContainerVariable() {
         return this.type === TSFusionNodeType.Test || this.type === TSFusionNodeType.NegativeTest || this.type === TSFusionNodeType.Enumeration ;
     }

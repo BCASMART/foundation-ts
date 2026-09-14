@@ -491,6 +491,13 @@ export const dateGroups = [
             t.expect1($weekOfYear(new TSDate(2020, 12, 31).timestamp, 1)).is(53) ;
             t.expect2($weekOfYear(new TSDate(2018, 12, 31).timestamp, 1)).is(1) ;  // week 53 collapses to week 1
         }) ;
+
+        group.unary('Date prototype extensions', async (t) => {
+            const d = new Date(2021, 5, 1) ;
+            t.expect0(d.toArray()).is([d]) ;
+            t.expect1(d.toDate()).is(d) ;
+            t.expect2(d.toTSDate() instanceof TSDate).true() ;
+        }) ;
     }),
 ] ;
 

@@ -1,10 +1,12 @@
 import { TSDate } from "../src/tsdate";
 import { TSDictionary } from "../src/types";
-import { $barerauth, $basicauth, $generateMultiPartBodyString, $query, TSMultipartEntry, TSRequest } from "../src/tsrequest";
+import { $barerauth, $basicauth, $generateMultiPartBodyString, $query, Resp, RespType, TSMultipartEntry, TSRequest, Verb } from "../src/tsrequest";
 
 import { TSTest } from '../src/tstester';
 import { $password } from "../src/crypto";
 import { $length } from "../src/commons";
+import { TSData } from "../src/tsdata";
+import { $inbrowser } from "../src/utils";
 
 export const requestGroups = [
 
@@ -138,3 +140,51 @@ TSTest.group("TSRequest — construction & auth", async (group) => {
 }),
 
 ] ;
+
+// These exercise TSRequest.req() itself. In a browser, a refused fetch throws an
+// opaque "Failed to fetch" that req() rethrows, so keep them Node-only.
+if (!$inbrowser()) {
+requestGroups.push(TSTest.group("TSRequest.req() — body encoding & error mapping (no server)", async (group) => {
+    // a base URL pointing at a port nobody listens on -> every request fails fast with ECONNREFUSED
+    const dead = () => new TSRequest('http://127.0.0.1:59999/', { timeout:600 }) ;
+
+    group.unary('rejects invalid arguments before touching the network', async (t) => {
+        const r = new TSRequest('http://127.0.0.1:59999/') ;
+        await t.expect0(r.req('/x', Verb.Post, RespType.Json, Symbol('nope') as any)).rejects(/impossible to send/) ;
+        await t.expect1(r.req('/x', Verb.Get, RespType.Json, null, {}, -3)).rejects(/should be positive/) ;
+    }) ;
+
+    group.unary('encodes number / boolean / URLSearchParams / TSData bodies', async (t) => {
+        const r = dead() ;
+        const a = await r.req('/n', Verb.Post, RespType.Json, 42) ;               // number -> JSON.stringify
+        t.expect0(a.response).null() ;
+        const b = await r.req('/b', Verb.Post, RespType.Json, false) ;            // boolean -> JSON.stringify
+        t.expect1(b.response).null() ;
+        const c = await r.req('/u', Verb.Post, RespType.Json, new URLSearchParams('x=1&y=2')) ; // -> urlencoded
+        t.expect2(c.response).null() ;
+        const d = await r.req('/d', Verb.Post, RespType.Json, TSData.fromString('payload')) ;   // TSData body
+        t.expect3(d.response).null() ;
+        const e = await r.req('/s', Verb.Post, RespType.Json, { hello:'world' }) ;               // plain object -> JSON
+        t.expect4(e.response).null() ;
+    }) ;
+
+    group.unary('maps connection-refused to Misdirected across response types', async (t) => {
+        const r = dead() ;
+        for (const [i, rt] of [RespType.String, RespType.Buffer, RespType.Json, RespType.OptionalJson, RespType.Stream].entries()) {
+            const res = await r.req('/', Verb.Get, rt) ;
+            t.expect(res.status, `rt-${i}`).is(Resp.Misdirected) ;
+        }
+    }) ;
+
+    group.unary('token / basicAuth / credentials branches are applied', async (t) => {
+        const r = dead() ;
+        r.setToken('T') ;
+        r.managesCredential = true ;
+        t.expect0((await r.req('/', Verb.Get, RespType.String)).status).is(Resp.Misdirected) ;
+
+        const r2 = dead() ;
+        r2.setAuth({ login:'u', password:'p' }) ;
+        t.expect1((await r2.req('/', Verb.Get, RespType.String)).status).is(Resp.Misdirected) ;
+    }) ;
+})) ;
+}

@@ -19,6 +19,11 @@ class P {
     // @ts-ignore
     public square(n:number) { return n*n ; }
 
+    // @ts-ignore
+    @TSTrace
+    // @ts-ignore
+    public boom():void { throw new Error('kaboom') ; }
+
 }
 
 export const decoratorGroups = TSTest.group("Decorators", async (group) => {
@@ -55,8 +60,17 @@ export const decoratorGroups = TSTest.group("Decorators", async (group) => {
             '---- done ----',
         ]) ;
 
+        // a traced method that throws must log the error and rethrow it
+        let threw = false ;
+        try { p1.boom() ; } catch (e) { threw = (e as Error).message === 'kaboom' ; }
+        t.expect4(threw).true() ;
+        t.expect5(logs.some(l => l.includes('did encounter error'))).true() ;
+
         TSTracer.log = TSTracer.originalLog ;
         TSTracer.write = TSTracer.originalWrite ;
+
+        // exercise the default sinks (originalLog / originalWrite)
+        t.expect6(() => { TSTracer.originalLog('') ; TSTracer.originalWrite('') ; }).doesNotThrow() ;
 
     }) ;
 }) ;

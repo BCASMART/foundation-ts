@@ -635,7 +635,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
     public toArray(): number[] { return [this.minX, this.minY, this.maxX, this.maxY] ; }
 
     // ============ TSLeafInspect conformance =============== 
-    leafInspect = this.toString ;
+    public leafInspect():string { return this.toString() ; }
 
     // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {

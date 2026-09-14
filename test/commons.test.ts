@@ -1,5 +1,5 @@
 
-import { $address, $array, $defined, $dict, $email, $fusion, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $keys, $lengthin, $objectMap, $ok, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID } from "../src/commons";
+import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -270,6 +270,12 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect1($keys(DICT)).is(['a', 'b', 'c']) ;
         t.expect2($keys(DICT_B)).is(['a', 'd', 'e', 'f', 'g', 'h']) ;
         t.expect3($keys(DICT_C)).is(['a', 'd', 'e', 'f', 'g', 'h', 'c', 'b']) ;
+        // 4, 5, 6 : regression test: $keys() used to use Object.getOwnPropertyNames() 
+        // which would leak an Array's own, non-enumerable "length". 
+        // New implementation only returns enumerable keys.
+        t.expect4($keys([10, 20, 30])).is(['0', '1', '2']) ;
+        t.expect5($keys([10, 20, 30]).length).is(3) ;
+        t.expect6($objectcount([10, 20, 30])).is(3) ;
     }) ;
 
     group.unary("$dict() function", async(t) => {
@@ -281,14 +287,85 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect1($includesdict(DICT, SUB)).true() ;
         t.expect2($includesdict(DICT, SUB, ['c'])).true() ;
         t.expect3($includesdict(DICT, SUB, ['a', 'd'])).true() ; // because 'd' key is absent on both dicts
+        t.expect4($includesdict(DICT, { a:'not-the-right-value' })).false() ; // value mismatch
+        t.expect5($includesdict({}, {})).false() ;                            // nothing to check -> false
+        t.expect6($includesdict(null, { a:1 })).false() ;                     // null source -> false
     }) ;
-    
+
     group.unary("$fusion() function", async(t) => {
-        const [fusion1,] = $fusion(DICT, DICT_B) ; 
+        const [fusion1,] = $fusion(DICT, DICT_B) ;
         t.expect1(fusion1).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
 
-        const [fusion2,] = $fusion(DICT, DICT_C) ; 
+        const [fusion2,] = $fusion(DICT, DICT_C) ;
         t.expect2(fusion2).is({a:'A', b:'b', c:'c', d:'D', h:[0,1]}) ;
+
+        // custom array / object fusion callbacks
+        const [fusion3,] = $fusion({ h:[1, 2], o:{ x:1 } }, { h:[3, 4], o:{ y:2 } }, {
+            fusionArrays:(a, b) => [...a, ...b],
+            fusionObjects:(a, b) => ({ ...a, ...b }),
+        }) ;
+        t.expect3(fusion3).is({ h:[1, 2, 3, 4], o:{ x:1, y:2 } }) ;
+
+        // a non-string property name is rejected
+        t.expect4(() => $fusion({ a:1 }, { b:2 }, { B:{ properties:[Symbol('nope')] as any } }))
+            .throws(/valid string properties/) ;
+    }) ;
+
+    group.unary("$intornull() / $unsignedornull() / $toint() / $tounsigned() — bigint inputs", async(t) => {
+        const HUGE = 10n ** 40n ;
+
+        t.expect0($intornull(7n)).is(7) ;
+        t.expect1($intornull(HUGE)).null() ;
+        t.expect2($intornull(-HUGE)).null() ;
+
+        t.expect3($unsignedornull(7n)).is(7) ;
+        t.expect4($unsignedornull(-3n)).null() ;
+        t.expect5($unsignedornull(HUGE)).null() ;
+
+        t.expect6($toint(7n)).is(7) ;
+        t.expect7($toint(HUGE)).is(0) ;
+        t.expect8($toint(HUGE, 42 as any)).is(42) ;
+
+        t.expectA($tounsigned(7n as any)).is(7) ;
+        t.expectB($tounsigned(-5n as any)).is(0) ;
+        t.expectC($tounsigned(HUGE as any)).is(0) ;
+    }) ;
+
+    group.unary("$jsonobj() — symbol / function fall-through", async(t) => {
+        t.expect0($jsonobj(Symbol('x'))).undef() ;
+        t.expect1($jsonobj(() => 1)).undef() ;
+        t.expect2($jsonobj(null)).null() ;
+        t.expect3($jsonobj(42)).is(42) ;
+        t.expect4($jsonobj({ a:1 })).is({ a:1 }) ;   // object case
+        t.expect5($jsonobj(true)).is(true) ;         // boolean case
+    }) ;
+
+    group.unary("commons — remaining small branches", async(t) => {
+        // $objectcount / $count with Map & Set operands
+        t.expect0($objectcount(new Map([['a', 1], ['b', 2]]))).is(2) ;
+        t.expect1($count(new Set([1, 2, 3]))).is(3) ;
+
+        // $isurl via the URL instance arm
+        t.expect2($isurl(new URL('http://example.org/'))).true() ;
+
+        // $hasproperties: empty prop name and missing property
+        t.expect3($hasproperties({ a:1 }, [''])).false() ;
+        t.expect4($hasproperties({ a:1 }, ['b'])).false() ;
+
+        // $UUID with a non-string argument
+        t.expect5($UUID(123 as any)).null() ;
+
+        // $toint / string branch
+        t.expect6($toint('42abc')).is(42) ;
+
+        // $objectMap default callback: a key that stringifies to '' -> [undefined, v]
+        t.expect7($objectMap(new Map<any, any>([[undefined, 1], ['k', 2]]))).is(new Map([['k', 2]])) ;
+
+        // $fusion: null operands and a function-valued property (default filter -> undefined)
+        t.expect8($fusion(null, { x:1 })[0]).is({ x:1 }) ;
+        t.expect9($fusion({ x:1 }, null)[0]).is({ x:1 }) ;
+        t.expectA($fusion(null, null)[0]).is({}) ;
+        t.expectB($fusion({ a:1 }, { b:() => 1 })[0]).is({ a:1 }) ;   // function value filtered out
     }) ;
 
     group.unary("$isurl() function", async(t) => {
@@ -402,6 +479,33 @@ TSTest.group("Commons interpretation functions", async (group) => {
     }) ;
 
     group.unary("$string() function", async(t) => {
+        const conversionOptions:$stringOptions = {
+            trueValue: "YES",
+            falseValue: "NO",
+            nullRepresentation: "<null>",
+            undefinedRepresentation: "<undefined>",
+            objectToStringConversion: (v:any) => {
+                const toPrimitive = v[Symbol.toPrimitive] ;
+                if (typeof toPrimitive === 'function') {
+                    try {
+                        const p = toPrimitive.call(v, 'string') ;
+                        if (typeof p === 'string') { return p ; }
+                        if (typeof p === 'symbol') { return $symbol2string(p) ; }
+                    }
+                    catch { /* v's [Symbol.toPrimitive] misbehaved : fall through to valueOf() */ }
+                }
+                const valueOf = v.valueOf ;
+                if (typeof valueOf === 'function') {
+                    try {
+                        const p = valueOf.call(v) ;
+                        if (typeof p === 'string') { return p ; }
+                        if (typeof p === 'number') { return $string(p) ; }
+                    }
+                    catch { /* nothing left to try */ }
+                }
+                return '<no representation>' ;
+            },
+        } ;
         t.expect0($string("abc")).is("abc") ;
         t.expect1($string("")).is("") ;
         t.expect2($string(undefined)).is("") ;
@@ -411,15 +515,18 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect6($string(42n)).is("42") ;
         t.expect7($string(true)).is("true") ;
         t.expect8($string(false)).is("false") ;
-        t.expect9($string(true, true)).is("YES") ;
-        t.expectA($string(false, true)).is("NO") ;
-        t.expectB($string(false, false)).is("false") ;
-        t.expectC($string([1, 2, 3])).is("1,2,3") ;
-        t.expectD($string({ toString:() => "custom" })).is("custom") ;
-        t.expectE($string({ a:1 })).is("[object Object]") ;
+        t.expect9($string(true, conversionOptions)).is("YES") ;
+        t.expectA($string(false, conversionOptions)).is("NO") ;
+        t.expectB($string(undefined, conversionOptions)).is("<undefined>") ;
+        t.expectC($string(null, conversionOptions)).is("<null>") ;
+        t.expectD($string(new Set(), conversionOptions)).is("<no representation>") ;
+        t.expectE($string({ a:1 }, conversionOptions)).is("<no representation>") ;
+        t.expectF($string([1, 2, 3])).is("1,2,3") ;
+        t.expectG($string({ toString:() => "custom" })).is("custom") ;
+        t.expectH($string({ a:1 })).is("[object Object]") ;
         // symbols: the description / registered key is returned, not "Symbol(x)"
-        t.expectF($string(Symbol("foo"))).is("foo") ;
-        t.expectG($string(Symbol())).is("") ;
+        t.expectI($string(Symbol("foo"))).is("foo") ;
+        t.expectJ($string(Symbol())).is("") ;
         t.expectH($string(Symbol.for("global-key"))).is("global-key") ;
     }) ;
 

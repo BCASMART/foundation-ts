@@ -110,7 +110,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
     public clone():TSPhoneNumber { return this ; } // no clone for immutable objects
 
     // ============ TSLeafInspect conformance =============== 
-    leafInspect = TSPhoneNumber.prototype._standardNumber ;
+    public leafInspect():string { return this._standardNumber(true) ; }
 
     // @ts-ignore
     [customInspectSymbol](depth:number, inspectOptions:any, inspect:any) {
@@ -135,6 +135,11 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
 
 	public toArray():any[] { return [this] ; }
     public toJSON():string { return this._standardNumber(true) ; }
+
+    public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
+        return hint === 'number' ? NaN : this._standardNumber(true) ; // a phone cannot be really converted to a number since left zeros are not taken into account. 
+    }
+    // for the same reason, we do not implement valueOf() since it would return a number
 
     /*
         if format undefined => returns standard non compact string

@@ -1,5 +1,6 @@
 import { $bytes, $div, $fpad, $icast, $meters, $round, $unit } from "../src/number";
 import { TSTest } from "../src/tstester";
+import { TSDate } from "../src/tsdate";
 import { INT32_MAX, UINT32_MAX, UINT_MAX } from "../src/types";
 
 export const numberGroups = TSTest.group("Commons number functions", async (group) => {
@@ -161,6 +162,30 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect7(n.isWhiteSpace()).false() ;
         t.expect8(n.isStrictWhiteSpace()).false() ;
         t.expect9(f.singular()).false() ;
+    }) ;
+
+    group.unary("Number prototype conversions", async(t) => {
+        t.expect0((1536).octets()).is('1.54 ko') ;
+        t.expect1(typeof (5000).dateComponents()).is('object') ;
+        t.expect2(typeof (90061000).durationComponents()).is('object') ;
+        t.expect3((0).toDate() instanceof Date).true() ;
+        t.expect4(typeof (90061).toDurationDescription()).is('string') ;
+        t.expect5((0).toTSDate() instanceof TSDate).true() ;
+    }) ;
+
+    group.unary("Number.toHex1/2/4/8()", async(t) => {
+        t.expect0((0xB).toHex1()).is('B') ;
+        t.expect1((0xB).toHex1(true)).is('b') ;
+        t.expect2((0xAF).toHex2()).is('AF') ;
+        t.expect3((0xAF).toHex2(true)).is('af') ;
+        t.expect4((0x1234).toHex4()).is('1234') ;
+        t.expect5((0xABCD).toHex4(true)).is('abcd') ;
+        t.expect6((0).toHex8()).is('00000000') ;
+        t.expect7((0xDEADBEEF).toHex8()).is('DEADBEEF') ;
+        t.expect8((0xDEADBEEF).toHex8(true)).is('deadbeef') ;
+        t.expect9((0xFFFFFFFF).toHex8()).is('FFFFFFFF') ;
+        t.expectA((5.9).toHex2()).is('05') ;                 // truncated toward zero
+        t.expectB((-1).toHex8()).is('FFFFFFFF') ;            // two's-complement for negatives
     }) ;
 
 }) ;

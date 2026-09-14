@@ -12,11 +12,21 @@
  *   CP tables     Uint32Array  288 KB    — 2-level page tables per Unicode plane
  *
  * Total: ~442 KB in memory after initialisation.
+ *
+ * Below this point is the generated payload : the base64 table literals and the
+ * decode/lookup functions that turn them into POOL / SIDX / the page tables.
+ * None of it runs at import time — __buildTransliterationData() (hand-written,
+ * not generated) is only called once, lazily, on the first transliterate() /
+ * transliterateCP() call, from the memoized $transliterate / $transliterateCP
+ * wrappers at the bottom of this file. If this file gets regenerated, keep the
+ * payload wrapped in that function rather than run eagerly at module scope.
  */
+
+import { $decodeBase64 } from "./data";
 
 /* eslint-disable */
 // prettier-ignore
-const __TRANSLITERATION_DATA = (function () {
+function __buildTransliterationData() {
 
 // --- base64-encoded binary buffers ---
   const _pool_b64 =
@@ -7989,13 +7999,10 @@ const __TRANSLITERATION_DATA = (function () {
     "AGs8AGw/AG0UAG4tAG8PAHBXAHE9AHJFAHNHAHRJAHUvAHZsAHdLAHh9AHkwAHpNAHsGBXwHAH0H" +
     "BX58AA==";
 
-  // Decode base64 → Uint8Array
-  function b64(s: string) {
-    const bin = atob(s);
-    const buf = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-    return buf;
-  }
+  // Decode base64 → Uint8Array. $decodeBase64() already picks the fastest
+  // available codec (native Buffer when it's genuinely native, a pure-JS
+  // fallback otherwise — see data.ts) ; no reason to re-derive that choice here.
+  function b64(s: string): Uint8Array { return $decodeBase64(s); }
 
   // Uint32 view helper
   function u32(u8: Uint8Array) { return new Uint32Array(u8.buffer, u8.byteOffset, u8.byteLength >> 2); }
@@ -8082,7 +8089,18 @@ const __TRANSLITERATION_DATA = (function () {
   }
 
   return { transliterate, transliterateCP };
-})();
+}
 
-export const $transliterate   = __TRANSLITERATION_DATA.transliterate;
-export const $transliterateCP = __TRANSLITERATION_DATA.transliterateCP;
+// memoized : __buildTransliterationData() (the ~442 KB decode above) runs at
+// most once, on whichever of $transliterate / $transliterateCP is called first.
+let __transliterationData:ReturnType<typeof __buildTransliterationData>|undefined = undefined ;
+function __transliterationDataGetter() {
+  if (!__transliterationData) { __transliterationData = __buildTransliterationData() ; }
+  return __transliterationData ;
+}
+
+export function $transliterate(str:string, strict:boolean = false):string|null
+{ return __transliterationDataGetter().transliterate(str, strict) ; }
+
+export function $transliterateCP(cp:number, strict:boolean = false):string|null
+{ return __transliterationDataGetter().transliterateCP(cp, strict) ; }

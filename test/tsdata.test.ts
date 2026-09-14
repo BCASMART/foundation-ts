@@ -184,6 +184,29 @@ export const mutableDataGroups = [
                 t.expectE(d.splice(28, 100, source, 3, 50, 9)).is(TSData.fromString(s+'\t\t3456789')) ;
             }
         }) ;
+
+        // regression: _insideCopy() with a plain number[] / bare Uint8Array source
+        // (not a Buffer/TSData) used to offset the write by `sourceStart`
+        group.unary('splice() / appendBytes() / replaceBytes() with a non-Buffer byte source', async (t) => {
+            // bare Uint8Array, replace-and-grow (deleteCount < len, sourceStart 0)
+            t.expect0(TSData.fromString('ABCDEF').splice(1, 2, new Uint8Array([0x78, 0x79, 0x7a])).toString()).is('AxyzDEF') ;
+            // bare Uint8Array with sourceStart > 0
+            const d = new TSData() ;
+            d.appendBytes(new Uint8Array([1, 2, 3, 4, 5]), 2, 5) ;
+            t.expect1(Array.from(d.mutableBuffer)).is([3, 4, 5]) ;
+            // plain number[] with sourceStart > 0
+            const e = new TSData() ;
+            e.appendBytes([9, 8, 7, 6, 5] as any, 1, 4) ;
+            t.expect2(Array.from(e.mutableBuffer)).is([8, 7, 6]) ;
+            // replaceBytes with a bare Uint8Array slice
+            const f = TSData.fromString('ABCDEFGH') ;
+            f.replaceBytes(new Uint8Array([9, 8, 7, 6]), 2, 1, 3) ;
+            t.expect3(Array.from(f.mutableBuffer)).is([65, 66, 8, 7, 69, 70, 71, 72]) ;
+            // Buffer source stays correct (uses Buffer.copy path)
+            const g = new TSData() ;
+            g.appendBytes(Buffer.from([1, 2, 3, 4, 5]), 2, 5) ;
+            t.expect4(Array.from(g.mutableBuffer)).is([3, 4, 5]) ;
+        }) ;
     }),
 
     TSTest.group("Testing data writing and reading", async (group) => {
@@ -499,6 +522,49 @@ export const mutableDataGroups = [
             t.expectD(TSData.fromString('ABC').compareToData(null)).undef() ;
             t.expectE(TSData.fromString('ABC').isEqualToData(Buffer.from('ABC'))).true() ;
             t.expectF(TSData.fromString('ABC').isEqualToData(null)).false() ;
+        }) ;
+
+        group.unary('mutableBuffer is cached but stays consistent through every mutation', async (t) => {
+            const d = new TSData(64) ;
+            d.appendBytes(new Uint8Array([1, 2, 3, 4])) ;
+
+            const a = d.mutableBuffer ;
+            const b = d.mutableBuffer ;
+            t.expect0(a === b).true() ;                          // cached : same object when nothing changed
+            t.expect1(Array.from(a)).is([1, 2, 3, 4]) ;
+
+            // in-place byte change : the cached view is live, no new object needed
+            d.setUint8(0, 9) ;
+            t.expect2(d.mutableBuffer === a).true() ;
+            t.expect3(Array.from(d.mutableBuffer)).is([9, 2, 3, 4]) ;
+
+            // append without reallocation : length changed -> fresh view, right bytes
+            d.appendBytes(new Uint8Array([5, 6])) ;
+            const c = d.mutableBuffer ;
+            t.expect4(c === a).false() ;
+            t.expect5(Array.from(c)).is([9, 2, 3, 4, 5, 6]) ;
+
+            // shrink via removeTraillingZeros / truncateBy
+            d.appendByte(0 as any) ;
+            d.removeTraillingZeros() ;
+            t.expect6(Array.from(d.mutableBuffer)).is([9, 2, 3, 4, 5, 6]) ;
+            d.truncateBy(2) ;
+            t.expect7(Array.from(d.mutableBuffer)).is([9, 2, 3, 4]) ;
+
+            // force a reallocation (grow past capacity) : view must follow the new buffer
+            const big = new Uint8Array(4096) ; for (let i = 0 ; i < 4096 ; i++) { big[i] = i & 0xff ; }
+            d.appendBytes(big) ;
+            t.expect8(d.mutableBuffer.length).is(4 + 4096) ;
+            t.expect9(d.mutableBuffer[4100 - 1]).is((4096 - 1) & 0xff) ;
+
+            // splice (insert + grow) then length setter
+            const e = TSData.fromString('ABCDEF') ;
+            const v0 = e.mutableBuffer ;
+            e.splice(3, 0, new Uint8Array([0x78, 0x79, 0x7a])) ; // insert "xyz" -> "ABCxyzDEF"
+            t.expectA(e.mutableBuffer === v0).false() ;
+            t.expectB(e.toString()).is('ABCxyzDEF') ;
+            e.length = 4 ;
+            t.expectC(Array.from(e.mutableBuffer)).is([65, 66, 67, 0x78]) ;
         }) ;
 
         if (!$inbrowser()) {

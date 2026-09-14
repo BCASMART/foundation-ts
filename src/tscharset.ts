@@ -26,6 +26,8 @@ enum TSCachedCharset {
     MAC
 } ;
 
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
 export abstract class TSCharset {
     private static __charsetsMap:Map<string, TSCharset>| undefined = undefined ;
     private static __cachedCharsets:TSCharset[] = [] ;
@@ -116,7 +118,13 @@ export abstract class TSCharset {
         return TSCharset.__cachedCharsets[code] ;
     }
 
-    // TODO: a static method to detect the charset from a raw buffer...
+
+    public toString(): string     { return `[TSCharset: ${this.name}]` ; }
+    public leafInspect(): string  { return this.toString() ; }
+
+    // @ts-ignore
+    [customInspectSymbol]() { return this.leafInspect() ; }
+    
     public abstract stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string ;
     public abstract stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes ;
 

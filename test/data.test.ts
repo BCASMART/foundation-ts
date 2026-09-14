@@ -1,6 +1,6 @@
 import { $length } from '../src/commons';
 import { $randomBytes } from '../src/crypto';
-import { $decodeBase64, $encodeBase64, $arrayBufferFromBytes, $arrayFromBytes, $arrayFromDataLike, $arrayBufferFromDataLike, $arrayBufferFromHexaString, $blobFromDataLike, $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromBlob, $blobFromBytes, $bufferFromBlob, $decodeBase64URL, $decodeHexa, $dataXOR, $encodeHexa, $uint32ArrayFromDataLike, $uint32ArrayFromUint8Array, $encodeBytesToHexa, $bufferFromHexaString, $uint8ArrayFromHexaString } from '../src/data';
+import { $decodeBase64, $encodeBase64, $encodeBase64URL, __pureEncodeBase64, __pureDecodeBase64, $arrayBufferFromBlob, $arrayBufferFromBytes, $arrayFromBytes, $arrayFromDataLike, $arrayBufferFromDataLike, $arrayBufferFromHexaString, $blobFromDataLike, $bufferFromArrayBuffer, $bufferFromBytes, $bytesFromDataLike, $uint8ArrayFromBytes, $uint8ArrayFromBlob, $blobFromBytes, $bufferFromBlob, $decodeBase64URL, $decodeHexa, $dataXOR, $encodeHexa, $uint32ArrayFromDataLike, $uint32ArrayFromUint8Array, $encodeBytesToHexa, $bufferFromHexaString, $uint8ArrayFromHexaString } from '../src/data';
 import { TSData } from '../src/tsdata';
 import { $charsetFromBytes, TSCharset } from '../src/tscharset';
 import { TSTest } from '../src/tstester';
@@ -222,6 +222,115 @@ export const dataGroups = [
 
         group.unary("$bufferFromBytes generic-array copy path", async (t) => {
             t.expect0(Buffer.from($bufferFromBytes([10, 20, 30, 40, 50] as any, { start:1, end:4 })).toString('hex')).is('141e28') ;
+        }) ;
+
+        group.unary("$arrayBufferFromDataLike(TSData) / $blobFromBytes(number[]) / $uint8ArrayFromBlob fallback", async (t) => {
+            // $arrayBufferFromDataLike with a TSData source (mutableBuffer branch)
+            const ab = $arrayBufferFromDataLike(new TSData(Buffer.from([1, 2, 3, 4]))) ;
+            t.expect0(Buffer.from(ab).toString('hex')).is('01020304') ;
+
+            // $blobFromBytes with a plain number[] (goes through _uint8ArrayFromArray)
+            const blob = $blobFromBytes([10, 20, 30] as any) ;
+            t.expect1(blob.size).is(3) ;
+            t.expect2(Buffer.from(await blob.arrayBuffer()).toString('hex')).is('0a141e') ;
+
+            // $uint8ArrayFromBlob on a Blob-like object without a bytes() method -> $bufferFromBlob path
+            const fakeBlob = { arrayBuffer:async () => new Uint8Array([7, 8, 9]).buffer } as any as Blob ;
+            const u8 = await $uint8ArrayFromBlob(fakeBlob) ;
+            t.expect3(Buffer.from(u8!).toString('hex')).is('070809') ;
+        }) ;
+
+        group.unary("base64 — pure-JS path (used when no native codec)", async (t) => {
+            // __pureEncodeBase64 / __pureDecodeBase64 are what runs in the browser
+            // (the 'buffer' polyfill has no native base64) — exercise them directly
+            for (let l = 0 ; l < 40 ; l++) {
+                const bytes = new Uint8Array(l) ;
+                for (let i = 0 ; i < l ; i++) { bytes[i] = (i * 37 + 11) & 0xff ; }
+
+                const std = __pureEncodeBase64(bytes, false) ;
+                const url = __pureEncodeBase64(bytes, true) ;
+                // oracle : standard base64 from Buffer, base64url derived by hand so
+                // this holds under the browser 'buffer' polyfill (no 'base64url')
+                const oracleStd = Buffer.from(bytes).toString('base64') ;
+                const oracleUrl = oracleStd.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') ;
+                t.expect(std, `std-${l}`).is(oracleStd) ;
+                t.expect(url, `url-${l}`).is(oracleUrl) ;
+                t.expect(Array.from(__pureDecodeBase64(std)), `dec-std-${l}`).is(Array.from(bytes)) ;
+                t.expect(Array.from(__pureDecodeBase64(url)), `dec-url-${l}`).is(Array.from(bytes)) ;
+            }
+            // the decoder skips whitespace, stray padding and code points > 0xFF
+            t.expect0(Array.from(__pureDecodeBase64("QU JD  =="))).is([65, 66, 67]) ;
+            t.expect1(__pureDecodeBase64('').length).is(0) ;
+            t.expect2(__pureDecodeBase64('QU' + String.fromCharCode(0x2028) + 'JD').length).is(3) ;
+            t.expect3(__pureDecodeBase64('Q').length).is(0) ;                     // 6 bits -> no full byte
+
+            t.expect4($encodeBytesToHexa([] as any)).is('') ;                    // empty non-Buffer -> ''
+            t.expect5($encodeBytesToHexa([0xa, 0xbc] as any)).is('0ABC') ;       // plain number[] -> table path
+        }) ;
+
+        group.unary("$uint8ArrayFromHexaString — system Uint8Array.fromHex wiring", async (t) => {
+            const had = 'fromHex' in Uint8Array ;
+            const saved = (Uint8Array as any).fromHex ;
+            try {
+                (Uint8Array as any).fromHex = (s:string) => new Uint8Array(Buffer.from(s, 'hex')) ;
+                t.expect0(Buffer.from($uint8ArrayFromHexaString('41424344')!).toString()).is('ABCD') ;
+
+                (Uint8Array as any).fromHex = () => { throw new Error('boom') ; } ;
+                t.expect1($uint8ArrayFromHexaString('41424344')).null() ;   // system function throws -> null
+            }
+            finally {
+                if (had) { (Uint8Array as any).fromHex = saved ; }
+                else { delete (Uint8Array as any).fromHex ; }
+            }
+        }) ;
+
+        group.unary("data.ts — remaining conversion branches", async (t) => {
+            // $bufferFromArrayBuffer with a real ArrayBuffer (not a view) and with a view
+            t.expect0($bufferFromArrayBuffer(new Uint8Array([1, 2, 3, 4]).buffer as ArrayBuffer).toString('hex')).is('01020304') ;
+            t.expectF($bufferFromArrayBuffer(new Uint8Array([9, 8, 7]) as any).toString('hex')).is('090807') ;
+
+            // leafInspect on a genuine Uint8Array
+            t.expectG(typeof new Uint8Array([1, 2, 3]).leafInspect()).is('string') ;
+
+            // a lone base64 char carries only 6 bits -> not enough for a byte
+            t.expectH($decodeBase64('Q').length).is(0) ;
+
+            // $uint8ArrayFromBytes partial-range subarray branch
+            t.expect1(Buffer.from($uint8ArrayFromBytes(new Uint8Array([1, 2, 3, 4]), { start:1, end:3 })).toString('hex')).is('0203') ;
+
+            // $arrayFromBytes on a non-Uint8Array: whole vs sliced
+            t.expect2($arrayFromBytes([9, 8, 7] as any)).is([9, 8, 7]) ;
+            t.expect3($arrayFromBytes([9, 8, 7] as any, { start:1 })).is([8, 7]) ;
+
+            // $bytesFromDataLike forceCopy branch
+            t.expect4(Buffer.from($bytesFromDataLike(new Uint8Array([5, 6]), { forceCopy:true })).toString('hex')).is('0506') ;
+
+            // $arrayBufferFromDataLike: direct passthrough vs forced copy
+            const ab = new Uint8Array([1, 2, 3]).buffer as ArrayBuffer ;
+            t.expect5($arrayBufferFromDataLike(ab) === ab).true() ;
+            t.expect6($arrayBufferFromDataLike(ab, { forceCopy:true }) === ab).false() ;
+
+            // $arrayBufferFromBlob / $bufferFromBlob / $uint8ArrayFromBlob error & null paths
+            t.expect7(await $arrayBufferFromBlob(null as any)).null() ;
+            t.expect8(await $arrayBufferFromBlob({ arrayBuffer:async () => { throw new Error('x') ; } } as any)).null() ;
+            t.expect9(await $bufferFromBlob(null as any)).null() ;
+            t.expectA(await $uint8ArrayFromBlob({ bytes:async () => { throw new Error('x') ; } } as any)).null() ;
+
+            // base64 decode with 1- and 2-char trailing groups
+            t.expectB(Buffer.from($decodeBase64('QQ')).toString()).is('A') ;      // 1 significant byte
+            t.expectC(Buffer.from($decodeBase64('QUI')).toString()).is('AB') ;     // 2 significant bytes
+            t.expectD($encodeBase64('A')).is('QQ==') ;
+            t.expectI($encodeBase64URL('>> ~~')).is('Pj4gfn4') ;                  // no '+/' , no '=' padding
+
+            // Buffer.leafInspect (constructor.name !== 'Uint8Array')
+            t.expectE(typeof Buffer.from([1, 2, 3]).leafInspect()).is('string') ;
+        }) ;
+
+        group.unary("$encodeHexa / $decodeHexa branches", async (t) => {
+            t.expect0($encodeHexa(new TSData(Buffer.from([0xab, 0xcd])))).is('ABCD') ;
+            t.expect1($encodeHexa(new Uint8Array([0xab, 0xcd]).buffer as ArrayBuffer)).is('ABCD') ;
+            t.expect2(() => $decodeHexa('nothexa!!')).throws() ;
+            t.expect3((new Uint8Array([1, 2]).buffer as ArrayBuffer).base64String()).is('AQI=') ;
         }) ;
 
         group.unary("String / Uint8Array / ArrayBuffer base64URL & hexa & XOR", async (t) => {

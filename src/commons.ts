@@ -13,10 +13,10 @@ import { PhoneValidity, TSPhoneNumber } from "./tsphonenumber";
 import { TSURL, TSURLParseOptions } from "./tsurl";
 
 export function $defined<T>(o: T): o is Exclude<T, undefined>
-{ return o !== undefined && typeof o !== 'undefined' }
+{ return o !== undefined ; }
 
 export function $ok<T>(o: T): o is NonNullable<T>
-{ return o !== null && o !== undefined && typeof o !== 'undefined' ; }
+{ return o !== null && o !== undefined ; }
 
 export function $value<T>(o:Nullable<T>, v:T):T
 { return $ok(o) ? o : v ; }
@@ -34,7 +34,7 @@ export function $iswhitespace(s: Nullable<string|number>) : boolean
 { return typeof s === 'string' ? FoundationWhiteSpacesStringCodeSet.has(s) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s) : false) ; }
 
 export function $isnumber(o: any): o is number
-{ return typeof o === 'number' && !isNaN(<number>o) && isFinite(<number>o) ; }
+{ return typeof o === 'number' && isFinite(o) ; }
 
 export function $isint(o:any, minimum:number = INT_MIN, maximum:number = INT_MAX) : o is number
 { return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= minimum && <number>o <= maximum; }
@@ -194,16 +194,89 @@ export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0
     else if (typeof v === 'string') { v = parseInt(v, 10) ; }
     return isNaN(v) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v, UINT_MAX))) as uint ;
 }
+export interface $stringOptions {
+    objectToStringConversion: (v:any) => string ;
+    nullRepresentation:string ;
+    undefinedRepresentation:string ;
+    trueValue: string ;
+    falseValue: string ;
+}
 
-export function $string(v:any, yesOrNo?:Nullable<boolean>) : string {
-    // WARNING: now this function try to export the symbol local or global key xxx instead of 'Symbol(xxx)')
+const __default$stringOptions: $stringOptions = {
+    // mirrors what `${v}` / String(v) actually do — ToPrimitive with hint
+    // "string" — but never throws, and is stricter than the real algorithm
+    // about what counts as a usable answer at each step, since none of these
+    // methods are trusted to respect the contract their name implies :
+    //   1. [Symbol.toPrimitive]('string') : only a string or a symbol counts.
+    //      A symbol is routed back through $string()'s own symbol case rather
+    //      than used directly, since `${aSymbol}` throws. Anything else
+    //      (including a number — it did not honour the 'string' hint we gave
+    //      it) is trashed : we don't trust a hint-ignoring answer.
+    //   2. toString() : only a string counts — its entire contract is to
+    //      return one, and every standard/native object that has a callable
+    //      toString (own or inherited, right down to boxed Boolean/BigInt/
+    //      Symbol) already does. Anything else is trashed.
+    //   3. valueOf() : last resort ; a string or a number counts (the two
+    //      shapes real wrapper objects hand back), anything else — including
+    //      the default Object.prototype.valueOf, which just returns the
+    //      object itself — is trashed.
+    // A method that throws is treated exactly like one that returned nothing
+    // usable : move on to the next. None of the three accepted result types
+    // (string/symbol/number) ever depend on $stringOptions to format, so the
+    // bare recursive $string(p) below needs no options forwarded.
+    objectToStringConversion: (v:any):string => {
+        const toPrimitive = v[Symbol.toPrimitive] ;
+        if (typeof toPrimitive === 'function') {
+            try {
+                const p = toPrimitive.call(v, 'string') ;2
+                if (typeof p === 'string') { return p ; }
+                if (typeof p === 'symbol') { return $symbol2string(p) ; }
+            }
+            catch { /* v's [Symbol.toPrimitive] misbehaved : fall through to toString() */ }
+        }
+        const toString = v.toString ;
+        if (typeof toString === 'function') {
+            try {
+                const p = toString.call(v) ;
+                if (typeof p === 'string') { return p ; }
+            }
+            catch { /* fall through to valueOf() */ }
+        }
+        const valueOf = v.valueOf ;
+        if (typeof valueOf === 'function') {
+            try {
+                const p = valueOf.call(v) ;
+                if (typeof p === 'string') { return p ; }
+                if (typeof p === 'number') { return ''+p ; } // fastest number conversion (see $string() for details)
+            }
+            catch { /* nothing left to try */ }
+        }
+        return '' ;
+    },
+    nullRepresentation: '',
+    undefinedRepresentation: '',
+    trueValue: 'true',
+    falseValue: 'false'
+} ;
+
+export function $string(v:any, options?:$stringOptions) : string {
+    const opts = options ?? __default$stringOptions ;
     const t = typeof(v) ;
     switch (t) {
         case 'string': return v ;
-        case 'symbol': return _symbol2str(v) ;
-        case 'undefined': return '' ;
-        case 'object': return v !== null ? ($ismethod(v, 'toString') ? v.toString() : `${v}`) : '' ;
-        case 'boolean': return !yesOrNo ? (v ? 'true' : 'false') : (v ? 'YES' : 'NO') ;
+        case 'symbol': return $symbol2string(v) ; // exports the symbol local or global key xxx instead of 'Symbol(xxx)
+        case 'undefined': return opts.undefinedRepresentation ;
+        case 'object':
+            if (v === null) { return opts.nullRepresentation ; }
+            // a boxed Boolean (`new Boolean(...)`/`Object(true)`) is the one wrapper
+            // whose plain-object route (toString() -> "true"/"false") would silently
+            // bypass trueValue/falseValue ; boxed Number/BigInt/String have no such
+            // customizable representation to bypass, so only this one needs
+            // intercepting before it ever reaches objectToStringConversion.
+            if (v instanceof Boolean) { return v.valueOf() ? opts.trueValue : opts.falseValue ; }
+            return opts.objectToStringConversion(v) ;
+        case 'boolean': return v ? opts.trueValue : opts.falseValue ;
+        case 'number': return ''+v ; // fastest way to convert a number to string (twice as fast as calling v.toString() or String(v))
         default: return v.toString() ; // Function, BigInt and Number have a toString() method
     }
 }
@@ -281,7 +354,9 @@ export function $jsonobj(v:any): any
 	} 
 }
 
-export function $keys<T>(o:Nullable<T>):Array<keyof T> { return $ok(o) ? Object.getOwnPropertyNames(o!) as (keyof T)[] : [] ; }
+// own enumerable keys only : getOwnPropertyNames() would also return non-enumerable
+// own properties, e.g. an Array's own "length" — $objectcount([1,2,3]) must stay 3.
+export function $keys<T>(o:Nullable<T>):Array<keyof T> { return $ok(o) ? Object.keys(o!) as (keyof T)[] : [] ; }
 
 export interface $partialOptions<T,U> {
     properties?:Array<keyof T | keyof U>,
@@ -388,6 +463,14 @@ export function $encoding(e:Nullable<StringEncoding>):NormativeStringEncoding {
     return $value(FoundationStringEncodingsMap.get(e!), 'utf8') ;
 }
 
+export function $symbol2string(v:symbol):string {
+    const s = v.toString() ;
+    if (s.startsWith('Symbol(') && s.endsWith(')')) {
+        return s.slice(7, s.length - 1) ;
+    }
+    return $value(Symbol.keyFor(v), '') ;
+}
+
 // ===== private exported objects ============================
 /** @internal */
 export const __uuidV1Regex:RegExp   = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]{12}$/i ;
@@ -396,13 +479,6 @@ export const __uuidV1Regex:RegExp   = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]
 export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A-F\d]{3}-[A-F\d]{12}$/i ;
 
 // ===== private functions ===================================
-function _symbol2str(v:symbol):string {
-    const s = v.toString() ;
-    if (s.startsWith('Symbol(') && s.endsWith(')')) {
-        return s.slice(7, s.length - 1) ;
-    }
-    return $value(Symbol.keyFor(v), '') ;
-}
 
 const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
 

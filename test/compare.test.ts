@@ -1,4 +1,4 @@
-import { $arrayequal, $compare, $datecompare, $equal, $numcompare, $order, $unorderedEqual, $visualcompare, $visualequal } from "../src/compare";
+import { $arraycompare, $arrayequal, $bytescompare, $bytesequal, $bytesorder, $compare, $datecompare, $dateorder, $equal, $mapequal, $numcompare, $numorder, $order, $setequal, $unorderedEqual, $visualcompare, $visualequal, $visualorder } from "../src/compare";
 import { $arrayBufferFromBytes } from "../src/data";
 import { TSDate } from "../src/tsdate";
 import { TSTest } from "../src/tstester";
@@ -165,5 +165,105 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
     group.unary("$unorderedEqual() function", async(t) => {
         t.expect1($unorderedEqual(['a', 'b', 1, 33, null], [null, 'b', 1, 'a', 33])).true() ;
         t.expect2($unorderedEqual(['a', 'b', 1, 33, null], [null, 'b', 1, 'a', 33, 33])).false() ;
-    })
+        // Set operands (covers the `instanceof Set` branches)
+        t.expect3($unorderedEqual(new Set(['a', 'b', 'c']), ['c', 'b', 'a'])).true() ;
+        t.expect4($unorderedEqual(['a', 'b'], new Set(['b', 'a']))).true() ;
+        t.expect5($unorderedEqual(new Set(['a', 'b']), new Set(['a', 'b', 'c']))).false() ;
+    }) ;
+
+    group.unary("$datecompare() — number vs string and non-dateable operands", async(t) => {
+        // a is a bare timestamp number, b is a date string -> b gets promoted to TSDate,
+        // then compared as timestamps (returns a defined Comparison, never throws)
+        t.expect0($datecompare(0, "1970-01-01T00:00:00")).def() ;
+        t.expect1($datecompare(10, "1970-01-01T00:00:00")).def() ;
+        t.expect2($datecompare(-5, "1970-01-01T00:00:10")).def() ;
+        // neither operand is dateable -> undefined (final fall-through)
+        t.expect3($datecompare(true as any, false as any)).undef() ;
+    }) ;
+
+    group.unary("$bytesorder() / $visualorder() functions", async(t) => {
+        t.expect0($bytesorder(B1, B1)).is(Same) ;
+        t.expect1($bytesorder(B2, B1)).is(Ascending) ;
+        t.expect2($bytesorder(B1, B2)).is(Descending) ;
+        t.expect3($bytesorder(null, B1)).is(Ascending) ;
+        t.expect4($bytesorder(B1, null)).is(Descending) ;
+        t.expect5($bytesorder(null, null)).is(Same) ;
+
+        t.expect6($visualorder('abc', 'abc')).is(Same) ;
+        t.expect7($visualorder(' ABC ', 'abc')).is(Same) ;         // visual normalisation
+        t.expect8($visualorder('a', 'b')).is(Ascending) ;
+        t.expect9($visualorder('b', 'a')).is(Descending) ;
+        t.expectA($visualorder(null, 'a')).is(Ascending) ;
+        t.expectB($visualorder('a', null)).is(Descending) ;
+    }) ;
+
+    group.unary("$order() throws on incomparable operands", async(t) => {
+        t.expect0(() => $order({ a:1 }, { b:2 })).throws(/Impossible to order/) ;
+    }) ;
+
+    group.unary("comparison functions — remaining branches", async(t) => {
+        const U1 = new URL('http://host/a') ;
+        const U1b = new URL('http://host/a') ;
+        const U2 = new URL('http://host/b') ;
+        const ba = Buffer.from([1, 2, 3]) ;
+
+        // $numorder identity shortcut
+        t.expect0($numorder(3, 3)).is(Same) ;
+
+        // $datecompare identity + number/number shortcuts
+        t.expect1($datecompare(D, D)).is(Same) ;
+        t.expect2($datecompare(5, 9)).is(Ascending) ;
+
+        // $arraycompare
+        t.expect3($arraycompare(null, [1])).undef() ;
+        t.expect4($arraycompare(ba as any, ba as any)).is(Same) ;   // identity
+
+        // $dateorder (all four outcomes)
+        t.expect5($dateorder(T, D)).is(Same) ;
+        t.expect6($dateorder(D, null)).is(Descending) ;
+        t.expect7($dateorder(null, D)).is(Ascending) ;
+        t.expect8($dateorder(null, null)).is(Same) ;
+
+        // $bytescompare
+        t.expect9($bytescompare(B1, null)).undef() ;
+        t.expectA($bytescompare(ba, ba)).is(Same) ;                 // identity
+        t.expectB($bytescompare(Buffer.from([1]), Buffer.from([1, 2]))).is(Ascending) ; // a shorter
+        t.expect($bytescompare(Buffer.from([1, 2]), Buffer.from([1, 2])), 'bc-eq').is(Same) ; // equal, distinct refs
+        t.expect($bytescompare(Buffer.from([1, 2, 3]), Buffer.from([1, 2])), 'bc-longer').is(Descending) ; // a longer
+
+        // $compare: URL/URL, plain Uint8Array, other ArrayBuffer views
+        t.expectC($compare(U1, U2)).is(Ascending) ;
+        t.expectD($compare(U1, U1b)).is(Same) ;
+        t.expectE($compare(new Uint8Array([1]), new Uint8Array([2]))).is(Ascending) ;
+        t.expectF($compare(new Int8Array([1]), new Int8Array([2]))).is(Ascending) ;
+
+        // $visualcompare branches
+        t.expectG($visualcompare(null, 'x')).undef() ;
+        const obj = { toString:() => 'z' } ;
+        t.expectH($visualcompare(obj, obj)).is(Same) ;              // identity
+        t.expectI($visualcompare(U1, U2)).is(Ascending) ;
+        t.expectJ($visualcompare(5, '5')).is(Same) ;                // equal after stringify
+        t.expect($visualcompare('x', 5), 'vc-b-nonstr').is(Descending) ; // b needs stringification ('X' > '5')
+
+        // $bytesequal branches
+        t.expectK($bytesequal(ba, ba)).true() ;                     // identity
+        t.expectL($bytesequal(null, ba)).false() ;
+        t.expectM($bytesequal(Buffer.from([1]), Buffer.from([1, 2]))).false() ; // length mismatch
+        t.expectN($bytesequal(Buffer.from([1]), Buffer.from([2]))).false() ;    // byte mismatch
+
+        // $equal URL/URL
+        t.expectO($equal(U1, U1b)).true() ;
+        t.expectP($equal(U1, U2)).false() ;
+
+        // $arrayequal / $mapequal / $setequal / $unorderedEqual identity & null
+        const arr = [1, 2] ; const map = new Map([['a', 1]]) ; const set = new Set([1]) ;
+        t.expectQ($arrayequal(arr, arr)).true() ;
+        t.expectR($arrayequal(null, arr)).false() ;
+        t.expectS($mapequal(map, map)).true() ;
+        t.expectT($mapequal(null, map)).false() ;
+        t.expectU($mapequal(new Map([['a', 1]]), new Map([['a', 1], ['b', 2]]))).false() ; // b larger
+        t.expectV($setequal(set, set)).true() ;
+        t.expectW($unorderedEqual(arr, arr)).true() ;
+        t.expectX($unorderedEqual(null, arr)).false() ;
+    }) ;
 }) ;

@@ -99,6 +99,14 @@ export function $meters(n: Nullable<number>, decimalPlaces:number = 2) {
 const FoundationHexaChars = '0123456789ABCDEF' ;
 const FoundationHexaLowerChars = '0123456789abcdef' ;
 
+// byte -> 2 hex chars, precomputed once for both cases
+const FoundationHexaBytesUpper:string[] = new Array(256) ;
+const FoundationHexaBytesLower:string[] = new Array(256) ;
+for (let i = 0 ; i < 256 ; i++) {
+    FoundationHexaBytesUpper[i] = FoundationHexaChars[i >> 4]      + FoundationHexaChars[i & 0xF] ;
+    FoundationHexaBytesLower[i] = FoundationHexaLowerChars[i >> 4] + FoundationHexaLowerChars[i & 0xF] ;
+}
+
 declare global {
     export interface Number {
         bytes:              (this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>) => string ;
@@ -161,24 +169,23 @@ Number.prototype.singular           = function singular(this:number):boolean { r
 Number.prototype.toDate             = function toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; }
 Number.prototype.toDurationString   = function durationString(this:number, format?:Nullable<string>) { return $durationNumber2StringFormat(this, format) ; }
 Number.prototype.toDurationDescription = function durationDesc(this:number, opts?:Nullable<$durationDescriptionOptions>) { return $durationDescription(this, opts) ; }
+// toHexN() : the receiver is coerced to uint32 with `>>> 0` (fast, and gives the
+// two's-complement representation for negatives) instead of the full $tounsigned() check
 Number.prototype.toHex1             = function toHex1(this:number, toLowerCase?:Nullable<boolean>):string {
-    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
-    return r[this.toUnsigned() & 0x0F]
+    return (!!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars)[(this >>> 0) & 0x0F] ;
 }
 Number.prototype.toHex2             = function toHex2(this:number, toLowerCase?:Nullable<boolean>):string {
-    const n = this.toUnsigned() ;
-    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
-    return r[(n>>4) & 0xF]+r[n & 0xF] ;
+    return (!!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper)[(this >>> 0) & 0xFF] ;
 }
 Number.prototype.toHex4             = function toHex4(this:number, toLowerCase?:Nullable<boolean>):string {
-    const n = this.toUnsigned() ;
-    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
-    return r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
+    const n = this >>> 0 ;
+    const t = !!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
+    return t[(n >>> 8) & 0xFF] + t[n & 0xFF] ;
 }
 Number.prototype.toHex8             = function toHex8(this:number, toLowerCase?:Nullable<boolean>):string {
-    const n = this.toUnsigned() ;
-    const r = !!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars ;
-    return r[(n>>28) & 0xF]+r[(n>>24) & 0xF]+r[(n>>20) & 0xF]+r[(n >> 16) & 0xF]+r[(n>>12) & 0xF]+r[(n>>8) & 0xF]+r[(n>>4) & 0xF]+r[n & 0xF] ;
+    const n = this >>> 0 ;
+    const t = !!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
+    return t[(n >>> 24) & 0xFF] + t[(n >>> 16) & 0xFF] + t[(n >>> 8) & 0xFF] + t[n & 0xFF] ;
 }
 Number.prototype.toInt              = function toInt(this:number, defaultValue?:int):int { return $toint(this, defaultValue) ; }
 Number.prototype.toTSDate           = function toTSDate(this:number):TSDate|null { return TSDate.fromTimeStamp(this) ; }

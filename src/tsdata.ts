@@ -27,6 +27,15 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     private _allocFn:(n:number) => Buffer ;
     private _dataView:DataView|undefined = undefined ;
 
+    // cached mutableBuffer view (see the getter). It is a live view onto `_buf`,
+    // so in-place byte changes are reflected for free ; it only becomes stale
+    // when the significant length or the backing buffer identity changes, which
+    // is exactly what `_mbLen` / `_mbBuf` fingerprint. No mutating method needs
+    // to know about this cache.
+    private _mbView:Buffer|undefined = undefined ;
+    private _mbLen:number = -1 ;
+    private _mbBuf:Buffer|undefined = undefined ;
+
     // ============================ TSDATA creation =============================================
     constructor (source?:Nullable<number|TSDataLike>, opts:TSDataOptions={}) 
     {
@@ -133,6 +142,17 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         }
         return this ;
     }
+    
+    public appendASCII(source:Nullable<string>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+        const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
+        if (start < end) {
+            this._willGrow(len) ;
+            for (let i = start ; i < end ; i++) {
+                this._buf[this._len++] = source!.charCodeAt(i) & 0xff ;
+            }
+        }
+        return this ;
+    }
 
     public replaceBytes(source:Nullable<Bytes>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
@@ -221,7 +241,14 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this ;
     }
 
-    public get mutableBuffer():Buffer { return this._len === this.capacity ? this._buf : this._buf.subarray(0, this._len) ; }
+    public get mutableBuffer():Buffer {
+        if (this._mbView === undefined || this._mbLen !== this._len || this._mbBuf !== this._buf) {
+            this._mbView = this._len === this._buf.length ? this._buf : this._buf.subarray(0, this._len) ;
+            this._mbLen = this._len ;
+            this._mbBuf = this._buf ;
+        }
+        return this._mbView ;
+    }
     public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
     
     public set length(n:number) {
@@ -404,10 +431,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public slowhash(options?: $hashOptions):string|Uint8Array { return $slowhash(this, options) ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        if (hint === "string" || hint === "default") {
-            return TSCharset.binaryCharset().stringFromData(this) ;
-        }
-        return null ;
+        return hint === 'number' ? NaN : TSCharset.binaryCharset().stringFromData(this) ;
     }
 
     // ============ TSObject conformance =============== 
@@ -541,7 +565,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (start < end) {
             if (source instanceof ArrayBuffer) { $bufferFromArrayBuffer(source).copy(this._buf, targetStart, start, end) ;}
             else if (source instanceof Buffer || source instanceof TSData) { source.copy(this._buf, targetStart, start, end) ; }
-            else { for (let i = start ; i < end ; i++) { this._buf[targetStart+i] = source[i] & 0xff } ; }
+            // source[start..end[ must land at _buf[targetStart..] — like the Buffer.copy() above.
+            else { for (let i = start ; i < end ; i++) { this._buf[targetStart + i - start] = source[i] & 0xff } ; }
         }
     }
 
@@ -584,6 +609,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             if (this._len > 0) { this._buf.copy(newBuffer, 0, 0, this._len) ; }
             this._buf = newBuffer ;
             this._dataView = undefined ; // needs to be recalculated
+            this._mbView = this._mbBuf = undefined ; // drop the stale view onto the old buffer
         }
     }
 

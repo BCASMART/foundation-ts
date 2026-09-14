@@ -195,13 +195,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public valueOf():number { return this.numericCode ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        if (hint === "number") {
-          return this.numericCode ;
-        }
-        if (hint === "string" || hint === "default") {
-          return this.alpha2Code ;
-        }
-        return null;
+        return hint === 'number' ? this.numericCode : this.alpha2Code ;
     }
 
     public get label():string { return this.names[Languages.en]! ; }

@@ -4,6 +4,20 @@ import { TSLeafInspect } from "./tsobject";
 import { Resp } from "./tsrequest";
 import { Nullable, TSDictionary } from "./types";
 import { $inbrowser } from "./utils";
+
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
+
+// Built once : Object.values() on a numeric TS enum returns both the forward
+// (name -> number) and reverse (number -> name) mappings, so a bare
+// Object.values(Resp).includes(x) call re-walks and re-allocates that mixed
+// array every time. Filter down to the numeric half once and query a Set.
+const _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ;
+
+// true for any value that is a legit HTTP status code known to Resp. Used both
+// to validate TSError.status and to decide whether a TSError is an expected
+// HTTP-status outcome (see the constructor : those skip stack capture).
+export function $isRespCode(v:Nullable<number>):v is Resp { return $ok(v) && _respValues.has(v!) ; }
+
 export class TSUniqueError extends Error implements TSLeafInspect {
 	private static __timeoutInstance:TSUniqueError ;
 	private static __genericInstance:TSUniqueError ;
@@ -29,8 +43,11 @@ export class TSUniqueError extends Error implements TSLeafInspect {
 
     leafInspect():string { return this.name ; }
 
+    // @ts-ignore
+    [customInspectSymbol]() { return this.leafInspect() ; }
+
 }
-export class TSError extends Error {
+export class TSError extends Error implements TSLeafInspect {
     public readonly info:TSDictionary|undefined ;
     public static readonly DefaultMessage = "TSError did throw" ;
 
@@ -72,8 +89,24 @@ export class TSError extends Error {
 	public constructor() {
 		const n = arguments.length ;
         const s = n > 0 ? $ftrim(arguments[0]): "" ;
-        
+
+        // Server routing/validation throws a TSError carrying a Resp code (404,
+        // 405, 400, ...) for every not-found / bad-request outcome — control
+        // flow, not a bug. Every one otherwise pays V8's stack-frame walk, the
+        // dominant cost of constructing an Error. Detect that family here,
+        // before super() runs the capture, and skip it : same object, same
+        // API, just an empty (unformatted) .stack.
+        const candidateCode = n >= 3 && typeof arguments[2] === 'number' ? arguments[2]
+                             : (n >= 2 && typeof arguments[1] === 'number' ? arguments[1] : undefined) ;
+        const skipStack = typeof candidateCode === 'number' && _respValues.has(candidateCode) ;
+        const stackHolder = Error as unknown as { stackTraceLimit?:number } ;
+        const hasStackLimit = skipStack && typeof stackHolder.stackTraceLimit === 'number' ;
+        const savedStackLimit = hasStackLimit ? stackHolder.stackTraceLimit : undefined ;
+        if (hasStackLimit) { stackHolder.stackTraceLimit = 0 ; }
+
         super(s.length?s:TSError.DefaultMessage) ;
+
+        if (hasStackLimit) { stackHolder.stackTraceLimit = savedStackLimit! ; }
 
         switch (n) {
 			case 1: break ;
@@ -107,13 +140,18 @@ export class TSError extends Error {
     public set errorCode(code:Nullable<number>) { if ($isint(code)) { this._errorCode = code! ;} } 
     
     // TSError status is here to handle specific HTTP errors
-    public get status():Resp 
-    { return $ok(this._errorCode) && !isNaN(this._errorCode) && Object.values(Resp).includes(this._errorCode) ? this._errorCode as Resp : Resp.InternalError ; }
-    
-    public set status(s:Resp) 
-    { if (Object.values(Resp).includes(s)) { this._errorCode = s ; } }
+    public get status():Resp
+    { return $isRespCode(this._errorCode) ? this._errorCode as Resp : Resp.InternalError ; }
+
+    public set status(s:Resp)
+    { if (_respValues.has(s)) { this._errorCode = s ; } }
 
     public entries(): [string, any][] { return Object.entries({ name:this.name, errorCode:this.errorCode, message:this.message, info:this.info}) ; }
+
+    public leafInspect():string { return `[TSError ${this.errorCode}] ${this.message}` ; }
+
+    // @ts-ignore
+    [customInspectSymbol]() { return this.leafInspect() ; }
 
 }
 

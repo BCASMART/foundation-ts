@@ -1,5 +1,5 @@
 import { $email, $isdate, $isodate, $length, $ok, $toint, $tounsigned, $unsigned, $url, $UUID, $value } from "./commons";
-import { FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationLeftTrimRegex, FoundationNewLineStringCodeSet, FoundationRightTrimRegex, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
+import { FoundationFindAllWhitespacesRegex, FoundationFindStrictWhitespacesRegex, FoundationHTMLEncoding, FoundationHTMLStructureEncoding, FoundationNewLineStringCodeSet, FoundationStrictWhiteSpacesStringCodeSet, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $transliterate } from "./transliteration";
 import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
@@ -29,16 +29,39 @@ export function $asciifs(source: Nullable<string>, posix: boolean = false): stri
 }
 
 /**
- *   We don't use standard trim because it does not trim all unicode whitespaces! 
+ *   We don't use standard trim because it does not trim all unicode whitespaces!
+ *   These do a single index-scan + at most one slice() ; the original string is
+ *   returned untouched when there is nothing to trim (the common case).
  */
 // left-trim
-export function $ltrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationLeftTrimRegex, "") : ''; }
+export function $ltrim(s: Nullable<string>): string {
+    if (!$length(s)) { return ''; }
+    const str = s! ; const n = str.length ;
+    let i = 0 ;
+    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(i))) { i++ ; }
+    return i === 0 ? str : str.slice(i) ;
+}
 
 // right-trim
-export function $rtrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationRightTrimRegex, "") : ''; }
+export function $rtrim(s: Nullable<string>): string {
+    if (!$length(s)) { return ''; }
+    const str = s! ; const n = str.length ;
+    let j = n ;
+    while (j > 0 && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(j - 1))) { j-- ; }
+    return j === n ? str : str.slice(0, j) ;
+}
 
 // full-trim
-export function $ftrim(s: Nullable<string>): string { return $length(s) ? s!.replace(FoundationLeftTrimRegex, "").replace(FoundationRightTrimRegex, "") : ''; }
+export function $ftrim(s: Nullable<string>): string {
+    if (!$length(s)) { return ''; }
+    const str = s! ; const n = str.length ;
+    let i = 0 ;
+    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(i))) { i++ ; }
+    if (i === n) { return '' ; }
+    let j = n ;
+    while (FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(j - 1))) { j-- ; }
+    return i === 0 && j === n ? str : str.slice(i, j) ;
+}
 
 export { $ftrim as $trim }
 

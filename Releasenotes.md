@@ -2,6 +2,54 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.2
+
+#### Corrections
+
+- `$decodeBase64()` / `$decodeBase64URL()` were buggy on malformed input: any embedded whitespace or extra `=` padding made it over-read and append garbage trailing bytes.
+
+- `$decodeBase64()` on a single leftover base64 character (6 bits, not enough for a byte) now returns an empty array instead of a one-byte array holding a partial value.
+
+- `$decodeBase64()` / `$decodeBase64URL()` / `$encodeBase64()` / `$encodeBase64URL()` / `$encodeBytesToHexa()` pure internal JS codec are know faster and usage to native Buffer() methods are more accurately used.
+
+- `$ok()` / `$defined()` /  `$isnumber()` dropped some redundant code
+
+- `$ltrim()` / `$rtrim()` / `$trim()` (same as `$ftrim`) are know faster by avoiding double regex usage
+
+- `$keys()` now lists only enumerable keys.
+
+- `$term()` / `$termclean()` were reimplemented and are really faster.
+
+- `Number.prototype.toHex1()` / `toHex2()` / `toHex4()` / `toHex8()` commes know bug free for number out of 4 octets range and are way faster.
+
+- `TSData.splice()` / `appendBytes()` / `replaceBytes()` / `appendData()` were writing bytes at a wrong offset when the source was a plain `number[]` or a non-`Buffer` `Uint8Array` **and** a `sourceStart` greater than 0 was given (or the internal grow-and-insert path was taken). `TSData` and `Buffer` sources were not affected. Fixed.
+
+- static method `TSURL.url()`did never throw even if the `throwsError`option was set. Fixed and added test to valid it.
+
+- `$string()` object conversion rewritten to follow the JS `ToPrimitive` algorithm (hint `"string"`): it tries `[Symbol.toPrimitive]`, then `toString()`, then `valueOf()`, keeping only a result of the type each is expected to give. The former ad-hoc `$ismethod()` probe plus a `` `${v}` `` fall-back **threw** on a null-prototype object (`Object.create(null)`); `$string()` never throws now. A boxed `Boolean` (`new Boolean(...)`) also correctly goes through the `trueValue` / `falseValue` options.
+
+- server error responses (404 / 405 / bad-query / bad-body — every `TSError` carrying an HTTP `Resp` code) no longer pay V8's stack-trace capture, the dominant cost of constructing an `Error`, on paths that scan/probe traffic hits constantly. `TSError.status` and the server's inline status check now test membership in a `Set` built once instead of rebuilding `Object.values(Resp)` on every errored request.
+
+-   Error, TSUniqueError and TSError are better handled by $insp()
+
+- `TSDate`, `TSColor`, `TSURL`, `TSData` and `TSCharset` `[Symbol.toPrimitive]` hint handling made consistent.
+
+- `TSListNode` toArray() methods now returns an array containing the list node data (coherent with all other methods)
+
+  
+#### What's new ?
+
+- `TSData.mutableBuffer` accessor know handles a cache which is really faster
+- `$string()`function does not accepts a second boolean optional parameter anymore but an optional `$stringOptions`object instead which manages more precisely how to string convertion are handled. No options means works like before.
+- new `TSData.appendASCII(source, sourceStart?, sourceEnd?)` instance method: appends a string as raw bytes (`charCodeAt(i) & 0xff`).
+- `$decodeBase64()` / `$decodeBase64URL()` are now tolerant of either base64 alphabet, of embedded whitespace, and of missing or extra `=` padding (previously only well-formed input was safe — see Corrections).
+- `$loadJSON()` no longer accepts a `TSDataLike` source (pass a path string and use `$jsonparse()` for in-memory data) and now takes an optional standard `reviver` callback forwarded to `$jsonparse()`.
+- new `toString()` instance methods on `TSCharset`, on `TSFusionTemplate` and subclasses.
+- `transliteration.ts` no longer decodes its ~442 KB of lookup tables at import time. The header always said "loaded lazily on first call" but the work ran on module evaluation, the moment anything imported `strings` or `commons`. It is now genuinely deferred to the first `$ascii()` / `$transliterate()` call.
+- test coverage raised across the board: global code coverage is at nearly 98% and every source file is now at 90% minimum for statements and functions. The suite now runs more than 23400 tests on `Node.js` and more 21300 tests on `Chrome`, `WebKit` and `Firefox` headless environments.
+
+<hr/>
+
 ## version 1.8.1
 
 #### Corrections
@@ -249,7 +297,7 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
     /*
       if format undefined => returns standard non compact string
       if format null or empty uses standard country format
-
+    
       Format composition
       ---------------------
       %c      country label
@@ -269,7 +317,7 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
       %X      country alpha3 code   
       %%      a percent
     */
-
+    
     ```
 - `TSUnaryTest` class has now a boolean `logAllTests` you can activate to show all expected tests to log PASS and FAIL
 

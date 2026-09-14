@@ -453,4 +453,125 @@ TSTest.group("Fusion — operators, params, constants", async (group) => {
     }) ;
 }),
 
+TSTest.group("Fusion — template introspection & capacity", async (group) => {
+
+    group.unary('per-context variable predicates', async (t) => {
+        const tpl = TSFusionTemplate.fromString("{{$g}}|{{+u}}|{{_sys}}|{{@r}}|{{.l}}|{{*p}}") ;
+        if (!t.expect0(tpl).OK()) { return ; }
+
+        // isVariable() / unknown variable
+        t.expectA(tpl!.isVariable('g')).true() ;
+        t.expectB(tpl!.isVariable('l')).true() ;
+        t.expectC(tpl!.isVariable('nope')).false() ;
+
+        // typed predicates — positive cases (also exercises isVariableOfType())
+        t.expectD(tpl!.isGlobalVariable('g')).true() ;
+        t.expectE(tpl!.isUserVariable('u')).true() ;
+        t.expectF(tpl!.isSystemVariable('sys')).true() ;
+        t.expectG(tpl!.isRootVariable('r')).true() ;
+        t.expectH(tpl!.isLocalVariable('l')).true() ;
+        t.expectI(tpl!.isProcedure('p')).true() ;
+
+        // typed predicates — negative cases
+        t.expectJ(tpl!.isGlobalVariable('u')).false() ;      // known variable, wrong context
+        t.expectK(tpl!.isProcedure('unknown')).false() ;     // unknown variable altogether
+        t.expectL(tpl!.isUserVariable('g')).false() ;
+    }) ;
+
+    group.unary('capacity getter / setter', async (t) => {
+        const tpl = TSFusionTemplate.fromString("Hello {{name}}, welcome !") ;
+        if (!t.expect0(tpl).OK()) { return ; }
+
+        const base = tpl!.capacity ;
+        t.expect1(base).gt(0) ;
+
+        tpl!.capacity = base * 8 ;              // larger request -> capacity grows
+        t.expect2(tpl!.capacity).gt(base) ;
+
+        const grown = tpl!.capacity ;
+        tpl!.capacity = 1 ;                     // smaller request -> capacity unchanged
+        t.expect3(tpl!.capacity).is(grown) ;
+    }) ;
+
+    group.unary('forbidden special character inside a mark', async (t) => {
+        // a FUSION special char ('@') in the starting mark must abort parsing
+        t.expect0(TSFusionTemplate.fromString("a rather long template body here", { startingMark:'@{' })).null() ;
+        t.expect1(TSFusionTemplate.fromString("a rather long template body here", { endingMark:'#}' })).null() ;
+        t.expect2(TSFusionTemplate.fromString("a rather long template body here", { separator:'*' })).null() ;
+    }) ;
+
+    group.unary('malformed variable declarations abort parsing', async (t) => {
+        const KO = (s:string) => TSFusionTemplate.fromString(s) ;
+
+        t.expect0(KO("{{)x}}")).null() ;              // forbidden initial variable character
+        t.expect1(KO("{{.9}}")).null() ;              // forbidden character right after a leading dot
+        t.expect2(KO("{{ab)cd}}")).null() ;           // forbidden character inside a variable name
+        t.expect3(KO("{{name x}}")).null() ;          // neither separator nor ending mark after the name
+        t.expect4(KO("{{name:x}}")).null() ;          // separator on a non-container variable
+        t.expect5(KO("{{items# }}")).null() ;         // container variable without its separator
+        t.expect6(KO("{{name}x}}")).null() ;          // broken ending mark
+        t.expect7(KO("{{a}} then a stray }} here")).null() ; // supernumerary ending mark
+    }) ;
+
+    group.unary('malformed parameters abort parsing', async (t) => {
+        const KO = (s:string) => TSFusionTemplate.fromString(s) ;
+
+        t.expect0(KO("{{f(&)}}")).null() ;            // forbidden character where a parameter is expected
+        t.expect1(KO("{{f(1x)}}")).null() ;           // non-numeric character in a numeric parameter
+        t.expect2(KO("{{f(trX)}}")).null() ;          // wrong character while decoding a constant parameter
+        t.expect3(KO("{{f(1 2)}}")).null() ;          // missing comma between parameters
+        t.expect4(KO("{{f(1)x}}")).null() ;           // junk right after the closing parenthesis
+        t.expect5(KO('{{f(|{ nope |)}}')).null() ;    // unparsable JSON parameter
+        t.expect6(KO('{{f("\\uZZZZ")}}')).null() ;    // bad hexadecimal in a \\u escape
+    }) ;
+
+    group.unary('debug parsing mode produces a template', async (t) => {
+        // exercises the debugParsing logging paths + TSFusionTreeNode.label
+        const tpl = TSFusionTemplate.fromString('Hi {{name}} {{items#:[{{self}}]}} {{flag?:Y}}', { debugParsing:true }) ;
+        if (t.expect0(tpl).OK()) {
+            const e:string[] = [] ;
+            const r = tpl!.fusionWithDataContext({ name:'Bob', items:[1, 2], flag:true }, {}, e) ;
+            t.expect1(r).is('Hi Bob [1][2] Y') ;
+        }
+        // debug parsing on a broken template still returns null (logs the error)
+        t.expect2(TSFusionTemplate.fromString('broken {{unclosed', { debugParsing:true })).null() ;
+        t.expect3(TSFusionTemplate.fromHTMLData(Buffer.from('<p><fusion path="x"></p>'), { debugParsing:true })).OK() ;
+    }) ;
+
+    group.unary('fusion runtime — contexts, key-path errors, user log', async (t) => {
+        const F = (s:string, data:any, opts:any = {}) => {
+            const tpl = TSFusionTemplate.fromString(s, opts) ;
+            const e:string[] = [] ;
+            const r = tpl ? tpl.fusionWithDataContext(data, opts.globalContext ?? {}, e) : null ;
+            return { r, e } ;
+        } ;
+
+        // user context {{+var}} resolves against the global context
+        t.expect0(F('{{+job}}', {}, { globalContext:{ job:'Dev' } }).r).is('Dev') ;
+
+        // system {{_log(...)}} pushes a USERLOG entry and renders nothing
+        const logged = F('[{{_log("hello")}}]', {}, { addStandardGlobalFunctions:true }) ;
+        t.expect1(logged.r).is('[]') ;
+        t.expect2(logged.e.some(m => m === 'USERLOG:hello')).true() ;
+
+        // a throwing getter on the data bubbles up to the outer catch -> null + "Fusion did encounter error"
+        const boom = F('{{x}}', { get x() { throw new Error('kaboom') ; } }) ;
+        t.expect3(boom.r).null() ;
+        t.expect4(boom.e.some(m => m.includes('Fusion did encounter error'))).true() ;
+
+        // too many leading dots underflows the stack
+        t.expect5(F('{{....x}}', { x:1 }).e.some(m => m.includes('underflow the stack'))).true() ;
+
+        // a zero-arg accessor that throws
+        t.expect6(F('{{o.boom}}', { o:{ boom:() => { throw new Error('x') ; } } }).e.some(m => m.includes('execution did fail'))).true() ;
+
+        // parameters applied to a non-function property
+        t.expect7(F('{{o.p(1)}}', { o:{ p:42 } }).e.some(m => m.includes("unknown method 'p()'"))).true() ;
+
+        // a procedure that injects into the local context, then a local var that only exists in the data
+        const proc = (_d:any, _r:any, local:TSDictionary) => { local.injected = 'I' ; return 'P' ; } ;
+        t.expect8(F('{{*p}}{{.injected}}/{{.realKey}}', { realKey:'R' }, { procedures:{ p:proc } }).r).is('PI/R') ;
+    }) ;
+}),
+
 ] ;

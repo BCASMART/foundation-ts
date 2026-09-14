@@ -89,12 +89,12 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         const [protocol, w3c, aps] = _validateProtocolInfo(_findProtocol(url), opts.acceptedProtocols) ;
         let p = protocol.length ;
         if (!p) {
-            if (!!opts.throwsError) { new TSError(`TSURL: bad protocol in '${url}'`) ; }
+            if (!!opts.throwsError) { TSError.throw(`TSURL: bad protocol in '${url}'`) ; }
             return null ;
         }
 
         if (url[p] !== '/' || url[p+1] !== '/') {
-            if (!!opts.throwsError) { new TSError(`TSURL: unable to find // before hostname in url '${url}'`) ; }
+            if (!!opts.throwsError) { TSError.throw(`TSURL: unable to find // before hostname in url '${url}'`) ; }
             return null ;
         }
         let c = '' ;
@@ -123,7 +123,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         let path = '' ;
 
         if (!hostname.length || hostname.length > TSURL.HostMaxLength) {
-            if (!!opts.throwsError) { new TSError(`TSURL: bad hostname in url '${url}'`) ; }
+            if (!!opts.throwsError) { TSError.throw(`TSURL: bad hostname in url '${url}'`) ; }
             return null ;
         }
 
@@ -131,13 +131,13 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         if (ipv6Hostname) {
             hostname = hostname.slice(1, hostname.length-1) ;
             if (!$isipv6(hostname)) {
-                if (!!opts.throwsError) { new TSError(`TSURL: bad ipv6 hostname in url '${url}'`) ; }
+                if (!!opts.throwsError) { TSError.throw(`TSURL: bad ipv6 hostname in url '${url}'`) ; }
                 return null ;
             }
         }
         else {
             if (!_checkPotentialIPV4HostName(hostname)) {
-                if (!!opts.throwsError) { new TSError(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
+                if (!!opts.throwsError) { TSError.throw(`TSURL: bad ipv4 hostname in url '${url}'`) ; }
                 return null ;
             }
             [hostname, path] = _validateHostName(hostname) ;    
@@ -167,7 +167,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
             path = path.slice(0, qmIndex) ; 
         }
         if (search.length > 0 && !!opts.refusesParameters) {
-            if (!!opts.throwsError) { new TSError(`TSURL: unexpected parameters in url '${url}'`) ; }
+            if (!!opts.throwsError) { TSError.throw(`TSURL: unexpected parameters in url '${url}'`) ; }
             return null ;
         }
         if (!path.length) { path = '/' ; }
@@ -249,7 +249,7 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        return hint === "string" || hint === "default" ? this.href : null ; 
+        return hint === 'number' ? NaN : this.href ;
     }
 
     // ============ TSObject conformance ==================

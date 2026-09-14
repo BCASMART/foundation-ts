@@ -114,6 +114,25 @@ export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) =>
         t.expect2($isophone('(00 33)01.45.24.7000')).is(N) ;
     }) ;
 
+    group.unary('TSPhoneNumber — interpret / exampleNumber / accessors / TSObject conformance', async (t) => {
+        const p = TSPhoneNumber.fromString('+33145247000')! ;
+        t.expect0(p).OK() ;
+        t.expect1(p.alpha3Code).is('FRA') ;
+        t.expect2(typeof p.trunkCode).is('string') ;
+        t.expect3(p.clone()).is(p) ;                              // immutable -> self
+        t.expect4(p.toArray()).is([p]) ;
+        t.expect5(p.toJSON()).is(p.compactNumber) ;
+        t.expect6(p.compare(p)).is(0) ;                           // Same
+        t.expect7(p.compare('+33145247001') !== undefined).true() ;
+        t.expect8(p.compare(42)).undef() ;                        // not comparable
+
+        t.expect9(TSPhoneNumber.interpret('+33145247000') instanceof TSPhoneNumber).true() ;
+        t.expectA(TSPhoneNumber.interpret('garbage') instanceof TSPhoneNumber).false() ; // -> a PhoneValidity code
+
+        const ex = TSPhoneNumber.exampleNumber(TSCountry.country('FR')) ;
+        t.expectB(ex === null || ex instanceof TSPhoneNumber).true() ; // generator runs; result may be null
+    }) ;
+
     // the fixture is loaded from disk through $loadJSON()/$absolute(), which
     // assert against a browser environment: skip it under jsdom / headless Chrome.
     if (!$inbrowser()) { group.unary('Phone recognition from JSON test base', async t => {

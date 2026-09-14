@@ -221,6 +221,23 @@ export const stringGroups = [
             t.expectC('\n&Y&b  REGISTERED ITEMS  &0'.doubleEscape('&')).is('\n&&Y&&b  REGISTERED ITEMS  &&0') ;
         }) ;
 
+        group.unary("String prototype conversions", async(t) => {
+            t.expect0('héllo wörld'.strictAscii()).is('hello world') ;
+            t.expect1(''.strictAscii()).null() ;
+            t.expect2('a b/c'.asciifs(false)).isstring() ;
+            t.expect3('2021-06-01'.isDate()).true() ;
+            t.expect4('nope'.isDate()).false() ;
+            t.expect5('2021-06-01'.toDate() instanceof Date).true() ;
+            t.expect6('nope'.toDate()).null() ;
+            t.expect7('42abc'.toInt()).is(42) ;
+            t.expect8('2021-06-01T10:00:00'.toTSDate()?.toIsoString()).is('2021-06-01T10:00:00') ;
+            t.expect9('+33612345678'.toPhoneNumber()?.standardNumber.length).gt(0) ;
+            t.expectA('notaphone'.toPhoneNumber()).null() ;
+            // a Unicode line separator (U+2028) exercises isOtherLineSeparator in $lines()
+            t.expectB('a b'.lines()).is(['a', 'b']) ;
+            t.expectC('a b'.lines(true)).is(['a b']) ;   // ASCII-only separators -> not split
+        }) ;
+
         group.unary("$camelCase(), $snakeCase() && $HTML() functions", async(t) => {
             // identifier oriented: spaces are stripped, '-' and '_' mark word boundaries, non-ASCII is transliterated
             t.expect0($camelCase("foo-bar_baz")).is("fooBarBaz") ;

@@ -1,6 +1,6 @@
 import { inspect } from "util";
 
-import { $inbrowser, $insp, $jsonparse, $jsonstrip, $mark, $sleep, $term, $termclean } from "../src/utils";
+import { $hexadump, $inbrowser, $insp, $jsonparse, $jsonstrip, $mark, $noop, $sleep, $stack, $term, $termclean } from "../src/utils";
 import { TSTest } from '../src/tstester';
 import { TSDate } from "../src/tsdate";
 import { TSRange } from "../src/tsrange";
@@ -127,7 +127,28 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         t.expect3($termclean(vl)).is(v0);
         t.expect4($termclean(v3)).is(v4);
         t.expect5($termclean(v5)).is(v6);
+        // unknown '&?' escape sequence -> exercises the default branch of the escape switch
+        t.expect6(typeof $term('&Q text')).is('string') ;
     });
+
+    group.unary("$noop() / $stack() / $hexadump()", async (t) => {
+        t.expect0($noop()).undef() ;
+
+        const st = $stack() ;
+        if (!$inbrowser()) {
+            // structured call-frame stacks rely on Error.prepareStackTrace, a V8/Node-only API
+            t.expect1(Array.isArray(st)).true() ;
+            t.expect2((st as any[]).length).gt(0) ;
+            t.expect3(typeof (st as any[])[0].getFileName === 'function').true() ;
+        }
+        else {
+            t.expect1(!!st).true() ;   // some stack representation is returned (a string under SpiderMonkey)
+        }
+
+        // $hexadump just needs to run over a buffer holding '&', printable, and high bytes
+        t.expect4($hexadump(Buffer.from([0x26, 0x41, 0x42, 0xff, 0x00, 0x7f, 0x80]))).undef() ;
+        t.expect5($hexadump(null)).undef() ;
+    }) ;
 
     group.unary("$jsonstrip() && $jsonparse() functions", async (t) => {
         // $jsonstrip() removes // and /* */ comments but keeps them inside strings

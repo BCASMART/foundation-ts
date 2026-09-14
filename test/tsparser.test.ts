@@ -982,6 +982,155 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expect5(p.stringify({ a:7 })).is('{"a":7}') ;
     }) ;
 
+    group.unary('TSParser.define() — malformed structure definitions', async (t) => {
+        const KO = (def:any) => { const e:string[] = [] ; return { p:TSParser.define(def, e), e } ; } ;
+
+        t.expect0(KO(42).p).null() ;                                  // not a node at all
+        t.expect1(KO(null).p).null() ;
+        t.expect2(KO([]).p).null() ;                                  // empty array node
+        t.expect3(KO(['string', 1, 2, 3]).p).null() ;                 // array node too long
+        t.expect4(KO(['string', -1]).e.length).gt(0) ;               // wrong min
+        t.expect5(KO(['string', 0, 'x']).e.length).gt(0) ;           // wrong max
+        t.expect6(KO([['notatype']]).p).null() ;                      // invalid nested item type
+        t.expect7(KO({ _mandatory:true }).p).null() ;                 // object without a real field
+        t.expect8(KO({ 'bad key!':'string' }).p).null() ;             // invalid field name
+        t.expect9(KO({ _keysType:'notatype', _valueItemsType:'string' }).p).null() ; // bad keys type
+        t.expectA(KO({ _keysType:'string', _valueItemsType:'notatype' }).p).null() ; // bad values type
+        t.expectB(KO({ _keysType:'string' }).e.length).gt(0) ;       // dictionary without _valueItemsType
+        t.expectC(KO({ _itemsType:'notatype' }).p).null() ;           // extended array with bad items
+    }) ;
+
+    group.unary('TSParser — dictionary node round-trip', async (t) => {
+        const p = TSParser.define({
+            _mandatory:true,
+            _keysType:'string',
+            _valueItemsType:'uint8',
+        })! ;
+        t.expect0(p).OK() ;
+        t.expect1(p.nodeType()).is('object') ;
+
+        const nat = { a:1, b:2, c:3 } ;
+        t.expect2(p.validate(nat)).true() ;
+        t.expect3(p.rawInterpret(nat)).is(nat) ;
+        t.expect4(p.rawEncode(nat)).is(nat) ;
+        t.expect5(p.validate([1, 2, 3])).false() ;      // not a dictionary
+        t.expect6(p.validate({})).false() ;             // mandatory + empty
+        t.expect7(p.validate({ a:999 })).false() ;      // value out of uint8 range
+
+        const j = p.toJSON() as any ;
+        t.expect8(j._type).is('dictionary') ;
+
+        const p2 = TSParser.define({ _keysType:'string', _valueItemsType:'uint8' })! ;
+        t.expect9(p2.rawInterpret(undefined)).undef() ; // not mandatory -> returns value as-is
+    }) ;
+
+    group.unary('TSParser — leaf-type _enum validators + key casing', async (t) => {
+        // a leaf node with an _enum option exercises each type manager's `enum` closure
+        const E = (type:string, values:any[]) => {
+            const e:string[] = [] ;
+            const p = TSParser.define({ x:{ _type:type, _enum:values } } as any, e) ;
+            return { ok:$ok(p), e } ;
+        } ;
+        t.expect0(E('continent', ['EU', 'AS']).ok).true() ;
+        t.expect1(E('country',   ['FR', 'US']).ok).true() ;
+        t.expect2(E('currency',  ['EUR', 'USD']).ok).true() ;
+        t.expect3(E('language',  ['fr', 'en']).ok).true() ;
+        t.expect4(E('paper',     ['a4', 'letter']).ok).true() ;
+        t.expect5(E('path',      ['/tmp/a', '/var/b']).ok).true() ;
+        t.expect6(E('string',    ['a', 'b']).ok).true() ;
+        t.expect7(E('int',       [-5, 5]).ok).true() ;
+        t.expect8(E('int8',      [1, 2]).ok).true() ;
+        t.expect9(E('int16',     [1, 2]).ok).true() ;
+        t.expectA(E('int32',     [1, 2]).ok).true() ;
+        t.expectB(E('uint8',     [1, 2]).ok).true() ;
+        t.expectC(E('uint16',    [1, 2]).ok).true() ;
+        t.expectD(E('uint32',    [1, 2]).ok).true() ;
+        t.expectE(E('unsigned',  [1, 2]).ok).true() ;
+        t.expectF(E('uuid',      [$uuid(), $uuid()]).ok).true() ;
+        t.expectG(E('ipaddress', ['10.0.0.1']).ok).true() ;
+        t.expectH(E('ipv4',      ['10.0.0.1']).ok).true() ;
+        t.expectI(E('ipv6',      ['::1']).ok).true() ;
+        t.expectJ(E('url',       ['https://x.example/']).ok).true() ;
+        t.expectK(E('number',    [1.5, 2.5]).ok).true() ;
+        // an invalid enum value is rejected by the closure
+        t.expectL(E('country', ['ZZ']).ok).false() ;
+        t.expectM(E('int8', [9999]).ok).false() ;
+        // object-form enumeration ({ key: value })
+        t.expectN(E('string', { a:'alpha', b:'beta' } as any).ok).true() ;
+
+        // key casing transforms (_keysCase -> InternalCasingMap 'uppercase' / 'lowercase')
+        const up = TSParser.define({ _keysCase:'uppercase', name:'string!' } as any)! ;
+        t.expectO((up.rawInterpret({ NAME:'Bob' }) as any).NAME).is('Bob') ;
+        const lo = TSParser.define({ _keysCase:'lowercase', name:'string!' } as any)! ;
+        t.expectP((lo.rawInterpret({ name:'Bob' }) as any).name).is('Bob') ;
+    }) ;
+
+    group.unary('TSParser — every leaf type round-trips (parse + encode)', async (t) => {
+        const def:TSNode = {
+            _mandatory:true,
+            aBool:      'boolean',
+            aCharset:   'charset',
+            aColor:     'color',
+            aData:      'data',
+            aDate:      'date',
+            aEmail:     'email',
+            aHexa:      'hexa',
+            aIp:        'ipaddress',
+            aIp4:       'ipv4',
+            aIp6:       'ipv6',
+            aInt:       'int',
+            aInt8:      'int8',
+            aInt16:     'int16',
+            aInt32:     'int32',
+            aJsDate:    'jsdate',
+            aLanguage:  'language',
+            aNumber:    'number',
+            aPaper:     'paper',
+            aPath:      'path',
+            aPhone:     'phone',
+            aString:    'string',
+            aUint8:     'uint8',
+            aUint16:    'uint16',
+            aUint32:    'uint32',
+            aUnsigned:  'unsigned',
+            aUrl:       'url',
+            aUuid:      'uuid',
+            aContinent: 'continent',
+            aCountry:   'country',
+            aCurrency:  'currency',
+        } ;
+        const p = TSParser.define(def)! ;
+        t.expect0(p).OK() ;
+
+        const json = {
+            aBool:'true', aCharset:'UTF-8', aColor:'#11223344', aData:'QUJD', aDate:'2021-06-01T10:00:00',
+            aEmail:'a@b.com', aHexa:'a1b2c3', aIp:'10.0.0.1', aIp4:'192.168.1.1', aIp6:'::1',
+            aInt:'-5', aInt8:'-8', aInt16:'-16', aInt32:'-32', aJsDate:'2021-06-01T10:00:00.000Z',
+            aLanguage:'FR', aNumber:'3.5', aPaper:'A4', aPath:'/tmp/x', aPhone:'+33612345678',
+            aString:'hi', aUint8:'8', aUint16:'16', aUint32:'32', aUnsigned:'64',
+            aUrl:'https://example.org/p', aUuid:$uuid(), aContinent:'eu', aCountry:'fr', aCurrency:'eur',
+        } ;
+        const back = p.parse(JSON.stringify(json)) ;
+        if (t.expect1(back).OK()) {
+            t.expect2(back.aBool).is(true) ;
+            t.expect3(back.aCharset instanceof TSCharset).true() ;
+            t.expect4(back.aColor instanceof TSColor).true() ;
+            t.expect5(back.aJsDate instanceof Date).true() ;
+            t.expect6(back.aInt).is(-5) ;
+            t.expect7(back.aUrl instanceof TSURL).true() ;
+
+            // encode the interpreted native values back to their transport form
+            const enc = p.encode(back) as any ;
+            t.expect8(enc).OK() ;
+            t.expect9(enc.aDate).is('2021-06-01T10:00:00') ;
+            t.expectA(enc.aCountry).is('FR') ;
+            t.expectB(typeof enc.aPhone).is('string') ;
+            t.expectC(enc.aHexa.toLowerCase()).is('a1b2c3') ;
+            t.expectD(enc.aData).is('QUJD') ;
+            t.expectE(String(enc.aCharset).toLowerCase().replace('-', '')).is('utf8') ;
+        }
+    }) ;
+
 }) ;
 
 function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {

@@ -262,4 +262,88 @@ TSTest.group("$parsedenv() / $argCheck() / $args() edge cases", async (group) =>
     }) ;
 }),
 
+TSTest.group("env.ts — parser internals & error paths", async (group) => {
+
+    group.unary('$parsedenv() — merge rollback on parse failure', async (t) => {
+        const merge:TSDictionary = { ONE:'old', keep:'k' } ;
+        const r = $parsedenv('ONE=notanumber\nNEW=x', { parser:{ ONE:'uint32!' }, acceptsUnparsed:true, merge }) ;
+        t.expect0(r).null() ;
+        t.expect1(merge).is({ ONE:'old', keep:'k' }) ;          // NEW dropped, ONE restored
+    }) ;
+
+    group.unary('$parsedenv() — null source with debug', async (t) => {
+        t.expect0($parsedenv(null, { parser:{ ONE:'uint32!' }, debug:true })).is({}) ;
+    }) ;
+
+    group.unary('$env() — incomplete / malformed lines (debug)', async (t) => {
+        const d = { debug:true } ;
+        const B = (s:string) => "# head\n" + s ;
+        t.expect0($env(B('_'), d)).null() ;                     // underscore-only var, EOL
+        t.expect1($env(B('a'), d)).null() ;                     // single letter, no '='
+        t.expect2($env(B('ab'), d)).null() ;                    // name, no '='
+        t.expect3($env(B('a b'), d)).null() ;                   // junk instead of '='
+        t.expect4($env(B('a="abc'), d)).null() ;               // unterminated quoted value
+        t.expect5($env(B('a=x\\'), d)).null() ;                 // dangling backslash -> bad final state
+        t.expect6($env(B('a="1" x'), d)).null() ;               // non-'#' junk after a quoted value
+    }) ;
+
+    group.unary('$env() — backslash escapes & unicode', async (t) => {
+        t.expect0($env('a=A\\bB\\fC\\nD\\rE\\tF')).is({ a:'A\bB\fC\nD\rE\tF' }) ;
+        t.expect1($env('a=\\q')).is({ a:'q' }) ;                // unknown escape -> literal char
+        t.expect2($env('a="\\u0041\\u00e9"')).is({ a:'Aé' }) ;
+        t.expect3($env('a="\\uZZZZ"', { debug:true })).null() ; // bad hex digit in \u escape
+    }) ;
+
+    group.unary('$env() — substitution edge cases', async (t) => {
+        const d = { debug:true } ;
+        t.expect0($env('a=$x', d)).null() ;                     // '$' not followed by '{'
+        t.expect1($env('a=${9x}', d)).null() ;                  // substitution starting with a digit
+        t.expect2($env('a=${___x}', d)).null() ;               // too many underscores in substitution
+        t.expect3($env('a=${AB-C}', d)).null() ;               // bad char inside substitution name
+        t.expect4($env('a=${NOPE}', d)).is({ a:'' }) ;          // unknown substitution -> empty
+        t.expect5($env('a=${LONGNAME}', { variableMax:4, ...d })).null() ; // substitution name too long
+    }) ;
+
+    group.unary('$args() — struct-object validation errors', async (t) => {
+        t.expect0(() => $args({ verbose:{ struct:'boolean', negative:'x' } })).throws(/negative name/) ;
+        t.expect1(() => $args({ verbose:{ struct:'boolean', short:'ab' } })).throws(/short version/) ;
+        t.expect2(() => $args({ verbose:{ struct:'boolean', negativeShort:'ab' } })).throws(/negative short/) ;
+        t.expect3(() => $args({ verbose:{ struct:'boolean!' } })).throws(/mandatory/) ;
+        t.expect4(() => $args({ ab:{ struct:'boolean', short:'x' }, cd:{ struct:'boolean', short:'x' } })).throws(/bad structure/) ;
+    }) ;
+
+    group.unary('$args() — exitError path (no errors) & string boolean flag', async (t) => {
+        const [d] = $args({ ok:'boolean', input:'string!' }, { arguments:['--ok', '--input', 'f.txt'], exitError:2 }) ;
+        t.expect0(d).is({ ok:true, input:'f.txt' }) ;
+    }) ;
+
+    group.unary('$args() — repeated values & unknown combined short flags', async (t) => {
+        const def:TSArgumentDictionary = { input:{ struct:['string'] as any }, verbose:{ struct:'boolean', short:'v' } } ;
+        const errs:string[] = [] ;
+        const [d] = $args(def, { arguments:['--input', 'a', '--input', 'b', '--input', 'c'], errors:errs }) ;
+        t.expect0(d?.input).is(['a', 'b', 'c']) ;
+
+        const e2:string[] = [] ;
+        const [d2] = $args({ verbose:{ struct:'boolean', short:'v' } }, { arguments:['-HZ'], errors:e2 }) ;
+        t.expect1(d2).null() ;
+        t.expect2(e2.length).gt(0) ;
+    }) ;
+
+    group.unary('$args() — URL query: repeats and inverse-value variants', async (t) => {
+        const def:TSArgumentDictionary = {
+            input:'string!',
+            tags:{ struct:['string'] as any },
+            limit:{ struct:'boolean', short:'l', negative:'no-limit' },
+        } ;
+        const run = (q:string) => {
+            const errors:string[] = [] ;
+            const [d] = $args(def, { errors, arguments:new URL('https://h/p?' + q) }) ;
+            return { d, errors } ;
+        } ;
+        t.expect0(run('input=x&no-limit=n').d?.limit).is(true) ;        // 'n' -> true
+        t.expect1(run('input=x&no-limit=maybe').d).null() ;             // unknown -> literal -> rejected
+        t.expect2(run('input=x&tags=a&tags=b&tags=c').d?.tags).is(['a', 'b', 'c']) ;
+    }) ;
+}),
+
 ] ;

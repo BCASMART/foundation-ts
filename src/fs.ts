@@ -43,7 +43,7 @@ import { $uuid } from './crypto';
 import { $inbrowser, $jsonparse } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { Nullable, StringEncoding, TSDataLike } from './types';
+import { Nullable, StringEncoding } from './types';
 import { $asciifs, $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
@@ -347,7 +347,9 @@ export function $filename(s: Nullable<string>, internalImplementation: boolean =
 }
 
 // JSON buffer is always considered as UTF8 buffer
-export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensions?:Nullable<string|string[]>): any
+// we now don't read data here: use $jsonparse() instead
+// we also now can use standard reviver function for $jsonparse()
+export function $loadJSON(source: Nullable<string>, acceptedExtensions?:Nullable<string|string[]>, reviver?: (this: any, key: string, value: any) => any): any
 {
     TSError.assertNotInBrowser('$loadJSON') ;
     if (!$isstring(source) || !source.length) { return null ; }
@@ -356,7 +358,7 @@ export function $loadJSON(source: Nullable<string | TSDataLike>, acceptedExtensi
     if (extensions.size === 0) { extensions.add('json') ; } // if no extensions, we accept json
     source = extensions.has($ext(source)) ? $readString(source, TSCharset.utf8Charset()) : '' ;    
 
-    return $valueornull($jsonparse(source, true)) ;
+    return $valueornull($jsonparse(source, true, reviver)) ; // strips by default
 }
 
 export function $readString(src: Nullable<string>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {

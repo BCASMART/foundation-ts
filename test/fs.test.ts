@@ -225,7 +225,7 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expect5($loadJSON(null)).null() ;
                 t.expect6($loadJSON(undefined)).null() ;
                 t.expect7($loadJSON('')).null() ;
-                t.expect8($loadJSON(Buffer.from(`{"a":1}`))).null() ;        // non-string source -> null
+                t.expect8($loadJSON(Buffer.from(`{"a":1}`) as any)).null() ; // non-string source -> null
                 t.expect9($loadJSON($path(folder, 'does-not-exist.json'))).null() ;
                 t.expectA($loadJSON(brokenFile)).null() ;                    // invalid JSON -> null
             }) ;

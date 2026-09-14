@@ -197,80 +197,93 @@ export function $uint32ArrayFromUint8Array(source:Uint8Array, isLittleEndian?:Nu
 
 // ===================== Base64 conversions ==============================
 
-const base64KeyStr    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-const base64URLKeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=";
-const base64Regex     = /[^A-Za-z0-9\+\/\=]/g ;
-const base64URLRegex  = /[^A-Za-z0-9\-\_\=]/g ;
-const base64URLRightTrimRegex = /[\=]+$/ ;
+const base64KeyStr    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const base64URLKeyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-export function $decodeBase64(input: string): Uint8Array
-{ return _decodeBase64(input, base64KeyStr, base64Regex) ; }
+// Native Node's Buffer carries C++ base64 / hex codecs that are worth the
+// (zero-copy) Uint8Array <-> Buffer bridge — up to ~50x faster than a JS scan on
+// real payloads. The browser 'buffer' polyfill only ships JS codecs that are
+// *slower* than the loops in this file, so there we stay pure-JS. Support for
+// the 'base64url' encoding name is a reliable native-only marker.
+const _nativeBuffer = typeof Buffer !== 'undefined'
+                   && typeof Buffer.isEncoding === 'function'
+                   && Buffer.isEncoding('base64url') ;
 
-export function $decodeBase64URL(input: string): Uint8Array
-{ return _decodeBase64(input, base64URLKeyStr, base64URLRegex) ; }
+// char code -> sextet value ; both the '+/' and the '-_' alphabets resolve, and
+// everything else (whitespace, '=' padding, junk) maps to -1 and is skipped.
+const _base64Sextets: Int8Array = (() => {
+    const t = new Int8Array(256).fill(-1) ;
+    for (let i = 0 ; i < 64 ; i++) { t[base64KeyStr.charCodeAt(i)] = i ; }
+    t[0x2D /* - */] = 62 ; t[0x5F /* _ */] = 63 ;
+    return t ;
+})() ;
 
-function _decodeBase64(input: string, reference: string, regex:RegExp): Uint8Array {
-    let chr1, chr2, chr3;
-    let enc1, enc2, enc3, enc4;
-    let i = 0;
-    let size = 0;
-    const len = input.length;
+export function $decodeBase64(input: string): Uint8Array    { return _decodeBase64(input) ; }
+export function $decodeBase64URL(input: string): Uint8Array { return _decodeBase64(input) ; }
 
-    input = input.replace(regex, "");
-
-    let uint8 = new Uint8Array(input.length);
-
-    while (i < len) {
-
-        enc1 = reference.indexOf(input.charAt(i++));
-        enc2 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
-        enc3 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
-        enc4 = i < len ? reference.indexOf(input.charAt(i++)) : 64 ;
-
-        chr1 = (enc1 << 2) | (enc2 >> 4);
-        chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-        chr3 = ((enc3 & 3) << 6) | enc4;
-
-        uint8[size++] = (chr1 & 0xff);
-        if (enc3 !== 64) { uint8[size++] = (chr2 & 0xff) ; }
-        if (enc4 !== 64) { uint8[size++] = (chr3 & 0xff) ; }
+function _decodeBase64(input: string): Uint8Array {
+    if (!input.length) { return new Uint8Array(0) ; }
+    if (_nativeBuffer) {
+        // 'base64' mode is lenient : accepts both alphabets, skips whitespace and
+        // stray padding. Wrapped so the result is a plain Uint8Array, not a
+        // pooled Buffer view.
+        return new Uint8Array(Buffer.from(input, 'base64')) ;
     }
-    return uint8.subarray(0, size);
+    return __pureDecodeBase64(input) ;
+}
+
+/** @internal — the pure-JS decoder used when no native base64 codec is available */
+export function __pureDecodeBase64(input: string): Uint8Array {
+    const n = input.length ;
+    const out = new Uint8Array((n * 3) >> 2) ; // upper bound on the byte count
+    let acc = 0, bits = 0, size = 0 ;
+    for (let i = 0 ; i < n ; i++) {
+        const cc = input.charCodeAt(i) ;
+        const v = cc < 256 ? _base64Sextets[cc] : -1 ;
+        if (v < 0) { continue ; } // whitespace / '=' / invalid
+        acc = (acc << 6) | v ;
+        bits += 6 ;
+        if (bits >= 8) { bits -= 8 ; out[size++] = (acc >>> bits) & 0xff ; }
+    }
+    return size === out.length ? out : out.subarray(0, size) ;
 }
 
 export function $encodeBase64(source: TSDataLike | string, encoding?:Nullable<StringEncoding | TSCharset>): string
-{ return _encodeBase64(source, base64KeyStr, encoding) ; }
+{ return _encodeBase64(source, false, encoding) ; }
 
 export function $encodeBase64URL(source: TSDataLike | string, encoding?:Nullable<StringEncoding | TSCharset>): string
-{ return _encodeBase64(source, base64URLKeyStr, encoding) ; }
+{ return _encodeBase64(source, true, encoding) ; }
 
-function _encodeBase64(source: TSDataLike | string, ref?: Nullable<string>, encoding?:Nullable<StringEncoding | TSCharset>): string {
-    const reference = $length(ref) ? ref! : base64KeyStr ;
-    let output = "";
-    let chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+function _encodeBase64(source: TSDataLike | string, url: boolean, encoding?:Nullable<StringEncoding | TSCharset>): string {
     const charset = $charset(encoding, TSCharset.binaryCharset()) ;
     const input = $isstring(source) ? charset.uint8ArrayFromString(source) : $uint8ArrayFromDataLike(source) ;
-    const len = input.length;
-    let i = 0 ;
-
-    while (i < len) {
-        chr1 = input[i++];
-        chr2 = input[i++];
-        chr3 = input[i++];
-
-        enc1 = chr1 >> 2;
-        enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
-        enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
-        enc4 = chr3 & 63;
-
-        if (isNaN(chr2)) {
-            enc3 = enc4 = 64;
-        } else if (isNaN(chr3)) {
-            enc4 = 64;
-        }
-        output = output + reference.charAt(enc1) + reference.charAt(enc2) + reference.charAt(enc3) + reference.charAt(enc4);
+    if (_nativeBuffer) {
+        const b = Buffer.from(input.buffer, input.byteOffset, input.length) ; // zero-copy view
+        return b.toString(url ? 'base64url' : 'base64') ;                       // 'base64url' emits no '=' padding
     }
-    return ref === base64URLKeyStr && output.length > 0 ? output.replace(base64URLRightTrimRegex, "") : output ;            
+    return __pureEncodeBase64(input, url) ;
+}
+
+/** @internal — the pure-JS encoder used when no native base64 codec is available */
+export function __pureEncodeBase64(input: Uint8Array, url: boolean): string {
+    const alphabet = url ? base64URLKeyStr : base64KeyStr ;
+    const len = input.length ;
+    let out = "" ;
+    let i = 0 ;
+    for ( ; i + 3 <= len ; i += 3) {
+        const c = (input[i] << 16) | (input[i + 1] << 8) | input[i + 2] ;
+        out += alphabet[(c >>> 18) & 63] + alphabet[(c >>> 12) & 63] + alphabet[(c >>> 6) & 63] + alphabet[c & 63] ;
+    }
+    const rem = len - i ;
+    if (rem === 1) {
+        const c = input[i] << 16 ;
+        out += alphabet[(c >>> 18) & 63] + alphabet[(c >>> 12) & 63] + (url ? "" : "==") ;
+    }
+    else if (rem === 2) {
+        const c = (input[i] << 16) | (input[i + 1] << 8) ;
+        out += alphabet[(c >>> 18) & 63] + alphabet[(c >>> 12) & 63] + alphabet[(c >>> 6) & 63] + (url ? "" : "=") ;
+    }
+    return out ;
 }
 
 
@@ -278,6 +291,14 @@ const FoundationHexaChars = '0123456789ABCDEF' ;
 const FoundationHexaLowerChars = '0123456789abcdef' ;
 const FoundationHexaStringRegex = /^[0-9a-fA-F]*$/ ;
 function _Uint8ArrayAlloc(n:number) { return new Uint8Array(n) ; }
+
+// byte -> 2 hex chars, precomputed once for both cases (used by the non-Buffer path)
+const _hexBytesUpper:string[] = new Array(256) ;
+const _hexBytesLower:string[] = new Array(256) ;
+for (let i = 0 ; i < 256 ; i++) {
+    _hexBytesUpper[i] = FoundationHexaChars[i >> 4]      + FoundationHexaChars[i & 0xF] ;
+    _hexBytesLower[i] = FoundationHexaLowerChars[i >> 4] + FoundationHexaLowerChars[i & 0xF] ;
+}
 
 function _foundationFromHex(source:Nullable<string>, allocate:(n:number)=>Uint8Array, systemFunction?:(s:string)=>Uint8Array): Nullable<Uint8Array>
 {
@@ -308,19 +329,21 @@ export function $encodeHexa(source:TSDataLike, toLowerCase?:boolean):string
 }
 
 export function $encodeBytesToHexa(source:Bytes, toLowerCase?:boolean):string {
-    if (source instanceof Buffer && !!toLowerCase) { return source.toString('hex') ; } // fast implementation
-    
-    let s = '' ;
+    // The native Buffer hex codec (C++, single pass) beats the JS table loop once
+    // the payload is big enough to amortize the zero-copy Uint8Array -> Buffer
+    // bridge ; below that, and always with the browser polyfill, the loop wins.
+    if (_nativeBuffer && source instanceof Uint8Array && source.length >= 32) {
+        const b = source instanceof Buffer ? source
+                : Buffer.from(source.buffer, source.byteOffset, source.length) ;
+        const hex = b.toString('hex') ; // always lowercase
+        return toLowerCase ? hex : hex.toUpperCase() ;
+    }
     const len = $length(source) ;
-    if (len) {
-        const b = !toLowerCase ? FoundationHexaChars : FoundationHexaLowerChars ;
-
-        for (let i = 0 ; i < len ; i++) {
-            const n = source[i] ;
-            s += b[(n>>4) & 0xF] + b[n & 0xF] ;
-        }
-    }   
-    return s ;     
+    if (!len) { return '' ; }
+    const table = toLowerCase ? _hexBytesLower : _hexBytesUpper ;
+    let s = '' ;
+    for (let i = 0 ; i < len ; i++) { s += table[source[i] & 0xff] ; }
+    return s ;
 }
 
 // ===================== Data operations ==============================

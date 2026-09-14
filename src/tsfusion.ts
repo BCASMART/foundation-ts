@@ -61,6 +61,7 @@ TSFusionContextTypes[UNDERSCORE]    = TSFusionContextType.System ;
 TSFusionContextTypes[ASTERISK]      = TSFusionContextType.Procedure ;
 TSFusionContextTypes[DOT]           = TSFusionContextType.Local ;
 
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 const TSFusionForbiddenEncodings:NormativeStringEncoding[] = ['utf16le', 'base64', 'base64url', 'hex'] ;
 interface TSFusionConstant {
     name:uint8[] ; 
@@ -694,6 +695,12 @@ export abstract class TSFusionTemplate {
         if (c > this._capacity) { this._capacity = (this._capacity + $capacityForCount(n)) as uint ; }
     }
 
+    get [Symbol.toStringTag](): string { return this.constructor.name ; }
+    public toString(): string     { return Object.prototype.toString.call(this) ; }
+    public leafInspect(): string  { return Object.prototype.toString.call(this) ; }
+    // @ts-ignore
+    [customInspectSymbol]() { return this.leafInspect() ; }
+
     // You may overwrite this method in subclasses. 
     // In that case, you would call super() first
     public validateSeparators(sm:uint8[], em:uint8[], sepa:uint8[]) {
@@ -728,7 +735,7 @@ export abstract class TSFusionTemplate {
     public isLocalVariable(s:string):boolean { return this.isVariableOfType(s,TSFusionContextType.Local) ; }
     public isRootVariable(s:string):boolean { return this.isVariableOfType(s,TSFusionContextType.Root) ; }
     public isProcedure(s:string):boolean { return this.isVariableOfType(s,TSFusionContextType.Procedure) ; }
-
+    
 }
 
 export class TSStringTemplate extends TSFusionTemplate {
@@ -866,7 +873,7 @@ export class TSDataTemplate extends TSGenericDataTemplate {
         const ret = this.fusionWithDataContext(data, globalContext, errors) ;
         return $ok(ret) ? this.charset.stringFromData(ret!) : null ;
     }
-
+    
 }
 
 /*

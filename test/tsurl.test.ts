@@ -2,6 +2,7 @@ import { TSTest } from "../src/tstester";
 import { Same, TSDictionary } from "../src/types";
 import { TSURL } from "../src/tsurl";
 import { $length } from "../src/commons";
+import { TSError } from "../src/tserrors";
 
 /**
  * Since this tests are inspired from the node-url package by defunctzombie
@@ -649,6 +650,35 @@ export const TSURLGroups = [
             t.expectA(u.compare(TSURL.url('https://a.com/')!)).isnot(undefined) ;
             t.expectB(u.compare('x')).is(undefined) ;
             t.expectC(u.toArray()).is([u]) ;
+        }) ;
+
+        // regression : the throwsError option used to construct a TSError and
+        // discard it (`new TSError(...)` with no `throw`), then fall through to
+        // `return null` regardless — so `url()` never actually threw. Every one
+        // of the six invalid-input branches in url() is covered here, once with
+        // the default (silent null) behaviour and once with throwsError:true.
+        group.unary('url() with { throwsError:true } actually throws', async (t) => {
+            // default behaviour (no throwsError, or throwsError:false) : silent null
+            t.expect0(TSURL.url('not a url')).null() ;                                        // bad protocol
+            t.expect1(TSURL.url('http:example.com')).null() ;                                 // missing // before hostname
+            t.expect2(TSURL.url('http:///path')).null() ;                                     // empty hostname
+            t.expect3(TSURL.url('http://' + 'a'.repeat(256) + '/')).null() ;                   // hostname too long
+            t.expect4(TSURL.url('http://[not-ipv6]/')).null() ;                                // bad ipv6 hostname
+            t.expect5(TSURL.url('http://999.999.999.999/')).null() ;                           // bad ipv4 hostname
+            t.expect6(TSURL.url('http://example.com/?a=1', { refusesParameters:true })).null() ; // unexpected parameters
+            t.expect7(() => TSURL.url('not a url', { throwsError:false })).doesNotThrow() ;
+
+            // throwsError:true : the very same inputs now really throw
+            t.expect8(() => TSURL.url('not a url', { throwsError:true })).throws(/bad protocol/) ;
+            t.expect9(() => TSURL.url('http:example.com', { throwsError:true })).throws(/unable to find \/\/ before hostname/) ;
+            t.expectA(() => TSURL.url('http:///path', { throwsError:true })).throws(/bad hostname/) ;
+            t.expectB(() => TSURL.url('http://' + 'a'.repeat(256) + '/', { throwsError:true })).throws(/bad hostname/) ;
+            t.expectC(() => TSURL.url('http://[not-ipv6]/', { throwsError:true })).throws(/bad ipv6 hostname/) ;
+            t.expectD(() => TSURL.url('http://999.999.999.999/', { throwsError:true })).throws(/bad ipv4 hostname/) ;
+            t.expectE(() => TSURL.url('http://example.com/?a=1', { throwsError:true, refusesParameters:true })).throws(/unexpected parameters/) ;
+
+            // and what's thrown is genuinely a TSError, not just some Error
+            t.expectF(() => TSURL.url('not a url', { throwsError:true })).throws((e:any) => e instanceof TSError) ;
         }) ;
     }),
 ] ;

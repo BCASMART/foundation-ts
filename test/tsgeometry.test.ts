@@ -1,6 +1,6 @@
 import { $keys } from '../src/commons';
 import { Ascending, Descending, Same } from '../src/types';
-import { TSAssertFormat, TSDocumentFormats, TSmm2Pixels, TSRect, TSRectEdge } from '../src/tsgeometry';
+import { TSArea, TSAssertFormat, TScm2Pixels, TSCompareSizes, TSDocumentFormats, TSEqualPoints, TSEqualSizes, TSInches2Pixels, TSmm2Pixels, TSPixels2cm, TSPixels2Inches, TSPixels2mm, TSRect, TSRectEdge } from '../src/tsgeometry';
 import { TSTest } from '../src/tstester';
 
 export const geometryGroups = TSTest.group("Geometry functions and classes", async (group) => {
@@ -97,6 +97,19 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
 
         // union() throws when the passed array parameter is not a valid TSRect
         t.expectA(() => G.union([10,15,NaN,2000])).toThrow() ;
+    }) ;
+
+    group.unary("geometry unit conversions & size/point helpers", async(t) => {
+        t.expect0(TSPixels2cm(TScm2Pixels(4))).is(4) ;
+        t.expect1(TSPixels2mm(TSmm2Pixels(40))).is(40) ;
+        t.expect2(TSPixels2Inches(TSInches2Pixels(2))).is(2) ;
+        t.expect3(TSEqualPoints({ x:1, y:2 }, { x:1, y:2 })).true() ;
+        t.expect4(TSEqualPoints({ x:1, y:2 }, { x:1, y:3 })).false() ;
+        t.expect5(TSEqualSizes({ w:3, h:4 }, { w:3, h:4 })).true() ;
+        t.expect6(TSEqualSizes({ w:3, h:4 }, { w:3, h:5 })).false() ;
+        t.expect7(TSArea({ w:3, h:4 })).is(12) ;
+        t.expect8(TSCompareSizes({ w:2, h:2 }, { w:3, h:3 })).is(Ascending) ;
+        t.expect9(new TSRect(10, 20, 100, 40).toString().length).gt(0) ;
     }) ;
 
     group.unary("TSRect getters, clone(), toArray() && toJSON()", async(t) => {

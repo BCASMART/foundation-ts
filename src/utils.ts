@@ -108,133 +108,111 @@ export async function $readStreamBuffer(stream:Nullable<Stream>):Promise<Buffer|
 export function $inspect(v:any, level?:number) { return $inbrowser() ? _tsinspect(v, level) : _nodeInspect(v, level) ; }
 export function $insp(v:any, level?:number) { return _tsinspect(v, level) ; }
 
+// escape-letter -> ANSI sequence, indexed by char code (built once). See $term().
+const FoundationTermAnsiSequences: (string | undefined)[] = (() => {
+    const m: { [key: string]: string } = {
+        '0': "\x1b[0m",                                              // reset
+        // styles
+        '1': "\x1b[1m", '!': "\x1b[1m",                              // bright mode (old + new)
+        '>': "\x1b[2m", '?': "\x1b[2m",                              // dimmed (old + new)
+        '/': "\x1b[3m",                                              // italic
+        '_': "\x1b[4m",                                              // underscore
+        '%': "\x1b[5m",                                              // blinked
+        '<': "\x1b[7m",                                              // inversed
+        '-': "\x1b[9m",                                              // strikethrough
+        // screen + cursor
+        'h': "\x1b[0G", 'H': "\x1b[H",                               // cursor to line start / home
+        'z': "\x1b[2K\x1b[0G", 'Z': "\x1b[2J\x1b[H",                 // clear line / clear screen
+        // colors
+        'a': "\x1b[38;5;216m", 'A': "\x1b[48;5;216m",                // apricot
+        'b': "\x1b[34m", 'B': "\x1b[44m",                            // blue
+        'c': "\x1b[36m", 'C': "\x1b[46m",                            // cyan
+        'd': "\x1b[38;5;238m", 'D': "\x1b[48;5;238m",                // dark gray
+        'e': "\x1b[38;5;229m", 'E': "\x1b[48;5;229m",                // egg white
+        'g': "\x1b[32m", 'G': "\x1b[42m",                            // green
+        'j': "\x1b[38;5;121m", 'J': "\x1b[48;5;121m",                // jungle green
+        'k': "\x1b[30m", 'K': "\x1b[40m",                            // black
+        'l': "\x1b[38;5;252m", 'L': "\x1b[48;5;252m",                // light gray
+        'm': "\x1b[35m", 'M': "\x1b[45m",                            // magenta
+        'o': "\x1b[38;5;208m", 'O': "\x1b[48;5;208m",                // orange
+        'p': "\x1b[38;5;212m", 'P': "\x1b[48;5;212m",                // pink
+        'r': "\x1b[31m", 'R': "\x1b[41m",                            // red
+        'u': "\x1b[38;5;117m", 'U': "\x1b[48;5;117m",                // uranian blue
+        'v': "\x1b[38;5;99m", 'V': "\x1b[48;5;99m",                  // violet
+        'w': "\x1b[37m", 'W': "\x1b[47m",                            // white
+        'x': "\x1b[38;5;244m", 'X': "\x1b[48;5;244m",                // gray
+        'y': "\x1b[33m", 'Y': "\x1b[43m",                            // yellow
+    } ;
+    const a: (string | undefined)[] = new Array(128) ;
+    for (const k in m) { a[k.charCodeAt(0)] = m[k] ; }
+    return a ;
+})() ;
+
 export function $term(s: string, escapeChar: string = '&'): string {
     if ($inbrowser()) { return $termclean(s, escapeChar); }
-    let fmtlen = $length(s);
-    let ret = "";
-    if (fmtlen) {
-        let escape = false;
-        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&'; }
-        for (let i = 0; i < fmtlen; i++) {
-            const c = s.charAt(i);
-            if (escape) {
-                escape = false;
-                switch (c) {
-                    case escapeChar: ret += escapeChar; break;
+    const fmtlen = $length(s);
+    if (!fmtlen) { return ""; }
+    if ($length(escapeChar) !== 1 || escapeChar === '\x1b') { escapeChar = '&'; }
+    if (s.indexOf(escapeChar) < 0) { return s; }    // nothing to interpret: hand back the source
 
-                    case '0': ret += "\x1b[0m"; break;           // reset
-
-                    // styles
-                    case '1': ret += "\x1b[1m"; break;           // bright mode (old version)
-                    case '!': ret += "\x1b[1m"; break;           // bright mode
-                    case '>': ret += "\x1b[2m"; break;           // dimmed (old version)
-                    case '?': ret += "\x1b[2m"; break;           // dimmed
-                    case '/': ret += "\x1b[3m"; break;           // italic
-                    case '_': ret += "\x1b[4m"; break;           // underscore
-                    case '%': ret += "\x1b[5m"; break;           // blinked
-                    case '<': ret += "\x1b[7m"; break;           // inversed
-                    case '-': ret += "\x1b[9m"; break;           // strikethrough
-
-                    // screen + cursor
-                    case 'h': ret += "\x1b[0G"; break;             // put the cursor at the beginning of the current line
-                    case 'H': ret += "\x1b[H"; break;              // put the cursor home
-                    case 'z': ret += '\x1b[2K\x1b[0G'; break;     // clear current line and put the cursor at the first column
-                    case 'Z': ret += '\x1b[2J\x1b[H'; break;      // clear the whole terminal and put the cursor home
-
-                    // colors
-                    case 'a': ret += "\x1b[38;5;216m"; break;     // apricot font
-                    case 'A': ret += "\x1b[48;5;216m"; break;     // apricot background
-                    case 'b': ret += "\x1b[34m"; break;           // blue font
-                    case 'B': ret += "\x1b[44m"; break;           // blue background
-                    case 'c': ret += "\x1b[36m"; break;           // cyan font
-                    case 'C': ret += "\x1b[46m"; break;           // cyan background
-                    case 'd': ret += "\x1b[38;5;238m"; break;     // dark gray font
-                    case 'D': ret += "\x1b[48;5;238m"; break;     // dark gray background
-                    case 'e': ret += "\x1b[38;5;229m"; break;     // egg white font
-                    case 'E': ret += "\x1b[48;5;229m"; break;     // egg white background
-                    // fF
-                    case 'g': ret += "\x1b[32m"; break;           // green font  
-                    case 'G': ret += "\x1b[42m"; break;           // green background                    
-                    // h/H is for the cursor home
-                    // iI
-                    case 'j': ret += "\x1b[38;5;121m"; break;     // jungle green font
-                    case 'J': ret += "\x1b[48;5;121m"; break;     // jungle green background
-                    case 'k': ret += "\x1b[30m"; break;           // black font
-                    case 'K': ret += "\x1b[40m"; break;           // black background
-                    case 'l': ret += "\x1b[38;5;252m"; break;     // light gray font
-                    case 'L': ret += "\x1b[48;5;252m"; break;     // light gray background
-                    case 'm': ret += "\x1b[35m"; break;           // magenta font
-                    case 'M': ret += "\x1b[45m"; break;           // magenta background
-                    case 'o': ret += "\x1b[38;5;208m"; break;     // orange font
-                    case 'O': ret += "\x1b[48;5;208m"; break;     // orange background
-                    case 'p': ret += "\x1b[38;5;212m"; break;     // pink font
-                    case 'P': ret += "\x1b[48;5;212m"; break;     // pink background
-                    // qQ
-                    case 'r': ret += "\x1b[31m"; break;           // red font
-                    case 'R': ret += "\x1b[41m"; break;           // red background
-                    // sS
-                    // tT
-                    case 'u': ret += "\x1b[38;5;117m"; break;    // uranian blue font
-                    case 'U': ret += "\x1b[48;5;117m"; break;    // uranian blue background
-                    case 'v': ret += "\x1b[38;5;99m"; break;     // violet font
-                    case 'V': ret += "\x1b[48;5;99m"; break;     // violet background
-                    case 'w': ret += "\x1b[37m"; break;           // white font 
-                    case 'W': ret += "\x1b[47m"; break;           // white background
-                    case 'x': ret += "\x1b[38;5;244m"; break;     // gray font
-                    case 'X': ret += "\x1b[48;5;244m"; break;     // gray background
-                    case 'y': ret += "\x1b[33m"; break;           // yellow font
-                    case 'Y': ret += "\x1b[43m"; break;           // yellow background
-                    // zZ are for clearing the screen
-
-                    default:
-                        ret += escapeChar;
-                        ret += c;
-                        break;
-                }
-            }
-            else if (c === escapeChar) { escape = true; }
-            else { ret += c; }
+    const escCode = escapeChar.charCodeAt(0) ;
+    let ret = "" ;
+    let start = 0 ;                                  // start of the pending literal run
+    let i = 0 ;
+    while (i < fmtlen) {
+        if (s.charCodeAt(i) !== escCode) { i++ ; continue ; }
+        if (i > start) { ret += s.slice(start, i) ; }
+        i++ ;
+        if (i >= fmtlen) { ret += escapeChar ; start = i ; break ; } // trailing lone escape char
+        const next = s.charCodeAt(i) ;
+        if (next === escCode) { ret += escapeChar ; }                // doubled -> single
+        else {
+            const seq = next < 128 ? FoundationTermAnsiSequences[next] : undefined ;
+            ret += seq !== undefined ? seq : escapeChar + s[i] ;     // unknown -> kept verbatim
         }
-        if (escape) { ret += escapeChar; }
+        i++ ;
+        start = i ;
     }
+    if (start < fmtlen) { ret += s.slice(start) ; }
     return ret;
 }
 
 export function $termclean(s: string, escapeChar: string = '&'): string {
     let len = $length(s);
+    if (!len) { return ""; }
+    if ($length(escapeChar) !== 1 || escapeChar === '\x1b') { escapeChar = '&'; }
+    if (s.indexOf(escapeChar) < 0 && s.indexOf('\x1b') < 0) { return s; }    // no markup to strip
+
     let ret = "";
-    if (len) {
-        enum State { Standard, EscapeChar, EscapeEscape };
-        let state = State.Standard;
-        let i = 0;
-        let escapeSequenceStart = 0;
-        if ($length(escapeChar) !== 1 || escapeChar == '\x1b') { escapeChar = '&'; }
-        while (i < len) {
-            const c = s.charAt(i);
-            switch (state) {
-                case State.Standard:
-                    if (c === escapeChar) { state = State.EscapeChar; }
-                    else if (c === '\x1b') { state = State.EscapeEscape; escapeSequenceStart = i; }
-                    else { ret += c; }
-                    break;
-                case State.EscapeEscape:
-                    if ('mGHJK'.includes(c)) { state = State.Standard; }
-                    else if (!"[0123456789;".includes(c)) {
-                        state = State.Standard;
-                        ret += '\x1b';
-                        i = escapeSequenceStart;
-                    }
-                    break;
-                case State.EscapeChar:
-                    if (c === escapeChar) { ret += escapeChar; }
-                    else if (!"01>/_%<-?!aAbBcCdDeEgGhHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) {
-                        ret += escapeChar;
-                        i--;
-                    }
+    enum State { Standard, EscapeChar, EscapeEscape };
+    let state = State.Standard;
+    let i = 0;
+    let escapeSequenceStart = 0;
+    while (i < len) {
+        const c = s.charAt(i);
+        switch (state) {
+            case State.Standard:
+                if (c === escapeChar) { state = State.EscapeChar; }
+                else if (c === '\x1b') { state = State.EscapeEscape; escapeSequenceStart = i; }
+                else { ret += c; }
+                break;
+            case State.EscapeEscape:
+                if ('mGHJK'.includes(c)) { state = State.Standard; }
+                else if (!"[0123456789;".includes(c)) {
                     state = State.Standard;
-            }
-            i++;
+                    ret += '\x1b';
+                    i = escapeSequenceStart;
+                }
+                break;
+            case State.EscapeChar:
+                if (c === escapeChar) { ret += escapeChar; }
+                else if (!"01>/_%<-?!aAbBcCdDeEgGhHjJkKlLmMoOpPrRuUvVwWxXyYzZ".includes(c)) {
+                    ret += escapeChar;
+                    i--;
+                }
+                state = State.Standard;
         }
+        i++;
     }
     return ret;
 }
@@ -449,6 +427,12 @@ interface _tsInspectContext {
 
 function _tsinspect(v: any, level: number = 10): string {
 
+    // _recursiveInspect() below redeclares its own `level` parameter (the
+    // current recursion depth, not the caller's requested max depth) which
+    // shadows this one — capture it under its own name so the real inspect()
+    // delegation further down passes the right depth.
+    const requestedLevel = level ;
+
     let inspectContext: _tsInspectContext = {
         nextId: 1,
         max: Math.min($unsigned(level), 63) + 1,
@@ -473,6 +457,17 @@ function _tsinspect(v: any, level: number = 10): string {
                 if (v === null) { return 'null'; }
                 else if ($isfunction(v.leafInspect)) {
                     return v.leafInspect();
+                }
+                // No leafInspect : a native Error (or a third-party one) has no
+                // opinion of its own. Node already knows how to render it — on
+                // Node, delegate to the very inspect() _nodeInspect() uses, so
+                // $insp() matches $inspect() byte-for-byte without us
+                // reimplementing Node's Error formatter. In a browser there is
+                // no native formatter to match ($inspect() is _tsinspect() there
+                // too), so fall back to the stack (or name: message if the
+                // stack was never captured — see TSError's stack-skip optimisation).
+                else if (v instanceof Error) {
+                    return $inbrowser() ? (v.stack ?? `${v.name}: ${v.message}`) : inspect(v, false, requestedLevel);
                 }
                 let circularReference = context.map.get(v);
                 if ($defined(circularReference)) {

@@ -188,6 +188,58 @@ tester.addGroup("Testing tester system itself", async (group) => {
         throw new Error("intentional unary failure") ;
     }) ;
 
+    group.unary("TSTester runner internals (fresh sub-tester)", async (t) => {
+        // Exercise the runner + failure-reporting code paths (_compfail / _elogfail /
+        // _nelogfail / _writeMessage / printRegistrations / fail / dumpGroupInfo /
+        // TSTester.run / dumpGroupsList / containsName) on a throwaway tester.
+        // The sub-run deliberately fails assertions, which would print to the
+        // terminal, so stdout/console are muted for its duration.
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        console.log = (() => {}) as any ;
+        (process.stdout as any).write = (() => true) as any ;
+
+        let res:any, listed:any ;
+        let namedContains:boolean[] = [] ;
+        let namedNames:string[] = [] ;
+        try {
+            const sub = new TSTester("sub-tester") ;
+            sub.addGroup("failing group", async (g) => {
+                g.unary("failing assertions", async (tt) => {
+                    tt.register("some-context", { hint:"printed on failure" }) ;
+                    tt.expect0(1).is(2) ;              // _compfail
+                    tt.expect1("x").toBeNull() ;       // _elogfail
+                    tt.expect2(5).notToBe(5) ;         // _nelogfail
+                }) ;
+                g.unary("passing assertions with logAllTests", async (tt) => {
+                    tt.logAllTests = true ;
+                    tt.expect0(1).is(1) ;             // _logpass logging branch + _writeMessage
+                }) ;
+            }, "failing", { silent:false, stopOnFirstFail:false }) ;
+
+            res = await sub.run({ clearScreen:false }) ;
+            listed = await sub.run({ listTests:true }) ;
+
+            const named = new TSTester("named tester") ;
+            named.addGroups([TSTester.group("g1", async (g) => { g.unary("noop", async () => {}) ; })], "my-name") ;
+            namedContains = [named.containsName("my-name"), named.containsName("absent"), named.containsName(null)] ;
+            namedNames = named.names ;
+            await named.dumpGroupsList(false) ;
+            await new TSTester("no groups").dumpGroupsList(false) ;
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+
+        t.expect0(res.failed).is(1) ;
+        t.expect1(res.failures).is(3) ;
+        t.expect2(res.groups).is(1) ;
+        t.expect3(listed.groups).is(0) ;
+        t.expect4(namedContains).is([true, false, false]) ;
+        t.expect5(namedNames).is(["my-name"]) ;
+    }) ;
+
     if (args.length > 0 && !dumper) {
         group.focused = true ;
         group.silent = true ;
