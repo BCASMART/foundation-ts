@@ -371,6 +371,7 @@ export interface BasicWriteOptions {
     attomically?: Nullable<boolean>;
     removePrecedentVersion?: Nullable<boolean>;
     mode?: Nullable<number>;
+    errors?: Nullable<string[]>; // when set, every error encountered (not warnings) is pushed here
 }
 
 export interface $writeStringOptions extends BasicWriteOptions {
@@ -424,6 +425,7 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
     TSError.assertNotInBrowser('$fullWriteBuffer');
     let done = false;
     let precedent: string | null = null;
+    const fail = (message: string) => { if (opts.errors) { opts.errors.push(message); } };
 
     let start = $ok(opts.byteStart) ? opts.byteStart! : 0;
     let end = $ok(opts.byteEnd) ? opts.byteEnd! : buf.byteLength;
@@ -436,7 +438,7 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
         const stats = $stats(src) ;
 
         if (!$ok(stats) || stats?.isFile()) {
-            // never move the next line of code before this point because 
+            // never move the next line of code before this point because
             // TSData.byteLength may be different from its internal storage buffer length
             // warning: this method works because it's not async so we can
             // consider that TSData is immutable during this scope
@@ -451,7 +453,9 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
                         const wlen = writeSync(fd, buf, start, end - start);
                         if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
                         if (retries > MAX_TRY) {
-                            TSError.throw(`$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.`, {
+                            const message = `$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.` ;
+                            fail(message) ;
+                            TSError.throw(message, {
                                 path: src,
                                 buffer: buf,
                                 options: opts
@@ -467,36 +471,56 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
             }
             catch (e) {
                 done = false;
+                fail(`$fullWriteBuffer(): unable to write file '${pathToWrite}' (${(e as Error)?.message ?? e}).`) ;
             }
         }
+        else {
+            fail(`$fullWriteBuffer(): '${src}' exists and is not a regular file.`) ;
+        }
 
-        if (done && opts.attomically) {    
+        if (done && opts.attomically) {
             if ($ok(stats)) {
                 const renamedExistingFile = $uniquefile(src);
                 done = _safeRename(src!, renamedExistingFile);
+                if (!done) { 
+                    fail(`$fullWriteBuffer(): unable to rename existing file '${src}' to '${renamedExistingFile}' before atomic replace.`) ;
+                 }
                 if (done && !_safeRename(pathToWrite, src!)) {
                     // we immediately try to give back its name to our original file
                     if (!_safeRename(renamedExistingFile, src!)) {
                         // we should have been able to give our initial file its original name back
                         // but we could'nt do it, so, in this very hypothetical case, we will not
-                        // destroy anything and will throw an Error will all the info in it 
-                        TSError.throw(`Unable to atomically finish writing file '${src}'`, {
+                        // destroy anything and will throw an Error will all the info in it
+                        const message = `Unable to atomically finish writing file '${src}'` ;
+                        fail(message) ;
+                        TSError.throw(message, {
                             wantedPath: src,
                             renamedExistingFile: renamedExistingFile,
                             writtenDataFile: pathToWrite
                         });
                     }
+                    fail(`$fullWriteBuffer(): unable to atomically replace '${src}' with the new content ; original file restored.`) ;
                     done = false;
                 }
-                if (!done) { _safeUnlink(pathToWrite); } // we may let a newly created temporary file here if unlink does not succeed
+                if (!done) {
+                    // we may let a newly created temporary file here if unlink does not succeed
+                    if (!_safeUnlink(pathToWrite)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
+                }
                 else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile); }
                 else { precedent = renamedExistingFile; }
             }
             else {
                 done = _safeRename(pathToWrite, src!) ;
-                if (!done) { _safeUnlink(pathToWrite); } // we may let a newly created temporary file here if unlink does not succeed
+                if (!done) {
+                    fail(`$fullWriteBuffer(): unable to rename temporary file '${pathToWrite}' to '${src}'.`) ;
+                    // we may let a newly created temporary file here if unlink does not succeed
+                    if (!_safeUnlink(pathToWrite)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
+                }
             }
         }
+    }
+    else {
+        fail(`$fullWriteBuffer(): bad parameters for '${src}' (path, byteStart, byteEnd or mode).`) ;
     }
     return [done, precedent];
 }

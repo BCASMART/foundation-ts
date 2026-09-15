@@ -206,6 +206,61 @@ export class TSServerEndPoint {
 
 }
 
+export interface TSEndPointRoute {
+    endPoint:TSServerEndPoint ;
+    parameters:TSDictionary ;
+}
+
+// Groups endpoints by their literal uri prefix (the part of the path before the
+// first {token}, or the whole path for a static endpoint) and records each
+// endpoint's registration rank, once, at construction — so route() only runs
+// parametersFromPath() (a regex match, for parametric endpoints) against
+// endpoints sharing a uri prefix the requested path actually starts with,
+// instead of against every registered endpoint on every request.
+//
+// Ties (several endpoints match at the same depth — e.g. a static '/a/b' and a
+// parametric '/a/{id}' can both match '/a/b') resolve by earliest registration,
+// exactly like a plain "test every endpoint, keep the first one to reach the
+// max depth" linear scan would — spelled out explicitly here (deepest match
+// wins, lowest registration rank wins a depth tie) so it stays correct
+// regardless of the order uri prefixes happen to be visited in.
+export class TSEndPointRouter {
+    private _endPointsByUri = new Map<string, TSServerEndPoint[]>() ;
+    private _uriPrefixes:string[] = [] ;
+    private _endPointIndex = new Map<TSServerEndPoint, number>() ;
+
+    constructor(endPoints:TSServerEndPoint[]) {
+        endPoints.forEach((ep, index) => {
+            this._endPointIndex.set(ep, index) ;
+            const bucket = this._endPointsByUri.get(ep.uri) ;
+            if ($ok(bucket)) { bucket!.push(ep) ; }
+            else { this._endPointsByUri.set(ep.uri, [ep]) ; }
+        }) ;
+        this._uriPrefixes = Array.from(this._endPointsByUri.keys()) ;
+    }
+
+    public route(pathname:string):TSEndPointRoute|undefined {
+        let sep:TSServerEndPoint|undefined = undefined ;
+        let sepIndex = -1 ;
+        let parameters:TSDictionary = {} ;
+
+        for (let uri of this._uriPrefixes) {
+            if (!pathname.startsWith(uri)) { continue ; }
+            for (let ep of this._endPointsByUri.get(uri)!) {
+                const params = ep.parametersFromPath(pathname) ;
+                if (!$ok(params)) { continue ; }
+                const index = this._endPointIndex.get(ep)! ;
+                if (!sep || sep.depth < ep.depth || (sep.depth === ep.depth && index < sepIndex)) {
+                    sep = ep ;
+                    sepIndex = index ;
+                    parameters = params! ;
+                }
+            }
+        }
+        return $ok(sep) ? { endPoint:sep!, parameters:parameters } : undefined ;
+    }
+}
+
 class TSServerEndPointManager {
     private _method:Verb ;
     private _controller: TSEndPointController ;

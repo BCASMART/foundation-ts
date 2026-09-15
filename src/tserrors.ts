@@ -7,16 +7,28 @@ import { $inbrowser } from "./utils";
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
-// Built once : Object.values() on a numeric TS enum returns both the forward
-// (name -> number) and reverse (number -> name) mappings, so a bare
+// Built once, lazily, on first use rather than at module top level : tserrors
+// and tsrequest import each other (TSError/TSUniqueError <- Resp), so an eager
+// Object.values(Resp) here can run before tsrequest.ts has finished evaluating
+// Resp, if something requires tserrors/tsrequest before commons has already
+// pulled the whole graph in — Object.values(undefined) then throws. Deferring
+// the computation to first call sidesteps the load-order hazard entirely,
+// since nothing invokes it during synchronous module evaluation.
+//
+// Object.values() on a numeric TS enum returns both the forward (name ->
+// number) and reverse (number -> name) mappings, so a bare
 // Object.values(Resp).includes(x) call re-walks and re-allocates that mixed
 // array every time. Filter down to the numeric half once and query a Set.
-const _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ;
+let _respValues:Set<number>|undefined = undefined ;
+function _respValueSet():Set<number> {
+    if (!_respValues) { _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ; }
+    return _respValues ;
+}
 
 // true for any value that is a legit HTTP status code known to Resp. Used both
 // to validate TSError.status and to decide whether a TSError is an expected
 // HTTP-status outcome (see the constructor : those skip stack capture).
-export function $isRespCode(v:Nullable<number>):v is Resp { return $ok(v) && _respValues.has(v!) ; }
+export function $isRespCode(v:Nullable<number>):v is Resp { return $ok(v) && _respValueSet().has(v!) ; }
 
 export class TSUniqueError extends Error implements TSLeafInspect {
 	private static __timeoutInstance:TSUniqueError ;
@@ -98,7 +110,7 @@ export class TSError extends Error implements TSLeafInspect {
         // API, just an empty (unformatted) .stack.
         const candidateCode = n >= 3 && typeof arguments[2] === 'number' ? arguments[2]
                              : (n >= 2 && typeof arguments[1] === 'number' ? arguments[1] : undefined) ;
-        const skipStack = typeof candidateCode === 'number' && _respValues.has(candidateCode) ;
+        const skipStack = typeof candidateCode === 'number' && _respValueSet().has(candidateCode) ;
         const stackHolder = Error as unknown as { stackTraceLimit?:number } ;
         const hasStackLimit = skipStack && typeof stackHolder.stackTraceLimit === 'number' ;
         const savedStackLimit = hasStackLimit ? stackHolder.stackTraceLimit : undefined ;
@@ -144,7 +156,7 @@ export class TSError extends Error implements TSLeafInspect {
     { return $isRespCode(this._errorCode) ? this._errorCode as Resp : Resp.InternalError ; }
 
     public set status(s:Resp)
-    { if (_respValues.has(s)) { this._errorCode = s ; } }
+    { if (_respValueSet().has(s)) { this._errorCode = s ; } }
 
     public entries(): [string, any][] { return Object.entries({ name:this.name, errorCode:this.errorCode, message:this.message, info:this.info}) ; }
 

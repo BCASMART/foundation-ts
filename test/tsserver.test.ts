@@ -11,7 +11,7 @@ import { $inbrowser, $jsonparse, $readStreamBuffer } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
 import { TSError } from "../src/tserrors";
 import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
-import { TSServerEndPoint } from "../src/tsserver_endpoints";
+import { TSEndPointRouter, TSServerEndPoint } from "../src/tsserver_endpoints";
 import { TSStaticWebsite } from "../src/tsserver_websites";
 import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
 import { TSObjectNode, TSParser } from "../src/tsparser";
@@ -139,6 +139,63 @@ export const serverGroups = [
             t.expectG(new TSServerEndPoint('/v{vers}/user/{id:boolean}', { GET:fn }).uri).is('/v') ; // typed token
             t.expect5(new TSServerEndPoint('/a-b.c(d)/x', { GET:fn }).uri).is('/a-b.c(d)/x') ;        // special chars kept in the static part
             t.expect6(new TSServerEndPoint('/MixedCase', { GET:fn }).uri).is('/mixedcase') ;         // static part lower-cased
+        }) ;
+    }),
+
+    // G1 : routing used to be a linear scan testing every registered endpoint on
+    // every request. TSEndPointRouter replaces it with a uri-prefix index, and its
+    // tie-break (deepest match wins, earliest registration wins a depth tie) has
+    // to reproduce exactly what that linear scan would have picked, whatever order
+    // the endpoints were registered in. This exhaustively checks that property.
+    TSTest.group("TSEndPointRouter — depth / registration-order tie-break", async (group) => {
+        const fn = async (_r:TSServerRequest, _s:TSServerResponse):Promise<void> => {} ;
+
+        // '/api/users' (static) and '/api/{id}' (parametric) both match the path
+        // '/api/users' at the same depth (2) — the one deliberate collision here.
+        const defs:[string, TSEndpointsDefinition][] = [
+            ['/api/users',       { GET:fn }],
+            ['/api/{id}',        { GET:fn }],
+            ['/api/users/{sub}', { GET:fn }],
+            ['/api',             { GET:fn }],
+            ['/other/{x}',       { GET:fn }],
+        ] ;
+
+        function permute<T>(arr:T[]):T[][] {
+            if (arr.length <= 1) { return [arr] ; }
+            const out:T[][] = [] ;
+            for (let i = 0 ; i < arr.length ; i++) {
+                const rest = arr.slice(0, i).concat(arr.slice(i + 1)) ;
+                for (const p of permute(rest)) { out.push([arr[i], ...p]) ; }
+            }
+            return out ;
+        }
+
+        group.unary('all 120 registration orders (5!) route all 6 requests exactly like a linear scan would', async (t) => {
+            let checks = 0 ;
+            for (const order of permute(defs)) {
+                const endpoints = order.map(([path, def]) => new TSServerEndPoint(path, def)) ;
+                const router = new TSEndPointRouter(endpoints) ;
+                const byUri = (uri:string) => endpoints.find(e => e.uri === uri)! ;
+
+                // 5 of the 6 requests have exactly one structurally possible match,
+                // so their winner is fixed no matter the registration order.
+                checks++ ; t.expect(router.route('/api/42')?.endPoint).is(byUri('/api/')) ;
+                checks++ ; t.expect(router.route('/api/users/5')?.endPoint).is(byUri('/api/users/')) ;
+                checks++ ; t.expect(router.route('/api')?.endPoint).is(byUri('/api')) ;
+                checks++ ; t.expect(router.route('/other/x')?.endPoint).is(byUri('/other/')) ;
+                checks++ ; t.expect(router.route('/nope')).undef() ;
+
+                // '/api/users' is the one genuine collision. Whichever of the two
+                // colliding endpoints was registered first must win — the same
+                // rule a "scan every endpoint, keep the first one to reach the
+                // max depth" linear search would apply.
+                const staticEp = byUri('/api/users') ;
+                const paramEp  = byUri('/api/') ;
+                const expected = endpoints.indexOf(staticEp) < endpoints.indexOf(paramEp) ? staticEp : paramEp ;
+                checks++ ; 
+                t.expect(router.route('/api/users')?.endPoint).is(expected) ;
+            }
+            t.expect0(checks).is(720) ;
         }) ;
     })
 ];

@@ -15,7 +15,7 @@ import { TSURL } from "./tsurl";
 
 import Socket = NodeJS.Socket;
 import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
-import { TSServerEndPoint } from "./tsserver_endpoints";
+import { TSEndPointRouter, TSServerEndPoint } from "./tsserver_endpoints";
 import { TSStaticWebsite } from "./tsserver_websites";
 import { $bufferFromDataLike } from "./data";
 
@@ -132,7 +132,8 @@ export class TSServer {
     private _serverOptions:InternalServerOptions = {} ;
     private _httpServer:http.Server|https.Server|undefined ;
     private _endPoints:TSServerEndPoint[] ;
-    private _sites:TSStaticWebsite[] ; 
+    private _router:TSEndPointRouter = new TSEndPointRouter([]) ; // rebuilt once _endPoints is populated
+    private _sites:TSStaticWebsite[] ;
     private _logger:TSServerLogger ;
     private _logInfo:boolean ;
     private _logErrors:boolean ;
@@ -253,6 +254,7 @@ export class TSServer {
         $keys(endPoints).forEach(path => {
             this._endPoints.push(new TSServerEndPoint(path as string, endPoints[path])) ;
         }) ;
+        this._router = new TSEndPointRouter(this._endPoints) ;
 
         if ($ok(opts.port)) {
             if (!$isunsigned(opts.port, UINT16_MAX)) { 
@@ -339,16 +341,9 @@ export class TSServer {
                     }
                 }
                 
-                let sep:TSServerEndPoint|undefined = undefined ;
-                let parameters:TSDictionary = {} ;
-
-                for (let ep of this._endPoints) {
-                    const params = ep.parametersFromPath(url.pathname) ;
-                    if ($ok(params) && (!sep || (sep && sep.depth < ep.depth))) {
-                        sep = ep! ;
-                        parameters = params!
-                    }
-                }
+                const route = this._router.route(url.pathname) ;
+                const sep = route?.endPoint ;
+                const parameters:TSDictionary = route?.parameters ?? {} ;
 
                 if ($ok(sep)) {
                     let preflightResponse = this._preflightResponseCache.get(originKey) ;

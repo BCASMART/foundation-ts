@@ -2,6 +2,30 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.3
+
+#### Corrections
+
+- did upgrade TSServer endpoints indexation for faster routage.
+- did upgrade headers standardisation management in TSRequest
+
+#### What's new ?
+
+- function $fullWriteBuffer() and all derived functions can now use an optional `errors` string array in order to report the encountered errors when it returns false to the file writting action. New `errors` array is declared in interface:
+
+  ```typescript
+  export interface BasicWriteOptions {
+      attomically?: Nullable<boolean>;
+      removePrecedentVersion?: Nullable<boolean>;
+      mode?: Nullable<number>;
+      errors?: Nullable<string[]>; // when set, every error encountered is pushed here
+  }
+  ```
+
+  
+
+<hr/>
+
 ## version 1.8.2
 
 #### Corrections

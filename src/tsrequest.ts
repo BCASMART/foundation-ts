@@ -261,7 +261,13 @@ export class TSRequest {
 		timeout?:number
 	) : Promise<TSResponse> 
 	{
-        const requestHeaders:StringDictionary = _finalHeaders({... this.commonHeaders, ..._standardHeaders(suplHeaders)}) ;
+        // commonHeaders is already normalised (done once, in the constructor) ;
+        // suplHeaders is merged in raw and normalised in the single pass _finalHeaders()
+        // already does — no need to normalise it a second time before merging. Object
+        // spread still lets suplHeaders win over commonHeaders on the same header,
+        // whatever casing either one used : _finalHeaders() normalises every key as it
+        // writes into the result, so the later (suplHeaders) entry is what survives.
+        const requestHeaders:StringDictionary = _finalHeaders({ ...this.commonHeaders, ...suplHeaders }) ;
         const config:RequestInit = {
             method:method,
             headers:requestHeaders,
@@ -445,8 +451,33 @@ function _maySetAccept(headers:StringDictionary, type:RespType) {
     }
 }
 
+// HTTP header names are plain ASCII tokens (RFC 7230) — .capitalize() (the
+// Unicode letter/mark-aware routine, see C9) is real overkill here, and the
+// same handful of names (Content-Type, Accept, Authorization, ...) recur on
+// every single request, so a small cache turns every repeat into a lookup.
+// Same contract as .capitalize() (only the first letter of each word — any
+// run of letters right after a non-letter — is uppercased ; every other
+// character, letter or not, is left exactly as given), just narrowed from
+// Unicode letters to ASCII a-z/A-Z, which is all a header name can contain.
+const _headerNameCache = new Map<string, string>() ;
+function _capitalizeHeaderName(s:string):string {
+    let ret = _headerNameCache.get(s) ;
+    if ($ok(ret)) { return ret! ; }
+    ret = '' ;
+    let lastCharWasNotLetter = true ;
+    for (let i = 0, n = s.length ; i < n ; i++) {
+        const c = s[i] ;
+        const code = s.charCodeAt(i) ;
+        const isLetter = (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a) ; // A-Z or a-z
+        ret += (isLetter && lastCharWasNotLetter) ? c.toUpperCase() : c ;
+        lastCharWasNotLetter = !isLetter ;
+    }
+    _headerNameCache.set(s, ret) ;
+    return ret ;
+}
+
 function _maySetHeader(headers:StringDictionary, header:string, value:string) {
-    header = header.capitalize() ;
+    header = _capitalizeHeaderName(header) ;
     if (!$length(headers[header]) && $length(value)) {
         headers[header] = value ;
     }
@@ -460,7 +491,7 @@ function _finalHeaders(headers:Nullable<TSRequestHeaders>):StringDictionary {
     const entries = $ok(headers) ? Object.entries(headers!) : [] ;
     const ret:StringDictionary = {} ;
     for (let [key, value] of entries) {
-        ret[key.capitalize()] = $isarray(value) ? (value as Array<string|number>).join(', ') : `${value}` ;
+        ret[_capitalizeHeaderName(key)] = $isarray(value) ? (value as Array<string|number>).join(', ') : `${value}` ;
     }
     return ret ;
 }
@@ -469,7 +500,7 @@ function _standardHeaders(headers:Nullable<TSRequestHeaders>):TSRequestHeaders {
     const entries = $ok(headers) ? Object.entries(headers!) : [] ;
     const ret:TSRequestHeaders = {} ;
     for (let [key, value] of entries) {
-        ret[key.capitalize()] = $isarray(value) ? $map(value, i => `${i}`) : `${value}` ;
+        ret[_capitalizeHeaderName(key)] = $isarray(value) ? $map(value, i => `${i}`) : `${value}` ;
     }
     return ret ;
 }
