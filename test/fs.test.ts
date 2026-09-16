@@ -259,6 +259,19 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                     t.expectF(Number(missing.size)).is(0) ;
                     t.expectG($commonstats(null).exists).false() ;
                     t.expectH($commonstats('').exists).false() ;
+
+                    // f is a regular file ; treating it as a directory component
+                    // (f/child) used to throw ENOTDIR uncaught through $stats(),
+                    // $commonstats() and everything built on them, instead of
+                    // reporting "does not exist" like every other missing path.
+                    // Regression guard for the statSync(..., {throwIfNoEntry:false})
+                    // fix : none of these should throw.
+                    const notADir = $path(f, 'child') ;
+                    t.expectI($stats(notADir)).null() ;
+                    t.expectJ($commonstats(notADir).exists).false() ;
+                    t.expectK($isfile(notADir)).false() ;
+                    t.expectL($isdirectory(notADir)).false() ;
+                    t.expectM($filesize(notADir)).is(0) ;
                 }
                 finally { $removeFile(f) ; }
             }) ;

@@ -442,6 +442,41 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expectO($isemail('a@b')).false() ;
     }) ;
 
+    group.unary("$isemail() / $email() : ReDoS safety and domain edge cases", async(t) => {
+        // catastrophic-backtracking regression guard : this shape (long dot-free
+        // domain run + a char the pattern can never consume) took >3s past n=26
+        // before the domain sub-pattern was changed from (label\.{0,1})+ (dot
+        // optional on every repetition, so a dot-free run can be re-partitioned
+        // 2^(n-1) ways) to (label\.)* (dot mandatory per repetition, so there is
+        // exactly one way to partition any given string). If this ever regresses,
+        // this single call will hang the whole test run rather than just failing.
+        const evilInput = "a@" + "a".repeat(2000) + "<" ;
+        const t0 = Date.now() ;
+        const evilResult = $isemail(evilInput) ;
+        const elapsed = Date.now() - t0 ;
+        t.expect0(evilResult).false() ;
+        t.expect1(elapsed < 200).true() ;
+
+        // trailing dot after the domain is invalid, consistent with 'a@b.' already
+        // being invalid : fixed as a side effect of the ReDoS patch (the old regex's
+        // final [\d\.]+ alternative let a lone trailing '.' satisfy the domain).
+        t.expect2($isemail('a@b.com.')).false() ;
+        t.expect3($email('a@b.com.')).null() ;
+        t.expect4($isemail('toto@yahoo.fr.')).false() ;
+
+        // a single-label domain (no dot at all) is now accepted once its own
+        // length already satisfies the final segment ; the old regex accidentally
+        // required a spurious first outer-group iteration before it.
+        t.expect5($isemail('abcdef@ba')).true() ;
+        t.expect6($email('abcdef@ba')).is('abcdef@ba') ;
+        t.expect7($isemail('"AB"@BA')).true() ;
+        t.expect8($email('"AB"@BA')).is('"ab"@ba') ;
+
+        // still invalid : a single non-digit char satisfies neither domain-final
+        // alternative ({2,} needs 2 chars, [\d\.]+ needs a digit or dot)
+        t.expect9($isemail('abcdef@b')).false() ;
+    }) ;
+
     group.unary("$isuuid() and $UUID() functions", async(t) => {
         t.expect0(U.isUUID()).true() ;
         t.expect1($isuuid('3C244E6D-A03E-4D45-A87C-B1E1F967B362')).true() ;

@@ -152,7 +152,7 @@ export class TSCrypto {
         const mlen = message.length ;
 
         for (let i = 0; i < mlen ; i += 64) {
-            const w = new Array(80);
+            const w = _W1 ; // module-scoped, reused across blocks/calls : see declaration
             for (let j = 0; j < 16; j++) {
                 w[j] = (message[i + j * 4] << 24) | (message[i + j * 4 + 1] << 16) |
                         (message[i + j * 4 + 2] << 8) | message[i + j * 4 + 3];
@@ -203,7 +203,7 @@ export class TSCrypto {
         const message = _padSHA1And256(data);
         
         for (let i = 0; i < message.length; i += 64) {
-            const w = new Array(64);
+            const w = _W256 ; // module-scoped, reused across blocks/calls : see declaration
             for (let j = 0; j < 16; j++) {
                 w[j] = (message[i + j * 4] << 24) | (message[i + j * 4 + 1] << 16) |
                         (message[i + j * 4 + 2] << 8) | message[i + j * 4 + 3];
@@ -248,62 +248,88 @@ export class TSCrypto {
         // return hf.map(n => n.toString(16).padStart(8, '0')).join('');
     }
     
+    // fallback-only path (no native createHash available) : 64-bit words are
+    // represented as pairs of unsigned 32-bit numbers (hi, lo) and every
+    // rotation/shift/addition is done with plain 32-bit Number ops instead of
+    // BigInt, which is roughly 10-50x slower than Number arithmetic in V8 for
+    // a tight round loop run 80 times per 128-byte block. See _rotr64(),
+    // _shr64() and _add64x2()/_add64x4()/_add64x5() below.
     private static _sha512(data:Nullable<Uint8Array>, is384:boolean):bigint[] {
-        const k = TSCrypto.K512 ;
-        const h = [...(is384 ? TSCrypto.HSHA384 : TSCrypto.HSHA512)] ;
+        const kh = K512H, kl = K512L ;
+        const hh = (is384 ? HSHA384H : HSHA512H).slice() ;
+        const hl = (is384 ? HSHA384L : HSHA512L).slice() ;
         const message = _padSHA512(data);
 
         for (let i = 0; i < message.length; i += 128) {
-            const w = new Array<bigint>(80);
             for (let j = 0; j < 16; j++) {
-                w[j] = BigInt(message[i + j * 8]) << 56n |
-                        BigInt(message[i + j * 8 + 1]) << 48n |
-                        BigInt(message[i + j * 8 + 2]) << 40n |
-                        BigInt(message[i + j * 8 + 3]) << 32n |
-                        BigInt(message[i + j * 8 + 4]) << 24n |
-                        BigInt(message[i + j * 8 + 5]) << 16n |
-                        BigInt(message[i + j * 8 + 6]) << 8n |
-                        BigInt(message[i + j * 8 + 7]);
+                const o = i + j * 8 ;
+                _W512H[j] = (message[o] << 24) | (message[o+1] << 16) | (message[o+2] << 8) | message[o+3] ;
+                _W512L[j] = (message[o+4] << 24) | (message[o+5] << 16) | (message[o+6] << 8) | message[o+7] ;
             }
-            
+
             for (let j = 16; j < 80; j++) {
-                const s0 = _rotright64(w[j-15], 1n) ^ _rotright64(w[j-15], 8n) ^ (w[j-15] >> 7n) ;
-                const s1 = _rotright64(w[j-2], 19n) ^ _rotright64(w[j-2], 61n) ^ (w[j-2] >> 6n) ;
-                w[j] = (w[j-16] + s0 + w[j-7] + s1) & 0xffffffffffffffffn ;
+                const w15h = _W512H[j-15], w15l = _W512L[j-15] ;
+                _rotr64(w15h, w15l, 1) ; let s0h = _th, s0l = _tl ;
+                _rotr64(w15h, w15l, 8) ; s0h ^= _th ; s0l ^= _tl ;
+                _shr64(w15h, w15l, 7) ; s0h ^= _th ; s0l ^= _tl ;
+
+                const w2h = _W512H[j-2], w2l = _W512L[j-2] ;
+                _rotr64(w2h, w2l, 19) ; let s1h = _th, s1l = _tl ;
+                _rotr64(w2h, w2l, 61) ; s1h ^= _th ; s1l ^= _tl ;
+                _shr64(w2h, w2l, 6) ; s1h ^= _th ; s1l ^= _tl ;
+
+                _add64x4(_W512H[j-16], _W512L[j-16], s0h >>> 0, s0l >>> 0, _W512H[j-7], _W512L[j-7], s1h >>> 0, s1l >>> 0) ;
+                _W512H[j] = _th ; _W512L[j] = _tl ;
             }
-            
-            let [a, b, c, d, e, f, g, h0] = h;
-            
+
+            let r0h = hh[0], r0l = hl[0], r1h = hh[1], r1l = hl[1], r2h = hh[2], r2l = hl[2], r3h = hh[3], r3l = hl[3],
+                r4h = hh[4], r4l = hl[4], r5h = hh[5], r5l = hl[5], r6h = hh[6], r6l = hl[6], r7h = hh[7], r7l = hl[7] ;
+
             for (let j = 0; j < 80; j++) {
-                const S1 = _rotright64(e, 14n) ^ _rotright64(e, 18n) ^ _rotright64(e, 41n) ;
-                const ch = (e & f) ^ (~e & g) ;
-                const temp1 = (h0 + S1 + ch + k[j] + w[j]) & 0xffffffffffffffffn ;
-                const S0 = _rotright64(a, 28n) ^ _rotright64(a, 34n) ^ _rotright64(a, 39n) ;
-                const maj = (a & b) ^ (a & c) ^ (b & c) ;
-                const temp2 = (S0 + maj) & 0xffffffffffffffffn ;
-                
-                h0 = g ;
-                g = f ;
-                f = e ;
-                e = (d + temp1) & 0xffffffffffffffffn ;
-                d = c ;
-                c = b ;
-                b = a ;
-                a = (temp1 + temp2) & 0xffffffffffffffffn ;
+                _rotr64(r4h, r4l, 14) ; let S1h = _th, S1l = _tl ;
+                _rotr64(r4h, r4l, 18) ; S1h ^= _th ; S1l ^= _tl ;
+                _rotr64(r4h, r4l, 41) ; S1h ^= _th ; S1l ^= _tl ;
+
+                const chh = ((r4h & r5h) ^ (~r4h & r6h)) >>> 0 ;
+                const chl = ((r4l & r5l) ^ (~r4l & r6l)) >>> 0 ;
+
+                _add64x5(r7h, r7l, S1h >>> 0, S1l >>> 0, chh, chl, kh[j], kl[j], _W512H[j], _W512L[j]) ;
+                const temp1h = _th, temp1l = _tl ;
+
+                _rotr64(r0h, r0l, 28) ; let S0h = _th, S0l = _tl ;
+                _rotr64(r0h, r0l, 34) ; S0h ^= _th ; S0l ^= _tl ;
+                _rotr64(r0h, r0l, 39) ; S0h ^= _th ; S0l ^= _tl ;
+
+                const majh = ((r0h & r1h) ^ (r0h & r2h) ^ (r1h & r2h)) >>> 0 ;
+                const majl = ((r0l & r1l) ^ (r0l & r2l) ^ (r1l & r2l)) >>> 0 ;
+
+                _add64x2(S0h >>> 0, S0l >>> 0, majh, majl) ;
+                const temp2h = _th, temp2l = _tl ;
+
+                r7h = r6h ; r7l = r6l ;
+                r6h = r5h ; r6l = r5l ;
+                r5h = r4h ; r5l = r4l ;
+                _add64x2(r3h, r3l, temp1h, temp1l) ; r4h = _th ; r4l = _tl ;
+                r3h = r2h ; r3l = r2l ;
+                r2h = r1h ; r2l = r1l ;
+                r1h = r0h ; r1l = r0l ;
+                _add64x2(temp1h, temp1l, temp2h, temp2l) ; r0h = _th ; r0l = _tl ;
             }
-            
-            h[0] = (h[0] + a) & 0xffffffffffffffffn ;
-            h[1] = (h[1] + b) & 0xffffffffffffffffn ;
-            h[2] = (h[2] + c) & 0xffffffffffffffffn ;
-            h[3] = (h[3] + d) & 0xffffffffffffffffn ;
-            h[4] = (h[4] + e) & 0xffffffffffffffffn ;
-            h[5] = (h[5] + f) & 0xffffffffffffffffn ;
-            h[6] = (h[6] + g) & 0xffffffffffffffffn ;
-            h[7] = (h[7] + h0) & 0xffffffffffffffffn ;
+
+            _add64x2(hh[0], hl[0], r0h, r0l) ; hh[0] = _th ; hl[0] = _tl ;
+            _add64x2(hh[1], hl[1], r1h, r1l) ; hh[1] = _th ; hl[1] = _tl ;
+            _add64x2(hh[2], hl[2], r2h, r2l) ; hh[2] = _th ; hl[2] = _tl ;
+            _add64x2(hh[3], hl[3], r3h, r3l) ; hh[3] = _th ; hl[3] = _tl ;
+            _add64x2(hh[4], hl[4], r4h, r4l) ; hh[4] = _th ; hl[4] = _tl ;
+            _add64x2(hh[5], hl[5], r5h, r5l) ; hh[5] = _th ; hl[5] = _tl ;
+            _add64x2(hh[6], hl[6], r6h, r6l) ; hh[6] = _th ; hl[6] = _tl ;
+            _add64x2(hh[7], hl[7], r7h, r7l) ; hh[7] = _th ; hl[7] = _tl ;
         }
-        
-        return is384 ? h.slice(0, 6) : h ;
-        // return result.map(n => n.toString(16).padStart(16, '0')).join('') ;
+
+        const n = is384 ? 6 : 8 ;
+        const result = new Array<bigint>(n) ;
+        for (let i = 0 ; i < n ; i++) { result[i] = (BigInt(hh[i]) << 32n) | BigInt(hl[i]) ; }
+        return result ;
     }
 
     public static _crc(src: Uint8Array, crc:number, table:number[], andValue:number):number
@@ -394,5 +420,80 @@ export function _padSHA512(data:Nullable<Uint8Array>) {
 
 function _rotleft32(n:number, b:number):number      { return ((n << b) | (n >>> (32 - b))) >>> 0 ; }
 function _rotright32(n: number, b: number): number  { return ((n >>> b) | (n << (32 - b))) >>> 0 ; }
-function _rotright64(n:bigint, b:bigint): bigint    { return ((n >> b) | (n << (64n - b))) & 0xffffffffffffffffn ; }
+
+// --- SHA-1 / SHA-256 fallback : message schedule buffers, module-scoped and
+// reused across blocks and calls instead of reallocated per 64-byte block.
+// Single-threaded, no reentrancy (each call runs to completion synchronously,
+// and every index is overwritten before being read on each pass).
+const _W1   = new Int32Array(80) ;
+const _W256 = new Int32Array(64) ;
+
+// --- SHA-384 / SHA-512 fallback : 64-bit words as (hi, lo) pairs of unsigned
+// 32-bit numbers, all arithmetic done with Number ops (no BigInt). K512/HSHA384/
+// HSHA512 stay as the bigint literals above (human-checkable against the spec,
+// split into hi/lo only once, here, at module load) ; the per-round hot path
+// below never touches a BigInt.
+function _splitToHiLo(values:readonly bigint[]):[Uint32Array, Uint32Array] {
+    const hi = new Uint32Array(values.length) ;
+    const lo = new Uint32Array(values.length) ;
+    for (let i = 0 ; i < values.length ; i++) {
+        hi[i] = Number((values[i] >> 32n) & 0xffffffffn) ;
+        lo[i] = Number(values[i] & 0xffffffffn) ;
+    }
+    return [hi, lo] ;
+}
+
+const [K512H, K512L] = _splitToHiLo(TSCrypto.K512) ;
+const [HSHA384H, HSHA384L] = _splitToHiLo(TSCrypto.HSHA384) ;
+const [HSHA512H, HSHA512L] = _splitToHiLo(TSCrypto.HSHA512) ;
+
+// message schedule for _sha512() : same reuse rationale as _W1/_W256 above.
+const _W512H = new Uint32Array(80) ;
+const _W512L = new Uint32Array(80) ;
+
+// scratch "return registers" for the 64-bit helpers below : avoids allocating
+// a tuple on every one of the 80 rounds x up to 128 bytes/block. Safe because
+// everything here runs synchronously, single-threaded, to completion.
+let _th = 0, _tl = 0 ;
+
+function _rotr64(hi:number, lo:number, n:number):void {
+    if (n < 32) {
+        _th = ((hi >>> n) | (lo << (32 - n))) >>> 0 ;
+        _tl = ((lo >>> n) | (hi << (32 - n))) >>> 0 ;
+    }
+    else if (n === 32) { _th = lo ; _tl = hi ; }
+    else {
+        const m = n - 32 ;
+        _th = ((lo >>> m) | (hi << (32 - m))) >>> 0 ;
+        _tl = ((hi >>> m) | (lo << (32 - m))) >>> 0 ;
+    }
+}
+
+function _shr64(hi:number, lo:number, n:number):void {
+    _th = (hi >>> n) >>> 0 ;
+    _tl = ((lo >>> n) | (hi << (32 - n))) >>> 0 ;
+}
+
+// (a,b) mod 2**64, given as (hi,lo) pairs of unsigned 32-bit numbers.
+function _add64x2(ah:number, al:number, bh:number, bl:number):void {
+    const lo = al + bl ;
+    _tl = lo >>> 0 ;
+    _th = (ah + bh + (lo > 0xffffffff ? 1 : 0)) >>> 0 ;
+}
+
+// (a+b+c+d) mod 2**64 : summing the four lo halves as plain Numbers never
+// exceeds 2**34, well inside the 53-bit integer range, so it stays exact.
+function _add64x4(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number):void {
+    const lo = al + bl + cl + dl ;
+    _tl = lo >>> 0 ;
+    const carry = Math.floor(lo / 0x100000000) ;
+    _th = (ah + bh + ch + dh + carry) >>> 0 ;
+}
+
+function _add64x5(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number, eh:number, el:number):void {
+    const lo = al + bl + cl + dl + el ;
+    _tl = lo >>> 0 ;
+    const carry = Math.floor(lo / 0x100000000) ;
+    _th = (ah + bh + ch + dh + eh + carry) >>> 0 ;
+}
 

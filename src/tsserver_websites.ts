@@ -1,5 +1,5 @@
 import { $isstring, $isunsigned, $length, $ok, $value } from "./commons";
-import { $ext, $isdirectory, $isfile, $path, $readBuffer } from "./fs";
+import { $ext, $isdirectory, $path, $readBuffer } from "./fs";
 import { TSError } from "./tserrors";
 import { TSResourceMimeChecker, TSWebSiteDefinition } from "./tsserver_types";
 import { Nullable, StringDictionary, UINT32_MAX, uint32 } from "./types";
@@ -64,10 +64,10 @@ export class TSStaticWebsite {
                     }
                     else {
                         const file = $path(this.folder, path) ;
-                        if ($isfile(file)) {
-                            ret = $readBuffer(file) ;
-                            if ($ok(ret)) { this._cacheContent(path, ret) ; }
-                            else { this._blacklist(path) ; }
+                        const buf = $readBuffer(file) ;
+                        if ($ok(buf)) { 
+                            ret = buf ; 
+                            this._cacheContent(path, buf) ; 
                         }
                         else { this._blacklist(path) ; }
                     }

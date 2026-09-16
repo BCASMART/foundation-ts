@@ -50,6 +50,15 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     private _channels:number[] ;
 	private _alpha: number;
     private _name?: string ;
+    // TSColor is immutable (private constructor, _channels/_alpha never
+    // reassigned after it), so these derived tuples are computed at most once
+    // per instance and reused forever after. Typed `readonly` (compile-time
+    // only, zero runtime cost) rather than Object.freeze()'d : freezing a
+    // freshly-built 3-4 element array turned out to cost more than the whole
+    // rest of a single-access getter call, which defeated the point for the
+    // common "read one channel on many distinct color instances" workload.
+    private _rgbCache?:readonly [uint8, uint8, uint8] ;
+    private _cmykCache?:readonly [number, number, number, number] ;
 
     private static __colorsCache:Map<string,TSColor>|undefined  ;
     private static readonly __colorCacheMaxSize = 16384 ;
@@ -171,16 +180,20 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     } 
 
     // ================== primitive methods =======================
-    public rgb():[uint8, uint8, uint8]  {
+    public rgb():readonly [uint8, uint8, uint8]  {
         if (this.colorSpace === TSColorSpace.RGB) {
+            // native representation : nothing expensive to avoid recomputing,
+            // so no cache involved at all here.
             return [(this._channels[0] & 0xFF) as uint8, (this._channels[1] & 0xFF) as uint8, (this._channels[2] & 0xFF) as uint8] ;
         }
+        if ($ok(this._rgbCache)) { return this._rgbCache! ; }
         const [C,M,Y,K] = this.cmykComponents() ;
         const light = 255.0 * (1 - K) ;
-        function _rc(x:number):uint8 { return ((light*(1-x)) & 0xFF) as uint8 ; }
-
-        return [_rc(C), _rc(M), _rc(Y)] ;
-    } 
+        const _rc = (x:number):uint8 => ((light*(1-x)) & 0xFF) as uint8 ;
+        const ret:[uint8, uint8, uint8] = [_rc(C), _rc(M), _rc(Y)] ;
+        this._rgbCache = ret ;
+        return ret ;
+    }
 
     public rgbComponents():[number, number, number]  {
         if (this.colorSpace === TSColorSpace.RGB) {
@@ -191,10 +204,13 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         return [(1-K)*(1-C), (1-K)*(1-M), (1-K)*(1-Y)] ;
     }
 
-    public cmykComponents():[number, number, number, number] {        
-        if (this.colorSpace !== TSColorSpace.RGB) { 
+    public cmykComponents():readonly [number, number, number, number] {
+        if (this.colorSpace !== TSColorSpace.RGB) {
+            // native representation (CMYK or Grayscale, the latter stored as
+            // CMYK with C=M=Y=0) : nothing expensive to avoid recomputing.
             return [this._channels[0], this._channels[1], this._channels[2], this._channels[3]] ;
         }
+        if ($ok(this._cmykCache)) { return this._cmykCache! ; }
         const [r,g,b] = this.rgbComponents() ;
         let C = 1 - r ;
         let M = 1 - g ;
@@ -203,8 +219,9 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if ( C < K ) { K = C ; }
         if ( M < K ) { K = M ; }
         if ( Y < K ) { K = Y ; }
-
-        return K >= 1 ? [0, 0 ,0 ,1] : [(C - K) / (1 - K), (M - K) / (1 - K), (Y - K) / (1 - K), K]
+        const ret:[number, number, number, number] = K >= 1 ? [0, 0 ,0 ,1] : [(C - K) / (1 - K), (M - K) / (1 - K), (Y - K) / (1 - K), K] ;
+        this._cmykCache = ret ;
+        return ret ;
     }
 
     public grayComponent(): number {
@@ -225,18 +242,21 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public get name():string { return $string(this._name) ; }
 	public clone():TSColor { return this ; } // no clone on immutable objects
 
-    // RGB color space
-    public get red():uint8   { const [R,,] = this.rgb() ; return R as uint8 ;}
-    public get green():uint8 { const [,G,] = this.rgb() ; return G as uint8 ;}
-    public get blue():uint8  { const [,,B] = this.rgb() ; return B as uint8 ;}
+    // RGB color space : direct channel read when already in RGB space (no
+    // tuple involved at all) ; falls back to the now-memoized rgb() otherwise.
+    public get red():uint8   { return (this.colorSpace === TSColorSpace.RGB ? this._channels[0] & 0xFF : this.rgb()[0]) as uint8 ;}
+    public get green():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._channels[1] & 0xFF : this.rgb()[1]) as uint8 ;}
+    public get blue():uint8  { return (this.colorSpace === TSColorSpace.RGB ? this._channels[2] & 0xFF : this.rgb()[2]) as uint8 ;}
     public get alpha():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._alpha : $tounsigned(_component(this._alpha) * 255)) as uint8 ;}
     public get transparency():uint8 { return 255 - this.alpha as uint8 ; }
 
-    // CYMK color space
-    public get cyan():number    { const [C,,,] = this.cmykComponents() ; return C ; }
-    public get magenta():number { const [,M,,] = this.cmykComponents() ; return M ; }
-    public get yellow():number  { const [,,Y,] = this.cmykComponents() ; return Y ; }
-    public get black():number   { const [,,,K] = this.cmykComponents() ; return K ; }
+    // CYMK color space : same direct-read idea, mirroring the branch already
+    // used inside cmykComponents() itself (Grayscale is stored as CMYK with
+    // C=M=Y=0, so this also covers Grayscale colors).
+    public get cyan():number    { return this.colorSpace !== TSColorSpace.RGB ? this._channels[0] : this.cmykComponents()[0] ; }
+    public get magenta():number { return this.colorSpace !== TSColorSpace.RGB ? this._channels[1] : this.cmykComponents()[1] ; }
+    public get yellow():number  { return this.colorSpace !== TSColorSpace.RGB ? this._channels[2] : this.cmykComponents()[2] ; }
+    public get black():number   { return this.colorSpace !== TSColorSpace.RGB ? this._channels[3] : this.cmykComponents()[3] ; }
     public get opacity():number { return this.colorSpace !== TSColorSpace.RGB ? this._alpha : _component(this._alpha / 255) ; }
 
     // GRAY color space

@@ -2,6 +2,26 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.4
+
+This version is meant to bring bug foptimizations to foundation-ts
+
+#### Corrections
+
+- `$isemail()` && `$email()` function did correct some edge mail format not correctly interpreted (e.g: "a@b.com." was accepted. Its no more the case) and did have a catastrophic backtracking on adversarial input.
+- Everything built on `$isfile()`, `$isdirectory()`, `$isreadable()`, `$iswritable()`, `$filesize()`, `$createDirectory()` was working on the fact that if `$stats()`did return `null`then, it meant that the pass did not exist. It may not have been  the case if the error came from folders or file up in the pass. Fixed.
+
+#### What's new ?
+
+- new function `$titleCase()` which works like `$capitalize()` but instead change all letters which are the begining of a word to lower case. Did also ass a `.titleCase()` method on `String`. 
+- SHA384 & SHA12 crypto is back to full JS (no more bigint usage on calculation itself) and is now 2x to 3x faster
+- SHA1() & SHA256() crypto is also 20% faster by using internal scopped buffers
+- Native random bytes generation is now 2x to 3.5x faster than before (but is rarely called) and conforms to what the system function does.
+- Better memory management inside `$durationDescription()` and `$durationNumber2StringFormat()` functions
+- Fastest TSColor by adding proper cache for transformations between RGB & CMYK
+
+<hr/>
+
 ## version 1.8.3
 
 #### Corrections

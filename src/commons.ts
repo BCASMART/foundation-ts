@@ -480,7 +480,19 @@ export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A
 
 // ===== private functions ===================================
 
-const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
+// BUG fixed:
+// ===========================================================================
+// domain part used to read (label\.{0,1})+ : a label is one-or-more non-dot
+// chars followed by an OPTIONAL dot, repeated one-or-more times. Since the
+// trailing dot is optional on every repetition, a long dot-free run of chars
+// can be re-partitioned across that outer "+" in 2^(n-1) different ways, so a
+// crafted "a@" + "a".repeat(n) + "<" input (garbage the pattern can never
+// consume) made the engine explore all of them before failing : catastrophic
+// backtracking, ~doubling in time every 2 extra chars (n=24 -> ~1s, n=26+ ->
+// many seconds). Requiring the dot on every repetition (label\.)* removes the
+// ambiguity : each repetition must consume an actual "." from the input, so
+// there is exactly one way to partition a given string, not exponentially many.
+const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.)*([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
 
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:Nullable<number>, maxLength?:number) : T | null 
 {

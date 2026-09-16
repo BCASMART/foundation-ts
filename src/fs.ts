@@ -55,14 +55,16 @@ import { $arrayset } from './array';
  */
 
 // if $stats() returns null it means that the path does not exist.
+// statSync(..., { throwIfNoEntry: false }) (Node >= 15.3) returns undefined
+// instead of throwing on the "doesn't exist" case (ENOENT, and also ENOTDIR
+// when a parent path component isn't a directory), which is the hot path for
+// callers like $isfile/$isdirectory/$isreadable and any cache-miss lookup :
+// no exception machinery on every miss. Anything else genuinely unexpected
+// (EACCES, ELOOP, ...) still throws, exactly as before.
 export function $stats(src: Nullable<string>): Nullable<Stats> {
     TSError.assertNotInBrowser('$stats');
     if ($length(src)) {
-        try { return statSync(src!); }
-        catch (e) {
-            if ((e as any)?.code === 'ENOENT') return null;
-            throw e;
-        }
+        return statSync(src!, { throwIfNoEntry: false }) ?? null;
     }
     return null;
 }
@@ -103,29 +105,23 @@ const DoesNotExistCommonStats:CommonStats = {
 export function $commonstats(src: Nullable<string>, opts?:Nullable<StatOptions>):CommonStats {
     TSError.assertNotInBrowser('$commonstats') ;
     if (!$length(src)) { return DoesNotExistCommonStats ; }
-    try {
-        const stats = statSync(src!, $ok(opts) ? opts! : {}) ;
-        if (!$ok(stats)) { return DoesNotExistCommonStats ; }
-        return {
-            exists:true,
-            uid:stats!.uid,
-            gid:stats!.gid,
-            directory:stats!.isDirectory(),
-            file:stats!.isFile(),
-            size:stats!.size,
-            mode:stats!.mode,
-            changedAt: stats!.ctimeMs,
-            modifiedAt: stats!.mtimeMs,
-            accessedAt: stats!.atimeMs,
-            createdAt: stats!.birthtimeMs,
-            readable:_safeCheckPermissions(src, constants.R_OK),
-            writable:_safeCheckPermissions(src, constants.W_OK),
-            executable:_safeCheckPermissions(src, constants.X_OK),
-        }
-    }
-    catch (e) {
-        if ((e as any)?.code === 'ENOENT') { return DoesNotExistCommonStats ; }
-        throw e;
+    const stats = statSync(src!, { ...($ok(opts) ? opts! : {}), throwIfNoEntry: false }) ;
+    if (!$ok(stats)) { return DoesNotExistCommonStats ; }
+    return {
+        exists:true,
+        uid:stats!.uid,
+        gid:stats!.gid,
+        directory:stats!.isDirectory(),
+        file:stats!.isFile(),
+        size:stats!.size,
+        mode:stats!.mode,
+        changedAt: stats!.ctimeMs,
+        modifiedAt: stats!.mtimeMs,
+        accessedAt: stats!.atimeMs,
+        createdAt: stats!.birthtimeMs,
+        readable:_safeCheckPermissions(src, constants.R_OK),
+        writable:_safeCheckPermissions(src, constants.W_OK),
+        executable:_safeCheckPermissions(src, constants.X_OK),
     }
 }
 

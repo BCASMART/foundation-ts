@@ -145,6 +145,10 @@ export function $normspaces(s: Nullable<string>, opts: $normspacesOpions = {}): 
 
 export function $firstcap(s: Nullable<string>): string { return _capitalize(s, 1); }
 export function $capitalize(s: Nullable<string>): string { return _capitalize(s); }
+// unlike $capitalize() (first letter of each word up, everything else left exactly
+// as given, so an already-uppercase acronym or script survives untouched — see
+// its own tests), $titleCase() forces every other letter down : "ACcepT mE" -> "Accept Me".
+export function $titleCase(s: Nullable<string>): string { return _titleCase(s); }
 export function $camelCase(s: Nullable<string>): string { return _camelCase(s); } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
 export function $snakeCase(s: Nullable<string>): string { return _snakeCase(s); } // WARNING: we assume we have an ASCII identifier here, so we transform it in ASCII
 
@@ -188,6 +192,7 @@ declare global {
         singular: (this: string) => boolean;
         snakeCase: (this: string) => string;
         strictAscii: (this: string) => string | null;
+        titleCase: (this: string) => string;
         toDate: (this: string) => Date | null;
         toHTML: (this: string) => string;
         toHTMLContent: (this: string) => HTMLContent;
@@ -224,6 +229,7 @@ String.prototype.right = function right(this: string, rightPart?: Nullable<numbe
 String.prototype.rtrim = function rtrim(this: string): string { return $rtrim(this); }
 String.prototype.singular = function singular(this: string) { return this.toUnsigned() === 1; }
 String.prototype.snakeCase = function snakeCase(this: string): string { return _snakeCase(this); }
+String.prototype.titleCase = function titleCase(this: string): string { return _titleCase(this); }
 String.prototype.toDate = function toDate(this: string): Date | null { return $isdate(this) ? new Date(this) : null; }
 String.prototype.toHTML = function toHTML(this: any): string { return $HTML(this); }
 String.prototype.toHTMLContent = function toHTMLContent(this: string): HTMLContent { return new HTMLContent(this); }
@@ -307,6 +313,26 @@ function _capitalize(s: Nullable<string>, max: number = 0): string {
         else {
             ret += c ;
         }
+        lastCharWasNotLetter = !isLetter;
+        i += code > 0xFFFF ? 2 : 1 ;
+    }
+    return ret ;
+}
+
+// same as _capitalize(), but every letter that is not a word's first 
+// is forced down instead of being left as given
+function _titleCase(s: Nullable<string>): string {
+    let ret = "";
+    const len = $length(s) ; if (len === 0) { return ret ;}
+    const str = s! ;
+    let lastCharWasNotLetter = true;
+
+    for (let i = 0 ; i < len ; ) {
+        const code = str.codePointAt(i)! ;
+        const c = String.fromCodePoint(code) ;
+        const isLetter = FoundationLetterRegex.test(c) ;
+        if (isLetter) { ret += lastCharWasNotLetter ? c.toUpperCase() : c.toLowerCase() ; }
+        else { ret += c ; }
         lastCharWasNotLetter = !isLetter;
         i += code > 0xFFFF ? 2 : 1 ;
     }

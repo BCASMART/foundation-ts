@@ -1,4 +1,4 @@
-import { $ascii, $asciifs, $camelCase, $capitalize, $firstcap, $ftrim, $HTML, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $snakeCase, $strictascii, $trim } from "../src/strings";
+import { $ascii, $asciifs, $camelCase, $capitalize, $firstcap, $ftrim, $HTML, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $snakeCase, $strictascii, $titleCase, $trim } from "../src/strings";
 import { FoundationNewLines, FoundationWhiteSpaces } from "../src/string_tables";
 import { TSTest } from "../src/tstester";
 import { $transliterate } from "../src/transliteration";
@@ -166,6 +166,28 @@ export const stringGroups = [
             t.expect5($capitalize("\u{10428}b \u{10429}c")).is("\u{10400}b \u{10401}c") ;
             // digits / connector punctuation are not letters => the next letter starts a new word
             t.expect6($capitalize("3d _x y2z")).is("3D _X Y2Z") ;
+        }) ;
+
+        group.unary("$titleCase() function", async(t) => {
+            // same word-boundary rule as $capitalize(), but every non-first letter of
+            // a word is forced down instead of being left as given
+            t.expect0($titleCase("ACcepT mE")).is("Accept Me") ;
+            t.expect1($titleCase(null)).is("") ;
+            t.expect2($titleCase(undefined)).is("") ;
+            t.expect3("ACcepT mE".titleCase()).is("Accept Me") ;
+
+            // contrast with $capitalize() on the exact same input : already-uppercase
+            // script is kept by $capitalize() but forced down by $titleCase()
+            t.expect4($capitalize("ålborg über ЯНДЕКС")).is("Ålborg Über ЯНДЕКС") ;
+            t.expect5($titleCase("ålborg über ЯНДЕКС")).is("Ålborg Über Яндекс") ;
+
+            // Unicode / code-point handling parity with $capitalize()
+            t.expect6($titleCase("école")).is("École") ;                                          // NFD stays aligned
+            t.expect7($titleCase("east 东京tokyo and 北京beijing")).is("East 东京tokyo And 北京beijing") ; // CJK glued to latin stays a single word
+            t.expect8($titleCase("عربى test")).is("عربى Test") ;                                   // caseless script = a word
+            t.expect9($titleCase("👍 hello 👨‍👩‍👧")).is("👍 Hello 👨‍👩‍👧") ;                          // astral non-letters stepped over
+            t.expectA($titleCase("\u{10428}b \u{10429}c")).is("\u{10400}b \u{10401}c") ;           // astral letters (Deseret) upper-cased
+            t.expectB($titleCase("3d _x y2z")).is("3D _X Y2Z") ;                                   // digits reset word-start detection too
         }) ;
 
         group.unary("$lines() function", async(t) => {

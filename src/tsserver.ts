@@ -346,13 +346,14 @@ export class TSServer {
                 const parameters:TSDictionary = route?.parameters ?? {} ;
 
                 if ($ok(sep)) {
+                    const now = $mark() ;
                     let preflightResponse = this._preflightResponseCache.get(originKey) ;
-                    if ($ok(preflightResponse) && (!$ok(preflightResponse?.timeout) || preflightResponse!.timeout! >= $mark())) {
+                    if ($ok(preflightResponse) && (!$ok(preflightResponse?.timeout) || preflightResponse!.timeout! >= now)) {
                         this._preflightResponseCache.delete(originKey) ;
                         preflightResponse = undefined ;
                     }
                     if ($ok(preflightResponse?.allowedOrigin)) {
-                        if ($ok(preflightResponse.timeout) && preflightResponse.timeout < $mark()) {
+                        if ($ok(preflightResponse.timeout) && preflightResponse.timeout < now) {
                             res.setHeader('Access-Control-Allow-Origin', preflightResponse!.allowedOrigin!) ;
                         }
                     }

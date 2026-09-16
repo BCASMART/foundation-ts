@@ -158,10 +158,15 @@ export function $componentshavetime(c:TSDateComp) : boolean {
 	return c.hour > 0 || c.minute > 0 || c. second > 0
 }
 
+// hoisted to named module constants : keeps the (bounded, backtracking-safe -
+// see _parsedt()'s regexes below) parse patterns out of the call expressions
+// and makes their reuse across calls explicit rather than implicit in V8's cache.
+const TIME_PARSE_REGEX = /^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/ ;
+
 export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
 	if (!$length(s)) { return null ; }
 	// res[1] = hours-or-packed-number, res[3] = minutes, res[5] = seconds
-	const m = (<string>s).match(/^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/) ;
+	const m = (<string>s).match(TIME_PARSE_REGEX) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
 	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN } ;
@@ -187,12 +192,19 @@ export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
  * 
  * ==WARNING== dayOfWeek is not initialized after parsing.
  */
+// all quantifiers here are bounded ({1,2}/{1,4}/{1,6}/{1,8}, digits vs.
+// separators are disjoint char sets) : nested but not unbounded-over-unbounded,
+// so no catastrophic-backtracking risk despite the nested optional groups —
+// verified empirically against adversarial all-digit input up to 320 chars.
+const DATETIME_PARSE_REGEX = /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4})(\s+(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?)?)?)?\s*$/ ;
+const DATE_PARSE_REGEX = /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4}))?)?\s*$/ ;
+
 export function $parsedatetime(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
-	return _parsedt(s, /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4})(\s+(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?)?)?)?\s*$/, form) ;
+	return _parsedt(s, DATETIME_PARSE_REGEX, form) ;
 }
 
 export function $parsedate(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
-	return _parsedt(s, /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4}))?)?\s*$/, form, { noTime:true }) ;
+	return _parsedt(s, DATE_PARSE_REGEX, form, { noTime:true }) ;
 }
 
 /**
@@ -587,7 +599,14 @@ export interface $durationDescriptionOptions {
     locale?:Nullable<language|country|TSCountry|Locales> ;
     noDays?:Nullable<boolean> ;
 }
-    
+
+// hoisted to module scope for the same reason as the directive handlers above :
+// avoids redefining a closure over `a`/`locale` on every $durationDescription() call.
+function _durationRepString(key:string, value:number, defaultDefinition:UnitDefinition, locale:Nullable<language|country|TSCountry|Locales>):string {
+    const def = $value($unitDefinition(key, locale), defaultDefinition) ;
+    return `${value} ${value===1?def?.singular:def.plural}` ;
+}
+
 export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<$durationDescriptionOptions>) {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
@@ -628,18 +647,14 @@ export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable
         }
         const a:string[] = [] ;
         const locale = opts?.locale ;
-        function _addRep(key:string, value:number, defaultDefinition:UnitDefinition) {
-            const def = $value($unitDefinition(key, locale), defaultDefinition) ;
-            a.push(`${value} ${value===1?def?.singular:def.plural}`) ;
-        }
-        if (!!opts?.noDays && c!.days > 0) { 
-            c!.hours = (c!.hours + 24 * c!.days) as uint ; 
+        if (!!opts?.noDays && c!.days > 0) {
+            c!.hours = (c!.hours + 24 * c!.days) as uint ;
             c!.days = UINT_MIN ;
         }
-        if (c!.days > 0)    { _addRep('day',    c!.days,    { singular:'day', plural:'days', unit:'' }) ; }
-        if (c!.hours > 0)   { _addRep('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }) ; }
-        if (c!.minutes > 0) { _addRep('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }) ; }
-        if (c!.seconds > 0) { _addRep('second', c!.seconds, { singular:'second', plural:'seconds', unit:'' }) ; }
+        if (c!.days > 0)    { a.push(_durationRepString('day',    c!.days,    { singular:'day', plural:'days', unit:'' }, locale)) ; }
+        if (c!.hours > 0)   { a.push(_durationRepString('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }, locale)) ; }
+        if (c!.minutes > 0) { a.push(_durationRepString('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }, locale)) ; }
+        if (c!.seconds > 0) { a.push(_durationRepString('second', c!.seconds, { singular:'second', plural:'seconds', unit:'' }, locale)) ; }
 
         return a.join(' ') ;
     }
@@ -706,6 +721,37 @@ export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable
  *      You can use $setdefault('debugDurationStateAutomat', true) ; before calling the present
  *      function in order to debug the format automat if you think you don't obtain what you should
  */
+
+// Directive handlers for $durationNumber2StringFormat() : hoisted to module
+// scope, allocated once, and shared by every call instead of being redefined
+// as ~15 fresh closures per call (the previous _d/_D/_E/.../_pop/_push/_default
+// functions each closed over that call's comp/ret/stack/state/elsePart). Each
+// handler here only reads the (per-call) duration components it's given, so
+// the table never needs to change ; the state machine itself stays local to
+// the function below.
+const _durationDirectiveHandlers:{[key:string]:(comp:TSDurationComp) => string} = {
+    'd': (c) => `${c.days}`,
+    'D': (c) => $fpad2(c.days),
+    'E': (c) => $fpad3(c.days),
+    'h': (c) => `${c.hours}`,
+    'H': (c) => $fpad2(c.hours),
+    'i': (c) => `${c.days*24 + c.hours}`,
+    'I': (c) => $fpad2((c.days*24 + c.hours) as uint),
+    'J': (c) => $fpad3((c.days*24 + c.hours) as uint),
+    'm': (c) => `${c.minutes}`,
+    'M': (c) => $fpad2(c.minutes),
+    's': (c) => `${c.seconds}`,
+    'S': (c) => $fpad2(c.seconds),
+} ;
+
+function _durationFormatPush<S>(stack:{state:S, elsePart:boolean}[], state:S, elsePart:boolean, newState:S):[S, boolean]
+{ stack.push({state:state, elsePart:elsePart}) ; return [newState, false] ; }
+
+function _durationFormatPop<S>(stack:{state:S, elsePart:boolean}[]):[S, boolean]
+{ const p = stack.pop() ; return [p!.state, p!.elsePart] ; }
+
+function _durationFormatDefault(c:string):string { return c === '%' ? '%' : `%${c}` ; }
+
 export function $durationNumber2StringFormat(duration: Nullable<number>, format?:Nullable<string>) : string {
     
     enum State {
@@ -749,24 +795,6 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
         $logterm(`subday:       ${subday}`) ;
     }
 
-    function _pop():[State, boolean] { const p = stack.pop() ; return [p!.state, p!.elsePart] ; }
-    function _push(newState:State):[State, boolean] { stack.push({state:state, elsePart:elsePart}); return [newState, false] ; }
-    function _default(c:string) { ret += '%' ; if (c !== '%') { ret += c ; }}
-
-    function _d() { ret += comp.days ; }
-    function _D() { ret += $fpad2(comp.days) ; }
-    function _E() { ret += $fpad3(comp.days) ; }
-    function _h() { ret += comp.hours ; }
-    function _H() { ret += $fpad2(comp.hours) ; }
-    function _i() { ret += (comp.days*24 + comp.hours) ; }
-    function _I() { ret += $fpad2((comp.days*24 + comp.hours) as uint) ; }
-    function _J() { ret += $fpad3((comp.days*24 + comp.hours) as uint) ; }
-    function _m() { ret += comp.minutes ; }
-    function _M() { ret += $fpad2(comp.minutes) ; }
-    function _s() { ret += comp.seconds ;}
-    function _S() { ret += $fpad2(comp.seconds) ; }
-
-    
     for (let i = 0 ; i < fmtlen ; i++) {
         const c = format!.charAt(i) ;
         if (debug) $logterm(`stack.count = ${stack.length}, state = ${state}, elsePart = ${elsePart}, char[${i}] = '${c}'`) ;
@@ -780,15 +808,15 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 state = State.Standard ;
                 switch (c) {
                     case '%': ret += '%' ; break ;
-                    case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
-                    case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
-                    case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
-                    case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
-                    case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
-                    case 'D': _D() ; break ; case 'd': _d() ; break ; case 'E': _E() ; break ;
-                    case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
-                    case 'M': _M() ; break ; case 'm': _m() ; break ;
-                    case 'S': _S() ; break ; case 's': _s() ; break ;
+                    case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
+                    case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
+                    case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
+                    case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
+                    case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
+                    case 'D': ret += _durationDirectiveHandlers['D'](comp) ; break ; case 'd': ret += _durationDirectiveHandlers['d'](comp) ; break ; case 'E': ret += _durationDirectiveHandlers['E'](comp) ; break ;
+                    case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
+                    case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
+                    case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
                     default: ret += '%', ret += c ; break ;
                 }
                 break ;
@@ -797,22 +825,22 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 else if ((comp.days > 0 && !elsePart) || (!comp.days && elsePart)) { ret += c ; }
                 break ;
             case State.DaysPartEscape:
-                if (c === ')') { [state, elsePart] = _pop() ; }
+                if (c === ')') { [state, elsePart] = _durationFormatPop(stack) ; }
                 else {
                     state = state = State.DaysPart ;
                     if (c === 'p') { elsePart = !elsePart ; }                    
                     else if (comp.days > 0 && !elsePart) {
                         switch (c) {
                             case '%': ret += '%' ; break ;
-                            case 'D': _D() ; break ; case 'd': _d() ; break ; case 'E': _E() ; break ;
-                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
-                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
-                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            case 'D': ret += _durationDirectiveHandlers['D'](comp) ; break ; case 'd': ret += _durationDirectiveHandlers['d'](comp) ; break ; case 'E': ret += _durationDirectiveHandlers['E'](comp) ; break ;
+                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
+                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
+                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
                             default: ret += '%', ret += c ; break ;
                         }
                     }
-                    else if (elsePart && !comp.days) { _default(c) ; }
+                    else if (elsePart && !comp.days) { ret += _durationFormatDefault(c) ; }
                 }
                 break ;
             case State.HoursPart:
@@ -820,22 +848,22 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 else if ((comp.hours > 0 && !elsePart) || (!comp.hours && elsePart)) { ret += c ; }
                 break ;
             case State.HoursPartEscape:
-                if (c === '≥') { [state, elsePart] = _pop() ; }
+                if (c === '≥') { [state, elsePart] = _durationFormatPop(stack) ; }
                 else {
                     state = State.HoursPart ;
                     if (c === 'q') { elsePart = !elsePart ; }                    
                     else if (comp.hours > 0 && !elsePart) {
                         switch (c) {
                             case '%': ret += '%' ; break ;
-                            case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
-                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
-                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
-                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
+                            case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
+                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
+                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
+                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
                             default: ret += '%', ret += c ; break ;
                         }
                     }
-                    else if (elsePart && !comp.hours) { _default(c) ; }
+                    else if (elsePart && !comp.hours) { ret += _durationFormatDefault(c) ; }
                 }
                 break ;
             case State.SecondsPart:
@@ -843,22 +871,22 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 else if ((comp.seconds > 0 && !elsePart) || (!comp.seconds && elsePart)) { ret += c ; }
                 break ;
             case State.SecondsPartEscape:
-                if (c === '}') { [state, elsePart] = _pop() ; }
+                if (c === '}') { [state, elsePart] = _durationFormatPop(stack) ; }
                 else {
                     state = State.SecondsPart ;
                     if (c === 'b') { elsePart = !elsePart ; }                    
                     else if (comp.seconds > 0 && !elsePart) {
                         switch (c) {
                             case '%': ret += '%' ; break ;
-                            case 'S': _S() ; break ; case 's': _s() ; break ;
-                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
-                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
-                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
+                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
+                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
+                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
                             default: ret += '%', ret += c ; break ;    
                         }
                     }
-                    else if (elsePart && !comp.seconds) { _default(c) ; }
+                    else if (elsePart && !comp.seconds) { ret += _durationFormatDefault(c) ; }
                 }
                 break ;
             case State.SubdaysPart:
@@ -866,24 +894,24 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 else if ((subday && !elsePart) || (!subday && elsePart)) { ret += c ; }
                 break ;
             case State.SubdaysPartEscape:
-                if (c === ']') { [state, elsePart] = _pop() ; }
+                if (c === ']') { [state, elsePart] = _durationFormatPop(stack) ; }
                 else {
                     state = State.SubdaysPart ;
                     if (c === '!') { elsePart = !elsePart ; }
                     else if (subday && !elsePart) {
                         switch (c) {
                             case '%': ret += '%' ; break ;
-                            case 'H': _H() ; break ; case 'h': _h() ; break ; case 'I': _I() ; break ; case 'i': _i() ; break ; case 'J': _J() ; break ;
-                            case 'M': _M() ; break ; case 'm': _m() ; break ;
-                            case 'S': _S() ; break ; case 's': _s() ; break ;
-                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
-                            case '<': [state, elsePart] = _push(State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
+                            case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
+                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
+                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
+                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
+                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
                             default: ret += '%', ret += c ; break ;    
                         }
                     }   
-                    else if (!subday && elsePart) { _default(c) ; }
+                    else if (!subday && elsePart) { ret += _durationFormatDefault(c) ; }
                 }
                 break ;
             case State.SubhoursPart:
@@ -891,23 +919,23 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
                 else if ((subhour && !elsePart) || (!subhour && elsePart)) { ret += c ; }
                 break ;
             case State.SubhoursPartEscape:
-                if (c === '>') { [state, elsePart] = _pop() ; }
+                if (c === '>') { [state, elsePart] = _durationFormatPop(stack) ; }
                 else {
                     state = State.SubhoursPart ;
                     if (c === 'c') { elsePart = !elsePart ; }
                     else if (subhour && !elsePart) {
                         switch (c) {
                             case '%': ret += '%' ; break ;
-                            case 'M': _M() ; break ; case 'm': _m() ; break ;
-                            case 'S': _S() ; break ; case 's': _s() ; break ;
-                            case '(': [state, elsePart] = _push(State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _push(State.SecondsPart) ; break ;
-                            case '[': [state, elsePart] = _push(State.SubdaysPart) ; break ;
-                            case '≤': [state, elsePart] = _push(State.HoursPart) ; break ;
+                            case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
+                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
+                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
+                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
+                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
+                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
                             default: ret += '%', ret += c ; break ;    
                         }
                     }   
-                    else if (!subhour && elsePart) { _default(c) ; }
+                    else if (!subhour && elsePart) { ret += _durationFormatDefault(c) ; }
                 }
                 break ;                
         }

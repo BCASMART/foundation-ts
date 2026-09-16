@@ -503,8 +503,18 @@ function _randomBytes(length:number):Uint8Array {
         return _fillRandom(v => engine.getRandomValues(v), length) ;
     }
 
+    // last-resort, non-cryptographic fallback : 
+    // draw 32 bits at a time instead of calling Math.random() once per byte.
     const array = new Uint8Array(length) ;
-    for (let i = 0 ; i < length ; i++) { array[i] = Math.floor(Math.random() * 256) ; }
+    let i = 0 ;
+    for ( ; i + 4 <= length ; i += 4) {
+        const r = (Math.random() * 0x100000000) >>> 0 ;
+        array[i]   = r & 0xff ;
+        array[i+1] = (r >>> 8) & 0xff ;
+        array[i+2] = (r >>> 16) & 0xff ;
+        array[i+3] = (r >>> 24) & 0xff ;
+    }
+    for ( ; i < length ; i++) { array[i] = Math.floor(Math.random() * 256) ; }
     return array ;
 }
 
