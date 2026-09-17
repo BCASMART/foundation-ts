@@ -772,7 +772,7 @@ export class TSStringTemplate extends TSFusionTemplate {
         }) ? this._outputString! : null ;
     }
 
-    fusionStringWithDataContext = this.fusionWithDataContext ;
+    public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null { return this.fusionWithDataContext(data, globalContext, errors) ; }
 }
 
 export abstract class TSGenericDataTemplate extends TSFusionTemplate {

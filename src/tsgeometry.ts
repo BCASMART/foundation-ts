@@ -473,7 +473,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
         return r.contains(this) ;
     }
-    containedInRect = this.containedIn ;
+    public containedInRect(r:Nullable<TSRect|number[]>):boolean { return this.containedIn(r) ; }
 
     public intersects(r:Nullable<TSRect|number[]>):boolean {
         if (!$ok(r)) { return false ; }
@@ -483,7 +483,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
         return this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty ? false : true ;
     }
-    intersectsRect = this.intersects ;
+    public intersectsRect(r:Nullable<TSRect|number[]>):boolean { return this.intersects(r) ; }
 
     public intersection(r:Nullable<TSRect|number[]>):TSRect {
         let rect = new TSRect() ;
@@ -502,7 +502,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
         return rect ;
     }
-    intersectionRect = this.intersection ;
+    public intersectionRect(r:Nullable<TSRect|number[]>):TSRect { return this.intersection(r) ; }
 
     public union(r:Nullable<TSRect|number[]>):TSRect {
         if (!$ok(r))      { return this.clone() ; }
@@ -520,7 +520,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 
         return rect ;
     }
-    unionRect = this.union ;
+    public unionRect(r:Nullable<TSRect|number[]>):TSRect { return this.union(r) ; }
 
     public offset(xOffset:number, yOffset:number):TSRect {
         if (!$isnumber(xOffset) || !$isnumber(yOffset)) {
@@ -528,7 +528,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         }
         return new TSRect(this.minX+xOffset, this.minY+yOffset, this.width, this.height) ;
     }
-    offsetRect = this.offset ;
+    public offsetRect(xOffset:number, yOffset:number):TSRect { return this.offset(xOffset, yOffset) ; }
 
     public inset(insetWidth:number, insetHeight:number):TSRect {
         if (!$isnumber(insetWidth) || !$isnumber(insetHeight)) {
@@ -536,7 +536,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         }
         return new TSRect(this.minX-insetWidth, this.minY-insetHeight, this.width + insetWidth*2, this.height + insetHeight*2) ;
     }
-    insetRect = this.inset ;
+    public insetRect(insetWidth:number, insetHeight:number):TSRect { return this.inset(insetWidth, insetHeight) ; }
 
     public integral():TSRect {
         let rect = new TSRect() ;
@@ -549,7 +549,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         
         return rect ;
     }
-    integralRect = this.integral ;
+    public integralRect():TSRect { return this.integral() ; }
 
     /**
      * 
@@ -588,7 +588,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
                 TSError.throw('TSRect.divide() : bad edge parameter', { amount:amount, edge:edge}) ;
         }
     }
-    divideRect = this.divide ;
+    public divideRect(amount:number, edge:TSRectEdge):[TSRect,TSRect] { return this.divide(amount, edge) ; }
 
     public clone():TSRect
     { return new TSRect(this.minX, this.minY, this.width, this.height) ; }

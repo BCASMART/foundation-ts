@@ -1,5 +1,5 @@
 
-import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
+import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $partial, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -282,7 +282,42 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect1($dict(DICT, ['a', 'c'])).is(SUB) ;
         t.expect2($dict(DICT, ['a', 'c', 'd' as any])).is(SUB) ; // force TS to ignore 'd' because it knows this key is not in DICT
     }) ;
-    
+
+    group.unary("$partial() function", async(t) => {
+        // default filter drops null/undefined/functions, keeps everything else (incl. arrays)
+        const [p1, n1] = $partial(DICT_B) ;
+        t.expect0(p1).is({ a:'A', d:'D', h:[0,1] }) ;
+        t.expect1(n1).is(3) ;
+
+        const [p2, n2] = $partial(DICT_B, { properties:['a', 'd'] }) ;
+        t.expect2(p2).is({ a:'A', d:'D' }) ;
+        t.expect3(n2).is(2) ;
+
+        const [p3,] = $partial(DICT_B, { filter:(v:any) => typeof v === 'string' ? v.toLowerCase() : undefined }) ;
+        t.expect4(p3).is({ a:'a', d:'d' }) ;
+
+        t.expect5($partial(null)).is([{}, 0]) ;
+
+        // regression guard : the options object passed in must not be mutated
+        // (_fillObject() used to clone+mutate opts internally ; it now reads
+        // properties/filter into locals instead of writing defaults back).
+        // NOTE: compare Object.keys(), not JSON.stringify() — a naive fix that
+        // still writes a default *function* (e.g. opts.filter = ...) back onto
+        // opts would add a key invisible to JSON.stringify (functions are
+        // dropped), so this check would silently miss it otherwise.
+        const opts = { properties:['a'] as any } ;
+        $partial(DICT_B, opts) ;
+        t.expect6(Object.keys(opts)).is(['properties']) ;
+
+        // the same opts object can be reused across calls without leaking state
+        const shared:any = {} ;
+        const [r1,] = $partial({ a:1 }, shared) ;
+        const [r2,] = $partial({ b:2 }, shared) ;
+        t.expect7(r1).is({ a:1 }) ;
+        t.expect8(r2).is({ b:2 }) ;
+        t.expect9(shared).is({}) ;
+    }) ;
+
     group.unary("$includesdict() function", async(t) => {
         t.expect1($includesdict(DICT, SUB)).true() ;
         t.expect2($includesdict(DICT, SUB, ['c'])).true() ;
@@ -309,6 +344,18 @@ TSTest.group("Commons interpretation functions", async (group) => {
         // a non-string property name is rejected
         t.expect4(() => $fusion({ a:1 }, { b:2 }, { B:{ properties:[Symbol('nope')] as any } }))
             .throws(/valid string properties/) ;
+
+        // regression guard : $fusion() passes opts.A straight through to
+        // $partial()/_fillObject() with no pre-clone of its own, so opts.A and
+        // opts.B must not come back mutated (_fillObject() used to clone+mutate
+        // its own opts internally, which incidentally protected this object too).
+        // NOTE: Object.keys(), not JSON.stringify() — see $partial() test above
+        // for why (a leaked default *function* is invisible to JSON.stringify).
+        const optsA = { properties:['a'] as any } ;
+        const optsB = { properties:['a'] as any } ;
+        $fusion({ a:1, b:2 }, { a:10, b:20 }, { A:optsA, B:optsB }) ;
+        t.expect5(Object.keys(optsA)).is(['properties']) ;
+        t.expect6(Object.keys(optsB)).is(['properties']) ;
     }) ;
 
     group.unary("$intornull() / $unsignedornull() / $toint() / $tounsigned() — bigint inputs", async(t) => {

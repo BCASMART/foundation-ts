@@ -91,6 +91,19 @@ TSTest.group("Fusion tests", async (group) => {
             t.expect1(res).is(s) ;
         }
     }) ;
+    group.unary("fusionStringWithDataContext() is an exact alias of fusionWithDataContext()", async(t) => {
+        const s = 'Cette lettre est adressée à {{title}} {{firstName}} {{lastName}}' ;
+        const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;
+        if (t.expect0(template).OK()) {
+            const errors1:string[] = [] ;
+            const errors2:string[] = [] ;
+            const res1 = template!.fusionWithDataContext(p, glob, errors1) ;
+            const res2 = template!.fusionStringWithDataContext(p, glob, errors2) ;
+            t.expect1(res2).is(res1) ;
+            t.expect2(errors2).is(errors1) ;
+        }
+    }) ;
+
     group.unary("Simple vars replacement", async(t) => {
         const s = 'Cette lettre est adressée à {{title}} {{firstName}} {{lastName}} ({{$job}}) [{{_index}}, {{_count}}]' ;
         const q = 'Cette lettre est adressée à {{@title}} {{firstName}} {{@lastName}} ({{$job}}) [{{_index}}, {{_count}}]' ;

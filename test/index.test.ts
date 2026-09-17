@@ -176,6 +176,48 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expectI(TSData.fromString("payload")).isdata() ;
     }) ;
 
+    group.unary("t.expect(...).toStrictlyBe() / notToStrictlyBe() and their shortcuts", async (t) => {
+        const a = { v:1 } ;
+        const b = { v:1 } ; // same shape, different object : $equal(a,b) is true, a !== b
+
+        t.expect0(a).strictis(a) ;                 // same reference -> passes
+        t.expect1(a).strictnotis(b) ;              // different reference, equal value -> passes
+        t.expect2(a).toStrictlyBe(a) ;
+        t.expect3(a).notToStrictlyBe(b) ;
+
+        // toBe()/is() only care about value equality, so a and b pass there too :
+        // toStrictlyBe() is a strictly narrower check, not a synonym.
+        t.expect4(a).is(b) ;
+        t.expect5(a).eq(b) ;
+
+        // verify the strict checks actually FAIL when identity doesn't hold (or
+        // does, for the "not" variant) — run on a throwaway sub-tester since
+        // these are deliberate failures that would otherwise fail this very test.
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        console.log = (() => {}) as any ;
+        (process.stdout as any).write = (() => true) as any ;
+        let res:any ;
+        try {
+            const sub = new TSTester("strict-identity sub-tester") ;
+            sub.addGroup("failing group", async (g) => {
+                g.unary("failing strict-identity assertions", async (tt) => {
+                    tt.expect0(a).strictis(b) ;        // _elogfail
+                    tt.expect1(a).strictnotis(a) ;      // _nelogfail
+                    tt.expect2(a).toStrictlyBe(b) ;     // _elogfail
+                    tt.expect3(a).notToStrictlyBe(a) ;  // _nelogfail
+                }) ;
+            }, "failing", { silent:false, stopOnFirstFail:false }) ;
+            res = await sub.run({ clearScreen:false }) ;
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+        t.expect6(res.failed).is(1) ;
+        t.expect7(res.failures).is(4) ;
+    }) ;
+
     group.unary("unary catchFunction / catched / stopped / stop()", async (t) => {
         t.catchFunction = async (tt, e) => {
             tt.expect0(tt.catched).true() ;

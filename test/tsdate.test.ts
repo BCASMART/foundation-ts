@@ -270,6 +270,7 @@ export const dateGroups = [
             t.expect(D.daysSinceDate(D.firstDateOfYear())).is(127) ; 
         });
         group.unary('d.toEpoch()', async (t) => { t.expect(D.toEpoch()).is(-777862740) ; }) ;
+        group.unary('d.toEpochTimestamp() (alias of toEpoch())', async (t) => { t.expect(D.toEpochTimestamp()).is(D.toEpoch()) ; }) ;
         group.unary('d.toDate()', async (t) => { t.expect(D.toDate()).is(ED) ; }) ;
         group.unary('d.toIsoString()', async (t) => { t.expect(D.toIsoString()).is("1945-05-08T23:01:00") ; }) ;
         group.unary('d.toIsoString(ISO8601C)', async (t) => { t.expect(D.toIsoString(TSDateForm.ISO8601C)).is("19450508T230100") ; }) ;

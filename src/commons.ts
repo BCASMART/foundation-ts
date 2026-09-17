@@ -508,33 +508,40 @@ interface _fillObjectOptions<T,U> extends $partialOptions<T,U> {
     fusionObjects?:(a:object, b:object) => object
 }
 
-function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObjectOptions<T,U>={}):number 
+// shared across every _fillObject() call with no explicit filter (the common
+// case for $partial/$dict/$fusion) instead of allocating a fresh arrow per call.
+const _defaultFillObjectFilter = (v:any):any => $ok(v) && typeof v !== 'function' ? v : undefined ;
+
+function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObjectOptions<T,U>={}):number
 {
     let ret = 0 ;
-    opts = { ... opts } ;
-    opts.properties = $ok(opts.properties) ? opts.properties! : $keys(source) as Array<keyof T | keyof U> ;
-    if (opts.properties.length) {
+    // read into locals instead of `opts = {...opts}` + writing defaults back :
+    // $fusion() passes its caller's opts.A straight through (no pre-clone on
+    // that path), so mutating `opts` in place would leak _fillObject's
+    // internal defaults onto an object the caller still owns.
+    const properties = $ok(opts.properties) ? opts.properties! : $keys(source) as Array<keyof T | keyof U> ;
+    if (properties.length) {
         const fusion_arrays = $isfunction(opts.fusionArrays) ;
         const fusion_objects = $isfunction(opts.fusionObjects) ;
-        opts.filter = $isfunction(opts.filter) ? opts.filter! : (v:T[keyof T]) => $ok(v) && typeof v !== 'function' ? v : undefined ; 
-        
-        for (let p of opts.properties) {
-            if (typeof p !== 'string') { 
-                TSError.throw(`$${fn}() needs to have valid string properties`, 
-                { function:fn, source:source, destination:destination, options:opts}) ; 
+        const filter = $isfunction(opts.filter) ? opts.filter! : _defaultFillObjectFilter ;
+
+        for (let p of properties) {
+            if (typeof p !== 'string') {
+                TSError.throw(`$${fn}() needs to have valid string properties`,
+                { function:fn, source:source, destination:destination, options:opts}) ;
             }
-            const v = opts.filter(source[p]) ; 
+            const v = filter(source[p]) ;
             if ($defined(v)) {
-                if (fusion_arrays && $isarray(v) && $isarray(destination[p])) { 
+                if (fusion_arrays && $isarray(v) && $isarray(destination[p])) {
                     destination[p] = opts.fusionArrays!(destination[p], v) ;
                 }
                 else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
                     destination[p] = opts.fusionObjects!(destination[p], v) ;
                 }
                 else { destination[p] = v ; }
-                ret++ ; 
-            } 
-        }    
+                ret++ ;
+            }
+        }
     }
     return ret ;
 }

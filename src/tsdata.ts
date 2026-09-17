@@ -360,8 +360,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
     public equals(otherBuffer: Uint8Array): boolean { return this.isEqual(otherBuffer) ; }
 
-    public readInt8 = this.getInt8 ;
-    public readUInt8 = this.getUint8 ;
+    public readInt8(offset:number = 0): number         { return this.getInt8(offset) ; }
+    public readUInt8(offset:number = 0): number        { return this.getUint8(offset) ; }
     public readInt16LE(offset:number = 0): number      { return this.getInt16(offset, TSEndianness.LE) ; }
     public readInt16BE(offset:number = 0): number      { return this.getInt16(offset, TSEndianness.BE) ; }
     public readUInt16LE(offset:number = 0): number     { return this.getUint16(offset, TSEndianness.LE) ; }
@@ -419,8 +419,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
     public base64String():string { return $encodeBase64(this.mutableBuffer) ; }
     public base64URL():string { return $encodeBase64URL(this.mutableBuffer) ; }
-    public toBase64 = this.base64String ;
-    public toBase64URL = this.base64URL ;
+    public toBase64(): string { return this.base64String() ; }
+    public toBase64URL(): string { return this.base64URL() ; }
 
     public crc16():uint16 { return $crc16(this) ; }
     public crc32():uint32 { return $crc32(this) ; }
@@ -439,7 +439,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     { return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ; }
     
     public hexaString(toLowerCase?:boolean):string { return $encodeBytesToHexa(this.mutableBuffer, toLowerCase) ; }
-    public toHexa = this.hexaString ;
+    public toHexa(toLowerCase?:boolean): string { return this.hexaString(toLowerCase) ; }
 
 	public toJSON(): any { return this.mutableBuffer.toJSON() ; }
 

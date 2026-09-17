@@ -193,7 +193,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
 	// ================= instance methods ========================
 	public clone():TSDate { return this ; } // no clone on immutable objects
-    public toTSDate = this.clone ;
+    public toTSDate(): TSDate { return this.clone() ; }
 
     public get timestamp():number { return this._timestamp ; }
     public valueOf():number { return this._timestamp ; }
@@ -279,7 +279,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     /**
      @deprecated use toEpoch() instead
     */
-    toEpochTimestamp = this.toEpoch ;
+    public toEpochTimestamp():number { return this.toEpoch() ; }
 
     public toDate() : Date { return $components2date($components(this._timestamp)) ; }
     public toUTCDate() : Date { return $components2date($components(this._timestamp), undefined, true) ; }

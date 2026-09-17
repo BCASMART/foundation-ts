@@ -208,6 +208,25 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectE(R.containedIn([0, 0, NaN, 200])).false() ;   // invalid array -> false, no throw
     }) ;
 
+    group.unary("TSRect method aliases match their canonical method exactly", async(t) => {
+        const R = new TSRect(10, 20, 100, 40) ;
+        const other = new TSRect(50, 30, 200, 100) ;
+
+        t.expect0(R.containedInRect(other)).is(R.containedIn(other)) ;
+        t.expect1(R.intersectsRect(other)).is(R.intersects(other)) ;
+        t.expect2(R.intersectionRect(other)).is(R.intersection(other)) ;
+        t.expect3(R.unionRect(other)).is(R.union(other)) ;
+        t.expect4(R.offsetRect(5, -3)).is(R.offset(5, -3)) ;
+        t.expect5(R.insetRect(10, 5)).is(R.inset(10, 5)) ;
+        t.expect6(R.integralRect()).is(R.integral()) ;
+        t.expect7(R.divideRect(30, TSRectEdge.TSMinXEdge)).is(R.divide(30, TSRectEdge.TSMinXEdge)) ;
+
+        // and each alias must produce the geometrically correct answer, not
+        // just "whatever the canonical method happens to return"
+        t.expect8(R.intersectionRect(other)).is(new TSRect(50, 30, 60, 30)) ;
+        t.expect9(R.unionRect(other)).is(new TSRect(10, 20, 240, 110)) ;
+    }) ;
+
     group.unary("TSRect.compare()", async(t) => {
         const R = new TSRect(10, 20, 100, 40) ;
         const A = new TSRect(0, 0, 10, 10) ;     // area 100

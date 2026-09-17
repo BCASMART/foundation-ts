@@ -60,7 +60,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     private _rgbCache?:readonly [uint8, uint8, uint8] ;
     private _cmykCache?:readonly [number, number, number, number] ;
 
+    // RGB colors : keyed by CSS-ish strings (hex forms, web color names).
     private static __colorsCache:Map<string,TSColor>|undefined  ;
+    // CMYK/Grayscale colors : keyed by a single packed integer (see
+    // _cmykCacheKey() below) rather than a string — kept in a separate map
+    // since the key *type* differs, not just its construction.
+    private static __cmykColorsCache:Map<number,TSColor>|undefined  ;
     private static readonly __colorCacheMaxSize = 16384 ;
 
     // THOSE ARE PRIMARY Grayscale or CMYK COLORS
@@ -79,12 +84,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         const s = $ftrim(rgbStringColor).toLowerCase() ;
         if (!s.length) { return null ; }
 
-        let color = TSColor._cachedRGBColor(s) ;
+        let color = TSColor._cachedColor(s) ;
         if ($defined(color)) { return color ;}
         const [channels, alpha] = TSColor._parseHexColorString(s) ;
         if ($ok(channels)) {
             color = new TSColor(TSColorSpace.RGB, channels, alpha) ;
-            TSColor._cacheRGBColor(color) ;
+            TSColor._cacheColor(color) ;
             return color ;
         }
         return null ;
@@ -113,10 +118,10 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             const A = arguments.length === 4 ? arguments[3] : 0xFF ;
             if ($isunsigned(R, 0xff) && $isunsigned(G, 0xff) && $isunsigned(B, 0xff) && $isunsigned(A, 0xff)) {
                 const s = _colorToStandardCSS(R as uint8,G as uint8,B as uint8, A as uint8) ;
-                let color = TSColor._cachedRGBColor(s) ;
+                let color = TSColor._cachedColor(s) ;
                 if ($defined(color)) { return color ;}
                 color = new TSColor(TSColorSpace.RGB, [R,G,B], A) ;
-                TSColor._cacheRGBColor(color) ;
+                TSColor._cacheColor(color) ;
                 return color ;
             }
             return TSColor.rgb(0,0,0) ; // bad 3/4 parameters => we return a black color               
@@ -145,7 +150,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             Y = _component(Y) ;
             K = _component(K) ;
             opacity = _component(opacity) ;
-            return new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
+            const key = _cmykCacheKey(TSColorSpace.CMYK, C, M, Y, K, opacity) ;
+            let color = TSColor._cachedCMYKColor(key) ;
+            if ($defined(color)) { return color! ; }
+            color = new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
+            TSColor._cacheCMYKColor(color, key) ;
+            return color ;
         }
         TSError.throw('TSColor.cmyk() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
@@ -154,13 +164,22 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         opacity = $ok(opacity) ? opacity! : 1 ;
         if ($isnumber(whiteIntensity) && $isnumber(opacity)) {
             whiteIntensity = _component(whiteIntensity) ;
-            return new TSColor(TSColorSpace.Grayscale, [0,0,0,1-whiteIntensity], opacity) ;
+            const K = 1 - whiteIntensity ;
+            // NOTE: unlike cmyk(), opacity is deliberately left un-normalized here,
+            // matching the pre-existing (uncached) behavior of this method exactly ;
+            // not the caching change's concern to fix.
+            const key = _cmykCacheKey(TSColorSpace.Grayscale, 0, 0, 0, K, opacity) ;
+            let color = TSColor._cachedCMYKColor(key) ;
+            if ($defined(color)) { return color! ; }
+            color = new TSColor(TSColorSpace.Grayscale, [0,0,0,K], opacity) ;
+            TSColor._cacheCMYKColor(color, key) ;
+            return color ;
         }
         TSError.throw('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static logColorCache() {
-        void TSColor._cachedRGBColor('yellow') ;
+        void TSColor._cachedColor('yellow') ;
         $logheader('TSColor cache:') ;
         for (let [name, color] of TSColor.__colorsCache!) {
             $logterm(`${name}: ${color.toString()}`) ;
@@ -703,7 +722,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         }
     ] ;
 
-    private static _cacheRGBColor(c:TSColor) {
+    // RGB colors register under several keys (name, full hex, short hex...),
+    // hence the "+7" headroom reservation below. CMYK/Grayscale colors go
+    // through the separate _cacheCMYKColor()/_cachedCMYKColor() pair further
+    // down : they have no equivalent standard string form, so they're keyed
+    // by a single packed integer instead (see _cmykCacheKey()).
+    private static _cacheColor(c:TSColor) {
         if ($ok(c) && $defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache.size + 7 < TSColor.__colorCacheMaxSize) {
             const [R, G, B] = c.rgb() ;
             const s = _colorToStandardCSS(R,G,B, c.alpha) ;
@@ -717,7 +741,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
                     TSColor.__colorsCache.set(s.slice(1,7), c) ;
                     if (_isShortRGB(R,G,B)) {
                         const short = _colorToShortCSS(R,G,B) ;
-                        TSColor.__colorsCache.set(short, c) ; 
+                        TSColor.__colorsCache.set(short, c) ;
                         TSColor.__colorsCache.set(short.slice(1), c) ;
                     }
                 }
@@ -725,14 +749,32 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         }
     }
 
-    private static _cachedRGBColor(c:string):TSColor|undefined {
-        if (!$defined(TSColor.__colorsCache)) { 
+    // colorSpace is folded into the low bit of the key (rather than kept
+    // implicit) on purpose : a Grayscale color and a CMYK color can share the
+    // exact same underlying channel numbers (Grayscale is stored as CMYK with
+    // C=M=Y=0) while still being observably different objects (colorSpace
+    // affects compare()/isEqual()'s fast path and toString()'s output format)
+    // — see _cmykCacheKey().
+    private static _cacheCMYKColor(c:TSColor, key:number) {
+        if (!$ok(c)) { return ; }
+        if (!$defined(TSColor.__cmykColorsCache)) { TSColor.__cmykColorsCache = new Map<number,TSColor>() ; }
+        if (TSColor.__cmykColorsCache.size + 1 < TSColor.__colorCacheMaxSize && !TSColor.__cmykColorsCache.has(key)) {
+            TSColor.__cmykColorsCache.set(key, c) ;
+        }
+    }
+
+    private static _cachedCMYKColor(key:number):TSColor|undefined {
+        return TSColor.__cmykColorsCache?.get(key) ;
+    }
+
+    private static _cachedColor(c:string):TSColor|undefined {
+        if (!$defined(TSColor.__colorsCache)) {
             TSColor.__colorsCache = new Map<string,TSColor>() ;
             for (let name of $keys(TSColor.__TSWebColorNames)) {
                 const [channels, alpha] = TSColor._parseHexColorString(TSColor.__TSWebColorNames[name]) ;
                 if ($ok(channels)) {
                     const c = new TSColor(TSColorSpace.RGB, channels, alpha, name as string) ;
-                    TSColor._cacheRGBColor(c) ;
+                    TSColor._cacheColor(c) ;
                 }
             } ;
         }
@@ -765,6 +807,29 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     }
 }
 
+
+// canonical cache key for CMYK/Grayscale colors : components are floats in
+// [0,1], so unlike RGB's uint8 channels there is no natural exact-match key
+// for "the same visual color" arrived at through different computations.
+// Packs all 5 components (C,M,Y,K,opacity) into a single safe integer instead
+// of building a string : Number.prototype.toFixed() benchmarked at ~350x the
+// cost of Math.round() here, which ate the entire point of caching. 10-bit
+// quantization per component (1024 levels, ~0.001 precision) keeps 5 x 10 = 50
+// bits, safely under Number.MAX_SAFE_INTEGER's 53 — and is still far finer
+// than the RGB conversion's own 8-bit/255-level ceiling, so nothing
+// meaningfully distinguishable is merged. colorSpace is folded into the low
+// bit (only CMYK/Grayscale ever reach this function) so a Grayscale and a
+// CMYK color with identical channel numbers never collide (they are the same
+// channels but a different observable identity — colorSpace affects
+// compare()/isEqual()'s fast path and toString()'s output format).
+function _cmykCacheKey(colorSpace:TSColorSpace, C:number, M:number, Y:number, K:number, opacity:number):number {
+    let v = Math.round(C * 1023) ;
+    v = v * 1024 + Math.round(M * 1023) ;
+    v = v * 1024 + Math.round(Y * 1023) ;
+    v = v * 1024 + Math.round(K * 1023) ;
+    v = v * 1024 + Math.round(opacity * 1023) ;
+    return v * 2 + (colorSpace === TSColorSpace.Grayscale ? 1 : 0) ;
+}
 
 function _isShortRGB(R:uint8, G:uint8, B:uint8) {
     return (R >> 4 & 0x0f) === (R & 0x0f) && 

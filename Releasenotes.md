@@ -2,6 +2,23 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.5
+
+#### Corrections
+
+- removed all method aliases which did add pointers in classes' instances instead of methods in object prototypes.
+- fixed options management bug on core of functions `$partial()`, `$dict()`, `$fusion()`
+
+#### What's new ?
+
+- `TSColor` now caches all colors from all colourspaces. 
+- `TSExpectAgent` is now really faster on instantiation (15x faster).
+- `TSRect` is also faster on instantiation (40% faster)
+- On `TSExpectAgent` you now have a method `.toStrictlyBe()`  or `.strictis()` wich handles a `===` comparison
+- On `TSExpectAgent` you now have a method `.notToStrictlyBe()`  or `.strictnotis()` wich handles a `!==` comparison 
+
+<hr/>
+
 ## version 1.8.4
 
 This version is meant to bring bug foptimizations to foundation-ts
@@ -14,11 +31,11 @@ This version is meant to bring bug foptimizations to foundation-ts
 #### What's new ?
 
 - new function `$titleCase()` which works like `$capitalize()` but instead change all letters which are the begining of a word to lower case. Did also ass a `.titleCase()` method on `String`. 
-- SHA384 & SHA12 crypto is back to full JS (no more bigint usage on calculation itself) and is now 2x to 3x faster
-- SHA1() & SHA256() crypto is also 20% faster by using internal scopped buffers
+- `SHA384` & `SHA12` crypto is back to full `JS` (no more bigint usage on calculation itself) and is now 2x to 3x faster
+- `SHA1` & `SHA256` crypto is also 20% faster by using internal scopped buffers
 - Native random bytes generation is now 2x to 3.5x faster than before (but is rarely called) and conforms to what the system function does.
 - Better memory management inside `$durationDescription()` and `$durationNumber2StringFormat()` functions
-- Fastest TSColor by adding proper cache for transformations between RGB & CMYK
+- Fastest `TSColor` by adding proper cache for transformations between `RGB` & `CMYK`
 
 <hr/>
 
@@ -26,12 +43,12 @@ This version is meant to bring bug foptimizations to foundation-ts
 
 #### Corrections
 
-- did upgrade TSServer endpoints indexation for faster routage.
-- did upgrade headers standardisation management in TSRequest
+- did upgrade `TSServer` endpoints indexation for faster routage.
+- did upgrade headers standardisation management in `TSRequest`
 
 #### What's new ?
 
-- function $fullWriteBuffer() and all derived functions can now use an optional `errors` string array in order to report the encountered errors when it returns false to the file writting action. New `errors` array is declared in interface:
+- function `$fullWriteBuffer()` and all derived functions can now use an optional `errors` string array in order to report the encountered errors when it returns false to the file writting action. New `errors` array is declared in interface:
 
   ```typescript
   export interface BasicWriteOptions {
@@ -70,9 +87,9 @@ This version is meant to bring bug foptimizations to foundation-ts
 
 - static method `TSURL.url()`did never throw even if the `throwsError`option was set. Fixed and added test to valid it.
 
-- `$string()` object conversion rewritten to follow the JS `ToPrimitive` algorithm (hint `"string"`): it tries `[Symbol.toPrimitive]`, then `toString()`, then `valueOf()`, keeping only a result of the type each is expected to give. The former ad-hoc `$ismethod()` probe plus a `` `${v}` `` fall-back **threw** on a null-prototype object (`Object.create(null)`); `$string()` never throws now. A boxed `Boolean` (`new Boolean(...)`) also correctly goes through the `trueValue` / `falseValue` options.
+- `$string()` object conversion rewritten to follow the `JS` `ToPrimitive` algorithm (hint `"string"`): it tries `[Symbol.toPrimitive]`, then `toString()`, then `valueOf()`, keeping only a result of the type each is expected to give. The former ad-hoc `$ismethod()` probe plus a `` `${v}` `` fall-back **threw** on a null-prototype object (`Object.create(null)`); `$string()` never throws now. A boxed `Boolean` (`new Boolean(...)`) also correctly goes through the `trueValue` / `falseValue` options.
 
-- server error responses (404 / 405 / bad-query / bad-body — every `TSError` carrying an HTTP `Resp` code) no longer pay V8's stack-trace capture, the dominant cost of constructing an `Error`, on paths that scan/probe traffic hits constantly. `TSError.status` and the server's inline status check now test membership in a `Set` built once instead of rebuilding `Object.values(Resp)` on every errored request.
+- server error responses (`404` / `405` / `bad-query` / `bad-body` — every `TSError` carrying an `HTTP` `Resp` code) no longer pay V8's stack-trace capture, the dominant cost of constructing an `Error`, on paths that scan/probe traffic hits constantly. `TSError.status` and the server's inline status check now test membership in a `Set` built once instead of rebuilding `Object.values(Resp)` on every errored request.
 
 -   Error, TSUniqueError and TSError are better handled by $insp()
 

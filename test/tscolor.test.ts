@@ -235,6 +235,43 @@ TSTest.group("TSColor — CMYK / grayscale spaces, factories guards & toString f
         t.expect2(grey.darkestColor().toString()).is('#333333') ;
     }) ;
 
+    group.unary('CMYK/Grayscale colors are cached : identity, discrimination, quantization', async (t) => {
+        // same arguments -> same object instance (dedup via the packed-integer
+        // cache key). NOTE: t.expect(...).is() checks value equality (isEqual()),
+        // not identity, so these use plain === comparisons instead.
+        t.expect0(TSColor.cmyk(0.2, 0.4, 0.6, 0.1)).strictis(TSColor.cmyk(0.2, 0.4, 0.6, 0.1)) ;
+        t.expect1(TSColor.grayscale(0.5)).strictis(TSColor.grayscale(0.5)) ;
+
+        // static factories always pass the same literals -> singletons
+        t.expect2(TSColor.red()).strictis(TSColor.red()) ;
+        t.expect3(TSColor.black()).strictis(TSColor.black()) ;
+        t.expect4(TSColor.white()).strictis(TSColor.white()) ;
+        t.expect5(TSColor.cyan()).strictis(TSColor.cyan()) ;
+
+        // different C/M/Y/K or opacity -> different (uncached) instances
+        const base = TSColor.cmyk(0.2, 0.4, 0.6, 0.1) ;
+        t.expect6(base).strictnotis(TSColor.cmyk(0.2, 0.4, 0.6, 0.2)) ;
+        t.expect7(base).strictnotis(TSColor.cmyk(0.2, 0.4, 0.6, 0.1, 0.5)) ;
+
+        // Grayscale is stored internally as CMYK with C=M=Y=0, so a Grayscale
+        // color and a CMYK color with the exact same channel numbers must stay
+        // two distinct objects : colorSpace is part of their identity (it drives
+        // compare()/isEqual()'s fast path and toString()'s output format).
+        const gray = TSColor.grayscale(0.7) ;          // K = 1-0.7
+        const cmykEquivalent = TSColor.cmyk(0, 0, 0, 0.3) ;
+        t.expect8(gray).strictnotis(cmykEquivalent) ;
+        t.expect9(gray.colorSpace).is(TSColorSpace.Grayscale) ;
+        t.expectA(cmykEquivalent.colorSpace).is(TSColorSpace.CMYK) ;
+
+        // 10-bit quantization merges float-jitter near-duplicates (1-0.7 !== 0.3
+        // at full double precision) into the same cached instance, on purpose.
+        t.expectB(TSColor.cmyk(0, 0, 0, 1 - 0.7)).strictis(TSColor.cmyk(0, 0, 0, 0.3)) ;
+
+        // caching never breaks value equality, regardless of object identity
+        t.expectC(base.isEqual(TSColor.cmyk(0.2, 0.4, 0.6, 0.1))).true() ;
+        t.expectD(gray.isEqual(cmykEquivalent)).false() ;
+    }) ;
+
     group.unary('logColorCache() does not throw', async (t) => {
         t.expect0(() => TSColor.logColorCache()).doesNotThrow() ;
     }) ;

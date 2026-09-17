@@ -404,6 +404,13 @@ export class TSExpectAgent {
 
     public toBe(aValue:any):boolean     { return !$equal(aValue, this._value) ? this._elogfail(aValue) : this._logpass() ; }
     public notToBe(aValue:any):boolean  { return $equal(aValue, this._value)  ? this._nelogfail(aValue) : this._logpass() ; }
+
+    // strict identity (===) siblings of toBe()/notToBe() : those use $equal()
+    // (value equality, e.g. isEqual()/compare() for TSObject-conformant
+    // classes), which is not the same question as "is this the exact same
+    // object reference" — the latter is what these two answer.
+    public toStrictlyBe(aValue:any):boolean    { return aValue !== this._value ? this._elogfail(aValue) : this._logpass() ; }
+    public notToStrictlyBe(aValue:any):boolean { return aValue === this._value ? this._nelogfail(aValue) : this._logpass() ; }
     public toBeTruthy():boolean         { return !this._value           ? this._elogfail(true)       : this._logpass() ; }
     public toBeFalsy():boolean          { return !!this._value          ? this._elogfail(false)      : this._logpass() ; }
     public toBeUndefined():boolean      { return $defined(this._value)  ? this._elogfail(undefined)  : this._logpass() ; }
@@ -497,8 +504,8 @@ export class TSExpectAgent {
         return this._elogfail('<the promise to reject>') ;
     }
 
-    public eq = this.toBe ;
-    public neq = this.notToBe ;
+    public eq(aValue:any):boolean       { return this.toBe(aValue) ; }
+    public neq(aValue:any):boolean      { return this.notToBe(aValue) ; }
 
     public gt(aValue:any):boolean       { return $compare(aValue, this._value) !== Ascending  ? this._compfail(aValue, '>') : this._logpass() ; }
     public gte(aValue:any):boolean      { return $compare(aValue, this._value) === Descending ? this._compfail(aValue, '≥') : this._logpass() ; }
@@ -506,41 +513,46 @@ export class TSExpectAgent {
     public lte(aValue:any):boolean      { return $compare(aValue, this._value) === Ascending  ? this._compfail(aValue, '≤') : this._logpass() ; }
 
     // simpler methods
-    public is           = this.toBe ;
-    public isnot        = this.notToBe ;
-    public OK           = this.toBeOK ;
-    public KO           = this.toBeNotOK ;
-    public def          = this.toBeDefined ;
-    public undef        = this.toBeUndefined ;
-    public notnull      = this.toBeNotNull ;
-    public null         = this.toBeNull ;
-    public empty        = this.toBeEmpty ;
-    public filled       = this.toBeNotEmpty ;
-    public true         = this.toBeTruthy ;
-    public false        = this.toBeFalsy ;
-    public isnumber     = this.toBeANumber ;
-    public isint        = this.toBeAnInt ;
-    public isuint       = this.toBeAnUnsigned ;
-    public isstring     = this.toBeAString ;
-    public isbool       = this.toBeBool ;
-    public isemail      = this.toBeAnEmail ;
-    public isurl        = this.toBeAnUrl ;
-    public isuuid       = this.toBeAnUUID ;
-    public isobject     = this.toBeAnObject ;
-    public isiterable   = this.toBeIterable ;
-    public isarray      = this.toBeArray ;
-    public isdate       = this.toBeADate ;
-    public isfunction   = this.toBeAFunction ;
-    public isfile       = this.toBeAFile ;
-    public isdir        = this.toBeADirectory ;
-    public isipv4       = this.toBeAnIPv4 ;
-    public isipv6       = this.toBeAnIPv6 ;
-    public isip         = this.toBeAnIPAddress ;
-    public isphone      = this.toBeAPhoneNumber ;
-    public isdata       = this.toBeADataObject ;
-    public throws       = this.toThrow ;
-    public doesNotThrow = this.notToThrow ;
-    public rejects      = this.toReject ;
+    // NOTE: these used to be instance fields aliased to the methods above
+    // (e.g. `public is = this.toBe ;`), this is much faster on allocation
+    // and easier on memory usage.
+    public is(aValue:any):boolean           { return this.toBe(aValue) ; }
+    public isnot(aValue:any):boolean        { return this.notToBe(aValue) ; }
+    public strictis(aValue:any):boolean     { return this.toStrictlyBe(aValue) ; }
+    public strictnotis(aValue:any):boolean  { return this.notToStrictlyBe(aValue) ; }
+    public OK():boolean                     { return this.toBeOK() ; }
+    public KO():boolean                     { return this.toBeNotOK() ; }
+    public def():boolean                    { return this.toBeDefined() ; }
+    public undef():boolean                  { return this.toBeUndefined() ; }
+    public notnull():boolean                { return this.toBeNotNull() ; }
+    public null():boolean                   { return this.toBeNull() ; }
+    public empty():boolean                  { return this.toBeEmpty() ; }
+    public filled():boolean                 { return this.toBeNotEmpty() ; }
+    public true():boolean                   { return this.toBeTruthy() ; }
+    public false():boolean                  { return this.toBeFalsy() ; }
+    public isnumber():boolean               { return this.toBeANumber() ; }
+    public isint():boolean                  { return this.toBeAnInt() ; }
+    public isuint():boolean                 { return this.toBeAnUnsigned() ; }
+    public isstring():boolean               { return this.toBeAString() ; }
+    public isbool():boolean                 { return this.toBeBool() ; }
+    public isemail():boolean                { return this.toBeAnEmail() ; }
+    public isurl():boolean                  { return this.toBeAnUrl() ; }
+    public isuuid():boolean                 { return this.toBeAnUUID() ; }
+    public isobject():boolean               { return this.toBeAnObject() ; }
+    public isiterable():boolean             { return this.toBeIterable() ; }
+    public isarray():boolean                { return this.toBeArray() ; }
+    public isdate():boolean                 { return this.toBeADate() ; }
+    public isfunction():boolean             { return this.toBeAFunction() ; }
+    public isfile():boolean                 { return this.toBeAFile() ; }
+    public isdir():boolean                  { return this.toBeADirectory() ; }
+    public isipv4():boolean                 { return this.toBeAnIPv4() ; }
+    public isipv6():boolean                 { return this.toBeAnIPv6() ; }
+    public isip():boolean                   { return this.toBeAnIPAddress() ; }
+    public isphone():boolean                { return this.toBeAPhoneNumber() ; }
+    public isdata():boolean                 { return this.toBeADataObject() ; }
+    public throws(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean       { return this.toThrow(matcher) ; }
+    public doesNotThrow():boolean                                                    { return this.notToThrow() ; }
+    public rejects(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):Promise<boolean> { return this.toReject(matcher) ; }
 
     private _toBe(t:string,f:(x:any)=>boolean):boolean { 
         return !f(this._value) ? this._elogfail(`<${t}>`) : this._logpass() ;
