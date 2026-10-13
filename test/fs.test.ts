@@ -1,5 +1,5 @@
 import { $defined, $isstring, $length, $ok } from '../src/commons';
-import { $absolute, $chmod, $commonstats, $copyFile, $createDirectory, $currentdirectory, $dir, $ext, $extset, $filename, $filesize, $fullWriteBuffer, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isexecutable, $isexecutablefile, $isfile, $isreadable, $iswritable, $loadJSON, $localRenameFile, $normalizepath, $path, $readBuffer, $readData, $readString, $realMoveFile, $removeFile, $safeFilename, $stats, $temporarypath, $uniquefile, $writeBuffer, $writeString } from '../src/fs';
+import { $absolute, $chmod, $commonstats, $copyFile, $createDirectory, $currentdirectory, $dir, $ext, $extset, $filename, $filesize, $fullWriteBuffer, $fullWriteString, $homedirectory, $isabsolute, $isabsolutepath, $isdirectory, $isexecutable, $isexecutablefile, $isfile, $isreadable, $iswritable, $loadJSON, $localRenameFile, $normalizepath, $path, $readBuffer, $readData, $readString, $realMoveFile, $removeDirectory, $removeFile, $safeFilename, $stats, $temporarypath, $uniquefile, $writeBuffer, $writeString } from '../src/fs';
 import { $tmp } from '../src/tsdefaults';
 import { TSTest, TSTestGroup } from '../src/tstester';
 import { Nullable } from '../src/types';
@@ -405,6 +405,29 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expectI($removeFile(folder)).false() ;               // not a file
                 $removeFile(c) ;
                 $removeFile($path(folder, 'mv-b.txt')) ;
+            }) ;
+
+            group.unary('$removeDirectory()', async (t) => {
+                const folder = $absolute($path('tdist', 'output')) ;
+                const rdir = $path(folder, 'rm-dir') ;
+                const rsub = $path(rdir, 'rm-sub') ;
+                const rfile = $path(folder, 'rm-file.txt') ;
+                $createDirectory(rsub) ;
+                $writeString($path(rdir, 'rm-a.txt'), 'A') ;
+                $writeString($path(rsub, 'rm-b.txt'), 'B') ;
+                $writeString(rfile, 'A') ;
+
+                const errors:string[] = [] ;
+                t.expect0($removeDirectory(rdir, false, errors)).true() ;  // non-empty tree, removed recursively
+                t.expect1(errors.length).eq(0) ;
+                t.expect2($isdirectory(rdir)).false() ;
+
+                t.expect3($removeDirectory(rdir)).false() ;               // already gone, no force
+                t.expect4($removeDirectory(rdir, true)).false() ;         // already gone, even with force ($isdirectory() gates first)
+                t.expect5($removeDirectory(rfile)).false() ;              // not a directory
+                t.expect6($removeDirectory(null)).false() ;
+
+                $removeFile(rfile) ;
             }) ;
 
             group.unary('$safeFilename() and internal $path/$dir/$filename', async (t) => {

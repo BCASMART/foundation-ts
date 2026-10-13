@@ -21,7 +21,8 @@ import {
     closeSync,
     Stats,
     chmodSync,
-    StatOptions
+    StatOptions,
+    rmSync
 } from 'fs'
 
 import {
@@ -37,7 +38,7 @@ import {
 
 import { homedir } from 'os';
 
-import { $isbool, $isstring, $isunsigned, $length, $ok, $strings, $valueornull } from './commons';
+import { $isbool, $isstring, $isunsigned, $length, $ok, $strings, $value, $valueornull } from './commons';
 import { $tmp } from './tsdefaults';
 import { $uuid } from './crypto';
 import { $inbrowser, $jsonparse } from './utils';
@@ -137,7 +138,7 @@ export function $isexecutable(src: Nullable<string>): boolean {
 }
 
 export function $isexecutablefile(src: Nullable<string>): boolean {
-    TSError.assertNotInBrowser('$isexecutable');
+    TSError.assertNotInBrowser('$isexecutablefile');
     return $isfile(src) && _safeCheckPermissions(src, constants.X_OK);
 }
 
@@ -149,7 +150,7 @@ export function $isreadable(src: Nullable<string>): boolean {
 export function $chmod(src: Nullable<string>, mode: number): boolean {
     TSError.assertNotInBrowser('$chmod');
     let ret: boolean = false;
-    if ($length(src) && $isunsigned(mode) && mode <= 0o777) {
+    if ($length(src) && $isunsigned(mode, 0o777) && mode > 0) {
         try { chmodSync(src!, mode); ret = true; }
         catch { ret = false }
     }
@@ -168,21 +169,45 @@ export function $isdirectory(src: Nullable<string>): boolean {
     return $ok(stats) ? stats!.isDirectory() : false;
 }
 
-export function $createDirectory(p: Nullable<string>): boolean {
+export function $createDirectory(p: Nullable<string>, wantedMode?:Nullable<number>, errors?:Nullable<string[]>): boolean {
     TSError.assertNotInBrowser('$createDirectory');
-    let ret: boolean = false;
-    if ($length(p)) {
-        const stats = $stats(p);
-        if ($ok(stats) && stats.isDirectory()) { ret = true; }
-        else if (!$ok(stats) || !stats.isFile()) {
-            try {
-                mkdirSync(p!, { recursive: true });
-                ret = true;
-            }
-            catch { ret = false; }
-        }
+    let mode = $value(wantedMode, 0o755);
+    if (!$length(p)) {
+        errors?.push('Invalid directory path');
+        return false ;
     }
-    return ret;
+    if (!$isunsigned(mode, 0o777) || mode === 0) {
+        errors?.push(`Invalid mode 0o${mode.toString(8)}`);
+        return false;
+    }
+    const stats = $stats(p);
+    if ($ok(stats)) { 
+        if (stats.isDirectory()) { 
+            if (!$ok(wantedMode) || stats.mode === mode) {
+                return true ; // folder is here and mode matches (or no specific mode was requested)
+            }
+            errors?.push(`Path exists and is a directory but mode does not match: "${p}"`);
+            return false
+        }
+        if (stats.isFile()) { 
+            errors?.push(`Path exists and is a file: "${p}"`); 
+        }
+        else {
+            errors?.push(`Something exists already at this location: "${p}"`);
+        }
+        return false ;
+    }
+
+    let ret: boolean = false;
+    try {
+        mkdirSync(p!, { recursive: true, mode:mode });
+        ret = true;
+    }
+    catch (e:any) {
+        errors?.push(e.message);
+        ret = false; 
+    }
+    return ret ; 
 }
 
 export function $filesize(src: Nullable<string>): number {
@@ -477,13 +502,13 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
         if (done && opts.attomically) {
             if ($ok(stats)) {
                 const renamedExistingFile = $uniquefile(src);
-                done = _safeRename(src!, renamedExistingFile);
+                done = _safeRename(src!, renamedExistingFile, opts.errors);
                 if (!done) { 
                     fail(`$fullWriteBuffer(): unable to rename existing file '${src}' to '${renamedExistingFile}' before atomic replace.`) ;
                  }
-                if (done && !_safeRename(pathToWrite, src!)) {
+                if (done && !_safeRename(pathToWrite, src!, opts.errors)) {
                     // we immediately try to give back its name to our original file
-                    if (!_safeRename(renamedExistingFile, src!)) {
+                    if (!_safeRename(renamedExistingFile, src!, opts.errors)) {
                         // we should have been able to give our initial file its original name back
                         // but we could'nt do it, so, in this very hypothetical case, we will not
                         // destroy anything and will throw an Error will all the info in it
@@ -500,17 +525,17 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
                 }
                 if (!done) {
                     // we may let a newly created temporary file here if unlink does not succeed
-                    if (!_safeUnlink(pathToWrite)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
+                    if (!_safeUnlink(pathToWrite, opts.errors)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
                 }
-                else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile); }
+                else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile, opts.errors); }
                 else { precedent = renamedExistingFile; }
             }
             else {
-                done = _safeRename(pathToWrite, src!) ;
+                done = _safeRename(pathToWrite, src!, opts.errors) ;
                 if (!done) {
                     fail(`$fullWriteBuffer(): unable to rename temporary file '${pathToWrite}' to '${src}'.`) ;
                     // we may let a newly created temporary file here if unlink does not succeed
-                    if (!_safeUnlink(pathToWrite)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
+                    if (!_safeUnlink(pathToWrite, opts.errors)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
                 }
             }
         }
@@ -521,14 +546,20 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
     return [done, precedent];
 }
 
-export function $localRenameFile(src: Nullable<string>, dest: Nullable<string>): boolean {
+export function $localRenameFile(src: Nullable<string>, dest: Nullable<string>, errors?: Nullable<string[]>): boolean {
     TSError.assertNotInBrowser('$localRenameFile');
-    return $length(src) > 0 && $length(dest) > 0 && src !== dest && $isfile(src) && _safeRename(src!, dest!);
+    return $length(src) > 0 && $length(dest) > 0 && src !== dest && $isfile(src) && _safeRename(src!, dest!, errors);
 }
 
-export function $removeFile(src: Nullable<string>): boolean {
+export function $removeFile(src: Nullable<string>, errors?:Nullable<string[]>): boolean {
     TSError.assertNotInBrowser('$removeFile');
-    return $length(src) > 0 && $isfile(src) && _safeUnlink(src!);
+    return $length(src) > 0 && $isfile(src) && _safeUnlink(src!, errors);
+}
+
+// removeDirectory is always recursive
+export function $removeDirectory(src: Nullable<string>, force?:Nullable<boolean>, errors?: Nullable<string[]>): boolean {
+    TSError.assertNotInBrowser('$removeDirectory');
+    return $length(src) > 0 && $isdirectory(src) && _safeRmdir(src!, !!force, errors) ;
 }
 
 /*
@@ -536,7 +567,7 @@ export function $removeFile(src: Nullable<string>): boolean {
     dest is a file or a directory
     if it's a directory, it must exist and the src filename is used
  */
-export function $realMoveFile(src: Nullable<string>, dest: Nullable<string>): boolean {
+export function $realMoveFile(src: Nullable<string>, dest: Nullable<string>, errors?: Nullable<string[]>): boolean {
     TSError.assertNotInBrowser('$realMoveFile');
     let done = false;
     if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
@@ -544,16 +575,30 @@ export function $realMoveFile(src: Nullable<string>, dest: Nullable<string>): bo
             dest = $path(dest!, $filename(src));
             if (src === dest) { return false; }
         }
-        done = _safeRename(src!, dest!);
+        done = _safeRename(src!, dest!, undefined); // we dont want any error stored here since we may want to copy the file if rename fails
         if (!done) {
             // rename function did not work, so we will try to copy
             // the file
             try {
                 copyFileSync(src!, dest!);
-                unlinkSync(src!);
                 done = true;
             }
-            catch { done = false; } // WARNING: if we fails here, we may have made the copy() but not the unlink()
+            catch (e:any) {
+                errors?.push(`Failed to copy "${src}" to "${dest}" with error: ${e.message}`);
+                done = false;
+            }
+            if (done) {
+                done = false ;
+                try { 
+                    unlinkSync(src!); 
+                    done = true ;
+                }
+                catch (e:any) { 
+                    // WARNING: if we fails here, we may have made the copy() done properly but not the unlink()
+                    errors?.push(`Failed to unlink "${src}" after copying to "${dest}" with error: ${e.message}`); 
+                    done = false ;
+                }
+            }
         }
     }
     return done;
@@ -576,9 +621,38 @@ export function $copyFile(src: Nullable<string>, dest: Nullable<string>, overwri
     return done;
 }
 
-function _safeRename(s: string, d: string): boolean { let done = false; try { renameSync(s, d); done = true; } catch { done = false; } return done; }
+function _safeRename(s: string, d: string, errors:Nullable<string[]>): boolean { 
+    let done = false; 
+    try { renameSync(s, d); done = true; } 
+    catch (e:any) { 
+        errors?.push(`System failed to rename "${s}" to "${d}" with error: ${e.message}`);
+        done = false; 
+    } 
+    return done; 
+}
 
-function _safeUnlink(p: string): boolean { let done = false; try { unlinkSync(p); done = true; } catch { done = false; } return done; }
+function _safeUnlink(p: string, errors:Nullable<string[]>): boolean { 
+    let done = false ; 
+    try { 
+        unlinkSync(p); 
+        done = true; 
+    } catch (e:any) { 
+        errors?.push(`System failed to unlink "${p}" with error: ${e.message}`);
+        done = false; 
+    } return done ; 
+}
+
+function _safeRmdir(p: string, force:boolean, errors:Nullable<string[]>): boolean { 
+    let done = false ; 
+    try { 
+        rmSync(p, { recursive: true, force: force }); 
+        done = true; 
+    } catch (e:any) { 
+        errors?.push(`System failed to remove directory "${p}" with error: ${e.message}`);
+        done = false; 
+    } return done ; 
+}
+
 
 // this function should be only called if the result of stat() ot statsync() is defined.
 function _safeCheckPermissions(src: Nullable<string>, permissions: number): boolean {

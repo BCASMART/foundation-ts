@@ -2,6 +2,19 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.6
+
+#### Corrections
+
+- function `$realMoveFile()` does now a better job when we needed to copy then unlink the previous file.
+- function `$chmod()` now controls if parameter `mode`  is not `0`.
+
+#### What's new ?
+
+- new `$removeDirectory()` function.
+- function `$createDirectory()` now accepts a `mode` parameter and an `errors` string array. If `mode`is not set, `0xo755` is used when we really create the folder. If the folder did already existed on the disk and the asked `mode` is not the existing folder's `mode`, the function returns an error.
+- functions `$removeFile()` and `$realMoveFile()` now accepts an errors array to be filled,   
+
 ## version 1.8.5
 
 #### Corrections
