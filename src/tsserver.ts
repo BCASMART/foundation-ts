@@ -1,23 +1,20 @@
 import * as http from "http";
-import * as https from "https"
-
-//import { createServer, IncomingMessage, Server, ServerResponse } from "http";
+import * as https from "https";
 
 import { $count, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
-import { $ftrim } from "./strings";
+import { $bufferFromDataLike } from "./data";
 import { $isabsolutepath } from "./fs";
+import { $conditionalClearMap } from "./mapset";
+import { $ftrim } from "./strings";
 import { $isRespCode, TSError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
-import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
-import { $inbrowser, $insp, $logterm, $mark } from "./utils";
-import { $conditionalClearMap } from "./mapset";
-import { TSURL } from "./tsurl";
-
 import Socket = NodeJS.Socket;
 import { TSPreflightController, TSPreflightResponse, TSEndpointsDefinition, TSServerErrorCodes, TSServerStartStatus, TSWebSiteDefinition } from "./tsserver_types";
 import { TSEndPointRouter, TSServerEndPoint } from "./tsserver_endpoints";
 import { TSStaticWebsite } from "./tsserver_websites";
-import { $bufferFromDataLike } from "./data";
+import { TSURL } from "./tsurl";
+import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
+import { $inbrowser, $insp, $logterm, $mark } from "./utils";
 
 /**
  * This is a minimal singleton HTTP server class provided for testing
@@ -29,7 +26,7 @@ import { $bufferFromDataLike } from "./data";
  * key and certificate in TSServerOptions
  */
 
-export type TSServerLogger = (server:TSServer, req:http.IncomingMessage|undefined, type:TSServerLogType, messages:string) => Promise<void> ;
+export type TSServerLogger = (type:TSServerLogType, messages:string, server?: TSServer, req?: http.IncomingMessage) => Promise<void> ;
 
 export enum TSServerLogLevel {
     None = 0,
@@ -47,12 +44,10 @@ export enum TSServerLogType {
 } ;
 
 export interface TSServerOptions {
-    logger?:TSServerLogger ;
     host?:string ;
     port?:uint16 ;
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
-    logLevel?:TSServerLogLevel ;
     key?:Nullable<TSDataLike> ;
     certificate?:Nullable<TSDataLike> ;
     certificateAuthority?:Nullable<TSDataLike> ;
@@ -63,7 +58,17 @@ export interface TSServerOptions {
     forceCloseMsTimeout?:Nullable<number> ; // timeout to force remaining connection after server stop. Default is 15000
     preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ;
     clearCacheInterval?:Nullable<number> ; // default is 900s (15 mn)
-} 
+    log?: {
+        logger?: TSServerLogger;
+        level?: TSServerLogLevel;
+        sensitiveHeaders?: TSHeaderName[];
+    };
+}
+
+type KnownKeys<T> = keyof {
+  [K in keyof T as {} extends Record<K, 1> ? never : K]: T[K];
+};
+type TSHeaderName = KnownKeys<http.IncomingHttpHeaders>;
 
 /**
  * other available options we don't considere for now in our small http/https server:
@@ -121,30 +126,33 @@ export interface TSServerOptions {
 
 export class TSServer {
     private static __server:TSServer|undefined = undefined ;
+    private static readonly SENSITIVE_HEADER_REPLACED_VALUE = "xxxx";
     private static readonly DEFAULT_CLOSE_TIMEOUT = 15000 ;
-    private static __methodColors:{[key in Verb]:string} = { GET:'&j', POST:'&u', PUT:'&v', DELETE:'&r', PATCH:'&o' }
+    private static readonly __methodColors:{[key in Verb]:string} = { GET:'&j', POST:'&u', PUT:'&v', DELETE:'&r', PATCH:'&o' }
     private static _internalClearTimer:any = undefined ;
     private static _lastClearTimerInterval:number = 900 ;
+
     public readonly host:string ;
     public readonly port:number ;
     public readonly rootPath:string = '' ;
     public readonly isHTTPs:boolean = false ;
-    private _serverOptions:InternalServerOptions = {} ;
-    private _httpServer:http.Server|https.Server|undefined ;
-    private _endPoints:TSServerEndPoint[] ;
-    private _router:TSEndPointRouter = new TSEndPointRouter([]) ; // rebuilt once _endPoints is populated
-    private _sites:TSStaticWebsite[] ;
-    private _logger:TSServerLogger ;
-    private _logInfo:boolean ;
-    private _logErrors:boolean ;
-    private _logWarnings:boolean ;
-    private _developerMode:boolean ;
-    private _connections = new Map<Socket, ConnectionStatus>;
+    private readonly _serverOptions:InternalServerOptions = {} ;
+    private readonly _endPoints:TSServerEndPoint[] ;
+    private readonly _router:TSEndPointRouter = new TSEndPointRouter([]) ; // rebuilt once _endPoints is populated
+    private readonly _sites:TSStaticWebsite[] ;
+    private readonly _logger:TSServerLogger ;
+    private readonly _logInfo:boolean ;
+    private readonly _logErrors:boolean ;
+    private readonly _logWarnings:boolean ;
+    private readonly _developerMode:boolean ;
+    private readonly _connections = new Map<Socket, ConnectionStatus>;
+    private readonly _forceCloseTimeout:number ;
+    private readonly _preflightControler:TSPreflightController ;
+    private readonly _allowedMethodsSet:Set<string> = new Set(Object.values(Verb) as string[]) ;
+    private readonly _preflightResponseCache = new Map<string, TSPreflightResponse>() ; // origin => response
+    private readonly _sensitiveHeaders: TSHeaderName[];
     private _terminating:boolean = false ;
-    private _forceCloseTimeout:number ;
-    private _preflightControler:TSPreflightController ;
-    private _allowedMethodsSet:Set<string> = new Set(Object.values(Verb) as string[]) ;
-    private _preflightResponseCache = new Map<string, TSPreflightResponse>() ; // origin => response
+    private _httpServer:http.Server|https.Server|undefined ;
 
     // =================== static methods =======================
     public static async start(endPoints:Nullable<TSDictionary<TSEndpointsDefinition>>, opts?:Nullable<TSServerOptions>):Promise<TSServerStartStatus|Error> {
@@ -204,12 +212,13 @@ export class TSServer {
     // =================== CONSTRUCTOR =======================
 
     private constructor(endPoints:TSDictionary<TSEndpointsDefinition>, opts:TSServerOptions = {}) {
-        const ll = $value(opts.logLevel, TSServerLogLevel.Warnings) ;
-        this._logger = $ok(opts.logger) ? opts.logger! : _internalLogger ;
+        const ll = $value(opts.log?.level, TSServerLogLevel.Warnings) ;
+        this._logger = $ok(opts.log?.logger) ? opts.log.logger : _internalLogger ;
         this._logErrors = ll > TSServerLogLevel.Errors ;
         this._logWarnings = ll > TSServerLogLevel.Warnings ;
         this._logInfo = ll > TSServerLogLevel.Infos ;
         this._developerMode = ll === TSServerLogLevel.Developer ;
+        this._sensitiveHeaders = $value(opts.log?.sensitiveHeaders, []);
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
 
         if (this.isHTTPs) {
@@ -252,7 +261,7 @@ export class TSServer {
         // ========= second construct the dynamic endpoints ==========
         this._endPoints = [] ;
         $keys(endPoints).forEach(path => {
-            this._endPoints.push(new TSServerEndPoint(path as string, endPoints[path])) ;
+            this._endPoints.push(new TSServerEndPoint(path as string, endPoints[path], this._logger)) ;
         }) ;
         this._router = new TSEndPointRouter(this._endPoints) ;
 
@@ -307,13 +316,13 @@ export class TSServer {
                         npfr.timeout = npfr.timeout! + $mark() ; // we change the duration in a moment in time
                         this._preflightResponseCache.set(originKey, npfr) ;
 
-                        if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`) ; }
+                        if (this._logInfo) { await this._logger(TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`, this, req) ; }
                     }
                     else {
                         res.writeHead(Resp.NotAllowed) ;
                         res.end() ;
                         if (this._logWarnings) {
-                            await this._logger(this, req, TSServerLogType.Warning, `did refuse preflight request for resource '${url.pathname}'.`) ;
+                            await this._logger(TSServerLogType.Warning, `did refuse preflight request for resource '${url.pathname}'.`, this, req) ;
                         }
                     }
                     return ;
@@ -357,7 +366,16 @@ export class TSServer {
                             res.setHeader('Access-Control-Allow-Origin', preflightResponse!.allowedOrigin!) ;
                         }
                     }
-                    if (this._developerMode) { $logterm(`****** request headers ****:\n&j${$insp(req.headers)}&0`) ; }
+                    if (this._developerMode) { 
+                        const headers: NodeJS.Dict<string | string[]> = { ...req.headers };
+                        this._sensitiveHeaders.forEach(name => {
+                            const value = headers[name];
+                            if (value !== undefined) {
+                                headers[name] = Array.isArray(value) ? value.map(() => TSServer.SENSITIVE_HEADER_REPLACED_VALUE) : TSServer.SENSITIVE_HEADER_REPLACED_VALUE;
+                            }
+                        });
+                        await this._logger(TSServerLogType.Developer, `****** request headers ****:\n&j${$insp(headers)}&0`, this, req);
+                    }
                     await sep!.execute({
                         url:url, 
                         method:method!, 
@@ -366,14 +384,14 @@ export class TSServer {
                         query:{}, // the final query will be calculated later
                         body:undefined // the final body will be calculated later
                     }, res, this._developerMode) ; 
-                    if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle ${TSServer.__methodColors[method!]}${method!}&w resource '${url.pathname}'.`) ; }
+                    if (this._logInfo) { await this._logger(TSServerLogType.Log, `did handle ${TSServer.__methodColors[method!]}${method!}&w resource '${url.pathname}'.`, this, req) ; }
                     return ;
                 }
                 else if (method === Verb.Get) {
                     for (let s of this._sites) {
                         const [b, type] = s.getStaticResource(url.pathname) ;
                         if ($ok(b)) {
-                            if (this._logInfo) { await this._logger(this, req, TSServerLogType.Log, `did handle static resource '${url.pathname}'.`) ; }
+                            if (this._logInfo) { await this._logger(TSServerLogType.Log, `did handle static resource '${url.pathname}'.`, this, req) ; }
                             res.setHeader('Content-Type', type)
                             res.writeHead(Resp.OK);
                             res.end(b) ;
@@ -397,12 +415,12 @@ export class TSServer {
                 if ($ok(e.info)) { ret.info = e.info ; }
                 if ($isnumber(e.errorCode)) { ret.errorCode = e.errorCode ; }
                 if (this._logWarnings) {
-                    await this._logger(this, req, TSServerLogType.Warning, `${ret.status} - ${ret.error}`) ;
+                    await this._logger(TSServerLogType.Warning, `${ret.status} - ${ret.error}`, this, req) ;
                     const errors = ret.info?.errors ;
                     if ($isarray(errors)) {
                         const n = $count(errors) ;
                         for (let i = 0 ; i < n ; i++) {
-                            await this._logger(this, req, TSServerLogType.Warning, `      + error[${i+1}]: ${$string(errors[i])}`) ;
+                            await this._logger(TSServerLogType.Warning, `      + error[${i+1}]: ${$string(errors[i])}`, this, req) ;
                         }
                     }
                 }
@@ -420,7 +438,7 @@ export class TSServer {
                             
         this._httpServer.listen(this.port, async ()=>{
             if (this._logInfo) {
-                await this._logger(this, undefined, TSServerLogType.Log, `running on port ${this.port} '${this.host}' ...`) ;
+                await this._logger(TSServerLogType.Log, `running on port ${this.port} '${this.host}' ...`, this) ;
             }
         }) ;
     }
@@ -464,12 +482,12 @@ export class TSServer {
 
     private async _stop():Promise<Error|undefined> { 
         if (this._logInfo) {
-            await this._logger(this, undefined, TSServerLogType.Log, `server is exiting...`) ;
+            await this._logger(TSServerLogType.Log, `server is exiting...`, this) ;
         }
         if ($ok(this._httpServer)) {
             const ret = await this._internalStopServer() ;
             if ($ok(ret) && this._logErrors) {
-                await this._logger(this, undefined, TSServerLogType.Error, `cannot stop for reason ${ret.name}:\n${ret.message}`) ;
+                await this._logger(TSServerLogType.Error, `cannot stop for reason ${ret.name}:\n${ret.message}`, this) ;
             }
             return ret ;
         } ; 
@@ -530,9 +548,15 @@ interface ConnectionStatus {
 async function __clearCaches() { TSServer.clearCaches() ; }
 
 let __logIndex:number = 0 ;
-const _internalLogger = async (server:TSServer, _:http.IncomingMessage|undefined, type:TSServerLogType, message:string) => {
+const _internalLogger = async (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage) => {
     if (!__logIndex) { $logterm('') ; }
-    $logterm(`&0&xfoundation-ts[&w${server.isHTTPs?'https':'http'} server&x:${server.port}]-${__TSServerlogHeaders[type]}&0 &w${message} &d(${++__logIndex})&0`) ;
+
+    let serverLog = '';
+    if ($ok(server)) {
+        const httpLog = server.isHTTPs ? 'https' : 'http';
+        serverLog = `&w${httpLog} server&x:${server.port}`;
+    }
+    $logterm(`&0&xfoundation-ts[${serverLog}]-${__TSServerlogHeaders[type]}&0 &w${message} &d(${++__logIndex})&0`) ;
 } ;
 
 const __TSServerlogHeaders:StringDictionary = {

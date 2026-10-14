@@ -1,6 +1,3 @@
-// import { Agent } from "https";
-// import axios from "axios";
-
 import { TSServer, TSServerLogLevel, TSServerOptions } from "../src/tsserver";
 import { $UUID, $keys, $length, $string } from "../src/commons";
 
@@ -207,7 +204,7 @@ if (!$inbrowser()) {
         const port = 8327 as uint16 ;
         const basicOptions: TSServerOptions = {
             port:port,
-            logLevel:TSServerLogLevel.None        
+            log: { level: TSServerLogLevel.None }
         } ;
         const options:TSServerOptions = {
             ...basicOptions,
@@ -435,7 +432,7 @@ if (!$inbrowser()) {
     serverGroups.push(TSTest.group("TSServer — response types, 404, CORS preflight", async (group) => {
         const port = 8399 as uint16 ;
         const base = `http://localhost:${port}/` ;
-        const opts:TSServerOptions = { port, logLevel:TSServerLogLevel.None, preflightController:'permisive' } ;
+        const opts:TSServerOptions = { port, log: { level: TSServerLogLevel.None }, preflightController:'permisive' } ;
 
         const endpoints:TSDictionary<TSEndpointsDefinition> = {
             '/text':    async (_r, resp) => { resp.returnString('plain text', Resp.OK) ; },
@@ -506,7 +503,7 @@ if (!$inbrowser()) {
         const port = 8402 as uint16 ;
         const base = `http://localhost:${port}/` ;
         // Developer log level + the default internal logger exercises the debug/logme code paths
-        const opts:TSServerOptions = { port, logLevel:TSServerLogLevel.Developer } ;
+        const opts:TSServerOptions = { port, log: { level: TSServerLogLevel.Developer } } ;
 
         const endpoints:any = {
             '/echo': {
@@ -580,7 +577,7 @@ if (!$inbrowser()) {
             const port = 8404 as uint16 ;
             const st = await TSServer.start(
                 { '/x': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; } } as any,
-                { port, logLevel:TSServerLogLevel.Warnings, preflightController: async () => null as any },
+                { port, log: { level: TSServerLogLevel.Warnings }, preflightController: async () => null as any },
             ) ;
             t.expect0(st).is(TSServerStartStatus.HTTP) ;
             try {
@@ -597,7 +594,7 @@ if (!$inbrowser()) {
         group.unary('default port (3000) and forbidden root', async (t) => {
             const st = await TSServer.start(
                 { '/here': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; } } as any,
-                { logLevel:TSServerLogLevel.None },   // no port -> defaults to 3000
+                { log: { level: TSServerLogLevel.None } },   // no port -> defaults to 3000
             ) ;
             t.expect0(st).is(TSServerStartStatus.HTTP) ;
             try {

@@ -2,6 +2,13 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.7
+
+#### What's new ?
+
+- Group `TSServerOptions` `logLevel` and `logger` into a specific `log` data, and add a new option `sensitiveHeaders`, which defines a list of HTTP header names whose values will be hidden in the logs
+- It's now possible to define an external logger function for `TSServerEndPointManager` and `TSServerEndPoint` objects
+
 ## version 1.8.6
 
 #### Corrections

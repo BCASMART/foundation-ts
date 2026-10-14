@@ -1,24 +1,26 @@
-import { Nullable, TSDictionary } from "./types";
+import { ServerResponse } from "http" ;
+
 import { $defined, $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
+import { TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
 import { TSLeafOptionalNode, TSNode, TSParser, TSParserOptions, isLeafParserType } from "./tsparser";
 import { Resp, Verb } from "./tsrequest";
+import { TSServerLogger, TSServerLogType } from "./tsserver";
 import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEndpointsDefinition, TSServerErrorCodes, TSServerRequest, TSServerResponse } from "./tsserver_types";
+import { Nullable, TSDictionary } from "./types";
 import { $inspect, $jsonparse, $logterm, $readStreamBuffer } from "./utils";
-import { TSCharset } from "./tscharset";
-import { ServerResponse } from "http" ;
 
 export class TSServerEndPoint {
 
     public readonly uri:string ;
     public readonly depth:number ; // measures the number of components of the path
+    private readonly _logger: TSServerLogger|undefined;
+    private readonly _managers:Map<Verb,TSServerEndPointManager> ;
+    private readonly _pathRegex:RegExp|null ;
+    private readonly _tokens:TSPathToken[] ;
 
-    private _managers:Map<Verb,TSServerEndPointManager> ;
-    private _pathRegex:RegExp|null ;
-    private _tokens:TSPathToken[] ;
-
-    constructor (path:string, definition:TSEndpointsDefinition|TSEndPoint|TSEndPointController) {
+    constructor (path: string, definition: TSEndpointsDefinition, logger?: TSServerLogger) {
         path = $ftrim(path) ;
         const len = path.length ;
         if ($isfunction(definition)) { definition = { GET: { controller:definition } as TSEndPoint } as TSEndpointsDefinition ; }
@@ -41,7 +43,7 @@ export class TSServerEndPoint {
             if (!Object.values(Verb).includes(m)) {
                 TSError.throw(`TSServerEndPoint.constructor() : end points path '${path}' did define invalid '${m}' request method.`, errorOptions) ; 
             }
-            this._managers.set(m, new TSServerEndPointManager(m, ($isfunction(def[m]) ? { controller:def[m] } : def[m]) as TSEndPoint, errorOptions)) ;
+            this._managers.set(m, new TSServerEndPointManager(m, ($isfunction(def[m]) ? { controller:def[m] } : def[m]) as TSEndPoint, errorOptions, logger)) ;
         }) ;
 
         // ========== path regex construction =========
@@ -67,7 +69,7 @@ export class TSServerEndPoint {
                 case State.Standard:
                     switch (c) {
                         case '{': state = State.Bracket ; constructUri = false ; break ;
-                        case '}': 
+                        case '}':
                             TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${path}'.`, { position:i, ...errorOptions}) ; 
                         case '/':
                             if (constructUri) { this.uri += c ; } else { regString += '\\/' ; }
@@ -98,7 +100,7 @@ export class TSServerEndPoint {
                         position:i, 
                         character:c, 
                         ...errorOptions
-                    }) ; 
+                    }) ;
                 case State.Token:
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c === '-' || c === '_' || c === '.') {
                         currentToken += c ; break ;
@@ -156,6 +158,7 @@ export class TSServerEndPoint {
             TSError.throw(`TSServerEndPoint.constructor(): malformed parametric path '${path}'.`, errorOptions) ; 
         }
         this._pathRegex = regString.length === 0 ? null : new RegExp('^'+regString+'$', 'i') ; 
+        this._logger = logger;
     }
 
     public get isStatic():boolean { return !$ok(this._pathRegex) ; } 
@@ -200,7 +203,7 @@ export class TSServerEndPoint {
              serverError:TSServerErrorCodes.MethodNotImplemented
             }) ; 
         }
-        if (!!logme) { _logme(req, 'will execute manager', manager?.developerDesc(req.url.pathname)) ; }
+        if (logme) { await this._logger?.(TSServerLogType.Developer, manager.developerDesc(req.url.pathname), undefined, req.message); }
         await manager!.execute(req, res, logme) ;
     }
 
@@ -225,9 +228,9 @@ export interface TSEndPointRoute {
 // wins, lowest registration rank wins a depth tie) so it stays correct
 // regardless of the order uri prefixes happen to be visited in.
 export class TSEndPointRouter {
-    private _endPointsByUri = new Map<string, TSServerEndPoint[]>() ;
-    private _uriPrefixes:string[] = [] ;
-    private _endPointIndex = new Map<TSServerEndPoint, number>() ;
+    private readonly _endPointsByUri = new Map<string, TSServerEndPoint[]>() ;
+    private readonly _uriPrefixes:string[] = [] ;
+    private readonly _endPointIndex = new Map<TSServerEndPoint, number>() ;
 
     constructor(endPoints:TSServerEndPoint[]) {
         endPoints.forEach((ep, index) => {
@@ -262,14 +265,15 @@ export class TSEndPointRouter {
 }
 
 class TSServerEndPointManager {
-    private _method:Verb ;
-    private _controller: TSEndPointController ;
-    private _queryParser?:TSParser ;
-    private _bodyParser?:TSParser ;
-    private _responseParser?:TSParser ;
-    private _context:TSDictionary|undefined ;
+    private readonly _method:Verb ;
+    private readonly _controller: TSEndPointController ;
+    private readonly _queryParser?:TSParser ;
+    private readonly _bodyParser?:TSParser ;
+    private readonly _responseParser?:TSParser ;
+    private readonly _context:TSDictionary|undefined ;
+    private readonly _logger: TSServerLogger|undefined;
 
-    static __textMimes = [
+    static readonly __textMimes = [
         'application/json',
         'application/calendar+xml', 
         'application/gml+xml', 
@@ -278,35 +282,32 @@ class TSServerEndPointManager {
         'application/x-latex'
     ] ;
 
-    constructor(m:Verb, ep:TSEndPoint, errorOptions:TSServerEndPointErrorOptions) {
-        
-        this._queryParser    = _defineParser(ep.query, 'query', errorOptions) ;
-        this._bodyParser     = _defineParser(ep.body, 'body', errorOptions) ;
-        this._responseParser = _defineParser(ep.response, 'response', errorOptions) ;
-        
+    constructor(m:Verb, ep:TSEndPoint, errorOptions:TSServerEndPointErrorOptions, logger?: TSServerLogger) {
         if (!$isfunction(ep.controller)) {
             TSError.throw(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has no valid controller function.`, errorOptions) ; 
         }
 
+        this._queryParser    = _defineParser(ep.query, 'query', errorOptions) ;
+        this._bodyParser     = _defineParser(ep.body, 'body', errorOptions) ;
+        this._responseParser = _defineParser(ep.response, 'response', errorOptions) ;
         this._controller = ep.controller ;
         this._method = m ;
         this._context = $valueorundefine(ep.context) ;
+        this._logger = logger;
     }
 
-    public developerDesc(msg:string):string { return `${this._method}:${$string(msg)} [queryParser:${_yesNo(this._queryParser)}, bodyParser:${_yesNo(this._bodyParser)}, responseParser:${_yesNo(this._responseParser)}]` ; }
+    public developerDesc(msg:string):string { return `${this._method}:${$string(msg)} [queryParser:${$ok(this._queryParser)}, bodyParser:${$ok(this._bodyParser)}, responseParser:${$ok(this._responseParser)}]` ; }
     
     public async execute(req: TSServerRequest, res: ServerResponse, logme?:boolean):Promise<void> {
-
         if ($ok(this._queryParser)) {
             const params = req.url.searchParams.query() ;
             const options:TSParserOptions = { errors:[], context:'url' } ;
-            if (!!logme) {
-                _logme(req, 'request query', params) ;                
-                _logme(req, 'request headers', params) ;
+            if (logme) {
+                await this._logme(req, 'request query', params);
             }                
 
             if (!this._queryParser.validate(params, options)) {
-                if (!!logme) { _logme(req, 'impossible to validate query') ; }                
+                if (logme) { await this._logme(req, 'impossible to validate query'); }
                 TSError.throw(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -315,16 +316,16 @@ class TSServerEndPointManager {
                 }) ; 
             }
             req.query = this._queryParser.rawInterpret(params) ;
-            if (!!logme) { _logme(req, 'final interpreted query', req.query) ; }                
+            if (logme) { await this._logme(req, 'final interpreted query', req.query); }
         }
         if ($ok(this._bodyParser)) {
             let body:any = await $readStreamBuffer(req.message) ;
             const options:TSParserOptions = { errors:[] } ;
 
-            if (!!logme) { _logme(req, 'request body', body) ; }                
+            if (logme) { await this._logme(req, 'request body', body); }
 
             if (!$ok(body) && this._bodyParser.mandatory) {
-                if (!!logme) { _logme(req, 'missing body content') ; }                
+                if (logme) { await this._logme(req, 'missing body content'); }
                 TSError.throw(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -333,10 +334,10 @@ class TSServerEndPointManager {
             } ;
             
             const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
-            if (!!logme) { _logme(req, 'MIME type', mtype) ; }                
+            if (logme) { await this._logme(req, 'MIME type', mtype); }
 
-            if (!mtype.length) {
-                if (!!logme) { _logme(req, 'bad MIME type') ; }                
+            if (mtype.length === 0) {
+                if (logme) { await this._logme(req, 'bad MIME type'); }
                 TSError.throw(`No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -347,25 +348,25 @@ class TSServerEndPointManager {
 
             if (mtype.startsWith('text/') || TSServerEndPointManager.__textMimes.includes(mtype)) {
                 // we have a string. we consider only UTF8 charsets
-                if (!!logme) { _logme(req, 'text type', true) ; }                
+                if (logme) { await this._logme(req, 'text type', true); }
                 body = TSCharset.utf8Charset().stringFromBytes(body) ;
                 if (mtype === 'application/json') {
-                    if (!!logme) { _logme(req, 'json type', true) ; }                
+                    if (logme) { await this._logme(req, 'json type', true); }
                     options.context = 'json' ;
                     body = $jsonparse(body) ;
                     if (!$defined(body)) { 
-                        if (!!logme) { _logme(req, 'impossible to decode JSON body') ; }                
+                        if (logme) { await this._logme(req, 'impossible to decode JSON body'); }
                         TSError.throw(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                             method:this._method,
                             path:$length(req.url.pathname) ? req.url.pathname : '/',
                             serverError:TSServerErrorCodes.BadJSONBody
                         }) ;
                     }
-                    if (!!logme) { _logme(req, 'json decoded body', body) ; }               
+                    if (logme) { await this._logme(req, 'json decoded body', body) ; } 
                 }
             }
             if (!this._bodyParser!.validate(body, options)) {
-                if (!!logme) { _logme(req, 'impossible to validate body') ; }                
+                if (logme) { await this._logme(req, 'impossible to validate body'); }
                 TSError.throw(`Bad body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
                     method:this._method,
                     path:$length(req.url.pathname) ? req.url.pathname : '/',
@@ -374,17 +375,24 @@ class TSServerEndPointManager {
                 }) ; 
             }
             req.body = this._bodyParser!.rawInterpret(body) ;
-            if (!!logme) { _logme(req, 'final intepreted body', req.body) ; }                
+            if (logme) { await this._logme(req, 'final intepreted body', req.body); }
         }
 
-        if (!!logme) { _logme(req, 'calling internal controller') ; }                
+        if (logme) { await this._logme(req, 'calling internal controller'); } 
         await this._controller(req, new TSServerResponse(res, this._responseParser), this._context) ; // QUESTION: this method may also throw, so get the stack in the info ?
-        if (!!logme) { _logme(req, 'resumed from internal controller') ; }                
+        if (logme) { await this._logme(req, 'resumed from internal controller') ; }
     }
 
+    private async _logme(req: TSServerRequest, item:string, value: any = undefined) {
+        if ($isfunction(this._logger)) {
+            const message = item + ($ok(value) ? `: ${$inspect(value)}`: "");
+            await this._logger?.(TSServerLogType.Developer, message, undefined, req.message)
+        } else {
+            _logme(req, item, value);
+        }
+    }
 }
 
-                                   
 interface TSPathToken {
     name:string ;
     parser:TSParser ;
@@ -408,9 +416,9 @@ function _defineParser(node:Nullable<TSNode>, instanceVar:string, errorOptions:T
     }
     return undefined ;
 }
-function _yesNo(v:any):boolean { return $ok(v)?true:false ; }
+
 function _logme(_:TSServerRequest, item:string, value:any = undefined) {
     const is = $isstring(value) ;
-    const ok = $ok(value) ;
-    $logterm(`&0&xfoundation-ts[&pDEBUG&x]-${item}:&0${is?' "':(ok?'\n':' ')}&y${$inspect(value)}${is?'&x"':''}&0`) ;
+    const lineReturn = $ok(value) ? '\n' : '';
+    $logterm(`&0&xfoundation-ts[&pDEBUG&x]-${item}:&0${is?' "':lineReturn}&y${$inspect(value)}${is?'&x"':''}&0`) ;
 }
