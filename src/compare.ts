@@ -6,18 +6,25 @@ import { TSError } from "./tserrors";
 
 // ================== comparison functions =========================
 export function $numcompare(a:number, b:number):Comparison {
-    if (isNaN(a) || isNaN(b)) { return undefined ; }
-    return a === b ? Same : (a < b ? Ascending : Descending) ;
+    if (_isnan(a) || _isnan(b)) { return undefined ; }
+    if (a === b) { return Same ; }
+    return a < b ? Ascending : Descending ;
 }
 
 export function $numorder(a:number, b:number):NonNullable<Comparison> {
 	if (a === b) { return Same ; }
     // we enforce a simple rule here. NaN is condidered as an undefined number
     // and we supose that we have no number here, just like undefined or null
-    return isNaN(a) ? (isNaN(b) ? Same : Ascending) : (isNaN(b) ? Descending : $numcompare(a, b)!) ; 
+    const na = _isnan(a), nb = _isnan(b) ;
+    if (na && nb) { return Same ; }
+    if (na) { return Ascending ; }
+    if (nb) { return Descending ; }
+    return a < b ? Ascending : Descending ;
 }
 
-export function $datecompare(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>) : Comparison 
+export type DateCompareable = Nullable<number|string|Date|TSDate> ;
+
+export function $datecompare(a:DateCompareable, b:DateCompareable) : Comparison 
 {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
 	
@@ -46,11 +53,11 @@ export function $arraycompare(a:Nullable<any[]>, b:Nullable<any[]>):Comparison {
         if (c !== Same) { return c ; }
         i++ ;
     }
-    return na === nb ? Same : (i < na ? Descending : Ascending) ;
+    return $numcompare(na, nb) ; // same common part: the shortest is the smallest
 }
 
-export function $dateorder(a:Nullable<number|string|Date|TSDate>, b:Nullable<number|string|Date|TSDate>):NonNullable<Comparison>
-{ return $ok(a) ? ($ok(b) ? $datecompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
+export function $dateorder(a:DateCompareable, b:DateCompareable):NonNullable<Comparison>
+{ return _okorder(a, b, $datecompare) ; }
 
 export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
@@ -62,28 +69,35 @@ export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
         if (c !== Same) { return c ; }
         i++ ;
     }
-    return na === nb ? Same : (i < na ? Descending : Ascending) ;
+    return $numcompare(na, nb) ; // same common part: the shortest is the smallest
 }
 
 export function $bytesorder(a:Nullable<Bytes>, b:Nullable<Bytes>):NonNullable<Comparison>
-{ return $ok(a) ? ($ok(b) ? $bytescompare(a, b)! : Descending) : ($ok(b) ? Ascending : Same) ; }
+{ return _okorder(a, b, $bytescompare) ; }
 
+
+// each entry is a type acceptor and the comparison function used when both values are accepted.
+// The order of the entries matters: the first entry accepting both values wins
+// (e.g. a Buffer is also an Uint8Array and must be tested before it)
+type _TypedComparator = [accepts:(x:any) => boolean, compare:(a:any, b:any) => Comparison] ;
+
+const _typedComparators:_TypedComparator[] = [
+    [x => typeof x === 'number',                        $numcompare],
+    [x => x instanceof URL,                             (a, b) => _strcompare(a.href, b.href)],
+    [$isstring,                                         _strcompare],
+    [x => x instanceof Date || x instanceof TSDate,     $datecompare],
+    [x => x instanceof Buffer,                          (a, b) => Buffer.compare(a, b) as Comparison],
+    [x => x instanceof Uint8Array,                      $bytescompare],
+    [x => x instanceof ArrayBuffer || ArrayBuffer.isView(x), 
+                                                        (a, b) => $bytescompare(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike))],
+] ;
 
 export function $compare(a:any, b:any):Comparison {
-
     if (!$ok(a) || !$ok(b)) { return undefined ; }
-	if (a === b) { return Same ; }
+    if (a === b) { return Same ; }
 
-    if (typeof a === 'number' && typeof b === 'number') { return $numcompare(a, b) ; }
-	if (a instanceof URL && b instanceof URL) { a = a.href ; b = b.href ; }
-    if ($isstring(a) && $isstring(b)) {
-        return a > b ? Descending : (a < b ? Ascending : Same) ;
-    }
-	if ((a instanceof Date || a instanceof TSDate) && (b instanceof Date || b instanceof TSDate)) { return $datecompare(a,b) ; }
-	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) as Comparison ; }
-	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytescompare(a, b) ; }
-	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
-        return $bytescompare( new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
+    for (const [accepts, compare] of _typedComparators) {
+        if (accepts(a) && accepts(b)) { return compare(a, b) ; }
     }
 
     // Array, Set, Map are now conform to TSObject
@@ -108,7 +122,7 @@ export function $visualcompare(a:any, b:any):Comparison {
 
     a = $ascii($normspaces(a)).toUpperCase() ;
     b = $ascii($normspaces(b)).toUpperCase() ;
-    return a > b ? Descending : (a < b ? Ascending : Same) ;
+    return _strcompare(a, b) ;
 }
 
 export function $visualorder(a:any, b:any):NonNullable<Comparison>
@@ -118,10 +132,10 @@ export function $visualorder(a:any, b:any):NonNullable<Comparison>
 
 export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
 	if (a === b) { return true ; }
-	if (!$ok(a) || !$ok(b)) return false ;
-    const n = a!.length ;
-    if (n !== b!.length) return false ;
-    for(let i = 0 ; i < n ; i++) { if (a![i] !== b![i]) return false ; }
+	if (!$ok(a) || !$ok(b)) { return false ; }
+    const n = a.length ;
+    if (n !== b.length) { return false ; }
+    for(let i = 0 ; i < n ; i++) { if (a[i] !== b[i]) return false ; }
     return true ;
 }
 
@@ -129,7 +143,7 @@ export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
 export function $equal(a:any, b:any):boolean {
 	if (a === b) { return true ; }
 	if (typeof a === 'number' && typeof b === 'number') { return a === b ; } // in order to cover NaN inequality and infinity equality
-	if (!$ok(a) || !$ok(b)) return false ;
+	if (!$ok(a) || !$ok(b)) { return false ; }
 
     if (a instanceof URL && b instanceof URL) { return a.href === b.href ; }
 
@@ -214,7 +228,7 @@ export function $visualequal(a:any, b:any):boolean {
 	return $ascii($normspaces(a)).toUpperCase() === $ascii($normspaces(b)).toUpperCase() ;
 }
 
-// TODO: an epsilon equal or a near equal function
+// Why not implementing an epsilon equal or a near equal function
 
 // ================= private functions
 function _order(a:any, b:any, comparisonFn:(a:any,b:any)=>Comparison):NonNullable<Comparison> {
@@ -235,18 +249,33 @@ function _heterogenDateCompare(a:Date, b:Date|TSDate|string|number):Comparison {
 }
 
 function _heterogenTimestampCompare(ats:number, mts:number, b:TSDate|string|number):Comparison {
-    let ts = NaN ;
+    let ts = Number.NaN ;
     let ms = 0 ;
     if (b instanceof TSDate) { ts = b.timestamp ; }
-    else {
-        if (typeof b === 'number') { ts = Math.trunc(b) ; ms = b - ts ; }
-        else { ts = (new TSDate(b)).timestamp ; }
-    }
+    else if (typeof b === 'number') { ts = Math.trunc(b) ; ms = b - ts ; }
+    else { ts = (new TSDate(b)).timestamp ; }
+
     const c = $numcompare(ats, ts) ;
     return c === Same ? $numcompare(mts, ms) : c ;
 }
 
 
-function _inverseComparison(c:Comparison) { return c === Same || c === undefined ? c : (c === Ascending ? Descending : Ascending) ;} 
+function _inverseComparison(c:Comparison):Comparison {
+    if (c === Ascending) { return Descending ; }
+    return c === Descending ? Ascending : c ;
+}
 
 
+function _isnan(x:any):boolean { return typeof x !== 'number' || Number.isNaN(x) ; }
+
+function _strcompare(a:string, b:string):Comparison {
+    if (a === b) { return Same ; }
+    return a < b ? Ascending : Descending ;
+}
+
+// null or undefined values are ordered first, two missing values are the Same
+function _okorder<T>(a:Nullable<T>, b:Nullable<T>, compare:(a:T, b:T) => Comparison):NonNullable<Comparison> {
+    if ($ok(a) && $ok(b)) { return compare(a, b)! ; }
+    if ($ok(a)) { return Descending ; }
+    return $ok(b) ? Ascending : Same ;
+}

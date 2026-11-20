@@ -3,7 +3,7 @@ import { $length, $ok, $string } from "./commons";
 import { $mapequal, $setequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
-import { $declareAccessor } from "./object";
+import { $declareAccessor, $declareMethods } from "./object";
 
 // $mapset() function was similar to $mapset(<iterable>,...) in array.ts. 
 // name change was mandatory this function, so it goes to $setmap() which
@@ -69,32 +69,36 @@ declare global {
     }
 }
 
-$declareAccessor(Set, { element:'length', getter:function<T>(this:Set<T>):number { return this.size ; }})
+$declareAccessor(Set, { element:'length', configurable:true, getter:function<T>(this:Set<T>):number { return this.size ; }})
 
-Set.prototype.compare = function compare<T>(this:Set<T>, other:any):Comparison { return other instanceof Set && $setequal(this, other) ? Same : undefined ; }
-Set.prototype.conditionalClear = function conditionalClear<T>(this:Set<T>, clearFunction:(element:T)=>boolean):uint { return $conditionalClearSet(this, clearFunction) ; }
-Set.prototype.fusionEnumeration = function fusionEnumeration():any[] { return Array.from(this) ; }
-Set.prototype.isEqual = function isEqual<T>(this:Set<T>, other:any):boolean { return other instanceof Set && $setequal(this, other) ; }
-Set.prototype.keysArray = function keysArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; }
-Set.prototype.map = function map<T, U=T>(this:Set<T>, mapFunction:(element:T)=>Nullable<U>):Set<U> { return $setmap(this, mapFunction) ; }
-Set.prototype.singular = function singular<T>(this:Set<T>):boolean { return this.size === 1 ; }
-Set.prototype.toArray = function toArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; }
-Set.prototype.valuesArray = function valuesArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; }
+$declareMethods(Set, {
+    compare<T>(this:Set<T>, other:any):Comparison { return other instanceof Set && $setequal(this, other) ? Same : undefined ; },
+    conditionalClear<T>(this:Set<T>, clearFunction:(element:T)=>boolean):uint { return $conditionalClearSet(this, clearFunction) ; },
+    fusionEnumeration(this:Set<any>):any[] { return Array.from(this) ; },
+    isEqual<T>(this:Set<T>, other:any):boolean { return other instanceof Set && $setequal(this, other) ; },
+    keysArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; },
+    map<T, U=T>(this:Set<T>, mapFunction:(element:T)=>Nullable<U>):Set<U> { return $setmap(this, mapFunction) ; },
+    singular<T>(this:Set<T>):boolean { return this.size === 1 ; },
+    toArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; },
+    valuesArray<T>(this:Set<T>):T[] { return Array.from(this.values()) ; },
+}) ;
 
-Map.prototype.compare = function compare<K,V>(this:Map<K,V>, other:any):Comparison { return other instanceof Map && $mapequal(this, other) ? Same : undefined ; }
-Map.prototype.conditionalClear = function conditionalClear<K, V>(this:Map<K, V>, clearFunction:(element:K, value:V)=>boolean):uint { return $conditionalClearMap(this, clearFunction) ; }
-Map.prototype.dictionary = function dictionary<K,V,U=V>(this:Map<K,V>, mapFunction?:Nullable<(key:K, value:V)=>[Nullable<string>, Nullable<U>]>):TSDictionary<U> { 
-    return $dictionaryFromMap(this, mapFunction) ; 
-}
-Map.prototype.fusionEnumeration = function fusionEnumeration():any[] {
-    const ret:any[] = [] ;
-    this.forEach((value:any, key:any) => ret.push({key:key, value:value})) ;
-    return ret ;
-}
-Map.prototype.isEqual = function isEqual<K,V>(this:Map<K,V>, other:any):boolean { return other instanceof Map && $mapequal(this, other) ; }
-Map.prototype.keysArray = function keysArray<K,V>(this:Map<K,V>):K[] { return Array.from(this.keys()) ; }
-Map.prototype.map = function map<K,V,U=V>(this:Map<K,V>, mapFunction:(key:K, value:V)=>Nullable<U>):Map<K,U> { return $mapmap(this, mapFunction) ; }
-Map.prototype.toArray = function toArray<K,V>(this:Map<K,V>):Array<[K,V]> { return Array.from(this.entries()) ; }
-Map.prototype.valuesArray = function valuesArray<K,V>(this:Map<K,V>):V[] { return Array.from(this.values()) ; }
+$declareMethods(Map, {
+    compare<K,V>(this:Map<K,V>, other:any):Comparison { return other instanceof Map && $mapequal(this, other) ? Same : undefined ; },
+    conditionalClear<K, V>(this:Map<K, V>, clearFunction:(element:K, value:V)=>boolean):uint { return $conditionalClearMap(this, clearFunction) ; },
+    dictionary<K,V,U=V>(this:Map<K,V>, mapFunction?:Nullable<(key:K, value:V)=>[Nullable<string>, Nullable<U>]>):TSDictionary<U> { 
+        return $dictionaryFromMap(this, mapFunction) ; 
+    },
+    fusionEnumeration(this:Map<any,any>):any[] {
+        const ret:any[] = [] ;
+        this.forEach((value:any, key:any) => ret.push({key:key, value:value})) ;
+        return ret ;
+    },
+    isEqual<K,V>(this:Map<K,V>, other:any):boolean { return other instanceof Map && $mapequal(this, other) ; },
+    keysArray<K,V>(this:Map<K,V>):K[] { return Array.from(this.keys()) ; },
+    map<K,V,U=V>(this:Map<K,V>, mapFunction:(key:K, value:V)=>Nullable<U>):Map<K,U> { return $mapmap(this, mapFunction) ; },
+    toArray<K,V>(this:Map<K,V>):Array<[K,V]> { return Array.from(this.entries()) ; },
+    valuesArray<K,V>(this:Map<K,V>):V[] { return Array.from(this.values()) ; },
+}) ;
 
 

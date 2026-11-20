@@ -9,7 +9,7 @@
 //
 // Node built-ins the library imports (`path`, `os`, `crypto`, `stream`, `util`,
 // ...) are replaced by browser polyfills; the ones that only matter server-side
-// (`fs`, `http`, `https`, `net`, `tls`, `zlib`) are stubbed empty -- the groups
+// (`child_process`, `fs`, `http`, `https`, `net`, `tls`, `zlib`) are stubbed empty -- the groups
 // that would call them self-skip on $inbrowser(), but the modules still need to
 // *load*. `Buffer` / `process` / `global` are injected as globals.
 // =============================================================================
@@ -51,6 +51,7 @@ await build({
         nodeModulesPolyfillPlugin({
             globals: { Buffer: true, process: true },
             modules: {
+                child_process: 'empty',
                 fs:      'empty',
                 http:    'empty',
                 https:   'empty',

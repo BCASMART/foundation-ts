@@ -16,7 +16,7 @@ import { TSCountry } from "./tscountry";
 import { Locales } from "./tsdefaults";
 import { $div } from "./number";
 import { TSError } from "./tserrors";
-import { $trim } from "./strings";
+import { $ftrim } from "./strings";
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
@@ -335,7 +335,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
         let offset = 0 ; 
         if (typeof localTimeOrTZ == 'string') {
-            offset = $timezoneOffsetWithComponents($trim(localTimeOrTZ), $components(this._timestamp)) * TSMinute ;
+            offset = $timezoneOffsetWithComponents($ftrim(localTimeOrTZ), $components(this._timestamp)) * TSMinute ;
         }
         else { 
             // here we use the local time zone offset
@@ -370,7 +370,9 @@ export const TSMinTimeStamp               = -TSSecsFrom00010101To20010101 ; // f
 
 export function $isleap(y: number) : boolean 
 { 
-	return !$isint(y) || y % 4 ? false : ( y % 100 ? (y > 7 ? true : false) : (y % 400 || y < 1600 ? false : true)) ; 
+    if (!$isint(y) || y % 4) { return false ; }
+    if (y % 100) { return y > 7 ; }
+    return !(y % 400) && y >= 1600 ;
 }
 
 export function $dayisvalid(year: number, month: number, day: number) : boolean {

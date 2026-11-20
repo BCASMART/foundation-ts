@@ -5,7 +5,7 @@ import { TSClone, TSLeafInspect, TSObject } from './tsobject';
 import { Comparison, continent, Countries, country, currency, language, Languages, Nullable, Same, StringTranslation } from './types';
 import countriesList from './countries.json'
 import { $compare } from './compare';
-import { $ascii, $ftrim, $trim } from './strings';
+import { $ascii, $ftrim } from './strings';
 import { PhonePlan, PhonePlanInfo } from './tsphonenumber';
 import { TSError } from './tserrors';
 
@@ -141,7 +141,13 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         return TSCountry.__countriesMap ;
     }
     
+    // the countries are loaded by TSDefaults: all the static accessors need them
+    // (only country() and countries() used to load them, the other ones did throw before)
+    private static _loaded():void
+    { if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ } }
+
     public static countriesForDialCode(dc:Nullable<string>):TSCountry[] {
+        TSCountry._loaded() ;
         const array = $ok(dc) ? TSCountry.__dialCodeMap.get(dc!) : undefined ;
         return $value(array, []) ;
     }
@@ -150,7 +156,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         if (typeof c === 'number') { c = $fpad3(c) ; }
         c = $ftrim(c) ;
         if (c.length) {
-            if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
+            TSCountry._loaded() ;
             const ret = TSCountry.__countriesMap.get($ascii(c!.toUpperCase())) ;
             if ($ok(ret)) { return ret ; }
         }
@@ -158,28 +164,28 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     }
     
     public static alpha2CodeForAlpha3Code(c:Nullable<string>):country|null
-    { return $length(c) === 3 ? $valueornull(TSCountry.__countriesAlpha3Map.get(c!)) : null ; }
+    { TSCountry._loaded() ; return $length(c) === 3 ? $valueornull(TSCountry.__countriesAlpha3Map.get(c!)) : null ; }
 
     public static alpha3CodeForAlpha2Code(c:Nullable<country|string>):string|null
-    { return $length(c) === 2 ? $valueornull(TSCountry.__countriesAlpha2Map.get(c as country)) : null ; }
+    { TSCountry._loaded() ; return $length(c) === 2 ? $valueornull(TSCountry.__countriesAlpha2Map.get(c as country)) : null ; }
 
     public static alpha2CodeForNumericCode(c:Nullable<number>):string|null
-    { return $ok(c) && c! >= 1 ? $valueornull(TSCountry.__countriesNumericMap.get(c!)) : null ; }
+    { TSCountry._loaded() ; return $ok(c) && c! >= 1 ? $valueornull(TSCountry.__countriesNumericMap.get(c!)) : null ; }
 
     // This does not return all elements listed in Country enum. 
     // Only the managed countries as TSCountry
     public static alpha2Codes():country[] 
-    { return TSCountry.__countriesAlpha2Map.keysArray() ; }
+    { TSCountry._loaded() ; return Array.from(TSCountry.__countriesAlpha2Map.keys()) ; }
 
     // All alpha3 codes of known TSCountry objects
     public static alpha3Codes():string[] 
-    { return TSCountry.__countriesAlpha3Map.keysArray() ; }
+    { TSCountry._loaded() ; return Array.from(TSCountry.__countriesAlpha3Map.keys()) ; }
 
     public static numericCodes():number[] 
-    { return TSCountry.__countriesNumericMap.keysArray() ; }
+    { TSCountry._loaded() ; return Array.from(TSCountry.__countriesNumericMap.keys()) ; }
 
     public static countryForVATNumber(vatNumber:Nullable<string>): TSCountry | null {
-        vatNumber = $trim(vatNumber).toUpperCase() ;
+        vatNumber = $ftrim(vatNumber).toUpperCase() ;
         if (vatNumber.length >= 3) {
             const vatCountry = TSCountry.country(vatNumber.slice(0,2)) ;
             if ($ok(vatCountry) && vatCountry.validateVATNumber(vatNumber) !== null) { return vatCountry ; }
@@ -188,7 +194,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     }
 
     public static countries(): TSCountry[] {
-        if (!$ok(TSCountry.__countriesMap)) { TSDefaults.defaults() ; /* this initializes everything */ }
+        TSCountry._loaded() ;
         return [... TSCountry.__countries] ;
     }
 
@@ -213,7 +219,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     // sovereign state can be different from the country itself. eg: Greenland's state is Denmark
     public get state():TSCountry { return $value(TSCountry.country(this._state), this) ; }
 
-    public clone():TSCountry { return this ; } // no clone on immutable objects
+    public clone():this { return this ; } // no clone on immutable objects
 
     public translatedName(lang?:Nullable<language>):string | null {
         if (!$length(lang)) { return null ; }
@@ -228,7 +234,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
      * – a valid string which is the correct VAT number correctly formated
      */
     public validateVATNumber(vatNumber:Nullable<string>):Nullable<string> {
-        vatNumber = $trim(vatNumber).toUpperCase() ;
+        vatNumber = $ftrim(vatNumber).toUpperCase() ;
         if (vatNumber.length < 3) { return null ; }
         return $ok(this._vatValidator) ? this._vatValidator!(vatNumber) : undefined ;
     }
@@ -252,111 +258,111 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     // ============ Static VAT constants =============== 
     private static CountriesVATInfo:{ [key in Countries]?:VATNumberValidator } = {
         AT:(s:string) => { 
-            const m = s.match(/^AT\s*U\s*([0-9]{8})$/) ;
+            const m = /^AT\s*U\s*(\d{8})$/.exec(s) ;
             return $count(m) === 2 ? `ATU${m![1]}` : null ;
         },
         BE:(s:string) => { 
-            const m = s.match(/^BE\s*(0)?([0-9]{9})$/) ;
+            const m = /^BE\s*(0)?(\d{9})$/.exec(s) ;
             return $count(m) === 3 ? `BE0${m![2]}` : null ;
         },
         BG:(s:string) => {
-            const m = s.match(/^BG\s*([0-9]{9,10})$/) ;
+            const m = /^BG\s*(\d{9,10})$/.exec(s) ;
             return $count(m) === 2 ? `BG${m![1]}` : null ;
         },
         HR:(s:string) => {
-            const m = s.match(/^HR\s*([0-9]{11})$/) ;
+            const m = /^HR\s*(\d{11})$/.exec(s) ;
             return $count(m) === 2 ? `HR${m![1]}` : null ;
         },
         CY:(s:string) => {
-            const m =s.match(/^CY\s*([0-9]){8}\s*([A-Z])$/) ; 
+            const m =/^CY\s*(\d{8})\s*([A-Z])$/.exec(s) ; 
             return $count(m) === 3 ? `CY${m![1]}${m![2]}` : null ;
         },
         CZ:(s:string) => {
-            const m = s.match(/^CZ\s*([0-9]{8,10})$/) ;
+            const m = /^CZ\s*(\d{8,10})$/.exec(s) ;
             return $count(m) === 2 ? `CZ${m![1]}` : null ;
         },
         DK:(s:string) => {
-            const m = s.match(/^DK\s*([0-9]{8})$/) ; 
+            const m = /^DK\s*(\d{8})$/.exec(s) ; 
             return $count(m) === 2 ? `DK${m![1]}` : null ;
         },
         EE:(s:string) => {
-            const m = s.match(/^EE\s*([0-9]{9})$/) ; 
+            const m = /^EE\s*(\d{9})$/.exec(s) ; 
             return $count(m) === 2 ? `EE${m![1]}` : null ;
         },
         FI:(s:string) => {
-            const m = s.match(/^FI\s*([0-9]{8})$/) ; 
+            const m = /^FI\s*(\d{8})$/.exec(s) ; 
             return $count(m) === 2 ? `FI${m![1]}` : null ;
         },
         FR:(s:string) => {
-            const m = s.match(/^FR\s*([0-9A-Z]{2})\s*([0-9]{9})$/) ;
+            const m = /^FR\s*([0-9A-Z]{2})\s*(\d{9})$/.exec(s) ;
             return $count(m) === 3 ? `FR${m![1]}${m![2]}` : null ;
         },
         DE:(s:string) => {
-            const m = s.match(/^DE\s*([0-9]{9})$/) ; 
+            const m = /^DE\s*(\d{9})$/.exec(s) ; 
             return $count(m) === 2 ? `DE${m![1]}` : null ;
         },
         GR:(s:string) => {
-            const m = s.match(/^(EL|GR)\s*([0-9]{9})$/) ; 
+            const m = /^(EL|GR)\s*(\d{9})$/.exec(s) ; 
             return $count(m) === 3 ? `EL${m![2]}` : null ;
         },
         HU:(s:string) => {
-            const m = s.match(/^HU\s*([0-9]{8})$/) ; 
+            const m = /^HU\s*(\d{8})$/.exec(s) ; 
             return $count(m) === 2 ? `HU${m![1]}` : null ;
         },
         IE:(s:string) => {
-            const m = s.match(/^IE\s*([0-9]{7})\s*([A-Z]{2})$/) ; 
+            const m = /^IE\s*(\d{7})\s*([A-Z]{2})$/.exec(s) ; 
             return $count(m) === 3 ? `IE${m![1]}${m![2]}` : null ;
         },
         IT:(s:string) => {
-            const m = s.match(/^IT\s*([0-9]{11})$/) ;
+            const m = /^IT\s*(\d{11})$/.exec(s) ;
             return $count(m) === 2 ? `IT${m![1]}` : null ;
         },
         LV:(s:string) => {
-            const m = s.match(/^LV\s*([0-9]{11})$/) ;
+            const m = /^LV\s*(\d{11})$/.exec(s) ;
             return $count(m) === 2 ? `LV${m![1]}` : null ;
         },
         LT:(s:string) => {
-            const m = s.match(/^LT\s*([0-9]{9}|[0-9]{12})$/) ; 
+            const m = /^LT\s*(\d{9}|\d{12})$/.exec(s) ; 
             return $count(m) === 2 ? `LT${m![1]}` : null ;
         },
         LU:(s:string) => {
-            const m = s.match(/^LU\s*([0-9]{8})$/) ; 
+            const m = /^LU\s*(\d{8})$/.exec(s) ; 
             return $count(m) === 2 ? `LU${m![1]}` : null ;
         },
         MT:(s:string) => {
-            const m = s.match(/^MT\s*([0-9]{8})$/) ; 
+            const m = /^MT\s*(\d{8})$/.exec(s) ; 
             return $count(m) === 2 ? `MT${m![1]}` : null ;
         },
         NL:(s:string) => {
-            const m = s.match(/^NL\s*([0-9]{9})\s*B\s*([0-9]{2})$/) ; 
+            const m = /^NL\s*(\d{9})\s*B\s*(\d{2})$/.exec(s) ; 
             return $count(m) === 3 ? `NL${m![1]}B${m![2]}` : null ;
         },
         PL:(s:string) => {
-            const m = s.match(/^PL\s*([0-9]{10})$/) ; 
+            const m = /^PL\s*(\d{10})$/.exec(s) ; 
             return $count(m) === 2 ? `PL${m![1]}` : null ;
         },
         PT:(s:string) => {
-            const m = s.match(/^PT\s*([0-9]{3})\s*([0-9]{3})\s*([0-9]{3})$/) ; 
+            const m = /^PT\s*(\d{3})\s*(\d{3})\s*(\d{3})$/.exec(s) ; 
             return $count(m) === 4 ? `PT${m![1]}${m![2]}${m![3]}` : null ;
         },
         RO:(s:string) => {
-            const m = s.match(/^RO\s*([0-9]{10})$/) ; 
+            const m = /^RO\s*(\d{10})$/.exec(s) ; 
             return $count(m) === 2 ? `RO${m![1]}` : null ;
         },
         SK:(s:string) => {
-            const m = s.match(/^SK\s*([0-9]{10})$/) ; 
+            const m = /^SK\s*(\d{10})$/.exec(s) ; 
             return $count(m) === 2 ? `SK${m![1]}` : null ;
         },
         SI:(s:string) => {
-            const m = s.match(/^SI\s*([0-9]{9})$/) ; 
+            const m = /^SI\s*(\d{9})$/.exec(s) ; 
             return $count(m) === 2 ? `SI${m![1]}` : null ;
         },
         ES:(s:string) => {
-            const m = s.match(/^ES\s*([0-9A-Z])\s*([0-9]{7})\s*([0-9A-Z])$/) ; 
+            const m = /^ES\s*([0-9A-Z])\s*(\d{7})\s*([0-9A-Z])$/.exec(s) ; 
             return $count(m) === 4 ? `ES${m![1]}${m![2]}${m![3]}` : null ;
         },
         SE:(s:string) => {
-            const m = s.match(/^SE\s*([0-9]{12})$/) ; 
+            const m = /^SE\s*(\d{12})$/.exec(s) ; 
             return $count(m) === 2 ? `SE${m![1]}` : null ;
         }
     }

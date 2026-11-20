@@ -80,8 +80,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
     public get isValid():boolean { return this.range.isValid ; }
 	public get isEmpty():boolean { return this.range.isEmpty ; }
 
-	public get location():number { return $ok(this.first) ? this.first!.data.location : NaN ; }
-	public get maxRange():number { return $ok(this.first) ? this.last!.data.maxRange : NaN ; }
+	public get location():number { return $ok(this.first) ? this.first!.data.location : Number.NaN ; }
+	public get maxRange():number { return $ok(this.first) ? this.last!.data.maxRange : Number.NaN ; }
 
 	public clone():TSRangeSet { return new TSRangeSet(this) ; }
 

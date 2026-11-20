@@ -4,7 +4,7 @@ import { Ascending, Descending, Nullable, Same, TSDictionary } from "./types";
 import { $compare, $equal } from "./compare";
 import { $iscollection, TSCollection } from "./tsobject";
 import { TSError } from "./tserrors";
-import { $declareMethod } from "./object";
+import { $declareMethods } from "./object";
 
 
 export type QualifierOperator  =  'AND' | 'OR' | 'NOT' | 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE' | 'LIKE' | 'IN' | 'NIN' | 'OK' | 'KO' ;
@@ -328,21 +328,21 @@ declare global {
 }
 
 
-String.prototype.sqlLike = function (this:string, like:string) { 
-    if (!$ok(like)) { return false ; }
-    like = like!.replace(new RegExp("([\\.\\\\\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}\\=\\!\\<\\>\\|\\:\\-])", "g"), "\\$1");
-    like = like.replace(/%/g, '.*').replace(/_/g, '.');
-    return RegExp('^' + like + '$', 'gi').test(this);
-}
+$declareMethods(String, {
+    sqlLike(this:string, like:string) { 
+        if (!$ok(like)) { return false ; }
+        like = like!.replace(new RegExp("([\\.\\\\\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}\\=\\!\\<\\>\\|\\:\\-])", "g"), "\\$1");
+        like = like.replace(/%/g, '.*').replace(/_/g, '.');
+        return RegExp('^' + like + '$', 'gi').test(this);
+    },
+}) ;
 
 /**
  * since some modules like pdfjs require to use for ... in on Array.prototype
- * we did decide to use a functional way to declare our new methods on array
- * For now we limit this modification to Array class 
+ * we declare our new methods as non enumerable ones with $declareMethods()
  */
-$declareMethod(Array, { 
-    element:'filterWithQualifier', 
-    implementation:function filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; }
+$declareMethods(Array, {
+    filterWithQualifier<T>(this: T[], qual:TSQualifier<T>):Array<T> { return qual.filterValues(this) ; },
 }) ;
 
 

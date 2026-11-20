@@ -1,6 +1,6 @@
 import { TSDate } from "../src/tsdate";
 import { TSDictionary } from "../src/types";
-import { $barerauth, $basicauth, $generateMultiPartBodyString, $query, Resp, RespType, TSMultipartEntry, TSRequest, Verb } from "../src/tsrequest";
+import { $barerauth, $basicauth, $generateMultiPartBody, $generateMultiPartBodyString, $query, Resp, RespType, TSMultipartEntry, TSRequest, Verb } from "../src/tsrequest";
 
 import { TSTest } from '../src/tstester';
 import { $password } from "../src/crypto";
@@ -72,13 +72,49 @@ TSTest.group("$basicauth / $barerauth / $query edge cases", async (group) => {
         }, B) ;
         t.expect0(body!.includes('name="text"')).true() ;
         t.expect1(body!.includes('\r\n\r\nhello\r\n')).true() ;
-        t.expect2(body!.includes('name="blob"')).true() ;
+        t.expect2(body!.includes('name="blob"; filename="blob"')).true() ;  // like a browser FormData
         t.expect3(body!.includes('Content-Type: text/plain')).true() ;
         t.expect4(body!.includes('Content-Type: application/octet-stream')).true() ; // untyped blob
         t.expect5(body!.includes('42')).false() ;                                     // number entry skipped
         t.expect6(body!.endsWith(`\r\n--${B}--\r\n`)).true() ;
         t.expect7(await $generateMultiPartBodyString({ nope:42 as any }, B)).null() ; // nothing usable -> null
         t.expect8(await $generateMultiPartBodyString({}, B)).null() ;
+    }) ;
+
+    group.unary('$generateMultiPartBody() — binary files, file names and quoting', async (t) => {
+        const B = '----bnd123' ;
+        // these bytes are not valid UTF-8, and contain CR LF and '--' : they used to be corrupted (sent as an UTF-8 text)
+        const bin = new Uint8Array([0, 1, 2, 0x80, 0xfe, 0xff, 0xc3, 0x28, 13, 10, 45, 45]) ;
+        const file = new File([bin], 'pho"to\r\n.png', { type:'image/png' }) ;
+        const body = await $generateMultiPartBody({ field:'valeur é', file:file, blob:new Blob([bin]), 'we"ird\nkey':'v' }, B) ;
+        t.expect0(body instanceof Uint8Array).true() ;
+        const text = new TextDecoder().decode(body!) ;
+        // file names used to be never sent, quotes and line breaks are percent-encoded like browsers do
+        t.expect1(text.includes('name="file"; filename="pho%22to%0D%0A.png"\r\nContent-Type: image/png\r\n')).true() ;
+        t.expect2(text.includes('name="blob"; filename="blob"\r\nContent-Type: application/octet-stream\r\n')).true() ;
+        t.expect3(text.includes('name="we%22ird%0Akey"')).true() ;
+        // the file bytes are in the body, unchanged
+        const header = new TextEncoder().encode('Content-Type: image/png\r\n\r\n') ;
+        const start = _indexOf(body!, header) + header.length ;
+        t.expect4(Array.from(body!.slice(start, start + bin.length))).is(Array.from(bin)) ;
+        t.expect5(await $generateMultiPartBody({ nope:42 as any }, B)).null() ;
+        // the string version also sends the file names
+        t.expect6((await $generateMultiPartBodyString({ f:new File(['txt'], 'a.txt', { type:'text/plain' }) }, B))!.includes('filename="a.txt"')).true() ;
+
+        // the standard multipart parser reads the same values. The parsers differ on the escaped names :
+        // Node (undici) decodes %22 %0D %0A, Chrome keeps them as they were sent
+        let fd:FormData|undefined = undefined ;
+        try { fd = await new Response(body as BodyInit, { headers:{ 'content-type':`multipart/form-data; boundary=${B}` } }).formData() ; }
+        catch { fd = undefined ; } // a simulated environment may not have a complete Response implementation
+        if (fd) {
+            t.expect7(fd.get('field')).is('valeur é') ;
+            const parsed = fd.get('file') as File ;
+            t.expect8(['pho"to\r\n.png', 'pho%22to%0D%0A.png'].includes(parsed.name)).true() ;
+            t.expectC(parsed.type).is('image/png') ;
+            t.expect9(Array.from(new Uint8Array(await parsed.arrayBuffer()))).is(Array.from(bin)) ;
+            t.expectA(Array.from(new Uint8Array(await (fd.get('blob') as File).arrayBuffer()))).is(Array.from(bin)) ;
+            t.expectB(fd.get('we"ird\nkey') ?? fd.get('we%22ird%0Akey')).is('v') ;
+        }
     }) ;
 
     group.unary('URLSearchParams.prototype.query()', async (t) => {
@@ -187,4 +223,13 @@ requestGroups.push(TSTest.group("TSRequest.req() — body encoding & error mappi
         t.expect1((await r2.req('/', Verb.Get, RespType.String)).status).is(Resp.Misdirected) ;
     }) ;
 })) ;
+}
+
+function _indexOf(data:Uint8Array, search:Uint8Array):number {
+    for (let i = 0 ; i + search.length <= data.length ; i++) {
+        let j = 0 ;
+        while (j < search.length && data[i+j] === search[j]) { j++ ; }
+        if (j === search.length) { return i ; }
+    }
+    return -1 ;
 }

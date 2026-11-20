@@ -615,7 +615,10 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         if (area === otherArea) {
             const aX = this.minX ; const aY = this.minY ;
             const bX = other.minX ; const bY = other.minY ;
-            if (aX === bX) { return aY < bY ? Ascending : (aY > bY ? Descending : Same) ; }
+            if (aX === bX) {
+                if (aY < bY) { return Ascending ; }
+                return aY > bY ? Descending : Same ;
+            }
             if (aY === other.y) { return aX < bX ? Ascending : Descending ; }
             if (aX < bX && aY < bY) { return Ascending ; }
             if (aX > bX && aY > bY) { return Descending ; }

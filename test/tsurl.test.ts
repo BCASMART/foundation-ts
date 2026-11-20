@@ -56,8 +56,8 @@ export const TSURLGroups = [
               hostname: 'evil-phisher',
               pathname: '/foo.html',
               path: '/foo.html',
-              hash: '#h%5Ca%5Cs%5Ch',
-              href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch'
+              hash: '#h\\a\\s\\h',                             // URL keeps the backslashes of the hash
+              href: 'http://evil-phisher/foo.html#h\\a\\s\\h'
             },
           
             'http:\\\\evil-phisher\\foo.html?json="\\"foo\\""#h\\a\\s\\h': {
@@ -65,10 +65,10 @@ export const TSURLGroups = [
               host: 'evil-phisher',
               hostname: 'evil-phisher',
               pathname: '/foo.html',
-              search: '?json=%22%5C%22foo%5C%22%22',
-              path: '/foo.html?json=%22%5C%22foo%5C%22%22',
-              hash: '#h%5Ca%5Cs%5Ch',
-              href: 'http://evil-phisher/foo.html?json=%22%5C%22foo%5C%22%22#h%5Ca%5Cs%5Ch'
+              search: '?json=%22\\%22foo\\%22%22',              // URL keeps the backslashes of the search
+              path: '/foo.html?json=%22\\%22foo\\%22%22',
+              hash: '#h\\a\\s\\h',
+              href: 'http://evil-phisher/foo.html?json=%22\\%22foo\\%22%22#h\\a\\s\\h'
             },
           
             'http:\\\\evil-phisher\\foo.html#h\\a\\s\\h?blarg': {
@@ -77,8 +77,8 @@ export const TSURLGroups = [
               hostname: 'evil-phisher',
               pathname: '/foo.html',
               path: '/foo.html',
-              hash: '#h%5Ca%5Cs%5Ch?blarg',
-              href: 'http://evil-phisher/foo.html#h%5Ca%5Cs%5Ch?blarg'
+              hash: '#h\\a\\s\\h?blarg',
+              href: 'http://evil-phisher/foo.html#h\\a\\s\\h?blarg'
             },
           
             'http:\\\\evil-phisher\\foo.html': {
@@ -518,9 +518,9 @@ export const TSURLGroups = [
               host: 'x:1',
               port: '1',
               hostname: 'x',
-              pathname: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
-              path: '/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/',
-              href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C/%5E~%60/'
+              pathname: "/'%20%3C%3E%22%60/%7B%7D|/%5E~%60/",        // the standard does not escape ' and | in a path
+              path: "/'%20%3C%3E%22%60/%7B%7D|/%5E~%60/",
+              href: "http://x:1/'%20%3C%3E%22%60/%7B%7D|/%5E~%60/"
             },
           
             'http://a@b@c/': {
@@ -546,13 +546,13 @@ export const TSURLGroups = [
           
             'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
               protocol: 'http:',
-              auth: 'a\r" \t\n<\'b:b',
-              host: 'c',
-              hostname: 'c',
+              auth: 'a" <\'b:b',                                   // URL removes the tabs and new lines
+              host: 'cd',
+              hostname: 'cd',
               search: '?f',
-              pathname: '%0D%0Ad/e',
-              path: '%0D%0Ad/e?f',
-              href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+              pathname: '/e',
+              path: '/e?f',
+              href: 'http://a%22%20%3C\'b:b@cd/e?f'
             },
             
             // git urls used by npm
@@ -631,6 +631,114 @@ export const TSURLGroups = [
             t.expect6(u.protocol).is('http:') ;
             t.expect7(u.href.startsWith('http://')).true() ;
             t.expect8(() => { u.protocol = 'ht!tp' ; }).throws(/Impossible to set new protocol/) ;
+        }) ;
+
+        group.unary('non-ASCII characters are percent-encoded like the URL class does', async (t) => {
+            // they used to be kept as they were in the path, the search and the hash
+            const sources = [
+                'https://a.com/café/menu',
+                'https://a.com/日本',
+                'https://a.com/x?q=été&r=日#frag-é',
+                'https://a.com/😀?e=😀#😀',
+                'https://a.com/x\uD800y',          // lone surrogate -> U+FFFD
+                'https://café.fr/été',
+                'https://a.com/caf%C3%A9',          // already encoded: unchanged
+            ] ;
+            sources.forEach((s, i) => { t.expect(TSURL.url(s)?.href, `src${i}`).is(new URL(s).href) ; }) ;
+            t.expect0(TSURL.url('https://a.com/café')?.pathname).is('/caf%C3%A9') ;
+            t.expect1(TSURL.url('https://a.com/café')!.isEqual(TSURL.url('https://a.com/caf%C3%A9'))).true() ;
+            const u = TSURL.url('https://a.com/')! ;
+            u.pathname = '/dossier été/f?.txt' ;
+            t.expect2(u.href).is('https://a.com/dossier%20%C3%A9t%C3%A9/f%3F.txt') ;
+        }) ;
+
+        group.unary('each url part is escaped like the URL class does', async (t) => {
+            // all the ASCII characters, in each part, for a standard and a non standard protocol.
+            // The parts used to be escaped with the same set of characters (eg. ' and | were escaped in a path),
+            // tabs and new lines were escaped instead of being removed, and backslashes were replaced in searches.
+            // The URL class of the engines do not all follow the current standard on 3 cases: '^' in a path
+            // (escaped since 2024, not yet by Node), '|' in a path and "'" in a non standard search (escaped by 
+            // Chrome only). These cases are not compared to the engine, and are checked below.
+            const parts = [(c:string) => `/x${c}y`, (c:string) => `/?x${c}y`, (c:string) => `/#x${c}y`, (c:string) => `/x${c}y?a=1`, (c:string) => `/x${c}y#h`] ;
+            const differences:string[] = [] ;
+            let total = 0 ;
+            for (const [origin, opts] of [['https://a.com', {}], ['foo://a.com', { acceptedProtocols:['foo:'] }]] as [string, any][]) {
+                for (const [index, part] of parts.entries()) {
+                    for (let i = 0 ; i < 0x80 ; i++) {
+                        const c = String.fromCodePoint(i) ;
+                        const source = origin + part(c) ;
+                        if (c === '^' || c === '|' || (c === "'" && origin.startsWith('foo:') && index === 1)) { continue ; } // index 1 is the search
+                        let expected:string|undefined = undefined ;
+                        try { expected = new URL(source).href ; } catch { expected = undefined ; }
+                        if (TSURL.url(source, opts)?.href !== expected) { differences.push(source) ; }
+                        total++ ;
+                    }
+                }
+            }
+            t.expect0(total).is(1259) ;
+            t.expect1(differences).is([]) ;
+            t.expect2(TSURL.url("https://a.com/l'a?q=l'a#l'a")?.href).is("https://a.com/l'a?q=l%27a#l'a") ;
+            t.expect4(TSURL.url("https://a.com/a^b|c?d^e|f#g^h|i")?.href).is("https://a.com/a%5Eb|c?d^e|f#g^h|i") ;
+            t.expect5(TSURL.url("foo://a.com/a?l'a", { acceptedProtocols:['foo:'] })?.href).is("foo://a.com/a?l'a") ;
+            const u = TSURL.url('https://a.com/')! ;
+            u.pathname = "/l'a b?#" ;
+            t.expect3(u.href).is("https://a.com/l'a%20b%3F%23") ;
+        }) ;
+
+        group.unary('utf8Href decodes what can be shown without ambiguity', async (t) => {
+            const h = (s:string) => TSURL.url(s)?.utf8Href ;
+            t.expect0(h('https://café.fr/été/menu?q=日本&x=a%20b#frag-é')).is('https://café.fr/été/menu?q=日本&x=a%20b#frag-é') ;
+            t.expect1(TSURL.url('https://café.fr/été')?.href).is('https://xn--caf-dma.fr/%C3%A9t%C3%A9') ; // href stays encoded
+            t.expect2(h('https://a.com/%c3%a9/%F0%9F%98%80')).is('https://a.com/é/😀') ;
+            t.expect3(h('https://user:p%C3%A9@a.com/')).is('https://user:pé@a.com/') ;
+            t.expect4(h('https://[::1]:8080/%C3%A9')).is('https://[::1]:8080/é') ;
+            // encoded ASCII characters keep their meaning
+            t.expect5(h('https://a.com/a%2Fb%3Fc%23d%25e%20f')).is('https://a.com/a%2Fb%3Fc%23d%25e%20f') ;
+            // invalid sequences : truncated, invalid byte, surrogate, overlong form
+            t.expect6(h('https://a.com/%C3/%FF%E9/%ED%A0%80/%C0%AF')).is('https://a.com/%C3/%FF%E9/%ED%A0%80/%C0%AF') ;
+            // invisible and bidirectional characters stay encoded (no-break space, RTL override, zero width space)
+            t.expect7(h('https://a.com/%C2%A0x%E2%80%AEy%E2%80%8Bz')).is('https://a.com/%C2%A0x%E2%80%AEy%E2%80%8Bz') ;
+            // punycode hostnames (RFC 3492 samples) and a label which cannot be decoded
+            t.expect8(h('https://xn--egbpdaj6bu4bxfgehfvwxn.com/')).is('https://ليهمابتكلموشعربي؟.com/') ;
+            t.expect9(h('https://xn--ihqwcrb4cv8a8dqg056pqjye.com/')).is('https://他们为什么不说中文.com/') ;
+            t.expectA(h('https://xn--zz.com/')).is('https://xn--zz.com/') ;
+        }) ;
+
+        group.unary('internationalized hostnames are converted to punycode', async (t) => {
+            // they used to be transliterated, which gave another domain (eg. 'munchen.de' for 'münchen.de')
+            const idns = ['https://münchen.de/x', 'https://éxample.fr', 'https://日本.jp', 'https://ДОМЕН.рф/путь', 'https://straße.de',
+                          'https://exa😀mple.com', 'https://ｆｕｌｌ.com', 'http://user@münchen.de:8080/p?q=1#h'] ;
+            idns.forEach((s, i) => {
+                const u = TSURL.url(s) ;
+                const n = new URL(s) ;
+                t.expect(u?.hostname, `idn${i}`).is(n.hostname) ;                // same conversion as the native URL class
+                t.expect(u?.origin, `orig${i}`).is(n.origin) ;
+            }) ;
+            t.expect0(TSURL.url('https://münchen.de')?.hostname).is('xn--mnchen-3ya.de') ;
+            // invalid internationalized hostnames are refused
+            t.expect1(TSURL.url(`https://${String.fromCodePoint(0x301)}abc.com`)).null() ;
+            t.expect2(TSURL.url(`https://a${String.fromCodePoint(0xFFFD)}b.com`)).null() ;
+            t.expect3(() => TSURL.url(`https://a${String.fromCodePoint(0xFFFD)}b.com`, { throwsError:true })).throws(/bad hostname/) ;
+            // ASCII hostnames are only lowercased
+            t.expect4(TSURL.url('https://WWW.Example.COM/A')?.hostname).is('www.example.com') ;
+        }) ;
+
+        group.unary('pathname setter keeps a consistent href', async (t) => {
+            // '?' and '#' would start the search and hash parts: they are escaped like the native URL class does
+            const u = TSURL.url('https://example.com/p?x=1#top')! ;
+            u.pathname = '/a?b#c' ;
+            t.expect0(u.pathname).is('/a%3Fb%23c') ;
+            t.expect1(u.href).is('https://example.com/a%3Fb%23c?x=1#top') ;
+            const n = new URL('https://example.com/p?x=1#top') ; n.pathname = '/a?b#c' ;
+            t.expect2(u.href).is(n.href) ;
+            const back = TSURL.url(u.href)! ;                  // the href is read again as the same URL
+            t.expect3(back.pathname).is(u.pathname) ;
+            t.expect4(back.search).is(u.search) ;
+            t.expect5(back.hash).is(u.hash) ;
+            // the leading '/' is added to the pathname itself, not only in the href
+            u.pathname = 'abc' ;
+            t.expect6(u.pathname).is('/abc') ;
+            t.expect7(u.href).is('https://example.com/abc?x=1#top') ;
         }) ;
 
         group.unary('from() / compose() / TSObject conformance', async (t) => {

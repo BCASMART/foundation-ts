@@ -111,7 +111,7 @@ export abstract class TSFusionTemplate {
         // and have different first characters
         const constants:Array<TSFusionConstant> = [
             { name:_ascii2data('FUTURE'),    value:TSDate.future(), len:6 },
-            { name:_ascii2data('NaN'),       value:NaN,             len:3 },
+            { name:_ascii2data('NaN'),       value:Number.NaN,             len:3 },
             { name:_ascii2data('PAST'),      value:TSDate.past(),   len:4 },
             { name:_ascii2data('current'),   value:this,            len:7 },
             { name:_ascii2data('false'),     value:false,           len:4 },
@@ -175,7 +175,7 @@ export abstract class TSFusionTemplate {
             }
         }
         function tohex(v:any):string { return $isnumber(v) ? `0x${v.toString(16)}` : `'${v}'` ; }
-        function tochar(c:uint8):string { return String.fromCharCode(c) ; }
+        function tochar(c:uint8):string { return String.fromCodePoint(c) ; }
 
         if (debug) {
             $logterm(`&0&x - &w source length&x:         &o${len}&0`)
@@ -508,7 +508,7 @@ export abstract class TSFusionTemplate {
                         unicodeValue = (unicodeValue << 4) | hexa ;
                         tokenPos++ ;
                         if (tokenPos === 4) {
-                            const bytes = paramCharset.bytesFromString(String.fromCharCode(unicodeValue)) ;
+                            const bytes = paramCharset.bytesFromString(String.fromCodePoint(unicodeValue)) ;
                             currentParameter.appendBytes(bytes) ;
                             state = State.StringParameter ;
                         }
@@ -1076,7 +1076,7 @@ function _parseHTML(src:Uint8Array, options?:TSFusionTemplateOptions):[TSData, T
     while (i < len) {
         const c = src[i] ;
         if (debug) {
-            $logterm(`&0&j${i.fpad(8,'_')}&w: &x0x&p${c.toString(16)}&x (&b'&c${String.fromCharCode(c)}&b'&x), state:&p${state}&x, last:&y${last}&0`) ;
+            $logterm(`&0&j${i.fpad(8,'_')}&w: &x0x&p${c.toString(16)}&x (&b'&c${String.fromCodePoint(c)}&b'&x), state:&p${state}&x, last:&y${last}&0`) ;
         }
         switch (state) {
             case State.Text:

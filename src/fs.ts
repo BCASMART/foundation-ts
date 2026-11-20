@@ -23,7 +23,7 @@ import {
     chmodSync,
     StatOptions,
     rmSync
-} from 'fs'
+} from 'fs'  // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
 
 import {
     basename,
@@ -34,9 +34,9 @@ import {
     normalize,
     resolve,
     sep
-} from 'path';
+} from 'path'; // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
 
-import { homedir } from 'os';
+import { homedir } from 'os';  // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
 
 import { $isbool, $isstring, $isunsigned, $length, $ok, $strings, $value, $valueornull } from './commons';
 import { $tmp } from './tsdefaults';
@@ -48,6 +48,7 @@ import { Nullable, StringEncoding } from './types';
 import { $asciifs, $ftrim } from './strings';
 import { $charset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
+import { $declareMethods } from "./object";
 
 /**
  * WARNING: paths functions internalImplementation does not exist on Windows,
@@ -233,7 +234,8 @@ export function $uniquefile(src?: Nullable<string>, ext: Nullable<string> = unde
 }
 
 export function $isabsolutepath(src?: Nullable<string>, internalImplementation: boolean = false): boolean {
-    return $length(src) > 0 ? (internalImplementation || $inbrowser() ? src!.startsWith('/') : isAbsolute(src!)) : false;
+    if (!$length(src)) { return false ; }
+    return internalImplementation || $inbrowser() ? src!.startsWith('/') : isAbsolute(src!) ;
 }
 export { $isabsolutepath as $isabsolute }
 
@@ -282,9 +284,10 @@ export function $currentdirectory(): string {
 }
 
 export function $path(first: string | boolean, ...paths: string[]): string {
-    return $isbool(first) ? 
-           (first || $inbrowser() ? _internalPath(...paths) : join(...paths)) : 
-           ($inbrowser() ? _internalPath(first, ...paths) : join(first, ...paths)) ;
+    if ($isbool(first)) {
+        return first || $inbrowser() ? _internalPath(...paths) : join(...paths) ;
+    }
+    return $inbrowser() ? _internalPath(first, ...paths) : join(first, ...paths) ;
 }
 
 export function $ext(s: Nullable<string>, internalImplementation: boolean = false): string {
@@ -305,7 +308,7 @@ export function $ext(s: Nullable<string>, internalImplementation: boolean = fals
 export function $extset(extensions:Nullable<string|string[]>, transform:(s:string) => string = s => s.toLowerCase()):Set<string> {
     return $arrayset($strings(extensions), (e) => { 
         e = $ftrim(e) ; 
-        if (e[0] === '.') { e = e.slice(1) ; }
+        if (e.startsWith('.')) { e = e.slice(1) ; }
         if (e.length > 0) { e = transform(e) ; }
         return e.length > 0 ? e : null ; 
     }) ;
@@ -315,7 +318,7 @@ export function $withoutext(s: Nullable<string>, internalImplementation?: boolea
     if (!$length(s)) { return ''; }
     const e = $ext(s, internalImplementation);
     s = e.length ? s!.slice(0, s!.length - e.length) : s!;
-    return s.length && s.charAt(s.length - 1) === '.' ? s.slice(0, s!.length - 1) : s;
+    return s.length && s.endsWith('.') ? s.slice(0, - 1) : s;
 }
 
 export function $newext(s: Nullable<string>, e: Nullable<string> = undefined, internalImplementation?: boolean): string {
@@ -328,25 +331,26 @@ export function $dir(source: Nullable<string>, internalImplementation: boolean =
     if (!len) { return '.'; }
     let s = source!;
 
-    if (internalImplementation || $inbrowser()) {
-        let start = 0;
-        while (start < len && s.charAt(start) === '/') { start++ }
-        if (start === len) { return '/'; } else if (len === 1) { return '.'; }
-
-        let end = len - 1;
-        while (end > start && s.charAt(end) === '/') { end-- };
-        end++;
-        if (start === 0 && end === len) {
-            const slash = s.lastIndexOf('/');
-            return slash > 0 ? s.slice(0, slash) : '.';
-        }
-        else {
-            const t = s.slice(start, end);
-            const slash = t.lastIndexOf('/');
-            return slash > 0 ? s.slice(0, start) + t.slice(0, slash) : (start > 0 ? s.slice(0, start) : '.');
-        }
+    if (!internalImplementation && !$inbrowser()) {
+        return dirname(s!);
     }
-    return dirname(s!);
+
+    let start = 0;
+    while (start < len && s.charAt(start) === '/') { start++ }
+    if (start === len) { return '/'; } else if (len === 1) { return '.'; }
+
+    let end = len - 1;
+    while (end > start && s.charAt(end) === '/') { end-- };
+    end++;
+    if (start === 0 && end === len) {
+        const slash = s.lastIndexOf('/');
+        return slash > 0 ? s.slice(0, slash) : '.';
+    }
+
+    const t = s.slice(start, end);
+    const slash = t.lastIndexOf('/');
+    if (slash > 0) { return s.slice(0, start) + t.slice(0, slash) ; }
+    return start > 0 ? s.slice(0, start) : '.' ;
 }
 
 export function $safeFilename(s: Nullable<string>, posix:boolean = false, internalImplementation: boolean = false): string 
@@ -355,16 +359,18 @@ export function $safeFilename(s: Nullable<string>, posix:boolean = false, intern
 export function $filename(s: Nullable<string>, internalImplementation: boolean = false): string {
     let len = $length(s);
     if (!len) { return ''; }
-    if (internalImplementation || $inbrowser()) {
-        let end = len - 1;
-        while (end >= 0 && s!.charAt(end) === '/') { end-- };
-        end++;
-        if (end === 0) { return ''; }
-        else if (end < len) { s = s!.slice(0, end); }
-        const slash = s!.lastIndexOf('/');
-        return slash >= 0 ? s!.slice(slash + 1) : s!;
+
+    if (!internalImplementation && !$inbrowser()) {
+        return basename(s!);
     }
-    return basename(s!);
+
+    let end = len - 1;
+    while (end >= 0 && s!.charAt(end) === '/') { end-- };
+    end++;
+    if (end === 0) { return ''; }
+    else if (end < len) { s = s!.slice(0, end); }
+    const slash = s!.lastIndexOf('/');
+    return slash >= 0 ? s!.slice(slash + 1) : s!;
 }
 
 // JSON buffer is always considered as UTF8 buffer
@@ -388,17 +394,17 @@ export function $readString(src: Nullable<string>, encoding?: Nullable<StringEnc
     return $ok(buffer) ? $charset(encoding).stringFromData(buffer!) : null;
 }
 
-export interface BasicWriteOptions {
-    attomically?: Nullable<boolean>;
-    removePrecedentVersion?: Nullable<boolean>;
-    mode?: Nullable<number>;
-    errors?: Nullable<string[]>; // when set, every error encountered (not warnings) is pushed here
+export interface BasicWriteOptions { 
+    attomically?: Nullable<boolean>; // NOSONAR: field is optional
+    removePrecedentVersion?: Nullable<boolean>; // NOSONAR: field is optional
+    mode?: Nullable<number>; // NOSONAR: field is optional
+    errors?: Nullable<string[]>; // NOSONAR: field is optional. when set, every error encountered (not warnings) is pushed here
 }
 
-export interface $writeStringOptions extends BasicWriteOptions {
-    encoding?: Nullable<StringEncoding | TSCharset>,
-    stringStart?: Nullable<number>,
-    stringEnd?: Nullable<number>
+export interface $writeStringOptions extends BasicWriteOptions { // NOSONAR: name accepted for matchnig the function
+    encoding?: Nullable<StringEncoding | TSCharset>, // NOSONAR: field is optional
+    stringStart?: Nullable<number>, // NOSONAR: field is optional
+    stringEnd?: Nullable<number> // NOSONAR: field is optional
 }
 
 export function $writeString(src: Nullable<string>, str: string, opts: $writeStringOptions = {}): boolean {
@@ -430,7 +436,7 @@ export function $readData(src: Nullable<string>): TSData | null {
     return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer: true }) : null;
 }
 
-export interface $writeBufferOptions extends BasicWriteOptions {
+export interface $writeBufferOptions extends BasicWriteOptions { // NOSONAR: name accepted for matchnig the function
     byteStart?: number,
     byteEnd?: number
 }
@@ -718,20 +724,26 @@ declare global {
     }
 }
 
-String.prototype.addPaths       = function addPaths(this:string, ...comps:string[]):string
-{ return $inbrowser() ? _internalPath(this, ...comps) : join(this, ... comps) ; }
-String.prototype.addPath        = String.prototype.addPaths ;
-String.prototype.extension      = function extension(this:string):string { return $ext(this) ; }
-String.prototype.ext            = String.prototype.extension ;
-String.prototype.directory      = function directory(this:string):string { return $dir(this) ; }
-String.prototype.filename       = function filename(this:string):string { return $filename(this) ; }
-String.prototype.hasExtension   = function hasExtension(this:string, e?:Nullable<string>)
-{
-    if (!$ok(e)) { e = '' ; }
-    const ext = $ext(this) ;
-    return e === ext || (e!.length && e!.toLowerCase() === ext.toLowerCase()) ? true : false ; 
-}
-String.prototype.isAbsolutePath = function isAbsolutePath(this:string):boolean { return $isabsolutepath(this) ; }
-String.prototype.newExtension   = function newExtension(this:string, e?:Nullable<string>):string { return $newext(this, e) ; }
-String.prototype.normalizePath  = function normalizePath(this:string):string { return $normalizepath(this) ; }
-String.prototype.safeFilename   = function safeFilename(this:string):string { return $safeFilename(this) ; }
+$declareMethods(String, {
+    addPaths(this:string, ...comps:string[]):string
+    { return $inbrowser() ? _internalPath(this, ...comps) : join(this, ... comps) ; },
+}) ;
+$declareMethods(String, {
+    addPath:   String.prototype.addPaths,
+    extension(this:string):string { return $ext(this) ; },
+}) ;
+$declareMethods(String, {
+    ext:            String.prototype.extension,
+    directory(this:string):string { return $dir(this) ; },
+    filename(this:string):string { return $filename(this) ; },
+    hasExtension(this:string, e?:Nullable<string>)
+    {
+        if (!$ok(e)) { e = '' ; }
+        const ext = $ext(this) ;
+        return e === ext || (e.length > 0 && e.toLowerCase() === ext.toLowerCase()) ; 
+    },
+    isAbsolutePath(this:string):boolean { return $isabsolutepath(this) ; },
+    newExtension(this:string, e?:Nullable<string>):string { return $newext(this, e) ; },
+    normalizePath(this:string):string { return $normalizepath(this) ; },
+    safeFilename(this:string):string { return $safeFilename(this) ; },
+}) ;

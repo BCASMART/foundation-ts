@@ -301,10 +301,12 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         const [r,g,b] = this.rgbComponents() ;
         const l = Math.max(r, g, b);
         const s = l - Math.min(r, g, b);
-        const h = s ? (l === r ? (g - b) / s : (l === g ? 2 + (b - r) / s : 4 + (r - g) / s)) : 0 ;
+        const h = _hue(r, g, b, l, s) ;
+        let saturation = 0 ;
+        if (s) { saturation = l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s)) ; }
         return [
             $round(60 * (h < 0 ? h + 6 : h)),
-            $round(100 * (s ? (l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s))) : 0)),
+            $round(100 * saturation),
             $round((100 * (2 * l - s)) / 2),
         ];
     }
@@ -316,7 +318,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         }
         const v = Math.max(r, g, b) ;
         const n = v - Math.min(r, g, b) ;
-        const h = n === 0 ? 0 : n && v === r ? (g - b) / n : v === g ? 2 + (b - r) / n : 4 + (r - g) / n;
+        const h = _hue(r, g, b, v, n) ;
         return [
             $round(60 * (h < 0 ? h + 6 : h)), 
             $round(v && (n / v) * 100), 
@@ -357,9 +359,11 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     // usesLuminosity = true if you want another more precise RGB or CMYK to grayscale conversion 
     public toGrayscale(mode:TSToGrayScaleMode=TSToGrayScaleMode.Brightess):TSColor {
         if (this.colorSpace === TSColorSpace.Grayscale) { return this ; }
-        return TSColor.grayscale(mode === TSToGrayScaleMode.Brightess ? 
-                                 this.grayComponent() : 
-                                 (mode === TSToGrayScaleMode.Luminosity ? this.luminosity : this.luminance)) ;
+        let gray:number ;
+        if (mode === TSToGrayScaleMode.Brightess) { gray = this.grayComponent() ; }
+        else if (mode === TSToGrayScaleMode.Luminosity) { gray = this.luminosity ; }
+        else { gray = this.luminance ; }
+        return TSColor.grayscale(gray) ;
     }
 
     public lighterColor(): TSColor { return this._modifiedColorsColor(1, _cmykLighter, _rgbLighter) ; }
@@ -426,8 +430,8 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 	}
 
     public compare(other:any): Comparison {
-        return this === other ? Same : 
-            (other instanceof TSColor ? $numcompare(this.luminance, other.luminance) : undefined) ;
+        if (this === other) { return Same ; }
+        return other instanceof TSColor ? $numcompare(this.luminance, other.luminance) : undefined ;
     }
 
 	public toString(opts: TSColorToStringOptions = {}): string {
@@ -787,18 +791,18 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if (len < 10) {
             let parser = TSColor.__WebColorsHexParsers[len];
             if ($ok(parser)) {
-                const m = s.match(parser.rx) ;
+                const m = parser.rx.exec(s) ;
                 if ($ok(m)) {
                     let channels:uint8[] = [] ;
                     for (let i = 0 ; i < 3 ; i++) { 
-                        const v = parseInt(m[i+1], 16) ;
+                        const v = Number.parseInt(m[i+1], 16) ;
                         if (!$isunsigned(v,0xFF)) { return [null, UINT8_MIN] ; }
                         channels[i] = <uint8>v ; 
                     }
                     if (parser.short) {
                         channels = channels.map(v => ((v<<4) | v) as uint8)
                     }
-                    let alpha = m.length === 5 ? <uint8>parseInt(m[4], 16) : UINT8_MAX ;
+                    let alpha = m.length === 5 ? <uint8>Number.parseInt(m[4], 16) : UINT8_MAX ;
                     return [channels, alpha] ;
                 }
             }
@@ -855,7 +859,16 @@ interface _StringColorRegex {
     rx: RegExp ;
     short:boolean ;
 }
-function _component(x:number):number { return isNaN(x) ? 0 : Math.min(1, Math.max(0, x)) ; }
+function _component(x:number):number { return Number.isNaN(x) ? 0 : Math.min(1, Math.max(0, x)) ; }
+
+// hue in sextants (before the * 60 and the negative values correction)
+// max is the greatest RGB component and delta the difference between the greatest and the smallest one
+function _hue(r:number, g:number, b:number, max:number, delta:number):number {
+    if (!delta) { return 0 ; }
+    if (max === r) { return (g - b) / delta ; }
+    if (max === g) { return 2 + (b - r) / delta ; }
+    return 4 + (r - g) / delta ;
+}
 
 function _cmykLighter(X:number):number { X = _component(X) ; return -(X*X)/3.0+5.0*(X)/6.0 ; }
 function _cmykDarker(X:number):number  { X = _component(X) ; return 2*(X*X)/3.0+X/2.0+0.25 ; }

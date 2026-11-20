@@ -3,6 +3,9 @@ import { Continents, Countries, Currencies } from "../src/types";
 import { $ok } from "../src/commons";
 import { Same } from "../src/types";
 import { TSTest } from '../src/tstester';
+import { $inbrowser } from "../src/utils";
+import { execFileSync } from "child_process";
+import { join } from "path";
 
 export const countriesGroups = TSTest.group("Testing TSCountry class", async (group) => {
     const C = TSCountry.countries() ;
@@ -137,4 +140,16 @@ export const countriesGroups = TSTest.group("Testing TSCountry class", async (gr
         t.expect5(TSCountry.countryForVATNumber('FR123')).null() ;
         t.expect6(TSCountry.countryForVATNumber(null)).null() ;
     }) ;
+    if (!$inbrowser()) {
+        group.unary("TSCountry static accessors load the countries", async (t) => {
+            // in a fresh process, only TSCountry.country() and countries() used to load the countries:
+            // the other static accessors did throw "Cannot read properties of undefined"
+            const script = `const { TSCountry } = require(${JSON.stringify(join(__dirname, '../src/tscountry'))}) ;
+                            console.log(JSON.stringify([ TSCountry.alpha2CodeForAlpha3Code('FRA'), TSCountry.alpha3CodeForAlpha2Code('FR'), 
+                                TSCountry.alpha2CodeForNumericCode(250), TSCountry.alpha3Codes().includes('DEU'), 
+                                TSCountry.countriesForDialCode('33').length ])) ;` ;
+            const out = execFileSync(process.execPath, ['--no-warnings', '-e', script], { encoding:'utf8' }) ;
+            t.expect0(JSON.parse(out)).is(['FR', 'FRA', 'FR', true, 1]) ;
+        }) ;
+    }
 }) ;

@@ -1,5 +1,5 @@
 import { $isuuid, $ok } from "../src/commons";
-import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $commonInitializationVectorCopy, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA256, SHA384, SHA512, SHA224, $password, $shuffle, $randomBytes, $nativeHash, $sha1, $sha224, $sha256, $sha384, $sha512, $setCryptoProvider, $cryptoProvider } from "../src/crypto";
+import { $crc16, $crc32, $decrypt, $encrypt, $hash, $random, $setCommonItializationVector, $commonInitializationVectorCopy, $slowhash, $uuid, $uuidVersion, AES128, SHA1, SHA256, SHA384, SHA512, SHA224, $password, $shuffle, $randomBytes, $slowuuid, $nativeHash, $sha1, $sha224, $sha256, $sha384, $sha512, $setCryptoProvider, $cryptoProvider } from "../src/crypto";
 import { $div } from "../src/number";
 import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
@@ -250,7 +250,7 @@ export const cryptoGroups = [
 
             for (let i = 1 ; i < 265 ; i++) {
                 let s = '' ;
-                for (let j = 0 ; j < i ; j++) { s += String.fromCharCode(($random(1)?65:97)+$random(26)) ; }
+                for (let j = 0 ; j < i ; j++) { s += String.fromCharCode(($random(2)?65:97)+$random(26)) ; }
                 t.register(`str[${i}]`, s) ;
                 const enc = $encrypt(s, k, opts) ;
                 const n = i.toString(16) ;
@@ -311,6 +311,29 @@ export const cryptoGroups = [
             t.expectF(seen.size).is(2000) ;
         }) ;
 
+        group.unary("$slowuuid() uses all its random bits", async(t) => {
+            // a former version shifted random bytes by up to 23 bits, so 14 hexadecimal
+            // digits were always 0 (eg. 9b664731-0000-4000-8000-00002314b031)
+            const N = 200 ;
+            const digits:Set<string>[] = Array.from({ length:32 }, () => new Set<string>()) ;
+            const all = new Set<string>() ;
+            for (let n = 0 ; n < N ; n++) {
+                const u = $slowuuid(true) ;
+                all.add(u) ;
+                const hex = u.replaceAll('-', '') ;
+                for (let i = 0 ; i < 32 ; i++) { digits[i].add(hex.charAt(i)) ; }
+            }
+            t.expect0(all.size).is(N) ;
+            t.expect1([...digits[12]]).is(['4']) ;                                  // version digit
+            t.expect2([...digits[16]].every(c => '89ab'.includes(c))).true() ;      // variant digit
+            t.expect3(digits[16].size).gt(2) ;
+            // with 200 draws, every other (random) hexadecimal digit must take many values
+            t.expect4(digits.every((d, i) => i === 12 || i === 16 || d.size >= 8)).true() ;
+            t.expect5(/^[\da-f-]{36}$/.test($slowuuid(true))).true() ;            // lowercase
+            t.expect6(/^[\dA-F-]{36}$/.test($slowuuid())).true() ;                // uppercase by default
+            t.expect7($uuidVersion($slowuuid())).is(UUIDv4) ;
+        }) ;
+
         group.unary("$crc16() function", async(t) => {
             t.expect0($crc16('ABCDEFGHIJKLMNOPQRSTUVWXYZ')).is(0x18E7) ;
             t.expect1($crc16('123456789')).is(0xBB3D) ;
@@ -339,6 +362,19 @@ export const cryptoGroups = [
             t.expect2(specials).gt(0) ;            
             t.expect3(lowercases).gt(0) ;            
             t.expect4(digits+specials+lowercases).is(p1.length) ;
+        }),
+        group.unary("$password() draws its characters without bias", async (t) => {
+            // a former version took a random byte modulo 26 : the letters a to v were
+            // drawn 10 times out of 256 and the letters w to z only 9 times (ratio ~0.91)
+            const counts = new Map<string, number>() ;
+            for (let i = 0 ; i < 1000 ; i++) {
+                for (const c of $password(64, { usesLowercase:true })) { counts.set(c, (counts.get(c) ?? 0) + 1) ; }
+            }
+            t.expect0(counts.size).is(26) ;
+            const expected = 64000 * 4 / 26 ;
+            const wxyz = ['w', 'x', 'y', 'z'].reduce((sum, c) => sum + (counts.get(c) ?? 0), 0) ;
+            t.expect1(wxyz / expected).gt(0.96) ;     // more than 4 standard deviations from the biased ratio
+            t.expect2(wxyz / expected).lt(1.04) ;
         })
 
         group.unary("$shuffle() function and Array.shuffle() method", async (t) => {
@@ -366,10 +402,26 @@ export const cryptoGroups = [
 
             const set2 = new Set<number>() ;
             for (let i = 0 ; i < N ; i++) { 
-                t.expect(base.includes(res[i]), `b2[${i}]`).true() ;
-                set2.add(res[i]) ; 
+                t.expect(base2.includes(res2[i]), `b2[${i}]`).true() ;
+                set2.add(res2[i]) ; 
             }
             t.expectD(set2.size).is(N) ;
+
+            // partial shuffle: max distinct elements taken from the source
+            const res3 = $shuffle(base, 5) ;
+            t.expectE(res3.length).is(5) ;
+            t.expectF(new Set(res3).size).is(5) ;
+            t.expectG(res3.every(v => base.includes(v))).true() ;
+            t.expectH($shuffle(null)).is([]) ;
+            t.expectI($shuffle([])).is([]) ;
+            t.expectJ(base.length).is(63) ;                    // the source is never modified
+
+            // the former splice() based implementation was O(n²) and took several seconds here
+            const big = Array.from({ length:200_000 }, (_, i) => i) ;
+            const start = performance.now() ;
+            const shuffled = $shuffle(big) ;
+            t.expectK(performance.now() - start).lt(3000) ;
+            t.expectL(new Set(shuffled).size).is(200_000) ;
 
         }) ;
 

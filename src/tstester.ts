@@ -35,13 +35,14 @@ export interface TSTesterResult {
     failed:number ;         // groups with at least one failed expectation
     expectations:number ;   // total expectations evaluated
     failures:number ;       // total failed expectations
-    stopped:boolean ;       // run interrupted by stopOnFirstFail
+    stopped:boolean ;       // run interrupted by stopOnFirstFail or by TSUnaryTest.stop()
+    stopReason?:string ;    // the reason given to TSUnaryTest.stop() when it did interrupt the run
 }
 
 const _emptyTesterResult:TSTesterResult = { groups:0, passed:0, silent:0, failed:0, expectations:0, failures:0, stopped:false } ;
 
 export class TSTester {
-    public static globalOptions:TSTesterGlobalOptions = {} ;
+    public static globalOptions:TSTesterGlobalOptions = {} ; // NOSONAR: this static variable is meant to be public
 
     public groups:TSTestGroup[] = [] ;
     public _names:Set<string> ;
@@ -82,7 +83,7 @@ export class TSTester {
             this.log(`${clearScreen?'&Z':''}&eTSTester will now list &Y&k ${this.desc} &0&e :`) ;
             let i = 1 ;
             for (let g of this.groups) {
-                await g.prepare() ; 
+                await g.prepare() ; // NOSONAR: groups are prepared in order, keep it that way
                 $writeterm(`&e${i.fpad4()} `) ; 
                 g.dumpGroupInfo() ;
                 $logterm('') ;
@@ -102,62 +103,66 @@ export class TSTester {
         }
 
         const start = $mark() ;
-
         this.log(`${opts.clearScreen?'&Z':''}&eTSTester will now start &Y&k ${this.desc} &0&e :`) ;
-        let expectations = 0 ;
-        let expectationsFailed = 0 ;
-        let focusNames = $count(opts.focusNames) ? opts.focusNames!.filter(fn => this.containsName(fn)) : [] ;
-        
+
+        // first phase, we prepare the groups, then we run the tests
+        const groups = await this._preparedGroups(opts.focusNames) ;
+        const result = await this._runGroups(groups) ;
+
+        if (result.stopped) {
+            this.log($length(result.stopReason) ? `&R&w  TESTS DID STOP: ${result.stopReason!.doubleEscape('&')}  &0` : '&R&w  TESTS DID STOP ON FIRST TEST FAILED  &0') ;
+            if ($isfunction(opts.stopItCallback)) { await opts.stopItCallback(this) ; }
+        }
+        else { this._logResult(result, start) ; }
+        return result ;
+    }
+
+    // prepares all the groups and returns the ones to run
+    private async _preparedGroups(names:Nullable<string[]>):Promise<TSTestGroup[]> {
+        const focusNames = $count(names) ? names!.filter(fn => this.containsName(fn)) : [] ;
         for (let g of this.groups) { 
             if ($length(g.name) && focusNames.includes(g.name!)) { g.focused = true ; }
-            await g.prepare() ; 
+            await g.prepare() ; // NOSONAR: groups are prepared in order, keep it that way
         }
 
-        let groups = this.groups.filter(g => g.focused) ;
-        const n = $count(groups) ;
-        if (n > 0) {
-            this.log(`&0&O&r Test will be restricted to ${n} groups out of all ${this.groups.length} &0`) ;
-        }
-        else { groups = this.groups ; }
+        const groups = this.groups.filter(g => g.focused) ;
+        if (!groups.length) { return this.groups ; }
+        this.log(`&0&O&r Test will be restricted to ${groups.length} groups out of all ${this.groups.length} &0`) ;
+        return groups ;
+    }
 
-        let passed = 0, failed = 0, silent = 0 ;
-        let stopit = false ;
-        // second phase, we run the tests
+    private async _runGroups(groups:TSTestGroup[]):Promise<TSTesterResult> {
+        const result:TSTesterResult = { ..._emptyTesterResult } ;
         for (let g of groups) {
-            let groupExpected, groupFailed ;
-            
-            [groupExpected, groupFailed, stopit] = await g.run() ;
-            if (stopit) { break ; }
-
-            expectations += groupExpected ;
-            expectationsFailed += groupFailed ;
-            if (groupFailed === 0) { if (g.silent) { silent ++ ; } else { passed++ ; } } else { failed++ ; }
-        }
-        
-        if (stopit) {
-            this.log('&R&w  TESTS DID STOP ON FIRST TEST FAILED  &0') ;
-            if ($isfunction(opts.stopItCallback)) { opts!.stopItCallback!(this) ; }
-        }
-        else {
-            this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? ' was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
-            if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
-            if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${silent === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
-            if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
-            if ((passed > 0 || silent > 0) && !failed) {
-                this.log('&G&w  ALL TESTS PASSED  &0') ;
-            }
-            else if (expectationsFailed > 0) {
-                this.log(`&R&w${expectationsFailed.toString().padStart(PADN)} TEST${expectationsFailed>1?'S':''} FAILED  &0`) ;
+            const [groupExpected, groupFailed, stopit] = await g.run() ; // NOSONAR: groups are run in order, keep it that way
+            // the group which did stop the run is counted, so its failures are reported
+            result.expectations += groupExpected ;
+            result.failures += groupFailed ;
+            if (groupFailed > 0) { result.failed++ ; }
+            else if (g.silent) { result.silent++ ; }
+            else { result.passed++ ; }
+            if (stopit) { 
+                result.stopped = true ;
+                if ($length(g.stopReason)) { result.stopReason = g.stopReason ; }
+                break ; 
             }
         }
+        result.groups = result.passed + result.silent + result.failed ;
+        return result ;
+    }
 
-        return {
-            groups: passed + silent + failed,
-            passed, silent, failed,
-            expectations,
-            failures: expectationsFailed,
-            stopped: stopit,
-        } ;
+    private _logResult(result:TSTesterResult, start:number) {
+        const { expectations, passed, silent, failed, failures } = result ;
+        this.log(`&y${expectations.toString().padStart(PADN)}&0&e test${expectations === 1 ? ' was' : 's were'} executed in &y${$ellapsed(start)}&0`) ;
+        if (passed > 0) { this.log(`&g${passed.toString().padStart(PADN)}&0&j group${passed === 1 ? ' ' : 's'} of tests did &G&w  PASS  &0`) ; }
+        if (silent > 0) { this.log(`&g${silent.toString().padStart(PADN)}&0&j&? group${silent === 1 ? ' ' : 's'} of tests did &J&?&w  PASS IN SILENT MODE  &0`) ; }
+        if (failed > 0) { this.log(`&r${failed.toString().padStart(PADN)}&0&o group${failed === 1 ? ' ' : 's'} of tests did &R&w  FAIL  &0`) ; }
+        if ((passed > 0 || silent > 0) && !failed) {
+            this.log('&G&w  ALL TESTS PASSED  &0') ;
+        }
+        else if (failures > 0) {
+            this.log(`&R&w${failures.toString().padStart(PADN)} TEST${failures > 1 ? 'S' : ''} FAILED  &0`) ;
+        }
     }
 }
 
@@ -187,13 +192,16 @@ export abstract class TSGenericTest {
         if ($length(opts?.name) > 0) { this.name = opts!.name! ; }
     }
 
-    public async run():Promise<[number, number, boolean]> { return [0,0, false] ; }
+    public /* async */ run():Promise<[number, number, boolean]> { return Promise.resolve([0,0, false]) ; }
+    // the reason given to TSUnaryTest.stop() if this test did stop the run
+    public get stopReason():string|undefined { return undefined ; }
     public log(format:string, ...args:any[]) { $logterm(format, args) ; }
 
 }
 
 export class TSTestGroup extends TSGenericTest {
     private _unaries:TSGenericTest[] = [] ; 
+    private _stopReason:string|undefined = undefined ;
     public constructor(s:string, f:groupFN, opts?:TSGenericTestOptions) {
         super(s, f as testFN, opts) ;
         if (opts?.focusGroup) { this.focused = true ; }
@@ -231,6 +239,7 @@ export class TSTestGroup extends TSGenericTest {
         let expectations = 0 ;
         let expectationFailed = 0 ;
         let stopit = false ;
+        this._stopReason = undefined ;
         
         if (!this.silent) { this.log(`&u- Running ${this.silent?"silent ":""}group tests &U&k ${this.desc} &0`) ; }
         let unaries = this._unaries.filter(u => u.focused) ;
@@ -241,17 +250,26 @@ export class TSTestGroup extends TSGenericTest {
             [unaryExpected, unaryFailed, stopit] = await u.run() ;
             expectationFailed += unaryFailed ;
             expectations += unaryExpected ;
-            if (stopit) { break ; }
+            if (stopit) { 
+                this._stopReason = u.stopReason ;
+                break ; 
+            }
         }
         
-        if (!stopit) {
-            if (this.silent && expectationFailed > 0) {
-                this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ;
-            }
-            if (!this.silent || expectationFailed > 0) { $logterm(`${expectationFailed==0?'&j':'\n&o'}    ${this.desc} tests ${expectationFailed==0?'&G&w  PASSED  ':'&R&w  FAILED  '}&0&y in ${$ellapsed(start)}\n`) ; }
-        }
-
+        if (!stopit) { this._logResult(expectationFailed, start) ; }
         return [expectations, expectationFailed, stopit] ;
+    }
+
+    public override get stopReason():string|undefined { return this._stopReason ; }
+
+    // a silent group only logs its result when it fails
+    private _logResult(expectationFailed:number, start:number) {
+        if (expectationFailed === 0) {
+            if (!this.silent) { $logterm(`&j    ${this.desc} tests &G&w  PASSED  &0&y in ${$ellapsed(start)}\n`) ; }
+            return ;
+        }
+        if (this.silent) { this.log(`&u- Did run group tests &U&k ${this.desc} &0`) ; }
+        $logterm(`\n&o    ${this.desc} tests &R&w  FAILED  &0&y in ${$ellapsed(start)}\n`) ;
     }
 }
 
@@ -284,6 +302,7 @@ export class TSUnaryTest extends TSGenericTest {
     }
 
     public get stopped() { return $ok(this._stopped) ; }
+    public override get stopReason():string|undefined { return this._stopped ; }
     public get catched() { return this._catched ; }
 
     public set catchFunction(fn:TSUnaryTestCatch) { this._catchFunction = fn ; }
@@ -319,7 +338,8 @@ export class TSUnaryTest extends TSGenericTest {
             $logterm(`&x     ➤ &ldid execute test &B&w ${this.desc} &0&R&w ${this._failed} KO &0`) ;
         }
 
-        return [this._expected, this._failed, this.stopOnFirstFail && this._failed > 0] ;
+        // stop() interrupts the whole run once this unary test is finished
+        return [this._expected, this._failed, this.stopped || (this.stopOnFirstFail && this._failed > 0)] ;
     }
     
     public register(name:string, value:any)
@@ -387,6 +407,7 @@ export class TSUnaryTest extends TSGenericTest {
     public fail():boolean { this._failed ++ ; return false ; }
     public pass():boolean { this._passed ++ ; return true ; }
 
+    // stops the whole run at the end of this unary test (use return to leave the test immediately)
     public stop(reason?:Nullable<string>) { 
         this._stopped = $length(reason) ? reason! : "By user command." ; 
     }
@@ -412,7 +433,7 @@ export class TSExpectAgent {
     public toStrictlyBe(aValue:any):boolean    { return aValue !== this._value ? this._elogfail(aValue) : this._logpass() ; }
     public notToStrictlyBe(aValue:any):boolean { return aValue === this._value ? this._nelogfail(aValue) : this._logpass() ; }
     public toBeTruthy():boolean         { return !this._value           ? this._elogfail(true)       : this._logpass() ; }
-    public toBeFalsy():boolean          { return !!this._value          ? this._elogfail(false)      : this._logpass() ; }
+    public toBeFalsy():boolean          { return this._value            ? this._elogfail(false)      : this._logpass() ; }
     public toBeUndefined():boolean      { return $defined(this._value)  ? this._elogfail(undefined)  : this._logpass() ; }
     public toBeDefined():boolean        { return !$defined(this._value) ? this._nelogfail(undefined) : this._logpass() ; }
     public toBeNull():boolean           { return this._value !== null   ? this._elogfail(null)       : this._logpass() ; }
@@ -421,67 +442,51 @@ export class TSExpectAgent {
     public toBeOK():boolean             { return !$ok(this._value)          ? this._elogfail('<a non null defined value>')  : this._logpass() ; }
     public toBeNotOK():boolean          { return $ok(this._value)           ? this._elogfail('<a null or undefined value>') : this._logpass() ; }
 
-    public toBeNaN():boolean            { return !isNaN(this._value)        ? this._elogfail(NaN)                : this._logpass() ; }
-    public toBeANumber():boolean        { return this._toBe('a valid number>', $isnumber) ; }
-    public toBeAnInt():boolean          { return this._toBe('an integer>', $isint) ; }
-    public toBeAnUnsigned():boolean     { return this._toBe('an unsigned>', $isunsigned) ; }
-    public toBeAString():boolean        { return this._toBe('a string>', $isstring) ; }
-    public toBeBool():boolean           { return this._toBe('a boolean>', $isbool) ; }
-    public toBeAnEmail():boolean        { return this._toBe('an email>', $isemail) ; }
-    public toBeAnUrl():boolean          { return this._toBe('an url>', $isurl) ; }
-    public toBeAnUUID():boolean         { return this._toBe('an UUID>', $isuuid) ; }
-    public toBeAnObject():boolean       { return this._toBe('an object>', $isobject) ; }
-    public toBeArray():boolean          { return this._toBe('an array>', $isarray) ; }
-    public toBeADate():boolean          { return this._toBe('a date>', $isdate) ; }
-    public toBeIterable():boolean       { return this._toBe('an iterable object', $isiterable) ;; }
-    public toBeAFunction():boolean      { return this._toBe('a function>', $isfunction) ; }
-    public toBeAFile():boolean          { return this._toBe('a file>', $isfile) ; }
-    public toBeADirectory():boolean     { return this._toBe('a folder>', $isdirectory) ; }
-    public toBeAnIPv4():boolean         { return this._toBe('a folder>', $isipv4) ; }
-    public toBeAnIPv6():boolean         { return this._toBe('a folder>', $isipv6) ; }
-    public toBeAnIPAddress():boolean    { return this._toBe('a folder>', $isipaddress) ; }
-    public toBeAPhoneNumber():boolean   { return this._toBe('a phone number>', $isphonenumber) ; }
+    public toBeNaN():boolean            { return !Number.isNaN(Number(this._value)) ? this._elogfail(Number.NaN)                : this._logpass() ; }
+    public toBeANumber():boolean        { return this._toBe('a valid number', $isnumber) ; }
+    public toBeAnInt():boolean          { return this._toBe('an integer', $isint) ; }
+    public toBeAnUnsigned():boolean     { return this._toBe('an unsigned', $isunsigned) ; }
+    public toBeAString():boolean        { return this._toBe('a string', $isstring) ; }
+    public toBeBool():boolean           { return this._toBe('a boolean', $isbool) ; }
+    public toBeAnEmail():boolean        { return this._toBe('an email', $isemail) ; }
+    public toBeAnUrl():boolean          { return this._toBe('an url', $isurl) ; }
+    public toBeAnUUID():boolean         { return this._toBe('an UUID', $isuuid) ; }
+    public toBeAnObject():boolean       { return this._toBe('an object', $isobject) ; }
+    public toBeArray():boolean          { return this._toBe('an array', $isarray) ; }
+    public toBeADate():boolean          { return this._toBe('a date', $isdate) ; }
+    public toBeIterable():boolean       { return this._toBe('an iterable object', $isiterable) ; }
+    public toBeAFunction():boolean      { return this._toBe('a function', $isfunction) ; }
+    public toBeAFile():boolean          { return this._toBe('a file', $isfile) ; }
+    public toBeADirectory():boolean     { return this._toBe('a folder', $isdirectory) ; }
+    public toBeAnIPv4():boolean         { return this._toBe('an IPv4 address', $isipv4) ; }
+    public toBeAnIPv6():boolean         { return this._toBe('an IPv6 address', $isipv6) ; }
+    public toBeAnIPAddress():boolean    { return this._toBe('an IP address', $isipaddress) ; }
+    public toBeAPhoneNumber():boolean   { return this._toBe('a phone number', $isphonenumber) ; }
     public toBeADataObject():boolean    { return this._toBe('a data object', $isdataobject) ; }
 
     public toBeEmpty():boolean {
-        if (this._value instanceof Set) { return this._value.size > 0       ? this._elogfail('<an empty Set>')   : this._logpass() ; }
-        if (this._value instanceof Map) { return this._value.size > 0       ? this._elogfail('<an empty Map>')   : this._logpass() ; }
-        if ($isarray(this._value))      { return $count(this._value) > 0    ? this._elogfail('<an empty Array>') : this._logpass() ; }
-        if ($isstring(this._value))     { return $length(this._value) > 0   ? this._elogfail('<an empty String>'): this._logpass() ; }
-        if ($isdataobject(this._value)) {
-            return $length(this._value) > 0 ? this._elogfail('<an empty buffer>'): this._logpass() ;
-        }
-        if (this._value instanceof TSList) { return this._value.count > 0     ? this._elogfail('<an empty List>')   : this._logpass() ; }
-        if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
-            return !this._value.isEmpty ? this._elogfail('<an empty interval>'): this._logpass() ;
-        }
-        return $ok(this._value) ? this._elogfail('<not a container>') : this._logpass() ;
+        const container = _containerEmptiness(this._value) ;
+        if (!$ok(container)) { return $ok(this._value) ? this._elogfail('<not a container>') : this._logpass() ; }
+        const [kind, empty] = container ;
+        return empty ? this._logpass() : this._elogfail(`<an empty ${kind}>`) ;
     }
 
     public toBeNotEmpty():boolean {
-        if (this._value instanceof Set) { return this._value.size === 0     ? this._elogfail('<a significant Set>')   : this._logpass() ; }
-        if (this._value instanceof Map) { return this._value.size === 0     ? this._elogfail('<a significant Map>')   : this._logpass() ; }
-        if ($isarray(this._value))      { return $count(this._value) === 0  ? this._elogfail('<a significant Array>') : this._logpass() ; }
-        if ($isstring(this._value))     { return $length(this._value) === 0 ? this._elogfail('<a significant String>'): this._logpass() ; }
-        if ($isdataobject(this._value)) {
-            return $length(this._value) === 0 ? this._elogfail('<a significant buffer>'): this._logpass() ;
-        }
-        if (this._value instanceof TSList) { return this._value.count === 0     ? this._elogfail('<a significant List>')   : this._logpass() ; }
-        if (this._value instanceof TSRange || this._value instanceof TSRangeSet || this._value instanceof TSInterval) {
-            return this._value.isEmpty ? this._elogfail('<a significant interval>'): this._logpass() ;
-        }
-        return this._elogfail($ok(this._value) ? '<not a container>' : 'null or undefined value') ;
+        const container = _containerEmptiness(this._value) ;
+        if (!$ok(container)) { return this._elogfail($ok(this._value) ? '<not a container>' : 'null or undefined value') ; }
+        const [kind, empty] = container ;
+        return empty ? this._elogfail(`<a significant ${kind}>`) : this._logpass() ;
     }
 
     public toBeUnordered(aValue:Set<any>|Array<any>)
-    { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._step.pass() ; }
+    { return !$ok(this._value) || !$ok(aValue) || !$unorderedEqual(this._value, aValue) ? this._elogfail(aValue) : this._logpass() ; }
 
     // the tested value must be a 0-ary function ; it is invoked and the assertion
     // passes if it throws. An optional matcher constrains the thrown value :
     //   - a RegExp is tested against the error message (or its string form)
     //   - a string must be a substring of that message
     //   - a function is used as a predicate on the thrown value
-    public toThrow(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean {
+    public toThrow(matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean { // NOSONAR: I don't want a special type for this method
         if (!$isfunction(this._value)) { return this._elogfail('<a function to invoke>') ; }
         let thrown:any = undefined ;
         let didThrow = false ;
@@ -568,21 +573,21 @@ export class TSExpectAgent {
 
     private _compfail(aValue:any, op:string):boolean {
         const start = this._writeMessage() ;
-        $logterm(`&adid expect value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ;
+        $logterm(`&adid expect value:&O&w${$inspect(this._value).replaceAll("&", '&&')}&0`) ;
         $logterm(`${start}&eto be ${op} to value:&E&b${$inspect(aValue)}&0`) ;
         return this._step?.fail() ;
     }
 
     private _elogfail(aValue:any):boolean {
         const start = this._writeMessage() ;
-        $logterm(`&edid expect value:&E&b${$inspect(aValue).replace(/&/g, '&&')}&0`) ;
-        $logterm(`${start}&adid get as value:&O&w${$inspect(this._value).replace(/&/g, '&&')}&0`) ; 
+        $logterm(`&edid expect value:&E&b${$inspect(aValue).replaceAll("&", '&&')}&0`) ;
+        $logterm(`${start}&adid get as value:&O&w${$inspect(this._value).replaceAll("&", '&&')}&0`) ; 
         return this._step?.fail() ;
     }
 
     private _nelogfail(aValue:any):boolean {
         this._writeMessage() ;
-        $logterm(`&adid not expect  :&O&w${$inspect(aValue).replace(/&/g, '&&')}&0`) ; 
+        $logterm(`&adid not expect  :&O&w${$inspect(aValue).replaceAll("&", '&&')}&0`) ; 
         return this._step?.fail() ;
     }
 
@@ -593,11 +598,22 @@ export class TSExpectAgent {
     }
 }
 
+// returns the kind of container and if it is empty, or undefined if v is not a container
+function _containerEmptiness(v:any):[string, boolean]|undefined {
+    if (v instanceof Set || v instanceof Map) { return [v instanceof Set ? 'Set' : 'Map', v.size === 0] ; }
+    if ($isarray(v))      { return ['Array', $count(v) === 0] ; }
+    if ($isstring(v))     { return ['String', $length(v) === 0] ; }
+    if ($isdataobject(v)) { return ['buffer', $length(v) === 0] ; }
+    if (v instanceof TSList) { return ['List', v.count === 0] ; }
+    if (v instanceof TSRange || v instanceof TSRangeSet || v instanceof TSInterval) { return ['interval', v.isEmpty] ; }
+    return undefined ;
+}
+
 function _errorMatches(thrown:any, matcher?:Nullable<RegExp|string|((e:any)=>boolean)>):boolean {
     if (!$ok(matcher)) { return true ; }
     if ($isfunction(matcher)) { return !!(matcher as (e:any)=>boolean)(thrown) ; }
     const message = $isstring(thrown) ? thrown : $string((thrown as any)?.message ?? thrown) ;
     if (matcher instanceof RegExp) { return matcher.test(message) ; }
-    return message.indexOf(matcher as string) >= 0 ;
+    return message.includes(matcher as string) ;
 }
 

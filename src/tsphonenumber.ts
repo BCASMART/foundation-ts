@@ -124,7 +124,8 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
         if (!(other instanceof TSPhoneNumber)) { return undefined ; }
         const a = this._standardNumber(true) ;
         const b = other._standardNumber(true) ;
-        return a > b ? Descending : (a < b ? Ascending : Same) ;
+        if (a === b) { return Same ; }
+        return a < b ? Ascending : Descending ;
     }
 
 	public isEqual(other:any) : boolean {
@@ -137,7 +138,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
     public toJSON():string { return this._standardNumber(true) ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        return hint === 'number' ? NaN : this._standardNumber(true) ; // a phone cannot be really converted to a number since left zeros are not taken into account. 
+        return hint === 'number' ? Number.NaN : this._standardNumber(true) ; // a phone cannot be really converted to a number since left zeros are not taken into account. 
     }
     // for the same reason, we do not implement valueOf() since it would return a number
 
@@ -181,9 +182,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
                      this.number ;
         const nlen = number.length ;
 
-        const lang = !$length(translation) || translation == 'default' ? 
-                     $language() :
-                     (translation == 'native' ? this.country.nativeLanguage : translation) ;
+        const lang = _phoneLanguage(this.country, translation) ;
 
         
         for (let i = 0 ; i < fmtlen ; i++) {
@@ -213,7 +212,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
                     default:
                         if (c >= '1' && c <= '9') {
                             if (pos < nlen) {
-                                const nl = c.charCodeAt(0) - 0x30 ;
+                                const nl = c.charCodeAt(0) - 0x30 ; // NOSONAR: c is an ASCII digit
                                 if (pos + nl >= nlen) {
                                     ret += number.slice(pos) ;
                                     pos = nlen ;
@@ -404,4 +403,9 @@ function _findDialCode(s:string):[string, Array<TSCountry>] {
         if (countries.length > 0) { return [dialCode, countries] ; }
     }
     return ['', []] ;
+}
+
+function _phoneLanguage(country:TSCountry, translation?:Nullable<language|'default'|'native'>) {
+    if (!$length(translation) || translation == 'default') { return $language() ; }
+    return translation == 'native' ? country.nativeLanguage : translation ;
 }

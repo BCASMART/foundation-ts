@@ -166,7 +166,7 @@ const TIME_PARSE_REGEX = /^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))
 export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
 	if (!$length(s)) { return null ; }
 	// res[1] = hours-or-packed-number, res[3] = minutes, res[5] = seconds
-	const m = (<string>s).match(TIME_PARSE_REGEX) ;
+	const m = TIME_PARSE_REGEX.exec(<string>s) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
 	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN } ;
@@ -249,12 +249,12 @@ export function $isostring2components(source:Nullable<string>, opts:Iso8601Parse
     let m:Nullable<RegExpMatchArray> = undefined ;
 
     if (opts.noTime) {
-        m = s.match(NO_TIME_ISO_REGEX) ; 
-        if (!$ok(m)) { m = s.match(COMPACT_NO_TIME_ISO_REGEX) ; }
+        m = NO_TIME_ISO_REGEX.exec(s) ; 
+        if (!$ok(m)) { m = COMPACT_NO_TIME_ISO_REGEX.exec(s) ; }
     }
     else {
-        m = s.match(TIME_ISO_REGEX) ;
-        if (!$ok(m)) { m = s.match(COMPACT_TIME_ISO_REGEX) ; }
+        m = TIME_ISO_REGEX.exec(s) ;
+        if (!$ok(m)) { m = COMPACT_TIME_ISO_REGEX.exec(s) ; }
     }
     if (!$ok(m)) { return null ; }
 
@@ -309,7 +309,7 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 	}
 }
 
-export interface $c2StrWOffsetOpts {
+export interface $c2StrWOffsetOpts { // NOSONAR: name accepted for matchnig the function
     form?:TSIsoDateForm ;
     minutesOffset?:int ;
     milliseconds?:uint ;
@@ -343,8 +343,8 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     if (opts.form === TSDateForm.ISO8601C) {
         // in short form, we use Z, +HH and +HHMM offsets
         if (!a) { return s+'Z' ;}
-        return a % 60 === 0 ? `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}` :
-                              `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}${$fpad2((a % 60) as int)}`
+        const hoursOffset = `${s}${m < 0 ? '-' : '+'}${$fpad2($div(a, 60) as int)}` ;
+        return a % 60 === 0 ? hoursOffset : hoursOffset + $fpad2((a % 60) as int) ;
     }
     if (!a && opts.forceZ) { return s+'Z' ; }
 
@@ -552,10 +552,10 @@ export function $datetimeDescription(
     locale:Nullable<language|country|TSCountry|Locales>=undefined,
     timezoneOffset?:Nullable<number>):string|null
 {
-    let ts = (date instanceof Date || date instanceof TSDate ? 
-                date.timestamp :
-                (typeof date === 'number' ? date : $components2timestamp(date as TSDateComp))
-             ) + $value(timezoneOffset, 0) ;
+    let ts:number ;
+    if (date instanceof Date || date instanceof TSDate) { ts = date.timestamp ; }
+    else { ts = typeof date === 'number' ? date : $components2timestamp(date as TSDateComp) ; }
+    ts += $value(timezoneOffset, 0) ;
     
     return $components2stringformat($components(ts), predefinedFormat, locale) ;
 }
@@ -594,7 +594,7 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
 
 
 
-export interface $durationDescriptionOptions {
+export interface $durationDescriptionOptions { // NOSONAR: name accepted for matchnig the function
     depth?:Nullable<TSDurationDescriptionDepth> ;
     locale?:Nullable<language|country|TSCountry|Locales> ;
     noDays?:Nullable<boolean> ;
@@ -1038,7 +1038,7 @@ function _fillTime(c:TSTimeComp, hoursGroup:Nullable<string>, minutesGroup:Nulla
 function _parsedt(s:Nullable<string>, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
 	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C || form === TSDateForm.ISO8601L) { return $isostring2components(s, opts) ; }
 	if (!$length(s)) { return null ; }
-	const m = (<string>s).match(regexp) ;
+	const m = regexp.exec(<string>s) ;
 	if (!$ok(m)) { return null ; }
 	const res = m as RegExpMatchArray ;
 	// regex layout: res[1] first number, res[3] second number, res[5] third number,

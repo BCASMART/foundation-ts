@@ -233,8 +233,8 @@ export const dateGroups = [
             t.expect9($timeBetweenDates(undefined, undefined)).gt(0) ;
 
             // NaN is explicitly rejected
-            t.expectA(() => $timeBetweenDates(NaN, 0)).toThrow(/NaN/) ;
-            t.expectB(() => $timeBetweenDates(0, NaN)).toThrow(/NaN/) ;
+            t.expectA(() => $timeBetweenDates(Number.NaN, 0)).toThrow(/NaN/) ;
+            t.expectB(() => $timeBetweenDates(0, Number.NaN)).toThrow(/NaN/) ;
 
             // unsupported types are rejected (were silently mishandled before)
             t.expectC(() => $timeBetweenDates(true as any, 0)).toThrow(/type boolean/) ;

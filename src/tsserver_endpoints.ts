@@ -1,4 +1,4 @@
-import { ServerResponse } from "http" ;
+import { ServerResponse } from "http" ; // NOSONAR due to webpack5 usage
 
 import { $defined, $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
@@ -47,151 +47,41 @@ export class TSServerEndPoint {
         }) ;
 
         // ========== path regex construction =========
-        this.uri = '/' ;
-        this._tokens = [] ;
-        this.depth = 1 ;
-        enum State { Start, Standard, Bracket, Token, TokenType } ;
-        let state = State.Start ;
-        let constructUri = true ;
-        let regString = '' ;
-        let currentToken = '' ;
-        let currentType = '' ;    
-
-        for (let i = 0 ; i < len ; i++) {
-            const c = path.charAt(i) ;
-            switch (state) {
-                case State.Start:
-                    if (c !== '/') { 
-                        TSError.throw(`TSServerEndPoint.constructor(): end points path '${path}' is not absolute.`, { position:i, ...errorOptions}) ; 
-                    }
-                    state = State.Standard ;
-                    break ;
-                case State.Standard:
-                    switch (c) {
-                        case '{': state = State.Bracket ; constructUri = false ; break ;
-                        case '}':
-                            TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${path}'.`, { position:i, ...errorOptions}) ; 
-                        case '/':
-                            if (constructUri) { this.uri += c ; } else { regString += '\\/' ; }
-                            this.depth++ ;
-                            break ;
-                        case '-': case '$': case '+': case '*': case '?': case '.': case '(':  case ')':
-                            if (constructUri) { this.uri += c ; } else { regString += '\\'+c ; }
-                            break ;
-                        case '^': case '\\': case '[': case ']': case '`': case '|':
-                            TSError.throw(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in path '${path}'.`, { 
-                                position:i, 
-                                character:c, 
-                                ...errorOptions
-                            }) ; 
-                        default:
-                            if (constructUri) { this.uri += c.toLowerCase() ; }
-                            else { regString += c ; } 
-                            break ;                                
-                    }
-                    break ;
-                case State.Bracket:
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
-                        currentToken = c ; 
-                        state = State.Token ; 
-                        break ; 
-                    }
-                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
-                        position:i, 
-                        character:c, 
-                        ...errorOptions
-                    }) ;
-                case State.Token:
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c === '-' || c === '_' || c === '.') {
-                        currentToken += c ; break ;
-                    }
-                    else if (c === ':') {
-                        // we have a token type here.
-                        state = State.TokenType ; 
-                        currentType = '' ;
-                        break ;
-                    } 
-                    else if (c === '}') {
-                        // default token type is string
-                        this._tokens.push({ name:currentToken, parser:TSParser.define('string')! }) ;
-                        regString += '([a-zA-Z0-9][.a-zA-Z0-9_\-]*)' ;
-                        currentToken = '' ;
-                        currentType = '' ;
-                        state = State.Standard ;
-                        break ;
-                    }
-                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden character '\\u${c.charCodeAt(0).toHex4}' in parametric token in path '${path}'.`, { 
-                        position:i, 
-                        character:c, 
-                        ...errorOptions
-                    }) ; 
-
-                case State.TokenType:
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { 
-                        currentType += c.toLowerCase() ;
-                        break ;
-                    }
-                    else if (c === '}') {
-                        if (isLeafParserType(currentType)) {
-                            this._tokens.push({name:currentToken, parser:TSParser.define(currentType as TSLeafOptionalNode)!}) ;
-                            regString += '([a-zA-Z0-9][.a-zA-Z0-9_\-]*)' ;
-                            currentToken = '' ;
-                            currentType = '' ;
-                            state = State.Standard ;
-                            break ;    
-                        }
-                        TSError.throw(`TSServerEndPoint.constructor(): found unknown type '${currentType}' of token '${currentToken}' in path '${path}'.`, { 
-                            position:i, 
-                            character:c, 
-                            ...errorOptions
-                        }) ; 
-                    }
-
-                    TSError.throw(`TSServerEndPoint.constructor(): found forbidden first character '\\u${c.charCodeAt(0).toHex4}' in parametric type of token '${currentToken}' in path '${path}'.`, { 
-                        position:i, 
-                        character:c, 
-                        ...errorOptions
-                    }) ; 
-            }
-        }
-        if (state !== State.Standard) { 
-            TSError.throw(`TSServerEndPoint.constructor(): malformed parametric path '${path}'.`, errorOptions) ; 
-        }
-        this._pathRegex = regString.length === 0 ? null : new RegExp('^'+regString+'$', 'i') ; 
+        const parsed = new TSPathParser(path, errorOptions).parse() ;
+        this.uri = parsed.uri ;
+        this.depth = parsed.depth ;
+        this._tokens = parsed.tokens ;
+        this._pathRegex = parsed.regString.length === 0 ? null : new RegExp('^'+parsed.regString+'$', 'i') ; 
         this._logger = logger;
     }
 
     public get isStatic():boolean { return !$ok(this._pathRegex) ; } 
 
     public parametersFromPath(path:string):TSDictionary|null {
-        if (path.startsWith(this.uri)) {
-            const parametricPart = path.slice(this.uri.length) ;
-            const ret:TSDictionary = {} ;
-            if (!parametricPart.length && !$ok(this._pathRegex)) { return ret ; }               
-            else if (parametricPart.length && $ok(this._pathRegex)) {
-                const m = parametricPart.match(this._pathRegex!) ;
-                if ($ok(m)) {
-                    const len = this._tokens.length ;
-                    if (m.length === len + 1) {
-                        for (let i = 0 ; i < len ; i++ ) {
-                            const token = this._tokens[i] ;
-                            const value = m[i+1] ;
-                            if (!token.parser.validate(value)) {
-                                TSError.throw(`Bad parameter '${token.name}' of type '${token.parser.nodeType}' in url path '${path}'`, Resp.BadRequest, {
-                                    token:token.name,
-                                    type:token.parser.nodeType,
-                                    path:path,
-                                    serverError:TSServerErrorCodes.BadParameter
-                                  }) ; 
-                            }
-                            ret[token.name] = token.parser.rawInterpret(value) ;
-                        }
-                    }
-                    return ret ;
-                }
+        if (!_startsWithUri(path, this.uri)) { return null ; }
+        const parametricPart = path.slice(this.uri.length) ;
+        // a static end point only matches its exact uri, a parametric one needs a parametric part
+        if (!$ok(this._pathRegex)) { return parametricPart.length ? null : {} ; }
+        if (!parametricPart.length) { return null ; }
+
+        const m = this._pathRegex.exec(parametricPart) ;
+        if (!$ok(m)) { return null ; }
+
+        const ret:TSDictionary = {} ;
+        if (m.length !== this._tokens.length + 1) { return ret ; }
+        this._tokens.forEach((token, i) => {
+            const value = m[i+1] ;
+            if (!token.parser.validate(value)) {
+                TSError.throw(`Bad parameter '${token.name}' of type '${token.parser.nodeType()}' in url path '${path}'`, Resp.BadRequest, {
+                    token:token.name,
+                    type:token.parser.nodeType(),
+                    path:path,
+                    serverError:TSServerErrorCodes.BadParameter
+                  }) ; 
             }
-        }
-        return null ;
+            ret[token.name] = token.parser.rawInterpret(value) ;
+        }) ;
+        return ret ;
     }
 
     public async execute(req: TSServerRequest, res: ServerResponse, logme?:boolean):Promise<void> {
@@ -248,7 +138,7 @@ export class TSEndPointRouter {
         let parameters:TSDictionary = {} ;
 
         for (let uri of this._uriPrefixes) {
-            if (!pathname.startsWith(uri)) { continue ; }
+            if (!_startsWithUri(pathname, uri)) { continue ; }
             for (let ep of this._endPointsByUri.get(uri)!) {
                 const params = ep.parametersFromPath(pathname) ;
                 if (!$ok(params)) { continue ; }
@@ -299,88 +189,83 @@ class TSServerEndPointManager {
     public developerDesc(msg:string):string { return `${this._method}:${$string(msg)} [queryParser:${$ok(this._queryParser)}, bodyParser:${$ok(this._bodyParser)}, responseParser:${$ok(this._responseParser)}]` ; }
     
     public async execute(req: TSServerRequest, res: ServerResponse, logme?:boolean):Promise<void> {
-        if ($ok(this._queryParser)) {
-            const params = req.url.searchParams.query() ;
-            const options:TSParserOptions = { errors:[], context:'url' } ;
-            if (logme) {
-                await this._logme(req, 'request query', params);
-            }                
+        if ($ok(this._queryParser)) { await this._parseQuery(this._queryParser, req, logme) ; }
+        if ($ok(this._bodyParser)) { await this._parseBody(this._bodyParser, req, logme) ; }
 
-            if (!this._queryParser.validate(params, options)) {
-                if (logme) { await this._logme(req, 'impossible to validate query'); }
-                TSError.throw(`Bad query for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
-                    method:this._method,
-                    path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    errors:options.errors,
-                    serverError:TSServerErrorCodes.BadQueryStructure
-                }) ; 
-            }
-            req.query = this._queryParser.rawInterpret(params) ;
-            if (logme) { await this._logme(req, 'final interpreted query', req.query); }
-        }
-        if ($ok(this._bodyParser)) {
-            let body:any = await $readStreamBuffer(req.message) ;
-            const options:TSParserOptions = { errors:[] } ;
-
-            if (logme) { await this._logme(req, 'request body', body); }
-
-            if (!$ok(body) && this._bodyParser.mandatory) {
-                if (logme) { await this._logme(req, 'missing body content'); }
-                TSError.throw(`No body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
-                    method:this._method,
-                    path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    serverError:TSServerErrorCodes.MissingBody
-                }) ;
-            } ;
-            
-            const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
-            if (logme) { await this._logme(req, 'MIME type', mtype); }
-
-            if (mtype.length === 0) {
-                if (logme) { await this._logme(req, 'bad MIME type'); }
-                TSError.throw(`No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
-                    method:this._method,
-                    path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    serverError:TSServerErrorCodes.MissingMimeType
-                }) ;
-            }
-            
-
-            if (mtype.startsWith('text/') || TSServerEndPointManager.__textMimes.includes(mtype)) {
-                // we have a string. we consider only UTF8 charsets
-                if (logme) { await this._logme(req, 'text type', true); }
-                body = TSCharset.utf8Charset().stringFromBytes(body) ;
-                if (mtype === 'application/json') {
-                    if (logme) { await this._logme(req, 'json type', true); }
-                    options.context = 'json' ;
-                    body = $jsonparse(body) ;
-                    if (!$defined(body)) { 
-                        if (logme) { await this._logme(req, 'impossible to decode JSON body'); }
-                        TSError.throw(`Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
-                            method:this._method,
-                            path:$length(req.url.pathname) ? req.url.pathname : '/',
-                            serverError:TSServerErrorCodes.BadJSONBody
-                        }) ;
-                    }
-                    if (logme) { await this._logme(req, 'json decoded body', body) ; } 
-                }
-            }
-            if (!this._bodyParser!.validate(body, options)) {
-                if (logme) { await this._logme(req, 'impossible to validate body'); }
-                TSError.throw(`Bad body content for ${this._method} request on url '${req.url.pathname}'`, Resp.BadRequest, {
-                    method:this._method,
-                    path:$length(req.url.pathname) ? req.url.pathname : '/',
-                    errors:options.errors,
-                    serverError:TSServerErrorCodes.BadBodyStructure
-                }) ; 
-            }
-            req.body = this._bodyParser!.rawInterpret(body) ;
-            if (logme) { await this._logme(req, 'final intepreted body', req.body); }
-        }
-
-        if (logme) { await this._logme(req, 'calling internal controller'); } 
+        await this._debug(logme, req, 'calling internal controller') ; 
         await this._controller(req, new TSServerResponse(res, this._responseParser), this._context) ; // QUESTION: this method may also throw, so get the stack in the info ?
-        if (logme) { await this._logme(req, 'resumed from internal controller') ; }
+        await this._debug(logme, req, 'resumed from internal controller') ;
+    }
+
+    private async _parseQuery(parser:TSParser, req: TSServerRequest, logme?:boolean) {
+        const options:TSParserOptions = { errors:[], context:'url' } ;
+        const params = _queryParameters(req.url.searchParams, parser, options.errors!) ;
+        await this._debug(logme, req, 'request query', params) ;
+        if (options.errors!.length > 0 || !parser.validate(params, options)) {
+            await this._debug(logme, req, 'impossible to validate query') ;
+            this._throwBadRequest(req, `Bad query for ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.BadQueryStructure, options.errors) ;
+        }
+        req.query = parser.rawInterpret(params) ;
+        await this._debug(logme, req, 'final interpreted query', req.query) ;
+    }
+
+    private async _parseBody(parser:TSParser, req: TSServerRequest, logme?:boolean) {
+        const buffer = await $readStreamBuffer(req.message) ;
+        const options:TSParserOptions = { errors:[] } ;
+        await this._debug(logme, req, 'request body', buffer) ;
+
+        if (!$ok(buffer) && parser.mandatory) {
+            await this._debug(logme, req, 'missing body content') ;
+            this._throwBadRequest(req, `No body content for ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.MissingBody) ;
+        }
+            
+        const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
+        await this._debug(logme, req, 'MIME type', mtype) ;
+        if (mtype.length === 0) {
+            await this._debug(logme, req, 'bad MIME type') ;
+            this._throwBadRequest(req, `No mime type specifies for body of ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.MissingMimeType) ;
+        }
+
+        const body = await this._decodedBody(buffer, mtype, options, req, logme) ;
+        if (!parser.validate(body, options)) {
+            await this._debug(logme, req, 'impossible to validate body') ;
+            this._throwBadRequest(req, `Bad body content for ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.BadBodyStructure, options.errors) ;
+        }
+        req.body = parser.rawInterpret(body) ;
+        await this._debug(logme, req, 'final intepreted body', req.body) ;
+    }
+
+    // text bodies are decoded as UTF8 strings and JSON bodies are parsed (which sets the parser context to json)
+    private async _decodedBody(buffer:any, mtype:string, options:TSParserOptions, req: TSServerRequest, logme?:boolean):Promise<any> { // NOSONAR: private method, all parameters are needed
+        if (!mtype.startsWith('text/') && !TSServerEndPointManager.__textMimes.includes(mtype)) { return buffer ; }
+
+        // we have a string. we consider only UTF8 charsets
+        await this._debug(logme, req, 'text type', true) ;
+        const text = TSCharset.utf8Charset().stringFromBytes(buffer) ;
+        if (mtype !== 'application/json') { return text ; }
+
+        await this._debug(logme, req, 'json type', true) ;
+        options.context = 'json' ;
+        const json = $jsonparse(text) ;
+        if (!$defined(json)) { 
+            await this._debug(logme, req, 'impossible to decode JSON body') ;
+            this._throwBadRequest(req, `Unable to parse JSON body of ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.BadJSONBody) ;
+        }
+        await this._debug(logme, req, 'json decoded body', json) ;
+        return json ;
+    }
+
+    private _throwBadRequest(req: TSServerRequest, message:string, serverError:TSServerErrorCodes, errors?:Nullable<string[]>):never {
+        TSError.throw(message, Resp.BadRequest, {
+            method:this._method,
+            path:$length(req.url.pathname) ? req.url.pathname : '/',
+            ...(errors !== undefined ? { errors:errors } : {}),
+            serverError:serverError
+        }) ;
+    }
+
+    private async _debug(logme:Nullable<boolean>, req: TSServerRequest, item:string, value: any = undefined) {
+        if (logme) { await this._logme(req, item, value) ; }
     }
 
     private async _logme(req: TSServerRequest, item:string, value: any = undefined) {
@@ -392,6 +277,158 @@ class TSServerEndPointManager {
         }
     }
 }
+
+enum TSPathParserState { Start, Standard, Bracket, Token, TokenType }
+
+// parses an end point path like '/a/b/{id:int}/{name}' in its static uri ('/a/b/'), 
+// its depth, its parametric tokens and the regular expression of its parametric part
+class TSPathParser {
+    public uri = '/' ;
+    public depth = 1 ;
+    public tokens:TSPathToken[] = [] ;
+    public regString = '' ;
+
+    private _state = TSPathParserState.Start ;
+    private _constructUri = true ;
+    private _currentToken = '' ;
+    private _currentType = '' ;
+
+    public constructor(private readonly _path:string, private readonly _errorOptions:TSServerEndPointErrorOptions) {}
+
+    public parse():this {
+        const len = this._path.length ;
+        for (let i = 0 ; i < len ; i++) {
+            const c = this._path.charAt(i) ;
+            switch (this._state) {
+                case TSPathParserState.Start:     this._start(c, i) ; break ;
+                case TSPathParserState.Standard:  this._standard(c, i) ; break ;
+                case TSPathParserState.Bracket:   this._bracket(c, i) ; break ;
+                case TSPathParserState.Token:     this._token(c, i) ; break ;
+                case TSPathParserState.TokenType: this._tokenType(c, i) ; break ;
+            }
+        }
+        if (this._state !== TSPathParserState.Standard) { 
+            TSError.throw(`TSServerEndPoint.constructor(): malformed parametric path '${this._path}'.`, this._errorOptions) ; 
+        }
+        return this ;
+    }
+
+    private _start(c:string, i:number) {
+        if (c !== '/') { 
+            TSError.throw(`TSServerEndPoint.constructor(): end points path '${this._path}' is not absolute.`, { position:i, ...this._errorOptions}) ; 
+        }
+        this._state = TSPathParserState.Standard ;
+    }
+
+    private _standard(c:string, i:number) {
+        switch (c) {
+            case '{': 
+                this._state = TSPathParserState.Bracket ; 
+                this._constructUri = false ; 
+                break ;
+            case '}': // NOSONAR: this case ends with a throw
+                TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${this._path}'.`, { position:i, ...this._errorOptions}) ; 
+            case '/': // NOSONAR: the case above ends with a throw
+                this._append(c, String.raw`\/`) ;
+                this.depth++ ;
+                break ;
+            case '-': case '$': case '+': case '*': case '?': case '.': case '(':  case ')':
+                this._append(c, '\\'+c) ;
+                break ;
+            case '^': case '\\': case '[': case ']': case '`': case '|': // NOSONAR: this case ends with a throw
+                this._throwForbidden(String.raw`found forbidden character '\u${_hex(c)}' in path '${this._path}'.`, c, i) ;
+            default: // NOSONAR: the case above ends with a throw
+                this._append(c.toLowerCase(), c) ;
+                break ;                                
+        }
+    }
+
+    // the static part of the path goes in the uri, the parametric part goes in the regular expression
+    private _append(uriPart:string, regPart:string) {
+        if (this._constructUri) { this.uri += uriPart ; } 
+        else { this.regString += regPart ; }
+    }
+
+    private _bracket(c:string, i:number) {
+        if (!_isLetter(c)) {
+            this._throwForbidden(String.raw`found forbidden first character '\u${_hex(c)}' in parametric token in path '${this._path}'.`, c, i) ;
+        }
+        this._currentToken = c ; 
+        this._state = TSPathParserState.Token ; 
+    }
+
+    private _token(c:string, i:number) {
+        if (_isLetter(c) || (c >= '0' && c <= '9') || c === '-' || c === '_' || c === '.') { this._currentToken += c ; }
+        else if (c === ':') {
+            // we have a token type here.
+            this._state = TSPathParserState.TokenType ; 
+            this._currentType = '' ;
+        } 
+        else if (c === '}') { this._pushToken('string') ; } // default token type is string
+        else {
+            this._throwForbidden(String.raw`found forbidden character '\u${_hex(c)}' in parametric token in path '${this._path}'.`, c, i) ;
+        }
+    }
+
+    private _tokenType(c:string, i:number) {
+        // a type name starts with a letter and may then contain digits (eg. uint32)
+        if (_isLetter(c) || (this._currentType.length > 0 && c >= '0' && c <= '9')) { 
+            this._currentType += c.toLowerCase() ;
+            return ;
+        }
+        if (c !== '}') {
+            const which = this._currentType.length ? 'character' : 'first character' ;
+            this._throwForbidden(String.raw`found forbidden ${which} '\u${_hex(c)}' in parametric type of token '${this._currentToken}' in path '${this._path}'.`, c, i) ;
+        }
+        if (!isLeafParserType(this._currentType)) {
+            this._throwForbidden(`found unknown type '${this._currentType}' of token '${this._currentToken}' in path '${this._path}'.`, c, i) ;
+        }
+        this._pushToken(this._currentType as TSLeafOptionalNode) ;
+    }
+
+    private _pushToken(type:TSLeafOptionalNode) {
+        this.tokens.push({ name:this._currentToken, parser:TSParser.define(type)! }) ;
+        this.regString += '([a-zA-Z0-9][.a-zA-Z0-9_-]*)' ;
+        this._currentToken = '' ;
+        this._currentType = '' ;
+        this._state = TSPathParserState.Standard ;
+    }
+
+    private _throwForbidden(message:string, c:string, i:number):never {
+        TSError.throw(`TSServerEndPoint.constructor(): ${message}`, { 
+            position:i, 
+            character:c, 
+            ...this._errorOptions
+        }) ; 
+    }
+}
+
+// The values of a key declared as an array in the query parser are always given as an array.
+// Any other key keeps its unique value: a repeated key declared as a non array is an error
+// (an undeclared repeated key, accepted as an unchecked item, is given as an array).
+function _queryParameters(searchParams:URLSearchParams, parser:TSParser, errors:string[]):TSDictionary|null {
+    const ret:TSDictionary = {} ;
+    let total = 0 ;
+    for (const key of new Set(searchParams.keys())) {
+        if (!key.length) { continue ; }
+        const values = searchParams.getAll(key) ;
+        const itemParser = parser.itemParserForKey(key) ;
+        if (itemParser?.nodeType() === 'array' || (values.length > 1 && !$ok(itemParser))) { ret[key] = values ; }
+        else if (values.length > 1) { errors.push(`value.${key} is present several times`) ; }
+        else { ret[key] = values[0] ; }
+        total++ ;
+    }
+    return total > 0 ? ret : null ;
+}
+
+// the static part of an end point path (its uri) is stored in lowercase, so it is compared without
+// case, like its parametric part (it used to be compared with the original case of the request, so
+// an end point declared as '/Echo' was not found with the request path '/Echo')
+function _startsWithUri(path:string, uri:string):boolean 
+{ return path.length >= uri.length && path.slice(0, uri.length).toLowerCase() === uri ; }
+
+function _isLetter(c:string):boolean { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ; }
+function _hex(c:string):string { return c.charCodeAt(0).toHex4() ; } // NOSONAR: c comes from charAt(), so it is already a single UTF-16 code unit
 
 interface TSPathToken {
     name:string ;

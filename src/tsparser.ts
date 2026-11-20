@@ -83,12 +83,12 @@ export enum TSParserActionContext {
 
 export type TSParserActionContextType = keyof typeof TSParserActionContext ;
 export interface TSParserOptions {
-    errors?:Nullable<string[]> ;
-    context?:Nullable<TSParserActionContextType> ;
-    acceptsUncheckedItems?:Nullable<boolean> ;
+    errors?:Nullable<string[]> ;                    // NOSONAR : field is optional
+    context?:Nullable<TSParserActionContextType> ;  // NOSONAR : field is optional
+    acceptsUncheckedItems?:Nullable<boolean> ;      // NOSONAR : field is optional
 }
 export interface TSParserActionOptions extends TSParserOptions {
-    options?:Nullable<TSDictionary> ;
+    options?:Nullable<TSDictionary> ;               // NOSONAR : field is optional
 }
 export type TSParserAction<T>   = (v:any, opts?:Nullable<TSParserActionOptions>) => T ;
 export type TSParserChecker     = TSParserAction<boolean> ;
@@ -139,10 +139,10 @@ export type TSObjectNode = { [key: string]: TSNode } | {
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
     _mandatory?:boolean ;
-    _keysCase?:Nullable<TSCase> ;
-    _aliases?:Nullable<Map<string, string>> ;
-    _outputAliases?:Nullable<Map<string, string>> ;
-    _aliasUnsensitive?:boolean ;
+    _keysCase?:Nullable<TSCase> ;                       // NOSONAR : field is optional
+    _aliases?:Nullable<Map<string, string>> ;           // NOSONAR : field is optional
+    _outputAliases?:Nullable<Map<string, string>> ;     // NOSONAR : field is optional
+    _aliasUnsensitive?:boolean ;                        // NOSONAR : field is optional
 }
 
 export type TSNode = TSLeafNode | TSObjectNode | TSArrayNode | TSExtendedArrayNode ;
@@ -202,6 +202,10 @@ export abstract class TSParser {
     public toString(): string { return $inspect(this.toJSON(), 15) ; }
     public includedDefaultValue():any { return undefined ; }
 
+    // returns the parser which will be used for the value of this key, if any
+    // (only objects and dictionaries parsers have items parsers)
+    public itemParserForKey(_key:string):TSParser|undefined { return undefined ; }
+
     protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean { 
         if (this.mandatory && !$ok(value)) {
             return _serror(opts, path, 'is mandatory') ;
@@ -241,6 +245,7 @@ class TSDictionaryParser extends TSParser {
     }
 
     public nodeType():TSParserNodeType { return 'object' ; }
+    public override itemParserForKey(_key:string):TSParser|undefined { return this._valuesParser ; }
 
     public toJSON():object { return {
         _type: 'dictionary',
@@ -257,6 +262,7 @@ class TSDictionaryParser extends TSParser {
         if ($ok(value) && ($isarray(value) || !$isobject(value))) { 
             return _serror(opts, path, 'is not a dictionary') ;
         }
+        if (!$ok(value)) { return true ; } // a non mandatory absent value is valid (it used to throw)
         const entries = Object.entries(value) ;
         if (!entries?.length && this.mandatory) { return _serror(opts, path, ` is empty`) ; }
         let doomed = false ;
@@ -285,6 +291,7 @@ class TSDictionaryParser extends TSParser {
     }
 
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
+        if (!$ok(value)) { return value ; } // a non mandatory absent value (it used to throw)
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
@@ -317,7 +324,7 @@ class TSObjectParser extends TSParser {
         const l = $value(node._keysCase as Nullable<TSCase>, TSCase.standard) ;
         const kt = InternalCasingMap[l]
         if (!$defined(kt)) { 
-            this.errors.push(`_keysCase field should one of ${Array.from($keys(InternalCasingMap))}`) ; 
+            this.errors.push(`_keysCase field should be one of ${Array.from($keys(InternalCasingMap))}`) ; 
         }
         else { 
             this._keyTransform = kt ; 
@@ -327,24 +334,7 @@ class TSObjectParser extends TSParser {
         this._itemsParsers = itemsParsers ;
         this._count = $objectcount(itemsParsers) ;
         this._aliasUnsensitive = !!node._aliasUnsensitive ;
-        const aliases = node._aliases as Map<string,string> | undefined ;
-        
-        if (aliases?.size) {
-            if (this._aliasUnsensitive) {
-                this._aliases = new Map() ;
-                for (let [ak, tk] of aliases) {
-                    ak = ak.toLowerCase() ;
-                    if (this._aliases.get(ak)) {
-                        this.errors.push(`_aliases field should not contain insensitive similar alias ${ak} twice.`) ; 
-                    } 
-                    this._aliases.set(ak, tk) ; 
-                }
-            }
-            else { this._aliases = new Map(aliases!) ; }
-        }
-        else {
-            this._aliases = new Map() ;
-        }
+        this._aliases = this._aliasesMap(node._aliases as Map<string,string> | undefined) ;
         this._outputAliases = $ok(node._outputAliases) ? new Map(node._outputAliases as Map<string,string>) : new Map() ;
 
         const entries = Object.entries(itemsParsers) ;
@@ -354,6 +344,28 @@ class TSObjectParser extends TSParser {
     }
 
     public nodeType():TSParserNodeType { return 'object' ; }
+
+    public override itemParserForKey(key:string):TSParser|undefined { return this._itemsParsers[this._resolvedKey(key)] ; }
+
+    // an item key is resolved with the aliases first, then with the keys case
+    private _resolvedKey(key:string):string {
+        return this._keyTransform($value(this._aliases.get(this._aliasUnsensitive ? key.toLowerCase() : key), key)) ;
+    }
+
+    // insensitive aliases are stored in lowercase (and should not be defined twice)
+    private _aliasesMap(aliases:Map<string,string>|undefined):Map<string,string> {
+        if (!aliases?.size) { return new Map() ; }
+        if (!this._aliasUnsensitive) { return new Map(aliases) ; }
+        const ret = new Map<string,string>() ;
+        for (let [ak, tk] of aliases) {
+            ak = ak.toLowerCase() ;
+            if (ret.get(ak)) {
+                this.errors.push(`_aliases field should not contain insensitive similar alias ${ak} twice.`) ; 
+            } 
+            ret.set(ak, tk) ; 
+        }
+        return ret ;
+    }
 
     public toJSON():object {
         const ret:any = {
@@ -380,66 +392,56 @@ class TSObjectParser extends TSParser {
         if (!super._validate(value, path, opts)) { return false ; }
         if ($ok(value) && ($isarray(value) || !$isobject(value))) { 
             return _serror(opts, path, 'is not an object') ;
-        } 
+        }
+        if (!$ok(value)) { return true ; } // a non mandatory absent value is valid (it used to throw) 
 
         const p = path.length ? path : 'object' ;
-        const entries = Object.entries(value) ;
         const founds = new Set<string>() ;
         let doomed = false ;
-        const atl = this._aliasUnsensitive ;
-
-        for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
-            if (founds.has(k)) {
-                _serror(opts, path, `.${k} is present several times`) ;
-                doomed = true ; continue ;
-            }
-            const struct = this._itemsParsers[k] ;
-            if (!$ok(struct)) {
-                if (!this._acceptsUncheckedItems) {
-                    _serror(opts, path, `.${k} is unknown`) ;
-                    doomed = true ; 
-                }
-                continue ;
-            }
-            // @ts-ignore
-            if (!struct!._validate(v, `${p}.${k}`, opts)) { doomed = true ; continue ; }
-            founds.add(k) ;
+        for (let [key, v] of Object.entries(value)) {
+            if (!this._validateItem(this._resolvedKey(key), v, founds, path, p, opts)) { doomed = true ; }
         }
-        if (founds.size < this._count) {
-            // look for mandatory fields not present
-            const structEntries = Object.entries(this._itemsParsers) ;
-            for (let [k, struct] of structEntries) {
-                if (!founds.has(k) && struct.mandatory) {
-                    _serror(opts, path, `.${k} is mandatory`) ;
-                    doomed = true ;
-                }
-            }
-        }
+        // look for mandatory fields not present
+        if (founds.size < this._count && !this._mandatoryItemsFound(founds, path, opts)) { doomed = true ; }
         if (doomed) { return false ;}
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
+    }
+
+    // a described item is added to founds, even if it is not valid (an invalid mandatory
+    // item used to be also reported as missing)
+    private _validateItem(k:string, v:any, founds:Set<string>, path:string, itemsPath:string, opts?:Nullable<TSParserOptions>):boolean { // NOSONAR: private method, all parameters are needed
+        if (founds.has(k)) { return _serror(opts, path, `.${k} is present several times`) ; }
+        const struct = this._itemsParsers[k] ;
+        if (!$ok(struct)) { return this._acceptsUncheckedItems || _serror(opts, path, `.${k} is unknown`) ; }
+        founds.add(k) ;
+        // @ts-ignore
+        return struct._validate(v, `${itemsPath}.${k}`, opts) ;
+    }
+
+    private _mandatoryItemsFound(founds:Set<string>, path:string, opts?:Nullable<TSParserOptions>):boolean {
+        let ret = true ;
+        for (let [k, struct] of Object.entries(this._itemsParsers)) {
+            if (!founds.has(k) && struct.mandatory) {
+                _serror(opts, path, `.${k} is mandatory`) ;
+                ret = false ;
+            }
+        }
+        return ret ;
     }
 
     public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:any = {}
-        const entries = Object.entries(value) ;
-        const atl = this._aliasUnsensitive ;
-
-        for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
+        for (let [key, v] of Object.entries(value)) {
+            const k = this._resolvedKey(key) ;
             const struct = this._itemsParsers[k] ;
-            if ($ok(struct)) {
-                const res = struct.rawInterpret(v, opts) ; 
-                if ($ok(res)) { ret[k] = res ; }    
-            }
-            else {
-                ret[k] = v ; // if this just a non described item, we keep it as it was
-            }
+            // if this just a non described item, we keep it as it was
+            const res = $ok(struct) ? struct.rawInterpret(v, opts) : v ;
+            if ($ok(res) || !$ok(struct)) { ret[k] = res ; }
         }
         
         for (let k of this._defaultValueKeys) {
-            const kf = this._keyTransform($value(this._aliases.get(atl?k.toLowerCase():k), k)) ;
+            const kf = this._resolvedKey(k) ;
             if (!$ok(ret[kf])) {
                 ret[kf] = this._itemsParsers[k].includedDefaultValue() ;
             }
@@ -449,14 +451,14 @@ class TSObjectParser extends TSParser {
     }
     
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
+        if (!$ok(value)) { return value ; } // a non mandatory absent value (it used to throw)
         const ret:any = {}
-        const entries = Object.entries(value) ;
-        const atl = this._aliasUnsensitive ;
-
-        for (let [key, v] of entries) {
-            const k = this._keyTransform($value(this._aliases.get(atl?key.toLowerCase():key), key)) ;
+        for (let [key, v] of Object.entries(value)) {
+            const k = this._resolvedKey(key) ;
             const struct = this._itemsParsers[k] ;
-            const res = struct.rawEncode(v) ; 
+            // a non described item (accepted with _acceptsUncheckedItems) is kept as it was, like in rawInterpret()
+            // the options are given to the items parsers (the context used to be lost for the object items)
+            const res = $ok(struct) ? struct.rawEncode(v, opts) : v ; 
             if ($ok(res)) { ret[$value(this._outputAliases.get(k), k)] = res ; }
         }
         return this._natify ? this._natify(ret, opts) : ret ;
@@ -546,6 +548,7 @@ class TSArrayParser extends TSParser {
     }
 
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
+        if (!$ok(value)) { return value ; } // a non mandatory absent value (it used to throw)
         const ret:Array<any> = [] ;
         for (let v of value) { 
             ret.push(this._itemsParser.rawEncode(v, opts)) ;
@@ -608,8 +611,8 @@ class TSLeafParser extends TSParser {
 
     public constructor(node:TSExtendedLeafNode) {
         const manager =  $isstring(node._type) ? TSLeafParser.__managers[node._type] : undefined ;
-        const transformer = $ok(node._transformer) ? node._transformer : ($ok(manager?.trans) ? manager!.trans! : undefined) ;
-        const natifier = $ok(node._natifier) ? node._natifier : ($ok(manager?.v2nat) ? manager!.v2nat! : undefined) ;
+        const transformer = node._transformer ?? manager?.trans ?? undefined ;
+        const natifier = node._natifier ?? manager?.v2nat ?? undefined ;
         const mandatory = !!node._mandatory ;
 
         super(mandatory, node._checker, transformer, natifier) ;
@@ -621,53 +624,58 @@ class TSLeafParser extends TSParser {
         else { this._manager = manager! ;}
 
         const enumeration = node._enum ;
-        if ($isarray(enumeration)) { 
-            if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
-            if (!enumeration!.length) { this.errors.push(`Empty enumeration definition array for type '${node._type}'`) ; }
-            for (let e of enumeration as Array<string|number>) { 
-                if (!manager?.enum!(e)) { 
-                    this.errors.push(`Enumeration value '${e}' is invalid for type '${node._type}'`) ;
-                }
-            }
-            this._enumeration = new Set(enumeration as Array<string|number>) ;
-        }
-        else if ($isobject(enumeration)) {
-            if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
-            const entries = Object.entries(enumeration as TSDictionary<string|number>) ;
-            
-            this._enumeration = new Set<string|number>() ;
-            this._reverse = new Map() ;
-            for (let [key, item] of entries) {
-                if (!key.length || !key.match(IsFielOrEnumdRegex)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
-                if (!!manager?.enum!(item)) {
-                    this._enumeration.add(item) ;
-                    this._reverse.set(item, key) ;
-                }
-                else {
-                    this.errors.push(`Enumeration value '${item}' for key '${key}' is invalid for type '${node._type}'`) ;
-                }
-            }
-            if (!this._enumeration.size) { this.errors.push(`Empty enumeration definition dictionary for type '${node._type}'`) ; }
-            this._conversion = enumeration as TSDictionary<string|number> ;
-            this._exportAsEnum = !!node._exportAsEnum ;
-        }
+        if ($isarray(enumeration)) { this._setArrayEnumeration(enumeration as Array<string|number>, node, manager) ; }
+        else if ($isobject(enumeration)) { this._setDictionaryEnumeration(enumeration as TSDictionary<string|number>, node, manager) ; }
         else if ($ok(enumeration)) {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
         }
         if ($ok(node._options)) { this._options = node._options ;}
-        if ($ok(node._default)) {
-            if (mandatory) {
-                this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
-            }
-            else if (!manager?.valid(node._default)) {
-                this.errors.push(`Parser type '${node._type}' cannot be have ${node._default} as default value`) ;
-            }
-            else {
-                this._defaultValue = node._default ;
-            }
-        }
+        if ($ok(node._default)) { this._setDefaultValue(node, mandatory, manager) ; }
         
         this._type = node._type ;
+    }
+
+    // a type without enumeration support gives errors (manager.enum used to be called anyway, which did throw)
+    private _setArrayEnumeration(enumeration:Array<string|number>, node:TSExtendedLeafNode, manager:TSLeafNodeManager|undefined) {
+        if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
+        if (!enumeration.length) { this.errors.push(`Empty enumeration definition array for type '${node._type}'`) ; }
+        for (let e of enumeration) { 
+            if (!manager?.enum?.(e)) { 
+                this.errors.push(`Enumeration value '${e}' is invalid for type '${node._type}'`) ;
+            }
+        }
+        this._enumeration = new Set(enumeration) ;
+    }
+
+    private _setDictionaryEnumeration(enumeration:TSDictionary<string|number>, node:TSExtendedLeafNode, manager:TSLeafNodeManager|undefined) {
+        if (!$ok(manager?.enum)) { this.errors.push(`Parser type '${node._type}' does not support enumeration`) ; }
+        this._enumeration = new Set<string|number>() ;
+        this._reverse = new Map() ;
+        for (let [key, item] of Object.entries(enumeration)) {
+            if (!key.length || !IsFielOrEnumdRegex.test(key)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
+            if (manager?.enum?.(item)) {
+                this._enumeration.add(item) ;
+                this._reverse.set(item, key) ;
+            }
+            else {
+                this.errors.push(`Enumeration value '${item}' for key '${key}' is invalid for type '${node._type}'`) ;
+            }
+        }
+        if (!this._enumeration.size) { this.errors.push(`Empty enumeration definition dictionary for type '${node._type}'`) ; }
+        this._conversion = enumeration ;
+        this._exportAsEnum = !!node._exportAsEnum ;
+    }
+
+    private _setDefaultValue(node:TSExtendedLeafNode, mandatory:boolean, manager:TSLeafNodeManager|undefined) {
+        if (mandatory) {
+            this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
+        }
+        else if (!manager?.valid(node._default)) {
+            this.errors.push(`Parser type '${node._type}' cannot have ${node._default} as default value`) ;
+        }
+        else {
+            this._defaultValue = node._default ;
+        }
     }
 
     public get isKey() { return !!this._manager.iskey ; }
@@ -754,9 +762,9 @@ class TSLeafParser extends TSParser {
 // ========================== EXPORTED FUNCTIONS ==============================================================
 export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
     switch (typeof v) {
-        case 'bigint':   { v = Number(v) ; return !isNaN(v) && v !== 0 ; }
+        case 'bigint':   { v = Number(v) ; return !Number.isNaN(v) && v !== 0 ; }
         case 'boolean':  return v ;
-        case 'number':   return !isNaN(v) && v !== 0 ;
+        case 'number':   return !Number.isNaN(v) && v !== 0 ;
         case 'string':   return !!_stringToBoolean(v, opts) ;
         case 'symbol':   return !!_stringToBoolean($string(v), opts) ;
         default:         return false ;
@@ -781,8 +789,8 @@ interface TSLeafNodeManager {
 
 function _isNativeValue(v:any):boolean {
     switch (typeof v) {
-        case 'bigint': v = Number(v) ;  return !isNaN(v) && isFinite(v) ;
-        case 'number': return !isNaN(v) && isFinite(v) ;
+        case 'bigint': v = Number(v) ;  return !Number.isNaN(v) && Number.isFinite(v) ;
+        case 'number': return !Number.isNaN(v) && Number.isFinite(v) ;
         case 'boolean': case 'string': case 'symbol': return true ;
         default: return false ;
     }
@@ -824,10 +832,15 @@ function _countryTrans(v:any):any {
     return v.length === 3 ? TSCountry.alpha2CodeForAlpha3Code(v) : v ;
 }
 
+// [true strings, false strings]
+const __jsonBooleanStrings:[Set<string>, Set<string>] = [new Set(['true']), new Set(['false'])] ;
+const __booleanStrings:[Set<string>, Set<string>] = [new Set(['true', '1', 'y', 'yes']), new Set(['false', '0', 'n', 'no'])] ;
+
 function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
     s = $ascii($ftrim(s)).toLowerCase() ;
-    if (opts?.context === TSParserActionContext.json) { return s === 'true' ? true : (s === 'false' ? false : null) ; }
-    return s === 'true' || s === '1' || s === 'y' || s === 'yes' ? true : ( s === 'false' || s === '0' || s === 'n' || s === 'no' ? false : null) ;
+    const [trueStrings, falseStrings] = opts?.context === TSParserActionContext.json ? __jsonBooleanStrings : __booleanStrings ;
+    if (trueStrings.has(s)) { return true ; }
+    return falseStrings.has(s) ? false : null ;
 }
 
 function _isBoolean(v:any, opts?:Nullable<TSParserActionOptions>):boolean   
@@ -854,7 +867,7 @@ function _stringToUrl(s:string, opts?:Nullable<TSParserActionOptions>):TSURL|nul
 
 function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
     if (v instanceof TSURL) { return v ; }
-    if (!(v instanceof URL)) { TSError.throw('Impossible to convertany object to TSURL')} ;
+    if (!(v instanceof URL)) { TSError.throw('Impossible to convert any object to TSURL')} ;
     const ret = TSURL.from(v, { refusesParameters:opts?.context === TSParserActionContext.url || !!opts?.options?.refusesParameters , acceptedProtocols:opts?.options?.acceptedProtocols }) ;
     if (!$ok(ret)) { TSError.throw('Impossible to convert URL to TSURL')} ;
     return ret! ;
@@ -900,7 +913,8 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 
 // this is the function wich convert you data model definition
 // into a tree of structures
-const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/g
+// no 'g' flag: with it, test() would keep its lastIndex from one key to the next one
+const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases', '_aliasUnsensitive']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
@@ -914,96 +928,85 @@ function _structureConstruction(node:TSNode, errors:Nullable<string[]>):TSParser
         if (mandatory) { node = node.left(node.length-1) as TSLeafOptionalNode ; }
         return new TSLeafParser({ _type:node as TSLeafOptionalNode, _mandatory:mandatory}) ;
     }
-    else if ($isarray(node)) {
-        const a = (node as Array<any>) ;
-        if (a.length === 0 || a.length > 3) {
-            errors?.push('wrong empty array node definition') ;
-            return null ;
-        }
+    if ($isarray(node)) { return _arrayConstruction(node as Array<any>, errors) ; }
+    if (!$isobject(node)) { return null ; }
 
-        let min:number|undefined = undefined, max:number|undefined = undefined ;
-        if (a.length > 1 && $ok(a[1])) { 
-            if (!$isunsigned(a[1])) {
-                errors?.push(`wrong minimal size definition for array node`) ;
-            }
-            else { min = $unsigned(a[1]) ; }
-        }
-        if (a.length > 2 && $ok(a[2])) { 
-            if (!$isunsigned(a[2])) {
-                errors?.push(`wrong maximal size definition for array node`) ;
-            }
-            else { max = $unsigned(a[2]) ; }
-        }
-        const itemsType = (a as TSArrayNode)[0] ;
-        const itemsParser = _structureConstruction(itemsType, errors) ;
-        if (!itemsParser?.isValid) { 
-            if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
-            return null ; 
-        }
-        return new TSArrayParser({ _itemsType:itemsType!, _min: min, _max: max }, itemsParser) ;
+    const n = node as TSObjectNode ;
+    // this is a leaf node
+    if ($ok((node as TSExtendedLeafNode)._type)) { return new TSLeafParser(node as TSExtendedLeafNode) ; }
+    if ($ok(n._keysType) || $ok(n._valueItemsType)) { return _dictionaryConstruction(n, errors) ; }
+    if ($ok((node as TSExtendedArrayNode)._itemsType)) {
+        // this is an array
+        const itemsParser = _validSubParser((node as TSExtendedArrayNode)._itemsType, errors) ;
+        return $ok(itemsParser) ? new TSArrayParser(node as TSExtendedArrayNode, itemsParser) : null ;
     }
-    else if ($isobject(node)) {
-        if ($ok((node as TSExtendedLeafNode)._type)) {
-            // this is a leaf node
-            return new TSLeafParser(node as TSExtendedLeafNode) ;
-        }
-        else if ($ok((node as TSObjectNode)._keysType) || $ok((node as TSObjectNode)._valueItemsType)) {
-            // this is a dictionary    
-            if ($ok((node as TSObjectNode)._acceptsUncheckedItems)) {errors?.push('_acceptsUncheckedItems field cannot be set for a dictionary node definition') ; }
-            if (!$ok((node as TSObjectNode)._keysType)) { errors?.push('_keysType field is not set for dictionary node definition') ; }
-            const keysParser = _structureConstruction((node as TSObjectNode)._keysType!, errors) ;
-            if (!keysParser?.isValid) { 
-                if ($count(keysParser?.errors)) { errors?.push(...keysParser!.errors) ; }
-                return null ; 
-            }    
-            if (!$ok((node as TSObjectNode)._valueItemsType)) {errors?.push('_valueItemsType field is not set for a dictionary node definition') ; }
-            const itemsParser = _structureConstruction((node as TSObjectNode)._valueItemsType!, errors) ;
-            if (!itemsParser?.isValid) { 
-                if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
-                return null ; 
-            }    
-            return new TSDictionaryParser(node as TSObjectNode, keysParser!, itemsParser!) ;
-        }
-        else if ($ok((node as TSExtendedArrayNode)._itemsType)) {
-            // this is an array
-            const itemsParser = _structureConstruction((node as TSExtendedArrayNode)._itemsType, errors) ;
-            if (!itemsParser?.isValid) { 
-                if ($count(itemsParser?.errors)) { errors?.push(...itemsParser!.errors) ; }
-                return null ; 
-            }
-            return new TSArrayParser(node as TSExtendedArrayNode, itemsParser) ;
-        }
-        else {
-            // this a structured object
-            const itemsParsers:TSDictionary<TSParser> = {} ;
-            const entries = Object.entries(node as TSObjectNode) ;
-            const keyscase = $value(
-                InternalCasingMap[$value((node as TSObjectNode)._keysCase as Nullable<TSCase>, TSCase.standard)],
-                (s:string) => s
-            ) ;
-            let found = 0 ;
-            for (let [key, subnode] of entries) {
-                if (!InternalFieldsSet.has(key)) {
-                    if (!key.match(IsFielOrEnumdRegex)) {
-                        errors?.push(`wrong key '${key}' for object node definition`) ;
-                    }
-                    else {
-                        const itemParser = _structureConstruction((subnode as TSNode), errors) ;
-                        if (!itemParser?.isValid) { 
-                            if ($count(itemParser?.errors)) { errors?.push(...itemParser!.errors) ; }
-                            return null ; 
-                        }    
-                        itemsParsers[keyscase(key)] = itemParser! ;
-                        found++ ;
-                    }
-                }
-            }
-            if (!found) {
-                errors?.push('empty object node definition') ;
-                return null ;
-            }
-            return new TSObjectParser(node as TSObjectNode, itemsParsers, !!((node as TSObjectNode)._acceptsUncheckedItems)) ;
-        }
+    return _objectConstruction(n, errors) ;
+}
+
+// returns the parser of a sub node, or null (with the parser errors) if it is not valid
+function _validSubParser(node:TSNode, errors:Nullable<string[]>):TSParser|null {
+    const parser = _structureConstruction(node, errors) ;
+    if (!parser?.isValid) { 
+        if ($count(parser?.errors)) { errors?.push(...parser!.errors) ; }
+        return null ; 
     }
-    return null ;
+    return parser ;
+}
+
+// [itemsType, min?, max?]
+function _arrayConstruction(a:Array<any>, errors:Nullable<string[]>):TSParser|null {
+    if (a.length === 0 || a.length > 3) {
+        errors?.push('wrong empty array node definition') ;
+        return null ;
+    }
+    const min = _arraySize(a, 1, 'minimal', errors) ;
+    const max = _arraySize(a, 2, 'maximal', errors) ;
+    const itemsType = (a as TSArrayNode)[0] ;
+    const itemsParser = _validSubParser(itemsType, errors) ;
+    return $ok(itemsParser) ? new TSArrayParser({ _itemsType:itemsType!, _min: min, _max: max }, itemsParser) : null ;
+}
+
+function _arraySize(a:Array<any>, index:number, kind:string, errors:Nullable<string[]>):number|undefined {
+    if (a.length <= index || !$ok(a[index])) { return undefined ; }
+    if (!$isunsigned(a[index])) {
+        errors?.push(`wrong ${kind} size definition for array node`) ;
+        return undefined ;
+    }
+    return $unsigned(a[index]) ;
+}
+
+function _dictionaryConstruction(node:TSObjectNode, errors:Nullable<string[]>):TSParser|null {
+    if ($ok(node._acceptsUncheckedItems)) {errors?.push('_acceptsUncheckedItems field cannot be set for a dictionary node definition') ; }
+    if (!$ok(node._keysType)) { errors?.push('_keysType field is not set for dictionary node definition') ; }
+    const keysParser = _validSubParser(node._keysType!, errors) ;
+    if (!$ok(keysParser)) { return null ; }
+    if (!$ok(node._valueItemsType)) {errors?.push('_valueItemsType field is not set for a dictionary node definition') ; }
+    const itemsParser = _validSubParser(node._valueItemsType!, errors) ;
+    return $ok(itemsParser) ? new TSDictionaryParser(node, keysParser, itemsParser) : null ;
+}
+
+// a structured object: its items are all the fields which are not internal fields
+function _objectConstruction(node:TSObjectNode, errors:Nullable<string[]>):TSParser|null {
+    const itemsParsers:TSDictionary<TSParser> = {} ;
+    const keyscase = $value(
+        InternalCasingMap[$value(node._keysCase as Nullable<TSCase>, TSCase.standard)],
+        (s:string) => s
+    ) ;
+    let found = 0 ;
+    for (let [key, subnode] of Object.entries(node)) {
+        if (InternalFieldsSet.has(key)) { continue ; }
+        if (!IsFielOrEnumdRegex.test(key)) {
+            errors?.push(`wrong key '${key}' for object node definition`) ;
+            continue ;
+        }
+        const itemParser = _validSubParser(subnode as TSNode, errors) ;
+        if (!$ok(itemParser)) { return null ; }
+        itemsParsers[keyscase(key)] = itemParser ;
+        found++ ;
+    }
+    if (!found) {
+        errors?.push('empty object node definition') ;
+        return null ;
+    }
+    return new TSObjectParser(node, itemsParsers, !!node._acceptsUncheckedItems) ;
 }

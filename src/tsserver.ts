@@ -1,7 +1,7 @@
-import * as http from "http";
-import * as https from "https";
+import * as http from "http";    // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+import * as https from "https";  // NOSONAR: idem
 
-import { $count, $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
+import { $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
 import { $isabsolutepath } from "./fs";
 import { $conditionalClearMap } from "./mapset";
@@ -48,16 +48,16 @@ export interface TSServerOptions {
     port?:uint16 ;
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
-    key?:Nullable<TSDataLike> ;
-    certificate?:Nullable<TSDataLike> ;
-    certificateAuthority?:Nullable<TSDataLike> ;
-    mtls?:Nullable<boolean> ; // if true, the server will request a client certificate for mTLS authentication  
-    maxHeaderSize?:Nullable<number> ;
-    tlsSecTimeout?:Nullable<number> ; // The number of seconds after which a TLS session will no longer be resumable. default 300.
-    handshakeMsTimeout?:Nullable<number> ; // Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
-    forceCloseMsTimeout?:Nullable<number> ; // timeout to force remaining connection after server stop. Default is 15000
-    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ;
-    clearCacheInterval?:Nullable<number> ; // default is 900s (15 mn)
+    key?:Nullable<TSDataLike> ; // NOSONAR (optional field)
+    certificate?:Nullable<TSDataLike> ; // NOSONAR (optional field)
+    certificateAuthority?:Nullable<TSDataLike> ; // NOSONAR (optional field)
+    mtls?:Nullable<boolean> ; // NOSONAR (optional field). if true, the server will request a client certificate for mTLS authentication  
+    maxHeaderSize?:Nullable<number> ; // NOSONAR (optional field)
+    tlsSecTimeout?:Nullable<number> ; // NOSONAR (optional field). The number of seconds after which a TLS session will no longer be resumable. default 300.
+    handshakeMsTimeout?:Nullable<number> ; // NOSONAR (optional field). Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
+    forceCloseMsTimeout?:Nullable<number> ; // NOSONAR (optional field). timeout to force remaining connection after server stop. Default is 15000
+    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ; // NOSONAR (optional field)
+    clearCacheInterval?:Nullable<number> ; // NOSONAR (optional field). default is 900s (15 mn)
     log?: {
         logger?: TSServerLogger;
         level?: TSServerLogLevel;
@@ -136,7 +136,7 @@ export class TSServer {
     public readonly port:number ;
     public readonly rootPath:string = '' ;
     public readonly isHTTPs:boolean = false ;
-    private readonly _serverOptions:InternalServerOptions = {} ;
+    private readonly _serverOptions:InternalServerOptions ;
     private readonly _endPoints:TSServerEndPoint[] ;
     private readonly _router:TSEndPointRouter = new TSEndPointRouter([]) ; // rebuilt once _endPoints is populated
     private readonly _sites:TSStaticWebsite[] ;
@@ -166,18 +166,28 @@ export class TSServer {
             }) ; 
         }
 
-        try { TSServer.__server = new TSServer($value(endPoints, {}), $value(opts, {})) ; }
+        let server:TSServer ;
+        try { server = new TSServer($value(endPoints, {}), $value(opts, {})) ; }
         catch (e) { return e as Error ; }
-        
-        await TSServer.__server._start() ;
+        TSServer.__server = server ;
 
-        return TSServer.__server.isHTTPs ? TSServerStartStatus.HTTPS : TSServerStartStatus.HTTP ;
+        // the server is really started when it listens to its port (which may fail, eg. if the port is already used)
+        const error = await server._start() ;
+        if ($ok(error)) {
+            TSServer.stopClearCachesInterval() ;
+            delete TSServer.__server ;
+            if (server._logErrors) { await server._logger(TSServerLogType.Error, `cannot start for reason ${error.name}:\n${error.message}`, server) ; }
+            return error ;
+        }
+        if (server._logInfo) { await server._logger(TSServerLogType.Log, `running on port ${server.port} '${server.host}' ...`, server) ; }
+
+        return server.isHTTPs ? TSServerStartStatus.HTTPS : TSServerStartStatus.HTTP ;
     }
 
-    public static async isRunning() { return $ok(TSServer.__server) ; }
+    public static isRunning():boolean { return $ok(TSServer.__server) ; }
 
-    public static async clearCaches() { 
-        if (TSServer.__server) { await TSServer.__server._clearCaches() ; }
+    public static clearCaches():void { 
+        if (TSServer.__server) { TSServer.__server._clearCaches() ; }
         else { TSServer.stopClearCachesInterval() ; }
     }
     
@@ -220,22 +230,7 @@ export class TSServer {
         this._developerMode = ll === TSServerLogLevel.Developer ;
         this._sensitiveHeaders = $value(opts.log?.sensitiveHeaders, []);
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
-
-        if (this.isHTTPs) {
-            if ($length(opts.certificate)) { this._serverOptions.cert = $bufferFromDataLike(opts.certificate!) ; }
-            if ($length(opts.key)) { this._serverOptions.key = $bufferFromDataLike(opts.key!) ; }
-            if ($length(opts.certificateAuthority)) { this._serverOptions.ca = $bufferFromDataLike(opts.certificateAuthority!) ; }
-            if (!!opts.mtls) { 
-                this._serverOptions.requestCert = true ; 
-                this._serverOptions.rejectUnauthorized = true ; 
-            }
-            let t = $unsigned(opts.tlsSecTimeout) ;
-            if (t > 0) { this._serverOptions.sessionTimeout = t ; }
-            t = $unsigned(opts.handshakeMsTimeout) ;
-            if (t > 0) { this._serverOptions.handshakeTimeout = t ; }
-        }
-        const n = $unsigned(opts.maxHeaderSize) ;
-        if (n > 0) { this._serverOptions.maxHeaderSize = n ; }
+        this._serverOptions = _internalServerOptions(opts, this.isHTTPs) ;
 
         const ft = $unsigned(opts.forceCloseMsTimeout) ;
         this._forceCloseTimeout = ft === 0 ? TSServer.DEFAULT_CLOSE_TIMEOUT : ft ;
@@ -243,206 +238,208 @@ export class TSServer {
         const rp = $ftrim(opts.rootPath) ;
         if (rp.length > 1 && $isabsolutepath(rp)) { this.rootPath = rp ; }
 
-        // ========= first construct the static websites architecture (only if we're not inside a browser )==========
-        this._sites = [] ;
-        if ($ok(opts.webSites)) {
-            const keys = $keys(opts.webSites) ;
-            if ($inbrowser() && keys.length) { 
-                TSError.throw('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
-            }
-            if ($count(keys)) {
-                keys.forEach(u => {
-                    this._sites.push(new TSStaticWebsite(u as string, opts.webSites![u])) ;
-                }) ;    
-            }
-
-        }
-
-        // ========= second construct the dynamic endpoints ==========
-        this._endPoints = [] ;
-        $keys(endPoints).forEach(path => {
-            this._endPoints.push(new TSServerEndPoint(path as string, endPoints[path], this._logger)) ;
-        }) ;
+        // first construct the static websites architecture (only if we're not inside a browser), then the dynamic endpoints
+        this._sites = _staticWebsites(endPoints, opts) ;
+        this._endPoints = $keys(endPoints).map(path => new TSServerEndPoint(path as string, endPoints[path], this._logger)) ;
         this._router = new TSEndPointRouter(this._endPoints) ;
 
-        if ($ok(opts.port)) {
-            if (!$isunsigned(opts.port, UINT16_MAX)) { 
-                TSError.throw(`TSServer.constructor(): Bad ${this.isHTTPs?'HTTPS':'HTTP'} server port ${opts.port}.`, {
-                    endPoints:endPoints,
-                    options:opts
-                }) ;
-            } 
-            this.port = opts.port;
-        }
-        else { this.port = 3000 ; }
-
+        this.port = _serverPort(endPoints, opts, this.isHTTPs) ;
         this.host = $ftrim(opts.host) ;
         if (!this.host.length) { this.host = `${this.isHTTPs?'https':'http'}://localhost/` ; }
-        if (!$ok(opts.preflightController) || opts.preflightController === 'default') { this._preflightControler = _defaultPreflightController ; }
-        else if (opts.preflightController === 'permisive') { this._preflightControler = _permisivePreflightController ; }
-        else { this._preflightControler = opts.preflightController! ; }
+        this._preflightControler = _preflightController(opts) ;
         TSServer.setClearCachesInterval(opts?.clearCacheInterval) ;
     }
 
 
     // =================== instance methods =======================
 
-    private async _start() {
-        const managementCallBack = async (req: http.IncomingMessage, res: http.ServerResponse) => {
-            try {
-                // validating method
-                const sm = $value(req.method?.toUpperCase(), Verb.Get) ;
-                const potentialUrl = TSURL.compose(this.host, $string(req.url)) ;
-                if (!$ok(potentialUrl)) {
-                    TSError.throw('Bad request url endpoint', Resp.NotFound, {
-                        host:this.host,
-                        path:$string(req.url),
-                        serverError:TSServerErrorCodes.BadEndPointPath
-                    }) ;    
-                }
-                const url = potentialUrl! ;
-                const originKey = `${url.pathname}[${$value(req.headers["origin"], '*')}]`; 
-                if (sm === 'OPTIONS') {
-                    const preflightResponse = await this._preflightControler(url!, req.headers, res) ;
-                    if ($ok(preflightResponse)) {
-                        const npfr = _normalizePreflightResponse(preflightResponse, this._allowedMethodsSet) ;
-    
-                        res.setHeader("Access-Control-Allow-Origin", npfr.allowedOrigin!);
-                        res.setHeader("Access-Control-Allow-Methods", npfr.allowedMethods!);
-                        res.setHeader("Access-Control-Allow-Headers", npfr.allowedHeaders!);
-                        res.setHeader("Access-Control-Max-Age", $string(npfr.timeout!)) ;                    
-                        res.writeHead(Resp.NoContent) ;
-                        res.end() ;
-                        npfr.timeout = npfr.timeout! + $mark() ; // we change the duration in a moment in time
-                        this._preflightResponseCache.set(originKey, npfr) ;
+    // resolves when the server listens to its port, or with the error which prevents it to
+    private async _start():Promise<Error|undefined> {
 
-                        if (this._logInfo) { await this._logger(TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`, this, req) ; }
-                    }
-                    else {
-                        res.writeHead(Resp.NotAllowed) ;
-                        res.end() ;
-                        if (this._logWarnings) {
-                            await this._logger(TSServerLogType.Warning, `did refuse preflight request for resource '${url.pathname}'.`, this, req) ;
-                        }
-                    }
-                    return ;
-                }
-
-                const method = this._allowedMethodsSet.has(sm) ? sm as Verb : undefined ;
-
-                if (!$ok(method)) {
-                    TSError.throw(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
-                        method:req.method,
-                        path:$length(url.pathname) ? url.pathname : '/',
-                        serverError:TSServerErrorCodes.UnknownMethod
-                    }) ;
-                }
-
-                // validating url
-                if (!$length(url.pathname) || url.pathname === '/') {
-                    if (this.rootPath.length) { url.pathname = this.rootPath ; }
-                    else {
-                        TSError.throw('Root path is not Accessible', Resp.Forbidden, {
-                            method:req.method,
-                            path:'/',
-                            serverError:TSServerErrorCodes.InnaccessibleRoot
-                        }) ;    
-                    }
-                }
-                
-                const route = this._router.route(url.pathname) ;
-                const sep = route?.endPoint ;
-                const parameters:TSDictionary = route?.parameters ?? {} ;
-
-                if ($ok(sep)) {
-                    const now = $mark() ;
-                    let preflightResponse = this._preflightResponseCache.get(originKey) ;
-                    if ($ok(preflightResponse) && (!$ok(preflightResponse?.timeout) || preflightResponse!.timeout! >= now)) {
-                        this._preflightResponseCache.delete(originKey) ;
-                        preflightResponse = undefined ;
-                    }
-                    if ($ok(preflightResponse?.allowedOrigin)) {
-                        if ($ok(preflightResponse.timeout) && preflightResponse.timeout < now) {
-                            res.setHeader('Access-Control-Allow-Origin', preflightResponse!.allowedOrigin!) ;
-                        }
-                    }
-                    if (this._developerMode) { 
-                        const headers: NodeJS.Dict<string | string[]> = { ...req.headers };
-                        this._sensitiveHeaders.forEach(name => {
-                            const value = headers[name];
-                            if (value !== undefined) {
-                                headers[name] = Array.isArray(value) ? value.map(() => TSServer.SENSITIVE_HEADER_REPLACED_VALUE) : TSServer.SENSITIVE_HEADER_REPLACED_VALUE;
-                            }
-                        });
-                        await this._logger(TSServerLogType.Developer, `****** request headers ****:\n&j${$insp(headers)}&0`, this, req);
-                    }
-                    await sep!.execute({
-                        url:url, 
-                        method:method!, 
-                        parameters:parameters, 
-                        message:req,
-                        query:{}, // the final query will be calculated later
-                        body:undefined // the final body will be calculated later
-                    }, res, this._developerMode) ; 
-                    if (this._logInfo) { await this._logger(TSServerLogType.Log, `did handle ${TSServer.__methodColors[method!]}${method!}&w resource '${url.pathname}'.`, this, req) ; }
-                    return ;
-                }
-                else if (method === Verb.Get) {
-                    for (let s of this._sites) {
-                        const [b, type] = s.getStaticResource(url.pathname) ;
-                        if ($ok(b)) {
-                            if (this._logInfo) { await this._logger(TSServerLogType.Log, `did handle static resource '${url.pathname}'.`, this, req) ; }
-                            res.setHeader('Content-Type', type)
-                            res.writeHead(Resp.OK);
-                            res.end(b) ;
-                            return ;
-                        }
-                    }
-                }
-                
-                // here the resource is not found
-                TSError.throw(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound, {
-                    method:method,
-                    path:$length(url.pathname) ? url.pathname : '/',
-                    serverError:TSServerErrorCodes.ResourceNotFound
-                }) ;
-            }
-            catch (e:any) {
-                let ret:TSDictionary = {} ;
-                ret.status = $isunsigned(e?.status) && $isRespCode(e!.status!) ? e!.status! : Resp.InternalError ;
-                ret.error = (e as Error).message ; 
-                if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; } ;
-                if ($ok(e.info)) { ret.info = e.info ; }
-                if ($isnumber(e.errorCode)) { ret.errorCode = e.errorCode ; }
-                if (this._logWarnings) {
-                    await this._logger(TSServerLogType.Warning, `${ret.status} - ${ret.error}`, this, req) ;
-                    const errors = ret.info?.errors ;
-                    if ($isarray(errors)) {
-                        const n = $count(errors) ;
-                        for (let i = 0 ; i < n ; i++) {
-                            await this._logger(TSServerLogType.Warning, `      + error[${i+1}]: ${$string(errors[i])}`, this, req) ;
-                        }
-                    }
-                }
-                res.writeHead(ret.status, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(ret)) ;
-            }
+        // Node does not wait for the promise returned by _handleRequest(), which handles its own
+        // errors. This catches the ones which could happen in its error handling (eg. in an external logger)
+        const requestListener = (req: http.IncomingMessage, res: http.ServerResponse) => {
+            this._handleRequest(req, res).catch(() => {
+                if (!res.headersSent) { res.writeHead(Resp.InternalError) ; }
+                res.end() ;
+            }) ;
         } ;
 
-        this._httpServer = this.isHTTPs ?
-                           https.createServer(this._serverOptions, managementCallBack) : 
-                           http.createServer(this._serverOptions, managementCallBack) ;   
-        
-        this._httpServer.on('connection', this._onConnection.bind(this));
-        this._httpServer.on('request', this._onRequest.bind(this));
-                            
-        this._httpServer.listen(this.port, async ()=>{
-            if (this._logInfo) {
-                await this._logger(TSServerLogType.Log, `running on port ${this.port} '${this.host}' ...`, this) ;
-            }
+        let server:http.Server ;
+        try {
+            // with bad TLS options (eg. an invalid certificate or key), createServer() throws
+            server = this.isHTTPs ?
+                       https.createServer(this._serverOptions, requestListener) : 
+                       http.createServer(this._serverOptions, requestListener) ;   
+        }
+        catch (e) { return e instanceof Error ? e : new Error(String(e)) ; }
+        this._httpServer = server ;
+        server.on('connection', this._onConnection.bind(this));
+        server.on('request', this._onRequest.bind(this));
+
+        return new Promise(resolve => {
+            const onError = (e:Error) => { server.off('listening', onListening) ; resolve(e) ; } ;
+            const onListening = () => { server.off('error', onError) ; resolve(undefined) ; } ;
+            server.once('error', onError) ;
+            server.once('listening', onListening) ;
+            server.listen(this.port) ;
         }) ;
     }
     
+    // =================== request management =======================
+
+    private async _handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
+        try { await this._routeRequest(req, res) ; }
+        catch (e:any) { await this._sendError(e, req, res) ; }
+    }
+
+    // handles the request or throws a TSError giving the response status
+    private async _routeRequest(req: http.IncomingMessage, res: http.ServerResponse) {
+        const sm = $value(req.method?.toUpperCase(), Verb.Get) ;
+        const url = TSURL.compose(this.host, $string(req.url)) ;
+        if (!$ok(url)) {
+            TSError.throw('Bad request url endpoint', Resp.NotFound, {
+                host:this.host,
+                path:$string(req.url),
+                serverError:TSServerErrorCodes.BadEndPointPath
+            }) ;    
+        }
+        const originKey = `${url.pathname}[${$value(req.headers["origin"], '*')}]`; 
+        if (sm === 'OPTIONS') { return this._handlePreflight(url, originKey, req, res) ; }
+
+        const method = this._allowedMethodsSet.has(sm) ? sm as Verb : undefined ;
+        if (!$ok(method)) {
+            TSError.throw(`Request method '${req.method}' is not allowed.`, Resp.NotAllowed, {
+                method:req.method,
+                path:$length(url.pathname) ? url.pathname : '/',
+                serverError:TSServerErrorCodes.UnknownMethod
+            }) ;
+        }
+        this._validateRootPath(url, req) ;
+
+        // the end points are routed with the decoded path (it used to be the percent-encoded one, 
+        // so a path with a space or an accent, like '/café', was never found)
+        const route = this._router.route(_routedPathname(url.pathname)) ;
+        if ($ok(route?.endPoint)) { return this._executeEndPoint(route.endPoint, route.parameters ?? {}, url, method, originKey, req, res) ; }
+        if (method === Verb.Get && await this._sendStaticResource(url, req, res)) { return ; }
+
+        // here the resource is not found
+        TSError.throw(`endpoint ${method} '${url.pathname}' was not found.`, Resp.NotFound, {
+            method:method,
+            path:$length(url.pathname) ? url.pathname : '/',
+            serverError:TSServerErrorCodes.ResourceNotFound
+        }) ;
+    }
+
+    private async _handlePreflight(url:TSURL, originKey:string, req: http.IncomingMessage, res: http.ServerResponse) {
+        const preflightResponse = await this._preflightControler(url, req.headers, res) ;
+        if (!$ok(preflightResponse)) {
+            res.writeHead(Resp.NotAllowed) ;
+            res.end() ;
+            if (this._logWarnings) {
+                await this._logger(TSServerLogType.Warning, `did refuse preflight request for resource '${url.pathname}'.`, this, req) ;
+            }
+            return ;
+        }
+        const npfr = _normalizePreflightResponse(preflightResponse, this._allowedMethodsSet) ;
+        res.setHeader("Access-Control-Allow-Origin", npfr.allowedOrigin!);
+        res.setHeader("Access-Control-Allow-Methods", npfr.allowedMethods!);
+        res.setHeader("Access-Control-Allow-Headers", npfr.allowedHeaders!);
+        res.setHeader("Access-Control-Max-Age", $string(npfr.timeout!)) ;                    
+        res.writeHead(Resp.NoContent) ;
+        res.end() ;
+        npfr.timeout = npfr.timeout! + $mark() ; // we change the duration in a moment in time
+        this._preflightResponseCache.set(originKey, npfr) ;
+        if (this._logInfo) { await this._logger(TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`, this, req) ; }
+    }
+
+    // an empty path is replaced by the root path, if there's one
+    private _validateRootPath(url:TSURL, req: http.IncomingMessage) {
+        if ($length(url.pathname) && url.pathname !== '/') { return ; }
+        if (!this.rootPath.length) {
+            TSError.throw('Root path is not Accessible', Resp.Forbidden, {
+                method:req.method,
+                path:'/',
+                serverError:TSServerErrorCodes.InnaccessibleRoot
+            }) ;    
+        }
+        url.pathname = this.rootPath ;
+    }
+
+    private async _executeEndPoint(endPoint:TSServerEndPoint, parameters:TSDictionary, url:TSURL, method:Verb, originKey:string, req: http.IncomingMessage, res: http.ServerResponse) { // NOSONAR: private method, all parameters are needed
+        this._applyValidPreflight(originKey, res) ;
+        if (this._developerMode) { await this._logRequestHeaders(req) ; }
+        await endPoint.execute({
+            url:url, 
+            method:method, 
+            parameters:parameters, 
+            message:req,
+            query:{}, // the final query will be calculated later
+            body:undefined // the final body will be calculated later
+        }, res, this._developerMode) ; 
+        if (this._logInfo) { await this._logger(TSServerLogType.Log, `did handle ${TSServer.__methodColors[method]}${method}&w resource '${url.pathname}'.`, this, req) ; }
+    }
+
+    // a valid preflight response gives its allowed origin to the request response
+    private _applyValidPreflight(originKey:string, res: http.ServerResponse) {
+        const preflightResponse = this._preflightResponseCache.get(originKey) ;
+        if (!$ok(preflightResponse)) { return ; }
+        if (!_isValidPreflight(preflightResponse, $mark())) {
+            this._preflightResponseCache.delete(originKey) ;
+            return ;
+        }
+        if ($ok(preflightResponse.allowedOrigin)) { res.setHeader('Access-Control-Allow-Origin', preflightResponse.allowedOrigin) ; }
+    }
+
+    private async _logRequestHeaders(req: http.IncomingMessage) {
+        const headers: NodeJS.Dict<string | string[]> = { ...req.headers };
+        this._sensitiveHeaders.forEach(name => {
+            const value = headers[name];
+            if (value !== undefined) {
+                headers[name] = Array.isArray(value) ? value.map(() => TSServer.SENSITIVE_HEADER_REPLACED_VALUE) : TSServer.SENSITIVE_HEADER_REPLACED_VALUE;
+            }
+        });
+        await this._logger(TSServerLogType.Developer, `****** request headers ****:\n&j${$insp(headers)}&0`, this, req);
+    }
+
+    // returns true if one of the static web sites did send the resource
+    private async _sendStaticResource(url:TSURL, req: http.IncomingMessage, res: http.ServerResponse):Promise<boolean> {
+        for (const s of this._sites) {
+            const [b, type] = s.getStaticResource(url.pathname) ;
+            if ($ok(b)) {
+                if (this._logInfo) { 
+                    await this._logger(TSServerLogType.Log, `did handle static resource '${url.pathname}'.`, this, req) ; // NOSONAR: sequential by design
+                }
+                res.setHeader('Content-Type', type)
+                res.writeHead(Resp.OK);
+                res.end(b) ;
+                return true ;
+            }
+        }
+        return false ;
+    }
+
+    private async _sendError(e:any, req: http.IncomingMessage, res: http.ServerResponse) {
+        const ret:TSDictionary = {} ;
+        ret.status = $isunsigned(e?.status) && $isRespCode(e!.status!) ? e!.status! : Resp.InternalError ;
+        ret.error = (e as Error).message ; 
+        if (!$length(ret.error)) { ret.error = 'Unknown internal Error' ; }
+        if ($ok(e.info)) { ret.info = e.info ; }
+        if ($isnumber(e.errorCode)) { ret.errorCode = e.errorCode ; }
+        if (this._logWarnings) { await this._logErrorResponse(ret, req) ; }
+        res.writeHead(ret.status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(ret)) ;
+    }
+
+    private async _logErrorResponse(ret:TSDictionary, req: http.IncomingMessage) {
+        await this._logger(TSServerLogType.Warning, `${ret.status} - ${ret.error}`, this, req) ;
+        const errors = ret.info?.errors ;
+        if (!$isarray(errors)) { return ; }
+        for (let i = 0 ; i < errors.length ; i++) {
+            await this._logger(TSServerLogType.Warning, `      + error[${i+1}]: ${$string(errors[i])}`, this, req) ; // NOSONAR: sequential by design
+        }
+    }
+
     private _onConnection(socket:Socket) {
         this._connections.set(socket, { refcount:0, closeHeaderSent:false }) ;
         socket.once('close', () => this._connections.delete(socket)) ;
@@ -472,12 +469,13 @@ export class TSServer {
         }
     }
 
-    private async _clearCaches() {
-        // clearing old preflights
+    // TSStaticWebsite.clearCaches() is synchronous: there is nothing to await here
+    private _clearCaches() {
+        // clearing expired preflights
         const timestamp = $mark() ;
-        $conditionalClearMap(this._preflightResponseCache, (_,v) => !$ok(v.timeout) || v.timeout! > timestamp) ;
+        $conditionalClearMap(this._preflightResponseCache, (_,v) => !_isValidPreflight(v, timestamp)) ;
         // clearing web sites caches
-        for (let s of this._sites) { await s.clearCaches() ; }
+        this._sites.forEach(s => s.clearCaches()) ;
     }
 
     private async _stop():Promise<Error|undefined> { 
@@ -497,12 +495,10 @@ export class TSServer {
     private async _internalStopServer():Promise<Error|undefined> {
         if ($ok(this._httpServer)) {
             this._terminating = true ; // when _internalStopServer() is called once, we stay in terminating mode
-            const ret = new Promise((resolve, reject) => {
-                this._httpServer!.close((error) => {
-                    if ($ok(error)) { return reject(error) ; }
-                    resolve(undefined);
-                }) ;
-            }) as Promise<Error|undefined> ;
+            // the closing error is returned (and not thrown), as stated by stop() signature
+            const ret = new Promise<Error|undefined>(resolve => {
+                this._httpServer!.close(error => resolve($ok(error) ? error : undefined)) ;
+            }) ;
 
             /**
              * whatever we have in effective server close, as we asked for closing,
@@ -513,13 +509,14 @@ export class TSServer {
                 if (info.refcount === 0) { socket.end() ; }
             }) ;
 
+            // unref() : this timer must not keep the process alive once everything is closed
             setTimeout(() => {
                 this._connections.forEach((_:ConnectionStatus, socket:Socket) => { 
                     if ($ismethod(socket, 'destroy')) { (socket as any).destroy() ; }
                     else { socket.end() ; } 
                 }) ;
                 this._connections.clear() ; 
-            }, this._forceCloseTimeout)
+            }, this._forceCloseTimeout).unref() ;
 
             return ret ;
         }
@@ -545,10 +542,73 @@ interface ConnectionStatus {
 }
 
 // ================ private functions =======================
-async function __clearCaches() { TSServer.clearCaches() ; }
+function _internalServerOptions(opts:TSServerOptions, isHTTPs:boolean):InternalServerOptions {
+    const ret:InternalServerOptions = {} ;
+    if (isHTTPs) {
+        ret.cert = $bufferFromDataLike(opts.certificate!) ;
+        ret.key = $bufferFromDataLike(opts.key!) ;
+        if ($length(opts.certificateAuthority) > 0) { ret.ca = $bufferFromDataLike(opts.certificateAuthority!) ; }
+        if (opts.mtls) { 
+            ret.requestCert = true ; 
+            ret.rejectUnauthorized = true ; 
+        }
+        const sessionTimeout = $unsigned(opts.tlsSecTimeout) ;
+        if (sessionTimeout > 0) { ret.sessionTimeout = sessionTimeout ; }
+        const handshakeTimeout = $unsigned(opts.handshakeMsTimeout) ;
+        if (handshakeTimeout > 0) { ret.handshakeTimeout = handshakeTimeout ; }
+    }
+    const n = $unsigned(opts.maxHeaderSize) ;
+    if (n > 0) { ret.maxHeaderSize = n ; }
+    return ret ;
+}
+
+function _staticWebsites(endPoints:TSDictionary<TSEndpointsDefinition>, opts:TSServerOptions):TSStaticWebsite[] {
+    const keys = $ok(opts.webSites) ? $keys(opts.webSites) : [] ;
+    if ($inbrowser() && keys.length) { 
+        TSError.throw('TSServer cannot handle static websides inside a browser', { endPoints:endPoints, options:opts }) ; 
+    }
+    return keys.map(u => new TSStaticWebsite(u as string, opts.webSites![u])) ;
+}
+
+function _serverPort(endPoints:TSDictionary<TSEndpointsDefinition>, opts:TSServerOptions, isHTTPs:boolean):number {
+    if (!$ok(opts.port)) { return 3000 ; }
+    if (!$isunsigned(opts.port, UINT16_MAX)) { 
+        TSError.throw(`TSServer.constructor(): Bad ${isHTTPs?'HTTPS':'HTTP'} server port ${opts.port}.`, {
+            endPoints:endPoints,
+            options:opts
+        }) ;
+    } 
+    return opts.port ;
+}
+
+function _preflightController(opts:TSServerOptions):TSPreflightController {
+    if (!$ok(opts.preflightController) || opts.preflightController === 'default') { return _defaultPreflightController ; }
+    if (opts.preflightController === 'permisive') { return _permisivePreflightController ; }
+    return opts.preflightController ;
+}
+
+// decodes the valid percent-encoded sequences of a path. An encoded '/' stays encoded, so it cannot 
+// create a new path segment, and a '%' which does not start a valid UTF-8 sequence stays as it is
+// (like in '/100%', which URL accepts)
+function _routedPathname(pathname:string):string {
+    return pathname.replaceAll(/(?:%[0-9A-Fa-f]{2})+/g, run => {
+        let decoded:string ;
+        try { decoded = decodeURIComponent(run) ; }
+        catch { return run ; }
+        return decoded.replaceAll('/', '%2F') ;
+    }) ;
+}
+
+function __clearCaches() { TSServer.clearCaches() ; }
+
+// a cached preflight response is valid until its timeout, which is the moment it expires
+// (the Access-Control-Max-Age duration added to the moment of the preflight request)
+function _isValidPreflight(response:TSPreflightResponse, now:number):boolean {
+    return $ok(response.timeout) && response.timeout! >= now ;
+}
 
 let __logIndex:number = 0 ;
-const _internalLogger = async (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage) => {
+const _internalLogger = async (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage) => { // NOSONAR: default implementation of the asynchronous TSServerLogger contract
     if (!__logIndex) { $logterm('') ; }
 
     let serverLog = '';
@@ -586,8 +646,8 @@ function _normalizePreflightResponse(r:TSPreflightResponse, verbSet:Set<string>)
     let headers:string|string[] ;
     if (headersSet.has('*')) { headers = '*' ; }
     else {
-        methodSet.add('content-type') ;
-        methodSet.add('accept') ; // TODO: do we need to keep it here
+        headersSet.add('content-type') ;
+        headersSet.add('accept') ;
         headers = Array.from(headersSet) ;
     }
 
@@ -595,14 +655,13 @@ function _normalizePreflightResponse(r:TSPreflightResponse, verbSet:Set<string>)
 
 }
 
-// @ts-ignore
-async function _permisivePreflightController(url:TSURL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
+async function _permisivePreflightController(_url:TSURL, _headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> { // NOSONAR: asynchronous TSPreflightController contract
     return { allowedOrigin:undefined, allowedHeaders:undefined, allowedMethods:undefined } ;
 }
 
-// @ts-ignore
-async function _defaultPreflightController(url:TSURL, headers:http.IncomingHttpHeaders, res:http.ServerResponse):Promise<TSPreflightResponse> {
-    const acceptedHeaders = $value(headers["access-control-allow-headers"]?.split(',').map(s=>$ftrim(s).toLowerCase()), []) ;
+async function _defaultPreflightController(_url:TSURL, headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> { // NOSONAR: asynchronous TSPreflightController contract
+    // the preflight request gives the headers the actual request wants to send in Access-Control-Request-Headers
+    const acceptedHeaders = $value(headers["access-control-request-headers"]?.split(',').map(s=>$ftrim(s).toLowerCase()), []) ;
     //if (!acceptedHeaders.includes('accept')) { acceptedHeaders.push('accept') ; }
     if (!acceptedHeaders.includes('content-type')) { acceptedHeaders.push('content-type') ; }
 

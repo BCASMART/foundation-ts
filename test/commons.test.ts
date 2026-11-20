@@ -1,5 +1,5 @@
 
-import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $partial, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
+import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isipv4, $isipv6, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $partial, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -34,6 +34,77 @@ TSTest.group("Commons — misc predicates & helpers", async (group) => {
         t.expect6($isiterable(null)).false() ;
     }) ;
 
+    // [input, expected] tables shared by $isipv4(), $isipv6() and $isipaddress() tests
+    const IPV4_CASES:[any, boolean][] = [
+        ['0.0.0.0', true],
+        ['255.255.255.255', true],
+        ['192.168.1.1', true],
+        ['010.001.001.001', true],          // leading zeros are accepted in plain IPv4 addresses
+        ['000.0.0.0', true],
+        ['  10.0.0.255  ', true],           // trimmed
+        ['\u00a0192.168.1.1\u2028', true],  // Unicode spaces are trimmed too
+        ['256.1.1.1', false],
+        ['1.2.3.300', false],
+        ['1.2.3', false],
+        ['1.2.3.4.5', false],
+        ['1..2.3', false],
+        ['1.2.3.4.', false],
+        ['a.b.c.d', false],
+        ['1.2.3.4a', false],
+        ['-1.2.3.4', false],
+        ['0x1.2.3.4', false],
+        ['1. 2.3.4', false],
+        ['', false],
+        [192168, false],
+        [null, false],
+        [undefined, false],
+        [{}, false],
+    ] ;
+    const IPV6_CASES:[any, boolean][] = [
+        ['1:2:3:4:5:6:7:8', true],
+        ['2001:0db8:85a3:0000:0000:8a2e:0370:7334', true],
+        ['::', true],
+        ['::1', true],
+        ['1::', true],
+        ['1:2:3:4:5:6::8', true],
+        ['2001:db8::ff00:42:8329', true],
+        ['1:2:3:4:5:6:7::', true],          // 7 groups and '::' is the maximum
+        ['1:2:3:4:5:6:7:8::', false],
+        ['1:2:3:4:5:6:7:8:9', false],
+        ['1:2:3:4:5:6:7', false],
+        ['ABCD:ef01::Ab', true],            // case insensitive
+        ['12345::', false],                 // 5 hexadecimal digits
+        ['1g::', false],
+        ['1::2::3', false],                 // only one '::'
+        [':::', false],
+        [':1::2', false],
+        ['1::2:', false],
+        ['::ffff:192.168.1.1', true],       // final IPv4 address
+        ['1:2:3:4:5:6:1.2.3.4', true],
+        ['::1.2.3.4', true],
+        ['1:2:3:4:5:6:7:1.2.3.4', false],   // too many groups
+        ['1.2.3.4::1', false],              // the IPv4 address must be at the end
+        ['::ffff:192.168.01.1', false],     // no leading zeros in the final IPv4 address
+        ['::ffff:256.1.1.1', false],
+        ['fe80::1%eth0', true],             // zone index
+        ['fe80::1%', false],
+        ['fe80::1%a b', true],              // spaces are accepted inside a zone index
+        ['fe80::1%a\nb', false],            // but not line terminators
+        ['  ::1  ', true],                  // trimmed
+        ['192.168.1.1', false],
+        ['', false],
+        [42, false],
+        [null, false],
+    ] ;
+
+    group.unary('$isipv4()', async (t) => {
+        IPV4_CASES.forEach(([v, expected], i) => t.expect($isipv4(v), `v4-${i}`).is(expected)) ;
+    }) ;
+
+    group.unary('$isipv6()', async (t) => {
+        IPV6_CASES.forEach(([v, expected], i) => t.expect($isipv6(v), `v6-${i}`).is(expected)) ;
+    }) ;
+
     group.unary('$isipaddress()', async (t) => {
         t.expect0($isipaddress('192.168.1.1')).true() ;
         t.expect1($isipaddress('  10.0.0.255  ')).true() ;         // trimmed
@@ -42,6 +113,17 @@ TSTest.group("Commons — misc predicates & helpers", async (group) => {
         t.expect4($isipaddress('999.1.1.1')).false() ;
         t.expect5($isipaddress('not an ip')).false() ;
         t.expect6($isipaddress(123 as any)).false() ;
+        // $isipaddress() must always be equivalent to $isipv4() || $isipv6()
+        [...IPV4_CASES, ...IPV6_CASES].forEach(([v], i) => t.expect($isipaddress(v), `ip-${i}`).is($isipv4(v) || $isipv6(v))) ;
+    }) ;
+
+    group.unary('IP address validation has no catastrophic backtracking', async (t) => {
+        // with the former IPv6 regex, this input took several tens of seconds
+        const evil = '::1%a' + ' '.repeat(100_000) + '\nX' ;
+        const start = performance.now() ;
+        t.expect0($isipv6(evil)).false() ;
+        t.expect1($isipaddress(evil)).false() ;
+        t.expect2(performance.now() - start).lt(100) ;
     }) ;
 
     group.unary('$address()', async (t) => {
@@ -98,7 +180,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect5($ok(0)).true() ;
         t.expect6($ok(1)).true() ;
         t.expect7($ok(1.5)).true() ;
-        t.expect8($ok(NaN)).true() ;
+        t.expect8($ok(Number.NaN)).true() ;
         t.expect9($ok(Infinity)).true() ;
         t.expectA($ok(-Infinity)).true() ;
     }) ;
@@ -112,7 +194,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect5($defined(0)).true() ;
         t.expect6($defined(1)).true() ;
         t.expect7($defined(1.5)).true() ;
-        t.expect8($defined(NaN)).true() ;
+        t.expect8($defined(Number.NaN)).true() ;
         t.expect9($defined(Infinity)).true() ;
         t.expectA($defined(-Infinity)).true() ;
     }) ;
@@ -120,7 +202,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$intornull() function", async(t) => {
         t.expect1($intornull(null)).null();
         t.expect2($intornull(undefined)).null();
-        t.expect3($intornull(NaN)).null();
+        t.expect3($intornull(Number.NaN)).null();
         t.expect4($intornull(Number.MAX_SAFE_INTEGER)).null();
         t.expect5($intornull(Number.MIN_SAFE_INTEGER)).null();
         t.expect6($intornull(INT_MIN)).is(INT_MIN);
@@ -141,7 +223,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$unsignedornull() function", async(t) => {
         t.expect1($unsignedornull(null)).null();
         t.expect2($unsignedornull(undefined)).null();
-        t.expect3($unsignedornull(NaN)).null();
+        t.expect3($unsignedornull(Number.NaN)).null();
         t.expect4($unsignedornull(Number.MAX_SAFE_INTEGER)).null();
         t.expect5($unsignedornull(UINT_MAX)).is(UINT_MAX);
         t.expect6($unsignedornull(0)).is(0);
@@ -161,7 +243,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$int() function", async(t) => {
         t.expect0($int(null)).is(0);
         t.expect1($int(undefined)).is(0);
-        t.expect2($int(NaN)).is(0);
+        t.expect2($int(Number.NaN)).is(0);
         t.expect3($int(Number.MAX_SAFE_INTEGER)).is(0);
         t.expect4($int(INT_MAX)).is(INT_MAX);
         t.expect5($int(0)).is(0);
@@ -179,7 +261,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$unsigned() function", async(t) => {
         t.expect0($unsigned(null)).is(0);
         t.expect1($unsigned(undefined)).is(0);
-        t.expect2($unsigned(NaN)).is(0);
+        t.expect2($unsigned(Number.NaN)).is(0);
         t.expect3($unsigned(Number.MAX_SAFE_INTEGER)).is(0);
         t.expect4($unsigned(UINT_MAX)).is(UINT_MAX);
         t.expect5($unsigned(0)).is(0);
@@ -195,7 +277,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$toint() function", async(t) => {
         t.expect0($toint(null)).is(0);
         t.expect1($toint(undefined)).is(0);
-        t.expect2($toint(NaN)).is(0);
+        t.expect2($toint(Number.NaN)).is(0);
         t.expect3($toint(Number.MAX_SAFE_INTEGER)).is(INT_MAX);
         t.expect4($toint(INT_MAX)).is(INT_MAX);
         t.expect5($toint(0)).is(0);
@@ -222,7 +304,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     group.unary("$tounsigned() function", async(t) => {
         t.expect0($tounsigned(null)).is(0);
         t.expect1($tounsigned(undefined)).is(0);
-        t.expect2($tounsigned(NaN)).is(0);
+        t.expect2($tounsigned(Number.NaN)).is(0);
         t.expect3($tounsigned(Number.MAX_SAFE_INTEGER)).is(UINT_MAX);
         t.expect4($tounsigned(UINT_MAX)).is(UINT_MAX);
         t.expect5($tounsigned(0)).is(0);

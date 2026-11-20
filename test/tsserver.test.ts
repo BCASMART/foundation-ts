@@ -1,5 +1,5 @@
 import { TSServer, TSServerLogLevel, TSServerOptions } from "../src/tsserver";
-import { $UUID, $keys, $length, $string } from "../src/commons";
+import { $UUID, $keys, $length, $string, $value } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
 import { $absolute, $path, $readBuffer } from "../src/fs";
@@ -10,6 +10,11 @@ import { TSError } from "../src/tserrors";
 import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSServerErrorCodes, TSServerRequest, TSServerResponse, TSServerStartStatus } from "../src/tsserver_types";
 import { TSEndPointRouter, TSServerEndPoint } from "../src/tsserver_endpoints";
 import { TSStaticWebsite } from "../src/tsserver_websites";
+import { PassThrough } from "stream";
+import { createServer as createNetServer } from "net";
+import { get as httpGet } from "http";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
 import { TSObjectNode, TSParser } from "../src/tsparser";
 import { TSColor } from "../src/tscolor";
@@ -124,6 +129,21 @@ export const serverGroups = [
             t.expect8(mk('/a|b', { GET:fn })).throws(/forbidden character/) ;
             t.expect9(mk('/v{9bad}', { GET:fn })).throws(/forbidden first character/) ;
             t.expectA(mk('/v{name:notatype}', { GET:fn })).throws() ;
+            // the error message gives the code of the forbidden character (it used to contain the source of toHex4())
+            t.expectB(mk('/a^b', { GET:fn })).throws(/forbidden character '\\u005E' in path/) ;
+            t.expectC(mk('/v{9bad}', { GET:fn })).throws(/forbidden first character '\\u0039'/) ;
+        }) ;
+
+        group.unary('token types may contain digits', async (t) => {
+            // a type name starts with a letter and may then contain digits : uint8, uint16, uint32... used to be refused
+            const ep = new TSServerEndPoint('/p/{id:uint32}/{small:UINT8}', { GET:fn }) ;
+            t.expect0(ep.parametersFromPath('/p/42/7')).is({ id:42, small:7 }) ;
+            // the type used to be the source of the nodeType() method, and was missing in the error info
+            t.expect1(() => ep.parametersFromPath('/p/42/300')).throws(/Bad parameter 'small' of type 'uint8' in url path/) ;
+            t.expect5(() => ep.parametersFromPath('/p/42/300')).throws((e:any) => e.info?.type === 'uint8') ;
+            t.expect2(mk('/p/{id:9int}', { GET:fn })).throws(/forbidden first character '\\u0039' in parametric type/) ;
+            t.expect3(mk('/p/{id:uint-32}', { GET:fn })).throws(/forbidden character '\\u002D' in parametric type/) ;
+            t.expect4(mk('/p/{id:uint33}', { GET:fn })).throws(/unknown type 'uint33'/) ;
         }) ;
 
         group.unary('accepts the valid shapes', async (t) => {
@@ -198,6 +218,264 @@ export const serverGroups = [
 ];
 
 if (!$inbrowser()) {
+    serverGroups.push(TSTest.group("TSServer — end points routing with encoded paths and case", async (group) => {
+        const port = 8415 as uint16 ;
+        const echo = async (r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ p:r.parameters }) ; } ;
+        const endpoints:any = { 
+            '/café':echo, '/a b':echo, '/Echo/Sub':echo, '/100%':echo, "/l'a":echo, 
+            '/p/{name}':echo, '/v{vers}/Users/{id:int}':echo 
+        } ;
+        const fetch = (path:string) => new Promise<[number, any]>((resolve, reject) => {
+            httpGet({ host:'localhost', port, path }, res => {
+                let body = '' ;
+                res.on('data', d => { body += d ; }) ;
+                res.on('end', () => resolve([$value(res.statusCode, 0), $jsonparse(body)])) ;
+            }).on('error', reject) ;
+        }) ;
+
+        group.unary('decoded paths and case insensitive static parts', async (t) => {
+            t.expect0(await TSServer.start(endpoints, { port, log: { level: TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            try {
+                // the request paths are percent-encoded: they used to be routed as is, so these were not found
+                t.expect1((await fetch('/caf%C3%A9'))[0]).is(Resp.OK) ;
+                t.expect2((await fetch('/a%20b'))[0]).is(Resp.OK) ;
+                t.expect3((await fetch('/l%27a'))[0]).is(Resp.OK) ;
+                t.expect4(await fetch('/p/b%2Dob')).is([Resp.OK, { p:{ name:'b-ob' } }]) ;
+                // the static part used to be compared with the request case, so '/Echo/Sub' was not found
+                t.expect5((await fetch('/Echo/Sub'))[0]).is(Resp.OK) ;
+                t.expect6((await fetch('/ECHO/SUB'))[0]).is(Resp.OK) ;
+                t.expect7(await fetch('/V2/users/42')).is([Resp.OK, { p:{ vers:'2', id:42 } }]) ;
+                // a lone '%' stays as it is, an encoded '/' does not create a path segment
+                t.expect8((await fetch('/100%'))[0]).is(Resp.OK) ;
+                t.expect9((await fetch('/p/a%2Fb'))[0]).is(Resp.NotFound) ;
+                t.expectA((await fetch('/p/%ZZ'))[0]).is(Resp.NotFound) ;
+                t.expectB((await fetch('/p/bob'))[1]).is({ p:{ name:'bob' } }) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServer — query parameters: arrays and repeated keys", async (group) => {
+        const port = 8414 as uint16 ;
+        const echo = async (r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ q:$value(r.query, null) }) ; } ;
+        const endpoints:any = {
+            '/q': { GET:{ controller:echo, query:{ ids:['uint32'], n:'int', s:'string' } } },
+            '/d': { GET:{ controller:echo, query:{ _keysType:'string', _valueItemsType:['int'] } } },
+            '/u': { GET:{ controller:echo, query:{ _acceptsUncheckedItems:true, n:'int' } } },
+        } ;
+        const fetch = (path:string) => new Promise<[number, any]>((resolve, reject) => {
+            httpGet({ host:'localhost', port, path }, res => {
+                let body = '' ;
+                res.on('data', d => { body += d ; }) ;
+                res.on('end', () => resolve([$value(res.statusCode, 0), $jsonparse(body)])) ;
+            }).on('error', reject) ;
+        }) ;
+
+        group.unary('arrays, repeated keys and absent query', async (t) => {
+            t.expect0(await TSServer.start(endpoints, { port, log: { level: TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            try {
+                // array keys always give an array (it used to be the last value, refused by the array parser)
+                t.expect1(await fetch('/q?ids=1&ids=2')).is([Resp.OK, { q:{ ids:[1, 2] } }]) ;
+                t.expect2(await fetch('/q?ids=1')).is([Resp.OK, { q:{ ids:[1] } }]) ;
+                t.expect3(await fetch('/q?n=3')).is([Resp.OK, { q:{ n:3 } }]) ;
+                // a repeated non array key is refused (it used to silently keep the last value)
+                const rep = await fetch('/q?n=3&n=4&s=a') ;
+                t.expect4(rep[0]).is(Resp.BadRequest) ;
+                t.expect5(rep[1].info.errors).is(['value.n is present several times']) ;
+                t.expect6((await fetch('/q?ids=1&ids=x'))[0]).is(Resp.BadRequest) ;
+                // no query at all on a non mandatory query definition (it used to be a 500 error)
+                t.expect7(await fetch('/q')).is([Resp.OK, { q:null }]) ;
+                // dictionaries and unchecked items
+                t.expect8(await fetch('/d?a=1&a=2&b=3')).is([Resp.OK, { q:{ a:[1, 2], b:[3] } }]) ;
+                t.expect9(await fetch('/u?x=1&x=2&n=5')).is([Resp.OK, { q:{ x:['1', '2'], n:5 } }]) ;
+                t.expectA((await fetch('/u?n=1&n=2'))[0]).is(Resp.BadRequest) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSStaticWebsite — files outside the website folder", async (group) => {
+        const port = 8413 as uint16 ;
+        const fetch = (path:string) => new Promise<[number, string, string]>((resolve, reject) => {
+            // a raw request: the path is sent as is, without the '..' normalization a browser would do
+            httpGet({ host:'localhost', port, path }, res => {
+                let body = '' ;
+                res.on('data', d => { body += d ; }) ;
+                res.on('end', () => resolve([$value(res.statusCode, 0), $string(res.headers['content-type']), body])) ;
+            }).on('error', reject) ;
+        }) ;
+
+        group.unary('path traversal is refused, mime types', async (t) => {
+            const dir = mkdtempSync($path(tmpdir(), 'tsws-')) ;
+            try {
+                const site = $path(dir, 'site') ;
+                mkdirSync($path(site, 'a'), { recursive:true }) ;
+                writeFileSync($path(site, 'index.html'), '<p>index</p>') ;
+                writeFileSync($path(site, 'photo.jpg'), 'jpg') ;
+                writeFileSync($path(site, 'a b.html'), '<p>space</p>') ;
+                writeFileSync($path(site, 'café.html'), '<p>accent</p>') ;
+                writeFileSync($path(dir, 'secret.html'), '<p>secret</p>') ;
+
+                const ws = new TSStaticWebsite('/', site) ;
+                t.expect0(ws.getStaticResource('/../secret.html')).is([undefined, 'text/html']) ;
+                t.expect1($string(ws.getStaticResource('/a/../index.html')[0])).is('<p>index</p>') ;
+                t.expect2($string(ws.getStaticResource('/index.html')[0])).is('<p>index</p>') ;
+                t.expect3((ws as any)._cache.size).is(1) ; // both paths are the same cached file
+                ws.clearCaches() ;
+                t.expect4((ws as any)._cache.size).is(1) ;
+
+                t.expect5(await TSServer.start({}, { port, log: { level: TSServerLogLevel.None }, webSites:{ '/':site } })).is(TSServerStartStatus.HTTP) ;
+                try {
+                    const index = await fetch('/index.html') ;
+                    t.expect6([index[0], index[2]]).is([Resp.OK, '<p>index</p>']) ;
+                    // these ones used to return the secret file
+                    t.expect7((await fetch('/../secret.html'))[0]).is(Resp.NotFound) ;
+                    t.expect8((await fetch('/a/../../secret.html'))[0]).is(Resp.NotFound) ;
+                    t.expect9((await fetch('/..\\secret.html'))[0]).is(Resp.NotFound) ;
+                    t.expectA((await fetch('/a/../index.html'))[0]).is(Resp.OK) ;
+                    // jpg files used to be served as image/jpg
+                    t.expectB((await fetch('/photo.jpg'))[1]).is('image/jpeg') ;
+                    // the request paths are percent-encoded: they used to be searched as is on the disk
+                    t.expectC((await fetch('/a%20b.html'))[2]).is('<p>space</p>') ;
+                    t.expectD((await fetch('/caf%C3%A9.html'))[2]).is('<p>accent</p>') ;
+                    // an encoded '..' is decoded before the folder check, a malformed encoding is not found
+                    t.expectE((await fetch('/%2e%2e/secret.html'))[0]).is(Resp.NotFound) ;
+                    t.expectF((await fetch('/a/..%2F..%2Fsecret.html'))[0]).is(Resp.NotFound) ;
+                    t.expectG((await fetch('/%ZZ.html'))[0]).is(Resp.NotFound) ;
+                    t.expectH((await fetch('/index%00.html'))[0]).is(Resp.NotFound) ;
+                }
+                finally { await TSServer.stop() ; }
+            }
+            finally { rmSync(dir, { recursive:true, force:true }) ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServerResponse status and content type arguments", async (group) => {
+        const port = 8412 as uint16 ;
+        const opts:TSServerOptions = { port, log: { level: TSServerLogLevel.None } } ;
+        const data = Buffer.from([0, 1, 2, 255]) ;
+        const endpoints:any = {
+            '/s1': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnString('a') ; },
+            '/s2s': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnString('b', Resp.Created) ; },
+            '/s2t': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnString('<p/>', 'text/html') ; },
+            '/s3': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnString('c', 'text/csv', Resp.Accepted) ; },
+            '/d2s': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnData(data, Resp.Created) ; },
+            '/d2t': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnData(data, 'image/png') ; },
+            '/o2s': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ a:1 }, Resp.Created) ; },
+            '/o2t': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ a:1 }, 'application/ld+json') ; },
+        } ;
+        const fetchHead = (path:string) => new Promise<[number, string]>((resolve, reject) => {
+            httpGet(`http://localhost:${port}${path}`, res => {
+                res.resume() ;
+                res.on('end', () => resolve([$value(res.statusCode, 0), $string(res.headers['content-type'])])) ;
+            }).on('error', reject) ;
+        }) ;
+
+        group.unary('the second argument is a status or a content type', async (t) => {
+            t.expect0(await TSServer.start(endpoints, opts)).is(TSServerStartStatus.HTTP) ;
+            try {
+                // the content type used to be the status ('201') with the status always being 200 for strings,
+                // and a content type given to returnData() or returnObject() used to be taken as a status
+                t.expect1(await fetchHead('/s1')).is([Resp.OK, 'text/plain']) ;
+                t.expect2(await fetchHead('/s2s')).is([Resp.Created, 'text/plain']) ;
+                t.expect3(await fetchHead('/s2t')).is([Resp.OK, 'text/html']) ;
+                t.expect4(await fetchHead('/s3')).is([Resp.Accepted, 'text/csv']) ;
+                t.expect5(await fetchHead('/d2s')).is([Resp.Created, 'application/octet-stream']) ;
+                t.expect6(await fetchHead('/d2t')).is([Resp.OK, 'image/png']) ;
+                t.expect7(await fetchHead('/o2s')).is([Resp.Created, 'application/json']) ;
+                t.expect8(await fetchHead('/o2t')).is([Resp.OK, 'application/ld+json']) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServer — start() and stop() errors", async (group) => {
+        const port = 8411 as uint16 ;
+        const endpoints:any = { '/ok': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnString('ok') ; } } ;
+        const opts:TSServerOptions = { port, log: { level: TSServerLogLevel.None } } ;
+
+        group.unary('start() on an already used port returns the error', async (t) => {
+            const blocker = createNetServer() ;
+            await new Promise<void>(resolve => blocker.listen(port, () => resolve())) ;
+            let blocked = true ;
+            try {
+                // it used to report a success, then to crash the process with an uncaught EADDRINUSE error
+                const st = await TSServer.start(endpoints, opts) ;
+                t.expect0(st instanceof Error).true() ;
+                t.expect1((st as any)?.code).is('EADDRINUSE') ;
+                t.expect2(TSServer.isRunning()).false() ;
+
+                // once the port is free, the server can be started
+                await new Promise<void>(resolve => blocker.close(() => resolve())) ;
+                blocked = false ;
+                t.expect3(await TSServer.start(endpoints, opts)).is(TSServerStartStatus.HTTP) ;
+                t.expect4(TSServer.isRunning()).true() ;
+                const resp = await new TSRequest(`http://localhost:${port}/`).req('ok', Verb.Get, RespType.String) ;
+                t.expect5(resp.response).is('ok') ;
+                t.expect6(await TSServer.stop()).undef() ;
+                t.expect7(TSServer.isRunning()).false() ;
+            }
+            finally {
+                if (blocked) { blocker.close() ; }
+                if (TSServer.isRunning()) { await TSServer.stop() ; }
+            }
+        }) ;
+
+        group.unary('start() with bad TLS options returns the error', async (t) => {
+            // createServer() throws on an invalid key, start() used to reject instead of returning the error
+            const st = await TSServer.start(endpoints, { ...opts, key:Buffer.from('not a key'), certificate:Buffer.from('not a certificate') }) ;
+            t.expect0(st instanceof Error).true() ;
+            t.expect1(TSServer.isRunning()).false() ;
+            t.expect2(await TSServer.start(endpoints, opts)).is(TSServerStartStatus.HTTP) ;
+            t.expect3(await TSServer.stop()).undef() ;
+        }) ;
+
+        group.unary('stop() returns the closing error instead of throwing it', async (t) => {
+            t.expect0(await TSServer.start(endpoints, opts)).is(TSServerStartStatus.HTTP) ;
+            const internal = (TSServer as any).__server ;
+            await new Promise<void>(resolve => internal._httpServer.close(() => resolve())) ;   // closed behind TSServer's back
+            const e:any = await TSServer.stop() ;                    // it used to throw ERR_SERVER_NOT_RUNNING
+            t.expect1(e instanceof Error).true() ;
+            t.expect2(e?.code).is('ERR_SERVER_NOT_RUNNING') ;
+            // cleaning for the next tests
+            TSServer.stopClearCachesInterval() ;
+            delete (TSServer as any).__server ;
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("$readStreamBuffer()", async (group) => {
+        group.unary('reads a stream or resolves to null', async (t) => {
+            t.expect0(await $readStreamBuffer(null)).null() ;
+
+            const full = new PassThrough() ;
+            const pFull = $readStreamBuffer(full) ;
+            full.write('ab') ; full.end('c') ;
+            t.expect1((await pFull)?.toString()).is('abc') ;
+
+            // an empty stream gives an empty buffer, not null
+            const empty = new PassThrough() ;
+            const pEmpty = $readStreamBuffer(empty) ;
+            empty.end() ;
+            const emptyBuffer = await pEmpty ;
+            t.expect2(emptyBuffer).OK() ;
+            t.expect3(emptyBuffer?.length).is(0) ;
+
+            // a failing stream (eg. a client aborting its request) resolves to null instead of rejecting
+            const failing = new PassThrough() ;
+            const pFailing = $readStreamBuffer(failing) ;
+            failing.write('partial') ;
+            failing.destroy(new Error('aborted')) ;
+            t.expect4(await pFailing).null() ;
+
+            // a stream closed without any 'end' event resolves to null instead of never resolving
+            const closed = new PassThrough() ;
+            const pClosed = $readStreamBuffer(closed) ;
+            closed.write('partial') ;
+            closed.destroy() ;
+            t.expect5(await pClosed).null() ;
+        }) ;
+    })) ;
+
     serverGroups.push(TSTest.group("Testing TSServer API definitions", async (group) => {
         const localDirectory = $absolute('test/main') ;
         const content = $readBuffer($path(localDirectory, 'index.html')) ;
@@ -259,7 +537,7 @@ if (!$inbrowser()) {
             } ;
             const startStatus = await TSServer.start(serverEndPoints, {...basicOptions }) ;
             t.expect0(startStatus).is(TSServerStartStatus.HTTP) ;
-            t.expect1(await TSServer.isRunning()).true() ;
+            t.expect1(TSServer.isRunning()).true() ;
             const client = new TSRequest(`http://localhost:${port}/`) ;
             t.expect2(client).OK() ;
             const resp = await client.req("decode", Verb.Post, RespType.Buffer, prefix+b64) ;
@@ -334,7 +612,7 @@ if (!$inbrowser()) {
                 } ;
                 const startStatus = await TSServer.start(serverEndPoints, {...options }) ;
                 t.expect2(startStatus).is(TSServerStartStatus.HTTP) ;
-                t.expectA(await TSServer.isRunning()).true() ;
+                t.expectA(TSServer.isRunning()).true() ;
                 t.register('sessionID', sessionID) ;
                 const client = new TSRequest(`http://localhost:${port}/`) ;
                 const resp = await client.req(
@@ -381,7 +659,7 @@ if (!$inbrowser()) {
             };
             const startStatus = await TSServer.start(serverEndPoints, {...options });
             t.expect0(startStatus).is(TSServerStartStatus.HTTP);
-            t.expect1(await TSServer.isRunning()).true();
+            t.expect1(TSServer.isRunning()).true();
             const client = new TSRequest(`http://localhost:${port}/`);
             const resp = await client.req('blobs', Verb.Post, RespType.Buffer, blobBody);
             t.expectA(resp.status).is(Resp.OK);
@@ -446,7 +724,7 @@ if (!$inbrowser()) {
         } ;
 
         group.unary('stop() on a non-running server is a no-op', async (t) => {
-            t.expect0(await TSServer.isRunning()).false() ;
+            t.expect0(TSServer.isRunning()).false() ;
             t.expect1(await TSServer.stop()).undef() ;
         }) ;
 
@@ -494,6 +772,45 @@ if (!$inbrowser()) {
                 const acao = resp.headers.get('access-control-allow-origin') ;
                 t.expect2($length(acao)).gt(0) ;
                 t.expect3($length(resp.headers.get('access-control-allow-methods'))).gt(0) ;
+                // content-type and accept are always allowed, they used to be added to the methods instead of the headers
+                t.expect4($string(resp.headers.get('access-control-allow-headers'))).is('content-type, accept') ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('CORS: a valid preflight gives Access-Control-Allow-Origin to the following requests', async (t) => {
+            const st = await TSServer.start(endpoints as any, opts) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+                const origin = 'https://foo.example' ;
+                const pf = await client.req('obj', 'OPTIONS' as Verb, RespType.String, null, { 'origin':origin, 'access-control-request-method':'GET' }) ;
+                t.expect1(pf.status).is(Resp.NoContent) ;
+                const allowed = pf.headers.get('access-control-allow-origin') ;
+
+                // the request following the preflight, from the same origin, gets the CORS header (it used to be refused)
+                const r1 = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':origin }) ;
+                t.expect2(r1.status).is(Resp.OK) ;
+                t.expect3(r1.headers.get('access-control-allow-origin')).is(allowed) ;
+                // and so do the next ones while the preflight is valid
+                const r2 = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':origin }) ;
+                t.expect4(r2.headers.get('access-control-allow-origin')).is(allowed) ;
+                // no preflight for this origin: no CORS header
+                const r3 = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':'https://other.example' }) ;
+                t.expect5(r3.headers.get('access-control-allow-origin')).null() ;
+
+                // a valid preflight is kept by the caches cleaning, an expired one is removed and no longer used
+                const cache:Map<string, any> = (TSServer as any).__server._preflightResponseCache ;
+                TSServer.clearCaches() ;
+                t.expect6(cache.size).is(1) ;
+                cache.forEach(v => { v.timeout = 0 ; }) ;        // the preflight is now expired
+                const r4 = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':origin }) ;
+                t.expect7(r4.headers.get('access-control-allow-origin')).null() ;
+                t.expect8(cache.size).is(0) ;
+                await client.req('obj', 'OPTIONS' as Verb, RespType.String, null, { 'origin':origin, 'access-control-request-method':'GET' }) ;
+                cache.forEach(v => { v.timeout = 0 ; }) ;
+                TSServer.clearCaches() ;
+                t.expect9(cache.size).is(0) ;
             }
             finally { await TSServer.stop() ; }
         }) ;
@@ -544,13 +861,15 @@ if (!$inbrowser()) {
                 const pf = await client.req('echo', 'OPTIONS' as Verb, RespType.String, null, {
                     'origin':'https://x.example',
                     'access-control-request-method':'GET',
-                    'access-control-allow-headers':'x-custom',
+                    'access-control-request-headers':'X-Custom, Authorization',
                 }) ;
                 t.expect7(pf.status).is(Resp.NoContent) ;
+                // the requested headers used to be read in access-control-allow-headers, so they were never allowed
+                t.expectA($string(pf.headers.get('access-control-allow-headers'))).is('x-custom, authorization, content-type, accept') ;
 
                 // clearCaches on a running server
-                await TSServer.clearCaches() ;
-                t.expect8(await TSServer.isRunning()).true() ;
+                TSServer.clearCaches() ;
+                t.expect8(TSServer.isRunning()).true() ;
             }
             finally { await TSServer.stop() ; }
         }) ;

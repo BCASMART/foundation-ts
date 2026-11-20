@@ -9,6 +9,7 @@ import { TSURL } from './tsurl';
 import { $map } from './array';
 import { $charset, TSCharset } from './tscharset';
 import { $iscollection } from './tsobject'
+import { $declareMethods } from "./object";
 
 
 export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEncoding|TSCharset>) : string
@@ -156,7 +157,7 @@ export const NO_HEADERS = {} ;
 
 export type TSRequestHeaders = { [key:string]: string | string[] | number } ;
 export type TSResponseHeaders = Headers ;
-export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ;
+export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ; // NOSONAR: encoding is really optional
 
 export type TSResponseType = Nullable<object | string | number | boolean | ReadableStream> ;
 export interface TSResponse {
@@ -166,10 +167,10 @@ export interface TSResponse {
     statusDescription?:string ;
 } ;
 export interface TSRequestOptions {
-    headers?:Nullable<TSRequestHeaders> ;
-    timeout?:Nullable<number> ;
-    managesCredentials?:Nullable<boolean> ;
-    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // if TSDataLike, we need to convert it to base64
+    headers?:Nullable<TSRequestHeaders> ;   // NOSONAR: field is optional
+    timeout?:Nullable<number> ;             // NOSONAR: field is optional
+    managesCredentials?:Nullable<boolean> ; // NOSONAR: field is optional
+    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // NOSONAR: field is optional. if TSDataLike, we need to convert it to base64
 }
 
 export class TSRequest {
@@ -296,7 +297,7 @@ export class TSRequest {
                 timeout:timeout
             }) ; 
         }
-        if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, finalURL.length-1) ; }
+        if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, -1) ; }
 
         switch (typeof body) {
             case 'undefined': break ;
@@ -467,7 +468,7 @@ function _capitalizeHeaderName(s:string):string {
     let lastCharWasNotLetter = true ;
     for (let i = 0, n = s.length ; i < n ; i++) {
         const c = s[i] ;
-        const code = s.charCodeAt(i) ;
+        const code = s.charCodeAt(i) ; // NOSONAR: ASCII letters of HTTP header names, UTF-16 code units are what we need
         const isLetter = (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a) ; // A-Z or a-z
         ret += (isLetter && lastCharWasNotLetter) ? c.toUpperCase() : c ;
         lastCharWasNotLetter = !isLetter ;
@@ -515,59 +516,71 @@ declare global {
     }
 }
 
-URLSearchParams.prototype.query = function query(this: URLSearchParams): StringDictionary | null {
-    const ret:StringDictionary = {} ;
-    let total = 0 ;
-    // FIXME: do net we need to care about arrays here ?
-    for (const [key, value] of this) {
-        if (key.length > 0) { ret[key] = value ; total ++ ; }
-    }
-    return total > 0 ? ret : null ;
-} ;
+$declareMethods(URLSearchParams, {
+    query(this: URLSearchParams): StringDictionary | null {
+        const ret:StringDictionary = {} ;
+        let total = 0 ;
+        // a repeated key keeps its last value: TSServer end points use the query parser
+        // definition instead, to get arrays and to refuse repeated scalar parameters
+        for (const [key, value] of this) {
+            if (key.length > 0) { ret[key] = value ; total ++ ; }
+        }
+        return total > 0 ? ret : null ;
+    },
+}) ;
 
 export type TSMultipartEntry = string | Blob ;
 
+/**
+ * Generates a multipart/form-data body. Strings are sent as text fields, Blobs and Files 
+ * as files, with their content unchanged. Like with a browser FormData, a File is sent 
+ * with its name and a Blob with the name 'blob'. Other entries are skipped.
+ * The request Content-Type should be `multipart/form-data; boundary=<boundary>`.
+ * @returns the body bytes, or null if there is no entry to send
+ */
+export async function $generateMultiPartBody(dict:TSDictionary<TSMultipartEntry>, boundary:string):Promise<Uint8Array|null>
+{
+    const encoder = new TextEncoder() ;
+    const parts:Uint8Array[] = [] ;
+    for (const [key, value] of Object.entries(dict)) {
+        if (!$isstring(value) && !(value instanceof Blob)) { continue ; } // File is a subclass of Blob
+        parts.push(encoder.encode(_multipartHeaders(key, value, boundary))) ;
+        // the blob content is sent unchanged (it used to be decoded as an UTF-8 text, which did corrupt binary files)
+        parts.push($isstring(value) ? encoder.encode(value) : new Uint8Array(await value.arrayBuffer())) ; // NOSONAR: sequential by design
+        parts.push(encoder.encode('\r\n')) ;
+    }
+    if (!parts.length) { return null ; }
+    parts.push(encoder.encode(`--${boundary}--\r\n`)) ;
+
+    const ret = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)) ;
+    let offset = 0 ;
+    for (const p of parts) { ret.set(p, offset) ; offset += p.length ; }
+    return ret ;
+}
+
+/**
+ * @deprecated for binary files: a string cannot hold them, use $generateMultiPartBody() instead.
+ * Text fields and text files give the same body as $generateMultiPartBody().
+ */
 export async function $generateMultiPartBodyString(dict:TSDictionary<TSMultipartEntry>, boundary:string):Promise<string|null>
 {
-    const entries = Object.entries(dict) ;
-    const body: string[] = [] ;
-    let total = 0 ;
-    
-    for (let [key, value] of entries) {
-        const isstr = $isstring(value) ;
-        if (!isstr && !(value instanceof Blob)) { // File is an subclass of Blob, so it should fit here
-            continue ;  // we could throw an exception or return null instead 
-        }
-
-        let type = 'text/plain' ;
-        body.push(`--${boundary}`) ;
-
-        if (isstr) {
-            body.push(`Content-Disposition: form-data; name="${key}"`) ;
-        } 
-        else {
-            type = (value as Blob).type ;
-            if (!$length(type)) { type = 'application/octet-stream' ; }
-            value = await (value as Blob).text() ;
-            if ($ismethod(value, 'name')) {
-                // this is a file or anything like it
-                body.push(`Content-Disposition: form-data; name="${key}"; filename="${(value as any).name}"`) ;
-            }
-            else {
-                // this is a blob
-                body.push(`Content-Disposition: form-data; name="${key}"`) ;
-            }
-        }
-        body.push(`Content-Type: ${type}`) ;
-        body.push('') ;
-        body.push(value as string) ;
-        total ++ ;
-    }
-    
-    if (!total) { return null ; }
-
-    body.push(`--${boundary}--`) ;
-    body.push('') ;
-
-    return body.join('\r\n') ;
+    const body = await $generateMultiPartBody(dict, boundary) ;
+    return $ok(body) ? new TextDecoder().decode(body) : null ;
 }
+
+// a blob is sent as a file, with a file name: without it, it would be read as a text field
+// (the file names used to be never sent)
+function _multipartHeaders(key:string, value:TSMultipartEntry, boundary:string):string {
+    let disposition = `Content-Disposition: form-data; name="${_multipartQuoted(key)}"` ;
+    let type = 'text/plain' ;
+    if (!$isstring(value)) {
+        type = $length(value.type) ? value.type : 'application/octet-stream' ;
+        const name = (value as any).name ;
+        disposition += `; filename="${_multipartQuoted($isstring(name) ? name : 'blob')}"` ;
+    }
+    return `--${boundary}\r\n${disposition}\r\nContent-Type: ${type}\r\n\r\n` ;
+}
+
+// like browsers do (HTML standard): the quotes and line breaks of names are percent-encoded
+function _multipartQuoted(s:string):string 
+{ return s.replaceAll("\r", '%0D').replaceAll("\n", '%0A').replaceAll("\"", '%22') ; }

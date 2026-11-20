@@ -63,7 +63,7 @@ export class TSError extends Error implements TSLeafInspect {
     public readonly info:TSDictionary|undefined ;
     public static readonly DefaultMessage = "TSError did throw" ;
 
-    protected _errorCode:number = NaN ;
+    protected _errorCode:number = Number.NaN ;
 
 	public static throw(message:string):never ;
     public static throw(message:string, errorCode:Nullable<number|TSDictionary>):never ;
@@ -108,8 +108,9 @@ export class TSError extends Error implements TSLeafInspect {
         // dominant cost of constructing an Error. Detect that family here,
         // before super() runs the capture, and skip it : same object, same
         // API, just an empty (unformatted) .stack.
-        const candidateCode = n >= 3 && typeof arguments[2] === 'number' ? arguments[2]
-                             : (n >= 2 && typeof arguments[1] === 'number' ? arguments[1] : undefined) ;
+        let candidateCode:number|undefined = undefined ;
+        if (n >= 3 && typeof arguments[2] === 'number') { candidateCode = arguments[2] ; }
+        else if (n >= 2 && typeof arguments[1] === 'number') { candidateCode = arguments[1] ; }
         const skipStack = typeof candidateCode === 'number' && _respValueSet().has(candidateCode) ;
         const stackHolder = Error as unknown as { stackTraceLimit?:number } ;
         const hasStackLimit = skipStack && typeof stackHolder.stackTraceLimit === 'number' ;

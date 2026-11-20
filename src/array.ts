@@ -1,6 +1,6 @@
 import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
 import { $arrayequal, $arraycompare, $compare, $equal, $visualequal } from "./compare";
-import { $declareMethod } from "./object";
+import { $declareMethods } from "./object";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types";
@@ -17,14 +17,15 @@ import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types"
  */
 
 export type $mapCallback<T,R> = (value: T, index: number) => Nullable<R> ;  
-export interface $mapOptions<T, R> {
+export interface $mapOptions<T, R> { // NOSONAR: name accepted for matchnig the function
     callback?: $mapCallback<T,R>,
-    unicity?:Nullable<TSUnicity> ;
+    unicity?:Nullable<TSUnicity> ; // NOSONAR: I want unicity to be optional
 }
 
 export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] {
-    const opts = $isfunction(options) ? { callback: options as $mapCallback<T,R> } 
-                                      : ($ok(options) ? options as $mapOptions<T,R> : {}) ;
+    let opts:$mapOptions<T,R> = {} ;
+    if ($isfunction(options)) { opts = { callback: options as $mapCallback<T,R> } ; }
+    else if ($ok(options)) { opts = options as $mapOptions<T,R> ; }
     if (!$ok(opts.callback)) { opts.callback = v => v as any as R ; }
     if (!$ok(opts.unicity)) { opts.unicity = TSUnicity.None ; }
 
@@ -112,7 +113,7 @@ export function $max<T=any>(values:Nullable<Iterable<T>>):T|undefined
 { return _minmax(values, Ascending) ;}
 
 
-export interface $averageOptions {
+export interface $averageOptions { // NOSONAR: name accepted for matchnig the function
     countsOnlyOKItems?: boolean; // this one superseeds countsOnlyDefinedItems
     countsOnlyDefinedItems?: boolean;
 }
@@ -143,28 +144,28 @@ declare global {
 
 /**
  * since some modules like pdfjs require to use for ... in on Array.prototype
- * we did decide to use a functional way to declare our new methods on array
- * For now we limit this modification to Array class 
+ * we declare our new methods as non enumerable ones with $declareMethods()
  */
 
-_addArrayMethod('average',           function average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); }) ;
-_addArrayMethod('compare',           function compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; }) ;
-_addArrayMethod('filteredMap',       function filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); }) ;
-_addArrayMethod('filteredSet',       function filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $arrayset(this, callback); }) ;
-_addArrayMethod('includesequal',     function includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; }) ;
-_addArrayMethod('includesvisual',    function includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; }) ;
-_addArrayMethod('isEqual',           function isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; }) ;
-_addArrayMethod('first',             function first<T>(this: T[]): T | undefined { return $first(this); }) ;
-_addArrayMethod('fusionEnumeration', function fusionEnumeration<T>(this: T[]):any[] { return this as any[] ; }) ;
-_addArrayMethod('last',              function first<T>(this: T[]): T | undefined { return $last(this); }) ;
-_addArrayMethod('max',               function max<T>(this: T[]): T | undefined { return $max(this); }) ;
-_addArrayMethod('min',               function min<T>(this: T[]): T | undefined { return $min(this); }) ;
-_addArrayMethod('sum',               function sum<T>(this: T[]): number | undefined { return $sum(this); }) ;
-_addArrayMethod('singular',          function singular<T>(this: T[]): boolean { return this.length === 1 ; }) ;
-_addArrayMethod('toArray',           function toArray<T>(this:T[]): T[] { return this ; }) ; // QUESTION: should we take a copy here
+$declareMethods(Array, {
+    average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); },
+    compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; },
+    filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); },
+    filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $arrayset(this, callback); },
+    includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; },
+    includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; },
+    isEqual<T>(this:T[], other:any):boolean { return $isarray(other) && $arrayequal(this, other) ; },
+    first<T>(this: T[]): T | undefined { return $first(this); },
+    fusionEnumeration<T>(this: T[]):any[] { return this as any[] ; },
+    last<T>(this: T[]): T | undefined { return $last(this); },
+    max<T>(this: T[]): T | undefined { return $max(this); },
+    min<T>(this: T[]): T | undefined { return $min(this); },
+    sum<T>(this: T[]): number | undefined { return $sum(this); },
+    singular<T>(this: T[]): boolean { return this.length === 1 ; },
+    toArray<T>(this:T[]): T[] { return this ; }, // QUESTION: should we take a copy here
+}) ;
 
 // ================================== private functions ==============================
-function _addArrayMethod(name:string, method:Function) { $declareMethod(Array, { element:name, implementation:method }) ; }
 
 function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>, includesFn:(source:R[], v?:Nullable<R>)=>boolean) {
     const set = new Set<R>() ;
@@ -181,37 +182,41 @@ function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>
 function _countsAndSum<T>(values:Nullable<Iterable<T>>):[number, number, number, number|undefined] {
     // since we work on Iterable, we don't use any length
     // and count our collection when trying to perform a sum
-
     let sum:number|undefined = 0 ;
     let validCount = 0 ;
     let definedCount = 0 ;
     let totalCount = 0 ;
-    if ($ok(values)) {
-        for (let v of values) {
-            if ($defined(v)) {
-                if (v !== null) {
-                    if ($defined(sum)) {
-                        let n = undefined ;
-                        if ($isnumber(v)) { n = v ;}
-                        else if ($isstring(v)) { n = Number(v) ; }
-                        else if ($ismethod(v, Symbol.toPrimitive)) { 
-                            n = (v as any)[Symbol.toPrimitive]('number') ;
-                            if (!$ok(n) && $ismethod(v, 'valueOf')) {
-                                n = (v as any).valueOf() ;
-                            }
-                        }
-                        else if ($ismethod(v, 'valueOf')) { n = (v as any).valueOf() ; } 
-                        if (!$isnumber(n)) { sum = undefined ; } // any fails to number conversion definitely invalidates the sum
-                        else { sum += n ; }
-                    }
-                    validCount ++ ;  
-                }
-                definedCount ++ ;
-            }
-            totalCount ++ ;
-        }    
+
+    if (!$ok(values)) { return [0, 0, 0, 0] ; }
+
+    for (const v of values) {
+        totalCount++ ;
+        if (!$defined(v)) { continue ; }
+        definedCount++ ;
+        if (v === null) { continue ; }
+        validCount++ ;
+        // once a conversion has failed, the sum stays definitely invalid
+        // and we don't even try to convert the next values
+        if ($defined(sum)) { sum = _addToSum(sum, v) ; }
     }
-    return [totalCount, definedCount, validCount, sum]
+    return [totalCount, definedCount, validCount, sum] ;
+}
+
+function _addToSum(sum:number, v:any):number|undefined {
+    const n = _toNumber(v) ;
+    return $isnumber(n) ? sum + n : undefined ;
+}
+
+// returns the numeric value of v or anything else (undefined, NaN, object...)
+// if no valid conversion is possible. The caller checks the result with $isnumber()
+function _toNumber(v:any):any {
+    if ($isnumber(v)) { return v ; }
+    if ($isstring(v)) { return Number(v) ; }
+    if ($ismethod(v, Symbol.toPrimitive)) {
+        const n = v[Symbol.toPrimitive]('number') ;
+        if ($ok(n)) { return n ; }
+    }
+    return $ismethod(v, 'valueOf') ? v.valueOf() : undefined ;
 }
 
 function _minmax<T>(values:Nullable<Iterable<T>>, compValue:Comparison):T|undefined

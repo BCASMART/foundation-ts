@@ -9,7 +9,7 @@ function IV(loc:number, len:number):Interval {
     const r = new TSRange(loc, len) ;
     return { range:r, hasSignificantRange:r.hasSignificantRange, isValid:r.isValid, isEmpty:r.isEmpty } ;
 }
-const BAD_IV:Interval = { range:new TSRange(NaN, 0), hasSignificantRange:false, isValid:false, isEmpty:true } ;
+const BAD_IV:Interval = { range:new TSRange(Number.NaN, 0), hasSignificantRange:false, isValid:false, isEmpty:true } ;
 
 export const rangeSetGroups = [
 
@@ -64,8 +64,8 @@ TSTest.group("TSRangeSet constructor variants & errors", async (group) => {
         t.expect0(e.hasSignificantRange).false() ;
         t.expect1(e.length).is(0) ;
         t.expect2(e.isValid).false() ;
-        t.expect3(isNaN(e.location)).true() ;
-        t.expect4(isNaN(e.maxRange)).true() ;
+        t.expect3(Number.isNaN(e.location)).true() ;
+        t.expect4(Number.isNaN(e.maxRange)).true() ;
         t.expect5(e).empty() ;
     }) ;
 
@@ -84,7 +84,7 @@ TSTest.group("TSRangeSet constructor variants & errors", async (group) => {
         t.expect0(() => new TSRangeSet("nope" as any)).throws() ;
         t.expect1(() => new TSRangeSet(true as any)).throws() ;
         t.expect2(() => new TSRangeSet([1, 2, 3] as any)).throws() ;      // 3 numbers -> not ranges
-        t.expect3(() => new TSRangeSet([NaN, 3] as any)).throws() ;        // bad range as array
+        t.expect3(() => new TSRangeSet([Number.NaN, 3] as any)).throws() ;        // bad range as array
         t.expect4(() => new TSRangeSet([[1, 0]] as any)).throws() ;        // empty range
         t.expect5(() => new TSRangeSet([BAD_IV] as any)).throws() ;
         t.expect6(() => new TSRangeSet(["x"] as any)).throws() ;

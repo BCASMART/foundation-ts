@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { writeFileSync } from 'fs'; // NOSONAR due to webpack5 usage
 import {
 	basename, 
 	dirname,
@@ -6,7 +6,7 @@ import {
 	join,
     isAbsolute,
     normalize 
-} from 'path' ;
+} from 'path' ; // NOSONAR due to webpack5 usage
 
 const paths = [
     "",
@@ -62,39 +62,39 @@ const paths = [
 
 const mixedPaths = [
     "/folder/folder2\\",
-    "/folder\\folder2",
-    "/folder\\folder2/",
+    String.raw`/folder\folder2`,
+    String.raw`/folder\folder2/`,
     "/folder\\folder2\\",
-    "\\folder/folder2",
-    "\\folder/folder2/",
+    String.raw`\folder/folder2`,
+    String.raw`\folder/folder2/`,
     "\\folder/folder2\\",
-    "\\folder\\folder2/",
+    String.raw`\folder\folder2/`,
     "C:/folder/folder2\\",
-    "C:/folder\\folder2",
-    "C:/folder\\folder2/",
+    String.raw`C:/folder\folder2`,
+    String.raw`C:/folder\folder2/`,
     "C:/folder\\folder2\\",
-    "C:\\folder/folder2",
-    "C:\\folder/folder2/",
+    String.raw`C:\folder/folder2`,
+    String.raw`C:\folder/folder2/`,
     "C:\\folder/folder2\\",
-    "C:\\folder\\folder2/",
+    String.raw`C:\folder\folder2/`,
     "//server/volume/folder/folder2\\",
-    "//server/volume/folder\\folder2",
-    "//server/volume/folder\\folder2/",
+    String.raw`//server/volume/folder\folder2`,
+    String.raw`//server/volume/folder\folder2/`,
     "//server/volume/folder\\folder2\\",
-    "//server/volume\\folder\\folder2",
+    String.raw`//server/volume\folder\folder2`,
     "//server/volume\\folder\\folder2\\",
-    "//server\\volume\\folder\\folder2",
+    String.raw`//server\volume\folder\folder2`,
     "//server\\volume\\folder\\folder2\\",
-    "/\\server\\volume\\folder\\folder2",
+    String.raw`/\server\volume\folder\folder2`,
     "/\\server\\volume\\folder\\folder2\\",
-    "\\\\server\\volume\\folder\\folder2/",
-    "\\\\server\\volume\\folder/folder2/",
-    "\\\\server\\volume\\folder/folder2",
-    "\\\\server\\volume/folder/folder2/",
-    "\\\\server\\volume/folder/folder2",
-    "\\\\server/volume/folder/folder2/",
-    "\\\\server/volume/folder/folder2",
-    "\\/server/volume/folder/folder2"
+    String.raw`\\server\volume\folder\folder2/`,
+    String.raw`\\server\volume\folder/folder2/`,
+    String.raw`\\server\volume\folder/folder2`,
+    String.raw`\\server\volume/folder/folder2/`,
+    String.raw`\\server\volume/folder/folder2`,
+    String.raw`\\server/volume/folder/folder2/`,
+    String.raw`\\server/volume/folder/folder2`,
+    String.raw`\/server/volume/folder/folder2`
 ] ;
 
 const relatives = [
@@ -118,7 +118,7 @@ const relatives = [
     "../../../../../../../tutu/../tata/./toto",
     "../../../../../../../tutu/../tata/./toto",
 ]
-function _w(p:string):string { return p.split("/").join('\\') ; }
+function _w(p:string):string { return p.replaceAll('/', '\\') ; }
 
 function printPathOperation(dest:any[], p:string) {
     dest.push({ path:p, absolute:isAbsolute(p), normalized:normalize(p), dirname:dirname(p), filename:basename(p), extname:extname(p)}) ;

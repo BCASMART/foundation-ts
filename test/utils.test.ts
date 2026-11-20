@@ -1,6 +1,7 @@
-import { inspect } from "util";
+/* NOSONAR : there are tests in here. SonarQube does not detect them correctly */ 
 
-import { $hexadump, $inbrowser, $insp, $jsonparse, $jsonstrip, $mark, $noop, $sleep, $stack, $term, $termclean } from "../src/utils";
+import { inspect } from "util";  
+import { $hexadump, $inbrowser, $insp, $jsonparse, $jsonstrip, $logterm, $mark, $noop, $sleep, $stack, $term, $termclean, $writeterm } from "../src/utils";
 import { TSTest } from '../src/tstester';
 import { TSDate } from "../src/tsdate";
 import { TSRange } from "../src/tsrange";
@@ -12,6 +13,30 @@ import { TSCharset } from "../src/tscharset";
 function stringifyMe(e: any) { return `${e}`; }
 
 export const utilsGroups =TSTest.group("Other utils functions", async (group) => {
+    if ($inbrowser() && typeof document !== 'undefined') {
+        group.unary("$logterm() / $writeterm() in the HTML console", async (t) => {
+            // while the element exists, all the terminal output goes into it : keep this short.
+            // In a real browser the test page already has its console : it is renamed meanwhile.
+            const pageConsole = document.getElementById('ftsconsole') ;
+            if (pageConsole) { pageConsole.id = 'ftsconsole-saved' ; }
+            const c = document.createElement('div') ;
+            c.id = 'ftsconsole' ;
+            document.body.appendChild(c) ;
+            let html = '' ;
+            try {
+                $writeterm('&ra <b> & "c"&0') ;
+                $logterm(' end\nnext', 1) ;
+                for (let i = 0 ; i < 2000 ; i++) { $logterm('x') ; } // used to be quadratic (the whole innerHTML was rewritten)
+                html = c.innerHTML ;
+            }
+            finally { 
+                c.remove() ; 
+                if (pageConsole) { pageConsole.id = 'ftsconsole' ; }
+            }
+            t.expect0(html.startsWith('a &lt;b&gt; &amp; "c" end<br>next1<br>x<br>')).true() ;
+            t.expect1(html.split('<br>').length).is(2003) ;
+        }) ;
+    }
     const v0 = "Ceci est un test  RED  ";
     const vl = "&Z&0Ceci est un &!test&0&Y&r  RED  &0";
     const vl2 = "&Z&0Ceci est un &!test&0&Y&r  RED  \x1b[0m";
@@ -194,6 +219,10 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
         // we don't run this test in browser mode because $insp() and $inspect() are the same in this context
         group.unary("$insp() function", async (t) => {
             t.expect($insp(tree).normalizeSpaces()).is(inspect(tree, false, 10).normalizeSpaces());
+            // primitive values, including a symbol (it used to throw a TypeError)
+            t.expect0($insp(Symbol('s'))).is('Symbol(s)') ;
+            t.expect1($insp(10n)).is('10') ;
+            t.expect2($insp({ a:[1, new Set(['x'])], m:new Map([['k', true]]) }).normalizeSpaces()).is(inspect({ a:[1, new Set(['x'])], m:new Map([['k', true]]) }, false, 10).normalizeSpaces()) ;
             t.description("-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.");
         });
     }

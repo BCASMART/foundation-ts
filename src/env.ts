@@ -8,10 +8,11 @@ import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser, TSParserActionC
 import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
-export interface $envOptions extends DefaultsConfigurationOptions  {
-    merge?:Nullable<StringDictionary> ;     // environment to be merged with interpreted variables.
+export interface $envOptions extends DefaultsConfigurationOptions  { // NOSONAR: name accepted for matchnig the function
+    merge?:Nullable<StringDictionary> ;     // NOSONAR (optional field) 
+                                            // environment to be merged with interpreted variables.
                                             // if merge is process.env, new values are overwriting process.env
-    reference?:Nullable<StringDictionary> ; // reference can be process.env
+    reference?:Nullable<StringDictionary> ; // NOSONAR (optional field) reference can be process.env
 } ;
 
 /**
@@ -21,11 +22,11 @@ export interface $envOptions extends DefaultsConfigurationOptions  {
 export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOptions>):StringDictionary|null {
     return _parsenv('$env', source, null, true, $value(opts, {})) as StringDictionary|null ;
 }
-export interface $parsedEnvOptions extends DefaultsConfigurationOptions {
+export interface $parsedEnvOptions extends DefaultsConfigurationOptions { // NOSONAR: name accepted for matchnig the function
     parser:Nullable<TSDictionary<TSLeafNode>>
-    merge?:Nullable<TSDictionary> ;
-    reference?:Nullable<TSDictionary> ;
-    acceptsUnparsed?:Nullable<boolean> ;
+    merge?:Nullable<TSDictionary> ; // NOSONAR (optional field)
+    reference?:Nullable<TSDictionary> ; // NOSONAR (optional field)
+    acceptsUnparsed?:Nullable<boolean> ; // NOSONAR (optional field)
 }
 
 /* WARNING: dont pass process.env in merge here, 
@@ -120,10 +121,10 @@ export interface TSArgument {
 }
 
 export interface TSArgsOptions {
-    errors?:Nullable<string[]> ;
-    arguments?:Nullable<URL|TSURL|string[]> ;
-    processName?:Nullable<string> ;
-    exitError?:Nullable<number> ;
+    errors?:Nullable<string[]> ;  // NOSONAR (optional field)
+    arguments?:Nullable<URL|TSURL|string[]> ;  // NOSONAR (optional field)
+    processName?:Nullable<string> ;  // NOSONAR (optional field)
+    exitError?:Nullable<number> ; // NOSONAR (optional field)
 }
 // if an url is specfied, we take the arguments from it
 // if there's nothin we try from the process itself
@@ -242,7 +243,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
 
             if (!$ok(dict) && $ok(opts?.errors)) {
                 interpretErrors.forEach(e => {
-                    const m = e.match(/^object\.(\S+)\s+(.+)$/) ;
+                    const m = /^object\.(\S+)\s+(.+)$/.exec(e) ;
                     if ($ok(m)) { opts?.errors?.push(`Argument '-${m[1]}' ${m[2]}`) ; }
                 }) ;
             }
@@ -258,7 +259,7 @@ export function $args(definition:TSArgumentDictionary, opts?:Nullable<TSArgsOpti
 }
 
 export function $argCheck(exitStatus:number, errors:Nullable<string[]|TSArgsOptions>, processName?:Nullable<string>) {
-    const err = $isarray(errors) ? errors as string[] : ($ok(errors) ? (errors as TSArgsOptions).errors : undefined) ;
+    const err = _argErrors(errors) ;
     const n = $count(err) ;
     if (n > 0) {
         $logheader(`${$length(processName)?processName:'process'} did encounter ${n > 1 ? 'errors' : 'an error'}`, undefined, '&r', '&o') ;
@@ -375,13 +376,13 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
 
     let p = 0 ;
     
-    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // space at start of line
+    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need - space at start of line
     if (p === len || line.charAt(p) === '#') { return ['void', ''] ; } // empty line or line with only commentaries
 
     if (line.slice(p, p+6) === "export") {
         p += 6 ; 
         let ws = 0 ;
-        while (p < len && isspace(line.charCodeAt(p))) { p ++ ; ws++ } // space after export
+        while (p < len && isspace(line.charCodeAt(p))) { p ++ ; ws++ } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need - space after export
         
         if (p === len || line.charAt(p) === '#') {
             if (debug) { $logterm(`&R&w $env(): line #${index} only contains 'export' keyword  &0`) ; }
@@ -401,8 +402,8 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
     function isvarchar(c:number) { return c === UNDERSCORE || isletter(c) || (c >= ZERO && c <= NINE) ; }
     function isspace(c:number) { return c.isStrictWhiteSpace() ; }
     function badchar(l:string, pos:number, tag:string = ''):['', ''] {
-        const c = l.charCodeAt(pos) ;
-        if (debug) { $logterm(`&R&w $env(): found wrong character '${String.fromCharCode(c)}' (\\U${c.toHex4()}) at position ${pos+1} and line #${index}${tag.length?' ['+tag+']':''}  &0`) ; }
+        const c = l.charCodeAt(pos) ; // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
+        if (debug) { $logterm(`&R&w $env(): found wrong character '${String.fromCodePoint(c)}' (\\U${c.toHex4()}) at position ${pos+1} and line #${index}${tag.length?' ['+tag+']':''}  &0`) ; }
         return ['', ''] ;
     }
 
@@ -421,32 +422,32 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
 
     let vl = 0 ;
     const keyStart = p ;
-    while (p < len && line.charCodeAt(p) === UNDERSCORE) { 
+    while (p < len && line.charCodeAt(p) === UNDERSCORE) { // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
         vl++ ; if (vl > underscoreMax) { return underscoreOverload(p, "var") ; }
         p++ ;
     }
     if (p === len) { return incompleteLine("underscore var only") ; }
     
-    if (!isletter(line.charCodeAt(p))) { return badchar(line, p, "var start") ; } 
+    if (!isletter(line.charCodeAt(p))) { return badchar(line, p, "var start") ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
     vl++ ; if (vl > variableMax) { return variableOverload(p, "var #1") ; }
     p ++ ; if (p === len) { return incompleteLine("NO = sign #1") ; }
     
-    while (p < len && isvarchar(line.charCodeAt(p))) { 
+    while (p < len && isvarchar(line.charCodeAt(p))) { // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
         //$logterm(`s[${p}]='${line.charAt(p)}'`)
         vl++ ; if (vl > variableMax) { return variableOverload(p, "var #2") ; }
         p ++ ; 
     }
     const afterKey = p ;
 
-    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // space before =
+    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need - space before =
     if (p === len) { return incompleteLine("NO = sign #2") ; }
 
-    if (line.charCodeAt(p) !== EQ) { return badchar(line, p, "NO =")}
+    if (line.charCodeAt(p) !== EQ) { return badchar(line, p, "NO =")} // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
     p++ ;
-    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // space after eq
+    while (p < len && isspace(line.charCodeAt(p))) { p ++ ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need - space after eq
     if (p === len) { return [line.slice(keyStart, afterKey), ''] ; }
 
-    const c0 = line.charCodeAt(p) ;
+    const c0 = line.charCodeAt(p) ; // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
     let last:unichar|undefined = undefined ;
 
     if (c0 === DOUBLE_QUOTE || c0 === QUOTE) { 
@@ -469,8 +470,8 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
     let us = 0 ;
     //$logterm('----------') ;
     while (p < len && state !== State.Stop) {
-        const c = line.charCodeAt(p) ;
-        //$logterm(`<state ${state} char ${c.toHex4()} ('${String.fromCharCode(c)}')>`) ;
+        const c = line.charCodeAt(p) ; // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
+        //$logterm(`<state ${state} char ${c.toHex4()} ('${String.fromCodePoint(c)}')>`) ;
         switch (state) {
             case State.Text:
                 if ($ok(last) && c === last) { v += line.slice(p0, p) ; state = State.Stop ; }
@@ -487,20 +488,21 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
                     case r:            v += '\r' ; break ;
                     case t:            v += '\t' ; break ;
                     case u:            uc = 0 ; us = 0 ; state = State.Unicode ; break ;
-                    default:           v += String.fromCharCode(c) ;
+                    default:           v += String.fromCodePoint(c) ;
                 }
                 break ;
-            case State.Unicode:
+            case State.Unicode: {
                 const hexa = c.hexaValue() ;
-                if (hexa < 0) { return badchar(line, p, `\\u[${us}]`) ; }
+                if (hexa < 0) { return badchar(line, p, String.raw`\u[${us}]`) ; }
                 uc = (uc << 4) | hexa ;
                 us ++ ;
                 if (us === 4) {
-                    v += String.fromCharCode(uc) ;
+                    v += String.fromCodePoint(uc) ;
                     state = State.Text ;
                     p0 = p + 1 ;
                 }
                 break ;
+            }
             case State.Substitution:
                 if (c !== LCB) { return badchar(line, p, '{') ; }
                 p0 = p + 1 ;
@@ -541,9 +543,14 @@ function _interpretEnvLine(env:TSDictionary, line:string, index:number, referenc
     
     if (p < len) {
         let pe = p ;
-        while (pe < len && isspace(line.charCodeAt(pe))) { pe ++ ; }
+        while (pe < len && isspace(line.charCodeAt(pe))) { pe ++ ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
         if (pe < len && line.charAt(pe) !== '#') { return badchar(line, pe, '#') ; }
     }
 
     return [line.slice(keyStart, afterKey), v] ;
+}
+
+function _argErrors(errors:Nullable<string[]|TSArgsOptions>):Nullable<string[]> {
+    if ($isarray(errors)) { return errors as string[] ; }
+    return $ok(errors) ? (errors as TSArgsOptions).errors : undefined ;
 }

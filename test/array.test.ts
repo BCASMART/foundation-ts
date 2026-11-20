@@ -105,6 +105,7 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expect3($sum(["1", "not-a-number"])).undef() ;                  // one bad conversion kills the sum
         t.expect4($sum([1, null, undefined, 2])).is(3) ;                  // null/undefined counted as 0
         t.expect5($sum([{ valueOf:():string => "oops" }])).undef() ;
+        t.expect6($sum(["1", "", "  ", "2"])).is(3) ;                    // empty or blank strings count as 0 (by convention)
     }) ;
 
     group.unary("$average() count options", async(t) => {

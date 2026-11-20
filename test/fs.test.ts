@@ -183,6 +183,13 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 t.expectJ($isreadable(file)).true() ;
                 t.expectK($iswritable(file)).true() ;
                 t.expectL(hash).is(memhash) ;
+
+                // $hashfile() resolves to null on failure (it used to crash the process on a missing file)
+                t.expectM(await $hashfile($path(folder, 'does-not-exist.txt'))).null() ;
+                t.expectN(await $hashfile(folder)).null() ;           // a directory
+                t.expectO(await $hashfile('')).null() ;
+                t.expectP(await $hashfile(null)).null() ;
+                t.expectQ(await $hashfile('bad\0path')).null() ;     // invalid path argument
             }) ;    
 
             group.unary('$extset() function', async (t) => {

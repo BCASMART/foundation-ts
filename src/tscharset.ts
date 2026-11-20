@@ -174,7 +174,7 @@ class TSLoadedCharset extends TSCharset {
             if (uc >= 0) {
                 if (uc < n) { this._fromUnicodeTable[uc] = i ; } 
                 else { this._fromUnicodeMap.set(uc, i as uint8) ;} 
-                this._toUnicodeTable[i] = String.fromCharCode(uc) ;
+                this._toUnicodeTable[i] = String.fromCodePoint(uc) ;
             }
         }
     }
@@ -185,7 +185,7 @@ class TSLoadedCharset extends TSCharset {
         const n = TSLoadedCharset.UnicodeBufferSize ;
         const ret:uint8[] = [] ;
         for (let i = start ; i < end ; i++) {
-            const uc = source.charCodeAt(i) ;
+            const uc = source.charCodeAt(i) ; // NOSONAR: 8-bit charsets cannot encode non-BMP characters, code units give the same result
             const c = uc < n ? this._fromUnicodeTable[uc] as uint8 : this._fromUnicodeMap.get(uc) ;
             if ($ok(c)) { ret.push(c) ; }
         }

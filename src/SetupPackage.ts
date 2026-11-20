@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 
 // DO NOT DELETE THIS FILE
 // This file is used by build system to build a clean npm package with the compiled js files in the root of the package.

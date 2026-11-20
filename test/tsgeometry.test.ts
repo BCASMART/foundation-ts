@@ -45,9 +45,9 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
     group.unary("TSRect.contains()", async(t) => {
         t.expect0(B.contains({x:A.midX, y:A.midY})).true() ;
         t.expect1(B.contains([A.midX, A.midY])).true() ;
-        t.expect2(B.contains([A.midX, NaN])).false() ;
-        t.expect3(B.contains([NaN, A.midY])).false() ;
-        t.expect4(B.contains([NaN, NaN])).false() ;
+        t.expect2(B.contains([A.midX, Number.NaN])).false() ;
+        t.expect3(B.contains([Number.NaN, A.midY])).false() ;
+        t.expect4(B.contains([Number.NaN, Number.NaN])).false() ;
         t.expect5(B.contains({x:0, y:A.midY})).false() ;
         t.expect6(B.contains([0, A.midY])).false() ;
         t.expect7(B.contains(A)).true() ;
@@ -70,10 +70,10 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect3(G.intersection([10,15,1000,2000])).is(new TSRect(10,15,G.width-10, G.height-15)) ;
         t.expect4(G.intersection(new TSRect(1000,1000,1000,2000))).is(new TSRect()) ;
         t.expect5(G.intersection([1000,1000,1000,2000])).is(new TSRect()) ;
-        t.expect6(G.intersection([10,15,1000,NaN])).is(new TSRect()) ;
-        t.expect7(G.intersection([10,15,NaN,2000])).is(new TSRect()) ;
-        t.expect8(G.intersection([10, NaN, 1000, 2000])).is(new TSRect()) ;
-        t.expect9(G.intersection([NaN,15,1000,2000])).is(new TSRect()) ;
+        t.expect6(G.intersection([10,15,1000,Number.NaN])).is(new TSRect()) ;
+        t.expect7(G.intersection([10,15,Number.NaN,2000])).is(new TSRect()) ;
+        t.expect8(G.intersection([10, Number.NaN, 1000, 2000])).is(new TSRect()) ;
+        t.expect9(G.intersection([Number.NaN,15,1000,2000])).is(new TSRect()) ;
     }) ;
 
     group.unary("TSRect.intersects()", async(t) => {
@@ -82,9 +82,9 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect2(A.intersects(new TSRect(10,15,1000,2000))).true() ;
         t.expect3(G.intersects(new TSRect(1000,1000,1000,2000))).false() ;
         t.expect4(A.intersects([10,15,1000,2000])).true() ;
-        t.expect5(A.intersects([10,NaN,1000,2000])).false() ;
+        t.expect5(A.intersects([10,Number.NaN,1000,2000])).false() ;
         t.expect6(G.intersects([1000,1000,1000,2000])).false() ;
-        t.expect7(G.intersects([1000,1000,NaN,2000])).false() ;
+        t.expect7(G.intersects([1000,1000,Number.NaN,2000])).false() ;
     }) ;
 
     group.unary("TSRect.union()", async(t) => {
@@ -96,7 +96,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect5(G.union([1000,1000,1000,2000])).is(new TSRect(0,0,2000,3000)) ;
 
         // union() throws when the passed array parameter is not a valid TSRect
-        t.expectA(() => G.union([10,15,NaN,2000])).toThrow() ;
+        t.expectA(() => G.union([10,15,Number.NaN,2000])).toThrow() ;
     }) ;
 
     group.unary("geometry unit conversions & size/point helpers", async(t) => {
@@ -149,7 +149,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expect4(R.inset(-10, -5)).is(new TSRect(20, 25, 80, 30)) ;
         t.expect5(R.insetRect(0, 0)).is(R) ;
 
-        t.expect6(() => R.offset(NaN, 0)).toThrow() ;
+        t.expect6(() => R.offset(Number.NaN, 0)).toThrow() ;
         t.expect7(() => R.inset(-60, 0)).toThrow() ;   // would make width negative
     }) ;
 
@@ -205,7 +205,7 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectB(R.containedIn(R)).true() ;
         t.expectC(R.containedIn(new TSRect(0, 0, 50, 50))).false() ;
         t.expectD(R.containedIn(null)).false() ;
-        t.expectE(R.containedIn([0, 0, NaN, 200])).false() ;   // invalid array -> false, no throw
+        t.expectE(R.containedIn([0, 0, Number.NaN, 200])).false() ;   // invalid array -> false, no throw
     }) ;
 
     group.unary("TSRect method aliases match their canonical method exactly", async(t) => {
@@ -274,9 +274,9 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectB(TSAssertFormat({w:20000,h:200000})).is(maxi) ;
         t.expectC(TSAssertFormat({w:200000,h:20000})).is(maxi) ;
         t.expectD(TSAssertFormat({w:-100,h:-100})).is(dflt) ;
-        t.expectE(TSAssertFormat({w:20000,h:NaN})).is(dflt) ;
-        t.expectF(TSAssertFormat({w:NaN,h:20000})).is(dflt) ;
-        t.expectG(TSAssertFormat({w:NaN,h:NaN})).is(dflt) ;
+        t.expectE(TSAssertFormat({w:20000,h:Number.NaN})).is(dflt) ;
+        t.expectF(TSAssertFormat({w:Number.NaN,h:20000})).is(dflt) ;
+        t.expectG(TSAssertFormat({w:Number.NaN,h:Number.NaN})).is(dflt) ;
         t.expectH(TSAssertFormat({w:20000,h:Infinity})).is(maxi) ;
         t.expectI(TSAssertFormat({w:Infinity,h:20000})).is(maxi) ;
         t.expectJ(TSAssertFormat({w:10,h:Infinity})).is(mini) ;

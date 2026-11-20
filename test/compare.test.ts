@@ -33,9 +33,9 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expectA($datecompare(DM, D)).is(Descending) ;
         t.expectB($datecompare(T, DM)).is(Ascending) ;
         t.expectC($datecompare(DM, T)).is(Descending) ;
-        t.expectD($datecompare(DM, NaN)).undef() ;
-        t.expectE($datecompare(T, NaN)).undef() ;
-        t.expectF($datecompare(NaN, D)).undef() ;
+        t.expectD($datecompare(DM, Number.NaN)).undef() ;
+        t.expectE($datecompare(T, Number.NaN)).undef() ;
+        t.expectF($datecompare(Number.NaN, D)).undef() ;
         t.expectG($datecompare(undefined, D)).undef() ;
         t.expectH($datecompare(D, null)).undef() ;
         t.expectI($datecompare(T, null)).undef() ;
@@ -54,9 +54,9 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect1($compare(1, 1)).is(Same);
         t.expect2($compare(1, 2)).is(Ascending);
         t.expect3($compare(0, -2)).is(Descending);
-        t.expect4($compare(0, NaN)).toBeUndefined();
-        t.expect5($compare(NaN, NaN)).toBeUndefined();
-        t.expect6($compare(NaN, 0)).toBeUndefined();
+        t.expect4($compare(0, Number.NaN)).toBeUndefined();
+        t.expect5($compare(Number.NaN, Number.NaN)).toBeUndefined();
+        t.expect6($compare(Number.NaN, 0)).toBeUndefined();
         t.expect7($compare(S1, S1)).is(Same);
         t.expect8($compare(S1, S2)).is(Descending);
         t.expect9($compare(B1, B1)).is(Same);
@@ -78,9 +78,9 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect1($order(1, 1)).is(Same);
         t.expect2($order(1, 2)).is(Ascending);
         t.expect3($order(0, -2)).is(Descending);
-        t.expect4($order(0, NaN)).is(Descending);
-        t.expect5($order(NaN, NaN)).is(Same);
-        t.expect6($order(NaN, 0)).is(Ascending);
+        t.expect4($order(0, Number.NaN)).is(Descending);
+        t.expect5($order(Number.NaN, Number.NaN)).is(Same);
+        t.expect6($order(Number.NaN, 0)).is(Ascending);
         t.expect7($order(S1, S1)).is(Same);
         t.expect8($order(S1, S2)).is(Descending);
         t.expect9($order(B1, B1)).is(Same);
@@ -100,14 +100,14 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
          * since NaN is considered as a non defined value, everything is larger
          * or smaller than NaN
          */
-        t.expectM($order(NaN, Infinity)).is(Ascending);
-        t.expectN($order(Infinity, NaN)).is(Descending);
-        t.expectO($order(-Infinity, NaN)).is(Descending);
+        t.expectM($order(Number.NaN, Infinity)).is(Ascending);
+        t.expectN($order(Infinity, Number.NaN)).is(Descending);
+        t.expectO($order(-Infinity, Number.NaN)).is(Descending);
         t.expectP($order(-Infinity, Infinity)).is(Ascending);
         t.expectQ($order(-Infinity, -Infinity)).is(Same);
         t.expectR($order(Infinity, Infinity)).is(Same);
         t.expectS($order(Infinity, -Infinity)).is(Descending);
-        t.expectT($order(NaN, -Infinity)).is(Ascending);
+        t.expectT($order(Number.NaN, -Infinity)).is(Ascending);
         t.expectU($order(undefined, -Infinity)).is(Ascending);
         t.expectV($order(null, -Infinity)).is(Ascending);
         t.expectW($order(undefined, null)).is(Same);
@@ -117,9 +117,9 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
     group.unary("$equal() function", async(t) => {
         t.expectA($equal(1, 1)).true();
         t.expectB($equal(1, 2)).false();
-        t.expectC($equal(0, NaN)).false();
-        t.expectD($equal(NaN, NaN)).false();
-        t.expectE($equal(NaN, 0)).false();
+        t.expectC($equal(0, Number.NaN)).false();
+        t.expectD($equal(Number.NaN, Number.NaN)).false();
+        t.expectE($equal(Number.NaN, 0)).false();
         t.expectF($equal(S1, S1)).true();
         t.expectG($equal(B1, B1)).true();
         t.expectH($equal(B1, B2)).false();
@@ -135,19 +135,35 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect1($numcompare(1, 1)).is(Same);
         t.expect2($numcompare(1, 2)).is(Ascending);
         t.expect3($numcompare(0, -2)).is(Descending);
-        t.expect4($numcompare(0, NaN)).undef();
-        t.expect5($numcompare(NaN, NaN)).undef();
-        t.expect6($numcompare(NaN, 0)).undef();
+        t.expect4($numcompare(0, Number.NaN)).undef();
+        t.expect5($numcompare(Number.NaN, Number.NaN)).undef();
+        t.expect6($numcompare(Number.NaN, 0)).undef();
         t.expect7($numcompare(-Infinity, 0)).is(Ascending);
         t.expect8($numcompare(0, Infinity)).is(Ascending);
-        t.expect9($numcompare(-Infinity, NaN)).undef();
-        t.expectA($numcompare(NaN, Infinity)).undef();
+        t.expect9($numcompare(-Infinity, Number.NaN)).undef();
+        t.expectA($numcompare(Number.NaN, Infinity)).undef();
         t.expectA($numcompare(-Infinity, Infinity)).is(Ascending);
         t.expectB($numcompare(Infinity, -Infinity)).is(Descending);
         t.expectB($numcompare(Infinity, UINT_MAX)).is(Descending);
         t.expectC($numcompare(100, -Infinity)).is(Descending);
         t.expectD($numcompare(Infinity, Infinity)).is(Same);
         t.expectE($numcompare(-Infinity, -Infinity)).is(Same);
+        // anything that is not a number is not comparable (no coercion)
+        t.expectF($numcompare("5" as any, 3)).undef();
+        t.expectG($numcompare(3, "5" as any)).undef();
+        t.expectH($numcompare(undefined as any, 3)).undef();
+        t.expectI($numcompare(null as any, null as any)).undef();
+    }) ;
+
+    group.unary("$numorder() function", async(t) => {
+        t.expect1($numorder(2, 1)).is(Descending);
+        t.expect2($numorder(-Infinity, 2)).is(Ascending);
+        t.expect3($numorder(Number.NaN, -Infinity)).is(Ascending);
+        // anything that is not a number is ordered like NaN (an undefined number)
+        t.expect4($numorder(undefined as any, 3)).is(Ascending);
+        t.expect5($numorder(3, "5" as any)).is(Descending);
+        t.expect6($numorder("abc" as any, Number.NaN)).is(Same);
+        t.expect7($numorder({} as any, null as any)).is(Same);
     }) ;
 
     group.unary("$visualequal() function", async(t) => {

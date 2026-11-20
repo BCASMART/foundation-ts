@@ -97,7 +97,7 @@ export const stringGroups = [
             }
             const c = 64 ;
             t.expect0(c.isWhiteSpace()).false() ;
-            t.expect1(NaN.isWhiteSpace()).false() ;
+            t.expect1(Number.NaN.isWhiteSpace()).false() ;
             t.expect2(Infinity.isWhiteSpace()).false() ;
             t.expect3((-Infinity).isWhiteSpace()).false() ;
             t.expectA('a'.isWhiteSpace()).false() ;
@@ -119,7 +119,7 @@ export const stringGroups = [
             }
             const c = 64 ;
             t.expect0(c.isNewLine()).false() ;
-            t.expect1(NaN.isNewLine()).false() ;
+            t.expect1(Number.NaN.isNewLine()).false() ;
             t.expect2(Infinity.isNewLine()).false() ;
             t.expect3((-Infinity).isNewLine()).false() ;
             t.expectA('a'.isNewLine()).false() ;
@@ -276,6 +276,12 @@ export const stringGroups = [
             t.expectB($HTML("")).is("") ;
             t.expectC($HTML(`<a href="x">R&D</a>`)).is("&lt;a href=&quot;x&quot;&gt;R&amp;D&lt;/a&gt;") ;
             t.expectD($HTML("plain text")).is("plain text") ;
+            // a character outside the BMP gives one numeric entity (it used to give one per UTF-16 code unit)
+            t.expectF($HTML(`a${String.fromCodePoint(0x1F600)}b`)).is("a&#128512;b") ;
+            t.expectG($HTML(String.fromCodePoint(0x20AC, 0x1F600, 0x20AC))).is("&#8364;&#128512;&#8364;") ;
+            t.expectH($HTML(String.fromCodePoint(0xD83D))).is("&#55357;") ;          // a lone surrogate is kept as is
+            t.expectI($HTML(`${String.fromCodePoint(0x20AC)}1`)).is("&#8364;1") ;   // the entity is closed, so a following digit is not part of it
+            t.expectJ($HTML("a\nb\r\nc")).is("a\nb\r\nc") ;                   // line breaks are kept (only the console of $logterm() converts them)
             t.expectE("<b>".toHTML()).is("&lt;b&gt;") ;
         }) ;
     }),

@@ -1,22 +1,17 @@
-import { createReadStream } from 'fs';
-import {
-    createCipheriv,
-    createDecipheriv,
-    createHash,
-    randomBytes,
-} from 'crypto';
+import { createReadStream } from 'fs'; // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'; // NOSONAR: idem
 
 
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
 import { $isstring, $length, $ok, $tounsigned, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
+import { $ftrim } from './strings';
 import { $bufferFromBytes, $bufferFromDataLike, $bufferFromHexaString, $uint8ArrayFromDataLike } from './data';
+import { $declareMethods } from './object';
 import { $charset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
 import { $logterm } from './utils';
-import { $ftrim, $trim } from './strings';
 
 import { TSError } from './tserrors';
-import { $declareMethod } from './object';
 import { TSCrypto } from './tscrypto';
 
 export type  HashMethod = 'SHA224' | 'SHA256' | 'SHA384' | 'SHA512' | 'SHA1' ;
@@ -37,7 +32,8 @@ const __wcENGINE = (): Crypto | undefined => (globalThis as any).crypto ?? undef
 // By default foundation-ts resolves each primitive as:
 //   provider  ->  node:crypto (createHash/createCipheriv/randomBytes)
 //             ->  globalThis.crypto (getRandomValues/randomUUID)
-//             ->  pure JS (TSCrypto for hashing, Math.random for bytes)
+//             ->  pure JS (TSCrypto for hashing) ; random bytes without any
+//                 secure source throw a TSError (no Math.random fallback)
 //
 // A consumer (typically a browser bundle whose crypto polyfill lacks some
 // primitives, or a test needing a deterministic engine) can override any subset:
@@ -98,8 +94,8 @@ export function $slowuuid(convertToLowerCase:boolean = false): UUID {
         if (i === 12) { uuid += '-4' ; }
         else {
             if (i === 8 || i === 16 || i === 20) { uuid += '-' ; }
-            // QUESTION: is it secure to keep the shift here ?
-            const rand = (rbytes[i] >> (i % 24)) & 0x0F ;
+            // each random byte gives 4 random bits (shifting a byte by 8 or more bits would always give 0)
+            const rand = rbytes[i] & 0x0F ;
             uuid += (i == 16 ? (rand & 3 | 8) : rand).toHex1(convertToLowerCase) ; 
         }
     }
@@ -123,17 +119,16 @@ export function $setCommonItializationVector(d?:Nullable<TSDataLike>)
 export function $commonInitializationVectorCopy():Buffer
 { return $bufferFromBytes(__CommonInitializationVector, { forceCopy:true }) ; }
 
-export interface $encryptOptions {
-    encoding?: Nullable<StringEncoding | TSCharset> ; // default charset is binary
-    keyEncoding?:Nullable<StringEncoding | TSCharset> ; // default key charset is binary
-    algorithm?: Nullable<EncryptionAlgorithm> ;
-    noInitializationVector?:Nullable<boolean> ;
-    dataOutput?: Nullable<boolean>;
+export interface $encryptOptions { // NOSONAR: name accepted for matchnig the function
+    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: encoding is optional and default charset is binary
+    keyEncoding?:Nullable<StringEncoding | TSCharset> ; // NOSONAR: keyEncoding is optional and default key charset is binary
+    algorithm?: Nullable<EncryptionAlgorithm> ; // NOSONAR: algorithm is optional
+    noInitializationVector?:Nullable<boolean> ; // NOSONAR: noInitializationVector is optional
+    dataOutput?: Nullable<boolean>; // NOSONAR: dataOutput is optional
 }
 
 // default encryption mode is AES256-CBC with a random generated initialization vector
 // default output is an hexa string
-// FIXME: have a replacement in browser when not available
 export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
     if (!_cipherAvailable(false)) {
         TSError.throw(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
@@ -163,7 +158,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
     return returnValue;
 }
 
-export interface $decryptOptions extends $encryptOptions {}
+export interface $decryptOptions extends $encryptOptions {} // NOSONAR: name accepted for matchnig the function
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
 export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
@@ -178,39 +173,38 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, o
     // AES encryption generate data whith multiple of 16 bytes (32 hexa chars) length. 
     // The minimal encrypted data length, without any IV is 16 bytes (32 if hexa string). 
     // With an IV, it's 32 bytes (64 if hexa string)
-    if (len % (isString ? 32 : 16) !== 0 || len < (hasVector ? (isString ? 64 : 32) : (isString ? 32 : 16)) ) { return null ; }
+    const blockLength = isString ? 32 : 16 ;
+    const minimalLength = hasVector ? 2 * blockLength : blockLength ;
+    if (len % blockLength !== 0 || len < minimalLength) { return null ; }
     
     const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
     if (!charset) { return null ; }
 
-    let returnValue = null ;
-
     try {
-        let src:Nullable<Buffer> ;
-        let iv:Nullable<Buffer> ;
-        
-        if (isString) {
-            // this is an hexadecimal string source. IV is always 16 bytes, so 32 hexa characters
-            src = $bufferFromHexaString(hasVector ? (source as string).slice(32) : source as string) ;
-            if (!$ok(src)) { return null ; }
-            iv = hasVector ? $bufferFromHexaString((source as string).slice(0, 32)) : __CommonInitializationVector ;
-            if (!$ok(iv)) { return null ; }
-        }
-        else {
-            // this is a data source
-            src = $bufferFromDataLike(source as TSDataLike, { start:hasVector?16:0 }) ;
-            iv = hasVector ? $bufferFromDataLike(source as TSDataLike, { end:16 }) : __CommonInitializationVector ;
-        }
-        let decipher = _createCipher(true, algo, key, iv!);
-        let decrypted = new TSData(decipher.update(src!));
-        decrypted.appendBytes(decipher.final());
-        returnValue = !opts?.dataOutput ? decrypted.toString(charset) : decrypted ;
+        const parts = _encryptedParts(source, hasVector) ;
+        if (!parts) { return null ; }
+        const decipher = _createCipher(true, algo, key, parts.iv) ;
+        const decrypted = new TSData(decipher.update(parts.data)) ;
+        decrypted.appendBytes(decipher.final()) ;
+        return opts?.dataOutput ? decrypted : decrypted.toString(charset) ;
     }
-    catch (e) {
-        returnValue = null ;
+    catch {
+        return null ;
     }
+}
 
-    return returnValue ;
+// splits an encrypted source (an hexadecimal string or bytes) into its initialization
+// vector and its encrypted data. Returns null if the hexadecimal string is malformed.
+function _encryptedParts(source:string|TSDataLike, hasVector:boolean):{ iv:Buffer, data:Buffer } | null {
+    if ($isstring(source)) {
+        // the IV is always 16 bytes long, so 32 hexadecimal characters
+        const data = $bufferFromHexaString(hasVector ? source.slice(32) : source) ;
+        const iv = hasVector ? $bufferFromHexaString(source.slice(0, 32)) : __CommonInitializationVector ;
+        return $ok(data) && $ok(iv) ? { iv:iv, data:data } : null ;
+    }
+    const data = $bufferFromDataLike(source, { start:hasVector ? 16 : 0 }) ;
+    const iv = hasVector ? $bufferFromDataLike(source, { end:16 }) : __CommonInitializationVector ;
+    return { iv:iv, data:data } ;
 }
 
 // CRC-16/ARC algorithm
@@ -254,10 +248,10 @@ export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMeth
     return ret ;
 }
 
-export interface $hashOptions {
-    encoding?: Nullable<StringEncoding | TSCharset> ; // default charset is binary
-    method?: Nullable<HashMethod> ;
-    dataOutput?: Nullable<boolean>;
+export interface $hashOptions { // NOSONAR: name accepted for matchnig the function
+    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: field is optional. default charset is binary
+    method?: Nullable<HashMethod> ; // NOSONAR: field is optional
+    dataOutput?: Nullable<boolean>; // NOSONAR: field is optional
 }
 
 // $slowhash() is 5 to 7 times slower than node.js implementation
@@ -286,20 +280,25 @@ export function $slowhash(source: string | TSDataLike, options:$hashOptions = {}
 
 export async function $hashfile(filePath: Nullable<string>, method?: Nullable<HashMethod>): Promise<string | null> {
     TSError.assertNotInBrowser('$hashfile') ;
-    return new Promise((resolve, reject) => {
-        let hash = _createHash(method) ;
-        if (!$length(filePath)) { return reject(null); }
+    if (!$length(filePath)) { return null ; }
+    const hash = _createHash(method) ;
+    return new Promise(resolve => {
         try {
-            createReadStream(<string>filePath).on('data', data => hash.update(data)).on('end', () => resolve(hash.digest('hex')));
+            createReadStream(filePath!)
+                .on('data', data => hash.update(data))
+                .on('end', () => resolve(hash.digest('hex')))
+                .on('error', () => resolve(null)) ;   // missing or unreadable file, directory...
         }
-        catch (e) { return reject(null); }
-    });
+        catch {
+            resolve(null) ;                           // invalid path argument (eg. containing a null byte)
+        }
+    }) ;
 }
 
 // $random(max) returns a uniformly-distributed unsigned integer in [0, max).
 // Unbiased: a raw 53-bit value is drawn and rejection-sampled so that the kept
 // range is an exact multiple of `max` before the final modulo. The byte source
-// is _randomBytes() (node crypto / globalThis.crypto / Math.random fallback).
+// is _randomBytes() (provider / node crypto / globalThis.crypto, or a TSError).
 export function $random(max?: Nullable<number>): uint {
     let m:number = $unsigned(max) ; if (!m) { m = UINT32_MAX ; }
     m = Math.min(m, UINT_MAX) ;
@@ -322,24 +321,22 @@ export function $randomBytes(length:number):Uint8Array {
 }
 
 export function $shuffle<T = any>(values:Nullable<ArrayLike<T>|Iterable<T>>, max?:Nullable<number>): T[] {
-    const ret:Array<T> = [] ;
-    if ($ok(values)) {
-        const source = Array.from(values) ;
-        let n = source.length ;
-        if (n > 0) {
-            const m = Math.min(n, $tounsigned(max, n as uint)) ;
-            for (let i = 0 ; i < m ; i++) {
-                const index = $random(n) ;
-                ret.push(source[index]) ;
-                source.splice(index, 1) ; 
-                n-- ;
-            }    
-        }
+    if (!$ok(values)) { return [] ; }
+    const source = Array.from(values) ;
+    const n = source.length ;
+    const m = Math.min(n, $tounsigned(max, n as uint)) ;
+    // partial Fisher-Yates shuffle: at each step, an element uniformly chosen among
+    // the remaining ones is swapped into position i. This is O(m) where removing the
+    // chosen elements with splice() was O(n*m)
+    for (let i = 0 ; i < m ; i++) {
+        const j = i + $random(n - i) ;
+        const tmp = source[i] ; source[i] = source[j] ; source[j] = tmp ;
     }
-    return ret ;
+    source.length = m ;
+    return source ;
 }
 
-export interface $passwordOptions {
+export interface $passwordOptions { // NOSONAR: name accepted for matchnig the function
     usesLowercase?: boolean,
     usesUppercase?: boolean,
     usesDigits?:    boolean,
@@ -365,24 +362,25 @@ export function $password(len:number, opts: $passwordOptions = {}):string
     } 
 
     const pwd:string[] = [] ;
-    const rbytes = _randomBytes(len) ;
-    let i = 0 ;
     const base:string[] = [] ;
 
-    function _randomchar(b:string, idx:number) { return b.charAt(idx % b.length) ; }
+    // at least one character of each requested kind, the others are taken from random kinds
     function _makeBase(b:string) {
         base.push(b) ;
-        pwd.push(_randomchar(b, rbytes[i++])) ; 
+        pwd.push(_randomchar(b)) ;
     }
-    if (!!opts.usesLowercase) { _makeBase('abcdefghijklmnopqrstuvwxyz') ; }
-    if (!!opts.usesUppercase) { _makeBase('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ; }
-    if (!!opts.usesDigits)    { _makeBase('01234567890123456789') ; }
-    if (!!opts.usesSpecials)  { _makeBase('!#$-_&*@()+/-=[]{}^:;,.') ; } // no <,>,", \ or '
+    if (opts.usesLowercase) { _makeBase('abcdefghijklmnopqrstuvwxyz') ; }
+    if (opts.usesUppercase) { _makeBase('ABCDEFGHIJKLMNOPQRSTUVWXYZ') ; }
+    if (opts.usesDigits)    { _makeBase('01234567890123456789') ; }
+    if (opts.usesSpecials)  { _makeBase('!#$-_&*@()+/-=[]{}^:;,.') ; } // no <,>,", \ or '
     
-    while (i < len) { pwd.push(_randomchar(base[$random(base.length)], rbytes[i++])) ; }
+    while (pwd.length < len) { pwd.push(_randomchar(base[$random(base.length)])) ; }
 
     return $shuffle(pwd).join('') ;
 }
+
+// unbiased choice of a character (a random byte modulo b.length would favour the first characters of b)
+function _randomchar(b:string) { return b.charAt($random(b.length)) ; }
 
 declare global {
     export interface String {
@@ -408,29 +406,33 @@ declare global {
     }
 }
 
-String.prototype.crc16         = function crc16(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint16 { return $crc16(this, encoding) ; }
-String.prototype.crc32         = function crc32(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint32 { return $crc32(this, encoding) ; }
-String.prototype.hash          = function hash(this: string, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string|null { return $hash(this, method, encoding) ; }
-String.prototype.slowhash      = function slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; }
+$declareMethods(String, {
+    crc16(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint16 { return $crc16(this, encoding) ; },
+    crc32(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint32 { return $crc32(this, encoding) ; },
+    hash(this: string, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string|null { return $hash(this, method, encoding) ; },
+    slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; },
+}) ;
 
-Uint8Array.prototype.crc16     = function crc16(this: any): uint16 { return TSCrypto.crc16(this) ; }
-Uint8Array.prototype.crc32     = function crc32(this: any): uint32 { return TSCrypto.crc32(this) ; }
-Uint8Array.prototype.hash      = function hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; }
-Uint8Array.prototype.slowhash  = function slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; }
+$declareMethods(Uint8Array, {
+    crc16(this: any): uint16 { return TSCrypto.crc16(this) ; },
+    crc32(this: any): uint32 { return TSCrypto.crc32(this) ; },
+    hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; },
+    slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; },
+}) ;
 
-ArrayBuffer.prototype.crc16    = function crc16(this: any): uint16 { return $crc16(this) ; }
-ArrayBuffer.prototype.crc32    = function crc32(this: any): uint32 { return $crc32(this) ; }
-ArrayBuffer.prototype.hash     = function hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; }
-ArrayBuffer.prototype.slowhash = function slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; }
+$declareMethods(ArrayBuffer, {
+    crc16(this: any): uint16 { return $crc16(this) ; },
+    crc32(this: any): uint32 { return $crc32(this) ; },
+    hash(this: any, method?: Nullable<HashMethod>): string|null { return $hash(this, method) ; },
+    slowhash(this: any, options?:$hashOptions): string|Uint8Array { return $slowhash(this, options) ; },
+}) ;
 
 /**
  * since some modules like pdfjs require to use for ... in on Array.prototype
- * we did decide to use a functional way to declare our new methods on array
- * For now we limit this modification to Array class 
+ * we declare our new methods as non enumerable ones with $declareMethods()
  */
-$declareMethod(Array, { 
-    element:'shuffle', 
-    implementation:function shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; }
+$declareMethods(Array, {
+    shuffle<T>(this:T[], max?:Nullable<number>): T[] { return $shuffle(this, max) ; },
 }) ;
 
 export function $sha1(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
@@ -485,7 +487,7 @@ function _uint8ArrayFromStringOrDataLike(source:string|TSDataLike, encoding: Nul
 
 function _algo(algo:Nullable<string>):string
 {
-    const a = $trim(algo).toUpperCase() ;
+    const a = $ftrim(algo).toUpperCase() ;
     return $ok(__TSEncryptKeyLength[a]) ? a : AES256 ;
 }
 
@@ -503,19 +505,9 @@ function _randomBytes(length:number):Uint8Array {
         return _fillRandom(v => engine.getRandomValues(v), length) ;
     }
 
-    // last-resort, non-cryptographic fallback : 
-    // draw 32 bits at a time instead of calling Math.random() once per byte.
-    const array = new Uint8Array(length) ;
-    let i = 0 ;
-    for ( ; i + 4 <= length ; i += 4) {
-        const r = (Math.random() * 0x100000000) >>> 0 ;
-        array[i]   = r & 0xff ;
-        array[i+1] = (r >>> 8) & 0xff ;
-        array[i+2] = (r >>> 16) & 0xff ;
-        array[i+3] = (r >>> 24) & 0xff ;
-    }
-    for ( ; i < length ; i++) { array[i] = Math.floor(Math.random() * 256) ; }
-    return array ;
+    // no cryptographically secure source : we refuse to silently generate predictable
+    // bytes (used for passwords, encryption IVs, UUIDs...) with a Math.random() fallback
+    TSError.throw(`_randomBytes() : no cryptographically secure random source is available in your system. Use $setCryptoProvider() to provide one.`, { length:length }) ;
 }
 
 // fills `length` bytes through a getRandomValues-like function, in <=64KiB
@@ -531,7 +523,7 @@ function _fillRandom(grv:(view:Uint8Array<ArrayBuffer>) => unknown, length:numbe
 }
 
 function _createHash(method?:Nullable<HashMethod>):TSHasher {
-    const algo = $value(__TSHashMethodRef[$trim(method).toUpperCase()], 'sha256') ;
+    const algo = $value(__TSHashMethodRef[$ftrim(method).toUpperCase()], 'sha256') ;
     const provided = _providerFn('createHash') ;
     return provided ? provided(algo) : createHash(algo) ;
 }

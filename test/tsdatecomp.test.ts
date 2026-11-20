@@ -40,7 +40,7 @@ export const dateCompGroups = [
             _rt(5, TSColor.rgb('red')) ;
             _rt(6, undefined, true) ;
             _rt(7, null, true)
-            _rt(8, NaN) ;
+            _rt(8, Number.NaN) ;
         }) ;
 
         group.unary('$durationcomponents() function', async (t) => {
@@ -70,7 +70,7 @@ export const dateCompGroups = [
             group.unary('asserting common errors', async(t) => {
                 t.expect1($durationDescription(-T)).toBe('') ;
                 t.expect2($durationDescription(0)).toBe('') ;
-                t.expect3($durationDescription(NaN)).toBe('') ;
+                t.expect3($durationDescription(Number.NaN)).toBe('') ;
                 t.expect4($durationDescription(1.56)).toBe('') ;
                 t.expect5($durationDescription(Number.POSITIVE_INFINITY)).toBe('') ;
                 t.expect6($durationDescription(Number.NEGATIVE_INFINITY)).toBe('') ;

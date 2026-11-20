@@ -332,7 +332,7 @@ export const mutableDataGroups = [
             // invalid offsets are rejected, not silently coerced
             t.expect8(() => d.getUint8(-1)).toThrow() ;
             t.expect9(() => d.getUint8(1.5)).toThrow() ;
-            t.expectA(() => d.getUint8(NaN)).toThrow() ;
+            t.expectA(() => d.getUint8(Number.NaN)).toThrow() ;
         }) ;
         group.unary('uint8ArraySlice() returns an independent, right-sized copy', async(t) => {
             const d = TSData.fromHexaString("00112233")! ;

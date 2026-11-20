@@ -33,7 +33,7 @@ function _whiteSpacesAsNumberSet(reference:string):Set<number> {
     let ret = new Set<number>() ;
     const len = reference.length ;
     for (let i = 0 ; i < len ; i++) {
-        ret.add(reference.charCodeAt(i)) ;
+        ret.add(reference.charCodeAt(i)) ; // NOSONAR: white spaces are all in the BMP, code units keep this set consistent with $ftrim()
     }
     return ret ;
 }

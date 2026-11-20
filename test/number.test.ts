@@ -31,7 +31,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expectL(p.round(6)).is(-0.142857) ;
         t.expectM(n.round(7)).is(0.1428571) ;
         t.expectN(p.round(7)).is(-0.1428571) ;
-        t.expectX(NaN.round(7)).toBeNaN() ;
+        t.expectX(Number.NaN.round(7)).toBeNaN() ;
         t.expectY(Number.NEGATIVE_INFINITY.round(7)).is(Number.NEGATIVE_INFINITY) ;
         t.expectZ(Number.POSITIVE_INFINITY.round(7)).is(Number.POSITIVE_INFINITY) ;
     }) ;
@@ -77,7 +77,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
         t.expect6($fpad(-99999,5)).is('XXXXX') ;
         t.expect7($fpad(1.3,5)).is('XXXXX') ;
         t.expect8($fpad(-1.3,5)).is('XXXXX') ;
-        t.expect9($fpad(NaN,5)).is('XXXXX') ;
+        t.expect9($fpad(Number.NaN,5)).is('XXXXX') ;
         t.expectA($fpad(Infinity,5)).is('XXXXX') ;
         t.expectB($fpad(-Infinity,5)).is('XXXXX') ;
         t.expectC($fpad(UINT32_MAX,5)).is(UINT32_MAX.toString()) ;

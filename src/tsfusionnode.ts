@@ -12,6 +12,7 @@ import { TSFusionProcedure, TSFusionTemplate } from "./tsfusion";
 import { $iscollection } from "./tsobject";
 import { Bytes, Nullable, TSDictionary } from "./types";
 import { $inbrowser, $insp, $inspect, $stack, $term, $termclean } from "./utils";
+import { $declareMethods } from "./object";
 
 export enum TSFusionContextType {
     Local = 'local',           // path aplying to local context
@@ -36,11 +37,11 @@ export interface TSFusionEnumeration {
     fusionEnumeration():any[] ;
 }
 export interface TSFusionOptions {
-    globalContext?:Nullable<TSDictionary> ;
-    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ;
-    globalFunctions?:Nullable<TSDictionary<Function>> ;
-    errors?:Nullable<string[]> ;
-    addStandardGlobalFunctions?:Nullable<boolean> ;
+    globalContext?:Nullable<TSDictionary> ; // NOSONAR: field is optional
+    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ; // NOSONAR: field is optional
+    globalFunctions?:Nullable<TSDictionary<Function>> ; // NOSONAR: field is optional
+    errors?:Nullable<string[]> ; // NOSONAR: field is optional
+    addStandardGlobalFunctions?:Nullable<boolean> ; // NOSONAR: field is optional
 }
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
@@ -52,7 +53,6 @@ export class TSFusionTreeNode {
     parameters?:any[] ;
     parent?:TSFusionTreeNode ;
     contextType:TSFusionContextType = TSFusionContextType.Local ;
-    private _localContext:TSDictionary = {} ;
     private _pathCache:string[]|undefined ;
 
     public static root() { return new TSFusionTreeNode(TSFusionNodeType.Root) ; }
@@ -111,7 +111,6 @@ export class TSFusionTreeNode {
         }
         try {
             
-            this._cleanLocalContexts() ;
             const globalContext = $ok(options.globalContext) ? options.globalContext! : {} ;
             
             function _addGlobalFunctions(functions:Nullable<TSDictionary<Function>>) {
@@ -159,7 +158,14 @@ export class TSFusionTreeNode {
             }
 
             const defaults =  TSDefaults.defaults() ;
-            this._fusion(template, globalContext, [data], [this._localContext], {
+            const run:_TSFusionRun = {
+                template:template,
+                globalContext:globalContext,
+                procedures:$value(options.procedures, {}),
+                errors:$ok(options.errors) ? options.errors! : undefined
+            } ;
+            // each fusion starts with a new empty local context for the first level of the template
+            this._fusion(run, [data], [{}], {
                 zulu:TSDate.zulu(),
                 date: new TSDate(),
                 language: defaults.language(),
@@ -172,10 +178,7 @@ export class TSFusionTreeNode {
                 count: 1,
                 browser: $inbrowser(),
                 log: (data:any):string => { options.errors?.push(`USERLOG:${data}`) ; return '' ; }
-            },
-            $value(options.procedures, {}),
-            $ok(options.errors) ? options.errors! : undefined
-            ) ;
+            }) ;
             return true ;
         }
         catch (e) {
@@ -189,154 +192,203 @@ export class TSFusionTreeNode {
         return false ;
     }
     
-    private _cleanLocalContexts() {
-        this._localContext = {} ;
-        this.nodes?.forEach(n => n._cleanLocalContexts())
-    }
 
-    private _fusion(template:TSFusionTemplate, globalContext:TSDictionary, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary, procedures:TSDictionary<TSFusionProcedure>, errors?:string[]) {
-        const debug = $ok(errors) ;
-        const count = $count(this.nodes) ;
-
-        for (let i = 0 ; i < count ; i++) {
-            const node = this.nodes![i] ;
+    // merges all the sub-nodes of this node in the template
+    private _fusion(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+        for (const node of this.nodes ?? []) {
             if (node.type === TSFusionNodeType.Data) {
-                template.pushFusionData(node.value! as Bytes)
+                run.template.pushFusionData(node.value! as Bytes) ;
             }
             else {
-                let v:any = undefined ;
-                if (node.contextType === TSFusionContextType.Procedure) {
-                    if (node._pathCache?.length === 1 && $length(node.value as string) > 0) {
-                        const proc = procedures[node.value! as string] ;
-                        if ($isfunction(proc)) { 
-                            try { 
-                                v = proc(stack.last(), stack.first(), this._localContext, globalContext, {...systemContext}) ;
-                            }
-                            catch (e) {
-                                if (debug) { errors!.push(`!ERROR!: Procedure ${node.value}() execution did fail`) ; }
-                                v = undefined ;
-                            }
-                        }
-                        else if (debug) { errors!.push(`!ERROR!: Procedure ${node.value}() does not exist`) ; }
-                    }
-                    else if (debug) { errors!.push(`!ERROR!: Malformed procedure name ${node.value}() (undefined, empty or with '.' character in it)`) ; }
-                }
-                else {
-                    let target:any[] = [];
-                    let dataType = 'unknown target' ;
-                    const hasRedefinedLocalItems = $objectcount(localStack.last()) > 0 ;
-
-                    switch (node.contextType) {
-                        case TSFusionContextType.Root: 
-                            target = [stack.first()] ;
-                            dataType = 'root'
-                            break ;
-                        case TSFusionContextType.Local:
-                            target = hasRedefinedLocalItems ? localStack : stack ;
-                            dataType = 'local context' ;
-                            break ;
-                        case TSFusionContextType.Global: 
-                            target = [globalContext] ; 
-                            dataType = 'global context'
-                            break ;
-                        case TSFusionContextType.User: 
-                            target = [globalContext] ; 
-                            dataType = 'user global context'
-                            break ;
-                        case TSFusionContextType.System: 
-                            target = [systemContext] ;
-                            dataType = 'system context'
-                            break ;
-                    }
-                    // local fusion context is always predominant to local data if it exists
-                    const parameters = $count(node.parameters) ? $map(node.parameters, p => p === template ? stack.last() : p) : undefined ;
-                    v = _valueForKeyPath(target, node._pathCache, dataType, false, parameters, errors) ;
-                    if (node.contextType === TSFusionContextType.Local && !$ok(v) && hasRedefinedLocalItems) {
-                        v = _valueForKeyPath(stack, node._pathCache, 'target object', true, parameters, errors) ;
-                    }
-                }
-                switch (node.type) {
-                    case TSFusionNodeType.Variable:
-                        if ($ok(v)) { template.pushFusionValue(v) ; }
-                        else { errors?.push(`WARNING: value returned for '${node.value!}' was undefined or null and should have result in data to merge in fusion.`) ; }
-                        break ;
-                    case TSFusionNodeType.Test:
-                        if (v) { node._fusion(template, globalContext, stack, localStack, systemContext, procedures, errors) ; }
-                        break ;
-                    case TSFusionNodeType.NegativeTest:
-                        if (!v) { node._fusion(template, globalContext, stack, localStack, systemContext, procedures, errors) ; }
-                        break ;
-                    case TSFusionNodeType.Enumeration:
-                        if ($ok(v)) {
-                            const a = $iscollection(v) ? v.getItems() : ($ismethod(v, 'fusionEnumeration') ? v.fusionEnumeration() : [v]) ;
-                            const acount = $length(a) ;
-                            for (let j = 0 ; j < acount ; j++) {
-                                node._fusion(template, globalContext, [...stack, a[j]], [...localStack, a[j]._localContext], {...systemContext, count:acount, index:j, position:j+1, remaining:acount-j-1}, procedures, errors) ;
-                            }
-                        }
-                        break ;
-                    default:break ;
-                }
+                const v = node.contextType === TSFusionContextType.Procedure ?
+                          node._procedureValue(run, stack, localStack, systemContext) :
+                          node._keyPathValue(run, stack, localStack, systemContext) ;
+                node._fusionValue(v, run, stack, localStack, systemContext) ;
             }
-        } 
+        }
+    }
+
+    // value returned by the procedure named by this node (eg. {{*name}}). The procedure receives
+    // the local context of the current level of the template (the one used to search the keys)
+    private _procedureValue(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
+        if (this._pathCache?.length !== 1 || !$length(this.value as string)) {
+            run.errors?.push(`!ERROR!: Malformed procedure name ${this.value}() (undefined, empty or with '.' character in it)`) ;
+            return undefined ;
+        }
+        const proc = run.procedures[this.value! as string] ;
+        if (!$isfunction(proc)) {
+            run.errors?.push(`!ERROR!: Procedure ${this.value}() does not exist`) ;
+            return undefined ;
+        }
+        try {
+            return proc(stack.last(), stack.first(), localStack[localStack.length-1], run.globalContext, {...systemContext}) ;
+        }
+        catch {
+            run.errors?.push(`!ERROR!: Procedure ${this.value}() execution did fail`) ;
+            return undefined ;
+        }
+    }
+
+    // value found following the key path of this node in its context (local, root, global...)
+    private _keyPathValue(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
+        const hasRedefinedLocalItems = $objectcount(localStack.last()) > 0 ;
+        const [target, dataType] = _contextTarget(this.contextType, stack, localStack, hasRedefinedLocalItems, run.globalContext, systemContext) ;
+        const parameters = $count(this.parameters) ? $map(this.parameters, p => p === run.template ? stack.last() : p) : undefined ;
+        if (this.contextType !== TSFusionContextType.Local || !hasRedefinedLocalItems) {
+            return _valueForKeyPath(target, this._pathCache, dataType, false, parameters, run.errors) ;
+        }
+        // local fusion context is always predominant to local data if it exists. Since a key
+        // which is not in the local context is then searched in the data, the messages of the
+        // local context search are only reported if the key is not found in the data either
+        const localErrors:string[]|undefined = $ok(run.errors) ? [] : undefined ;
+        const v = _valueForKeyPath(target, this._pathCache, dataType, false, parameters, localErrors) ;
+        if ($ok(v)) {
+            run.errors?.push(...localErrors!) ;
+            return v ;
+        }
+        const dataErrors:string[]|undefined = $ok(run.errors) ? [] : undefined ;
+        const dv = _valueForKeyPath(stack, this._pathCache, 'target object', true, parameters, dataErrors) ;
+        if (!$ok(dv)) { run.errors?.push(...localErrors!) ; }
+        run.errors?.push(...dataErrors!) ;
+        return dv ;
+    }
+
+    // uses the value v of this variable node according to its type
+    private _fusionValue(v:any, run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+        switch (this.type) {
+            case TSFusionNodeType.Variable:
+                if ($ok(v)) { run.template.pushFusionValue(v) ; }
+                else { run.errors?.push(`WARNING: value returned for '${this.value!}' was undefined or null and should have result in data to merge in fusion.`) ; }
+                break ;
+            case TSFusionNodeType.Test:
+                if (v) { this._fusion(run, stack, localStack, systemContext) ; }
+                break ;
+            case TSFusionNodeType.NegativeTest:
+                if (!v) { this._fusion(run, stack, localStack, systemContext) ; }
+                break ;
+            case TSFusionNodeType.Enumeration:
+                if ($ok(v)) { this._fusionEnumeration(v, run, stack, localStack, systemContext) ; }
+                break ;
+            default:
+                break ;
+        }
+    }
+
+    // merges the sub-nodes of this enumeration node once for each enumerated item,
+    // each iteration having its own new local context
+    private _fusionEnumeration(v:any, run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+        const items = _enumeratedItems(v) ;
+        const count = $length(items) ;
+        for (let j = 0 ; j < count ; j++) {
+            const item = items[j] ;
+            this._fusion(run, [...stack, item], [...localStack, {}], {...systemContext, count:count, index:j, position:j+1, remaining:count-j-1}) ;
+        }
     }
 }
+
+// parameters of a fusion which are the same for all the nodes
+interface _TSFusionRun { // NOSONAR. private interface name is intended to begin with an underscore
+    template:TSFusionTemplate ;
+    globalContext:TSDictionary ;
+    procedures:TSDictionary<TSFusionProcedure> ;
+    errors?:string[] ;
+}
+
+// objects in which a key path is searched, and their description for error messages
+function _contextTarget(contextType:TSFusionContextType, stack:any[], localStack:TSDictionary[], hasRedefinedLocalItems:boolean, globalContext:TSDictionary, systemContext:TSDictionary):[any[], string] {
+    switch (contextType) {
+        case TSFusionContextType.Root:   return [[stack.first()], 'root'] ;
+        case TSFusionContextType.Local:  return [hasRedefinedLocalItems ? localStack : stack, 'local context'] ;
+        case TSFusionContextType.Global: return [[globalContext], 'global context'] ;
+        case TSFusionContextType.User:   return [[globalContext], 'user global context'] ;
+        case TSFusionContextType.System: return [[systemContext], 'system context'] ;
+        default:                         return [[], 'unknown target'] ;
+    }
+}
+
+function _enumeratedItems(v:any):any {
+    if ($iscollection(v)) { return v.getItems() ; }
+    return $ismethod(v, 'fusionEnumeration') ? v.fusionEnumeration() : [v] ;
+}
+
 function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, unknownAsError:boolean, parameters:any[]|undefined, errors?:string[]):any 
 {
-    const scount = stack.length ; 
     const kcount = keyPath.length ;
     if (!kcount) {
         errors?.push('ERROR: empty key path') ;
         return undefined ; 
-    }    
+    }
 
+    // each leading empty component (ie. each leading '.') goes one level up in the stack
     let i = 0 ;
-    for ( ; i < kcount && keyPath[i].length === 0; i++) {}
-    if (i >= scount) { 
+    while (i < kcount && !keyPath[i].length) { i++ ; }
+    if (i >= stack.length) { 
         errors?.push(`!ERROR!: key path '${keyPath.join('.')}' did underflow the stack.`) ;
         return undefined ; 
     }
-    let v = stack[scount-i-1]
-    const pcount = $count(parameters) ;
 
+    const walk:_KeyPathWalk = { keyPath:keyPath, dataType:dataType, unknownAsError:unknownAsError, parameters:parameters, parametersCount:$count(parameters), errors:errors } ;
+    let v = stack[stack.length-i-1] ;
     for ( ; i < kcount && $ok(v) ; i++) {
-        const m = keyPath[i] ;
-        const shouldHandleParameters = pcount > 0 && i + 1 === kcount ;
-
-        if (!m.length) { 
-            errors?.push(`!ERROR!: key path '${keyPath.join('.')}' contains internal '..'.`) ;
-            return undefined ; 
-        }
-        if (!shouldHandleParameters && m === 'self') { continue ; } // special keyword for referencing itself
-        if ($isobject(v) && !(m in v)) { 
-            errors?.push(`${unknownAsError?'!ERROR!':'WARNING'}: unknown method or preperty '${m}' in ${dataType}.`) ;
-            return undefined ; 
-        }
-        let res = v[m] ;
-        if ($isfunction(res)) {
-            if (res.length > 0 && !shouldHandleParameters) { 
-                errors?.push(`!ERROR!: method ${m}() is not an sinple accessor in ${dataType}.`) ;
-                return undefined ; 
-            }
-            try {
-                v = shouldHandleParameters ? res.apply(v, parameters) : res.call(v) ;
-            }
-            catch (e) {
-                errors?.push(`!ERROR!: method ${m}() execution did fail on ${dataType}`) ;
-                return undefined ;
-            }
-        }
-        else if (!shouldHandleParameters) { v = res ; }
-        else { 
-            errors?.push(`${unknownAsError?'!ERROR!':'WARNING'}: unknown method '${m}()' in ${dataType}.`) ;
-            return undefined ; 
-        }    
-        if (typeof v === 'number' && isNaN(v)) { 
-            errors?.push(`WARNING: key path '${keyPath.join('.')}' would return NaN which was transformed to null.`) ;
-            return null ; 
-        }
+        const step = _keyPathStep(v, i, walk) ;
+        if (step.stop) { return step.value ; }
+        v = step.value ;
     }
     return v ;
+}
+
+// what is common to all the steps of a key path walk
+interface _KeyPathWalk { // NOSONAR. private interface name is intended to begin with an underscore
+    keyPath:string[] ;
+    dataType:string ;           // description of the walked object for error messages
+    unknownAsError:boolean ;    // unknown members are reported as errors instead of warnings
+    parameters:any[]|undefined ;
+    parametersCount:number ;
+    errors?:string[] ;
+}
+
+// result of one step of a key path walk: the next value, or the final value if stop is true
+interface _KeyPathStep { // NOSONAR. private interface name is intended to begin with an underscore
+    value:any ;
+    stop?:boolean ;
+}
+
+// follows the i-th component of the key path from the value v
+function _keyPathStep(v:any, i:number, w:_KeyPathWalk):_KeyPathStep {
+    const m = w.keyPath[i] ;
+    const level = w.unknownAsError ? '!ERROR!' : 'WARNING' ;
+    // parameters are given to the method named by the last component of the key path
+    const isCall = w.parametersCount > 0 && i + 1 === w.keyPath.length ;
+
+    if (!m.length) { return _keyPathStop(w, `!ERROR!: key path '${w.keyPath.join('.')}' contains internal '..'.`) ; }
+    if (!isCall && m === 'self') { return { value:v } ; } // special keyword for referencing itself
+    if ($isobject(v) && !(m in v)) { return _keyPathStop(w, `${level}: unknown method or preperty '${m}' in ${w.dataType}.`) ; }
+
+    const member = v[m] ;
+    if (!$isfunction(member)) {
+        return isCall ? _keyPathStop(w, `${level}: unknown method '${m}()' in ${w.dataType}.`) : _keyPathValue(member, w) ;
+    }
+    if (member.length > 0 && !isCall) { return _keyPathStop(w, `!ERROR!: method ${m}() is not an sinple accessor in ${w.dataType}.`) ; }
+
+    let result:any ;
+    try { result = isCall ? member.apply(v, w.parameters) : member.call(v) ; }
+    catch { return _keyPathStop(w, `!ERROR!: method ${m}() execution did fail on ${w.dataType}`) ; }
+    return _keyPathValue(result, w) ;
+}
+
+// a NaN value stops the walk and is transformed to null
+function _keyPathValue(v:any, w:_KeyPathWalk):_KeyPathStep {
+    if (typeof v === 'number' && Number.isNaN(v)) {
+        w.errors?.push(`WARNING: key path '${w.keyPath.join('.')}' would return NaN which was transformed to null.`) ;
+        return { value:null, stop:true } ;
+    }
+    return { value:v } ;
+}
+
+// stops the walk with an undefined value after having reported the error
+function _keyPathStop(w:_KeyPathWalk, error:string):_KeyPathStep {
+    w.errors?.push(error) ;
+    return { value:undefined, stop:true } ;
 }
 
 declare global {
@@ -344,9 +396,13 @@ declare global {
     export interface Map<K,V> extends TSFusionEnumeration {}
 }
 
-Set.prototype.fusionEnumeration = function fusionEnumeration():any[] { return Array.from(this) ; }
-Map.prototype.fusionEnumeration = function fusionEnumeration():any[] {
-    const ret:any[] = [] ;
-    this.forEach((value:any, key:any) => ret.push({key:key, value:value})) ;
-    return ret ;
-}
+$declareMethods(Set, {
+    fusionEnumeration(this:Set<any>):any[] { return Array.from(this) ; },
+}) ;
+$declareMethods(Map, {
+    fusionEnumeration(this:Map<any,any>):any[] {
+        const ret:any[] = [] ;
+        this.forEach((value:any, key:any) => ret.push({key:key, value:value})) ;
+        return ret ;
+    },
+}) ;

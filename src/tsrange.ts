@@ -14,7 +14,7 @@ export interface Interval {
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
-export function TSBadRange():TSRange { return new TSRange(NaN, 0) ; }
+export function TSBadRange():TSRange { return new TSRange(Number.NaN, 0) ; }
 export function TSEmptyRange():TSRange { return new TSRange(0, 0) ; }
 
 export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Interval {
@@ -51,7 +51,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 				else if ($comformsToInterval(arguments[0])) {
 					const a = arguments[0] as Interval ;
 					if (!a.hasSignificantRange) { 
-						this._location = NaN ;
+						this._location = Number.NaN ;
 						this._length = 0 ;
 						break ;
 					}
@@ -76,8 +76,8 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
                         TSError.throw('TSRange.constructor(): second provided date is anterior to the first one', { arguments:Array.from(arguments)}) ;
 					}
 				}
-                else if (isNaN(arguments[0]) || isNaN(arguments[1])) {
-                    this._location = NaN ;
+                else if (Number.isNaN(Number(arguments[0])) || Number.isNaN(Number(arguments[1]))) {
+                    this._location = Number.NaN ;
                     this._length = 0 ;
                 }
 				else if ($isint(arguments[0]) && $isunsigned(arguments[1]) && $isint(arguments[0]+arguments[1])) {
@@ -102,8 +102,8 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 
 	public get location():number { return this._location ; }
 	public set location(loc:number) {
-        if (isNaN(loc)) {
-            this._location = NaN ;
+        if (Number.isNaN(loc)) {
+            this._location = Number.NaN ;
             this._length = 0 ;
         }
         else {
@@ -116,8 +116,8 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 	
 	public get length():number { return this._length ; }
 	public set length(len:number) {
-        if (isNaN(len)) {
-            this._location = NaN ;
+        if (Number.isNaN(len)) {
+            this._location = Number.NaN ;
             this._length = 0 ;
         }
         else {
@@ -128,9 +128,9 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
         }
 	}
 
-	public get isValid():boolean { return !isNaN(this._location) ; }
+	public get isValid():boolean { return !Number.isNaN(this._location) ; }
 	public get isEmpty():boolean { return this._length === 0 ; }
-	public get maxRange():number { return isNaN(this._location) ? NaN : this._location + this._length ; }
+	public get maxRange():number { return Number.isNaN(this._location) ? Number.NaN : this._location + this._length ; }
 
 	// Interval meta conformance
 	public get range():TSRange { return this }

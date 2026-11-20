@@ -219,15 +219,105 @@ tester.addGroup("Testing tester system itself", async (group) => {
     }) ;
 
     group.unary("unary catchFunction / catched / stopped / stop()", async (t) => {
-        t.catchFunction = async (tt, e) => {
-            tt.expect0(tt.catched).true() ;
-            tt.expect1((e as Error).message).is("intentional unary failure") ;
-            tt.expect2(tt.stopped).false() ;
-            tt.stop("done exercising catch path") ;
-            tt.expect3(tt.stopped).true() ;
-            tt.stop() ;
-        } ;
-        throw new Error("intentional unary failure") ;
+        // stop() interrupts the whole run, so it's exercised on a muted sub-tester
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        let output = '' ;
+        console.log = ((...args:any[]) => { output += args.join(' ') + '\n' ; }) as any ;
+        (process.stdout as any).write = ((c:any) => { output += String(c) ; return true ; }) as any ;
+        let res:any, failRes:any, defaultRes:any ;
+        const checks:any[] = [] ;
+        let afterStopRan = false, callbackCalled = false ;
+        try {
+            const sub = new TSTester("stop sub-tester") ;
+            sub.addGroup("stopping group", async (g) => {
+                g.unary("catch then stop", async (tt) => {
+                    tt.catchFunction = async (ut, e) => {
+                        checks.push(ut.catched, (e as Error).message, ut.stopped) ;
+                        ut.stop("done exercising catch path") ;
+                        checks.push(ut.stopped, ut.stopReason) ;
+                        ut.expect0(1).is(1) ;   // expectations after stop() are still evaluated
+                    } ;
+                    throw new Error("intentional unary failure") ;
+                }) ;
+                g.unary("after stop in the same group", async () => { afterStopRan = true ; }) ;
+            }) ;
+            sub.addGroup("group after stop", async (g) => { g.unary("never run", async () => { afterStopRan = true ; }) ; }) ;
+            res = await sub.run({ stopItCallback:async () => { callbackCalled = true ; } }) ;
+
+            // stopOnFirstFail failures are now counted in the result
+            const sub2 = new TSTester("stopOnFirstFail sub-tester") ;
+            sub2.addGroup("failing group", async (g) => {
+                g.unary("fails", async (tt) => { tt.expect0(1).is(2) ; }) ;
+                g.unary("never run", async () => { afterStopRan = true ; }) ;
+            }, null, { stopOnFirstFail:true }) ;
+            failRes = await sub2.run() ;
+
+            const sub3 = new TSTester("default reason sub-tester") ;
+            sub3.addGroup("plain stop", async (g) => { g.unary("stop", async (tt) => { tt.stop() ; }) ; }) ;
+            defaultRes = await sub3.run() ;
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+        output = output.replace(/\x1b\[[0-9;]*m/g, '') ; // NOSONAR: removing terminal codes
+        t.expect0(checks).is([true, "intentional unary failure", false, true, "done exercising catch path"]) ;
+        t.expect1(afterStopRan).false() ;
+        t.expect2(callbackCalled).true() ;
+        t.expect3(res.stopped).true() ;
+        t.expect4(res.stopReason).is("done exercising catch path") ;
+        t.expect5(res.expectations).is(1) ;
+        t.expect6(res.groups).is(1) ;
+        t.expect7(output.includes("TESTS DID STOP: done exercising catch path")).true() ;
+        t.expect8(failRes.stopped).true() ;
+        t.expect9(failRes.stopReason).undef() ;
+        t.expectA(failRes.failures).is(1) ;
+        t.expectB(failRes.failed).is(1) ;
+        t.expectC(output.includes("TESTS DID STOP ON FIRST TEST FAILED")).true() ;
+        t.expectD(defaultRes.stopReason).is("By user command.") ;
+    }) ;
+
+    group.unary("TSTester failure messages and logAllTests", async (t) => {
+        // the sub-run output is captured (and stripped of its terminal codes) instead of being printed
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        let output = '' ;
+        console.log = ((...args:any[]) => { output += args.join(' ') + '\n' ; }) as any ;
+        (process.stdout as any).write = ((c:any) => { output += String(c) ; return true ; }) as any ;
+        let res:any ;
+        try {
+            const sub = new TSTester("messages") ;
+            sub.addGroup("messages group", async (g) => {
+                g.unary("failing type assertions", async (tt) => {
+                    tt.expect0('x').isipv4() ;
+                    tt.expect1('x').isipv6() ;
+                    tt.expect2('x').isip() ;
+                    tt.expect3('x').isnumber() ;
+                }) ;
+                g.unary("toBeUnordered() with logAllTests", async (tt) => {
+                    tt.logAllTests = true ;
+                    tt.expect(new Set([1, 2]), 'unord').toBeUnordered([2, 1]) ;
+                }) ;
+            }) ;
+            res = await sub.run() ;
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+        // eslint-disable-next-line no-control-regex
+        output = output.replace(/\x1b\[[0-9;]*m/g, '') ;
+        t.expect0(res.failures).is(4) ;
+        t.expect1(res.expectations).is(5) ;
+        // the IP addresses checks used to expect "a folder", and all these messages ended with '>>'
+        t.expect2(output.includes("'<an IPv4 address>'")).true() ;
+        t.expect3(output.includes("'<an IPv6 address>'")).true() ;
+        t.expect4(output.includes("'<an IP address>'")).true() ;
+        t.expect5(output.includes("'<a valid number>'")).true() ;
+        t.expect6(output.includes("folder") || output.includes(">>")).false() ;
+        // toBeUnordered() used to bypass the logAllTests logging
+        t.expect7(/unord\S* did PASS/.test(output)).true() ;
     }) ;
 
     group.unary("TSTester runner internals (fresh sub-tester)", async (t) => {

@@ -31,10 +31,13 @@ export function $isstring(o: any): o is string
 { return typeof o === 'string' ; }
 
 export function $iswhitespace(s: Nullable<string|number>) : boolean
-{ return typeof s === 'string' ? FoundationWhiteSpacesStringCodeSet.has(s) : ($ok(s) ? FoundationWhiteSpacesNumberCodeSet.has(s) : false) ; }
+{
+    if (typeof s === 'string') { return FoundationWhiteSpacesStringCodeSet.has(s) ; }
+    return $ok(s) && FoundationWhiteSpacesNumberCodeSet.has(s) ;
+}
 
 export function $isnumber(o: any): o is number
-{ return typeof o === 'number' && isFinite(o) ; }
+{ return typeof o === 'number' && Number.isFinite(o) ; }
 
 export function $isint(o:any, minimum:number = INT_MIN, maximum:number = INT_MAX) : o is number
 { return typeof o === 'number' && Number.isSafeInteger(<number>o) && <number>o >= minimum && <number>o <= maximum; }
@@ -49,7 +52,10 @@ export function $isobject(o: any): o is object
 { return $ok(o) && typeof o === 'object' ; }
 
 export function $objectcount(o:any) : number 
-{ return o instanceof Map ? o.size : ($isobject(o) ? $keys(o).length : 0) ; }
+{
+    if (o instanceof Map) { return o.size ; }
+    return $isobject(o) ? $keys(o).length : 0 ;
+}
 
 export function $isarray(o:any) : o is any[]
 { return Array.isArray(o) ; }
@@ -87,7 +93,7 @@ export function $ismethod(obj:any, meth:Nullable<string|symbol>):boolean
 export function $isipv4(o:any):o is string
 { return typeof o === 'string' && __IPV4Regex.test($ftrim(o)) ; }
 
-export function $isipv6(o:any):boolean
+export function $isipv6(o:any):o is string
 { return typeof o === 'string' && __IPV6Regex.test($ftrim(o)) ; }
 
 export function $isipaddress(o:any):o is string
@@ -104,10 +110,10 @@ export function $hasproperties(obj:any, properties:Nullable<string[]>)
     return true ;
 }
 
-export function $intornull(n:Nullable<string|number|bigint>) : int | null
+export function $intornull(n:Nullable<string|number|bigint>) : int | null // NOSONAR: I don't want to define a specific type for that parameter
 {
 	if (!$ok(n)) { return null ; }
-	else if (typeof n === 'string') { n = parseInt(n, 10) ; }
+	else if (typeof n === 'string') { n = Number.parseInt(n, 10) ; }
     else if (typeof n === 'bigint') {
         return n >= INT_MIN_BIG && n <= INT_MAX_BIG ? Number(n) as int : null ;
     
@@ -134,7 +140,11 @@ export function $url(s:Nullable<string>, opts?:Nullable<TSURLParseOptions>) : ur
 { return $valueornull(TSURL.url(s, opts)?.href); }
 
 export function $UUID(s:Nullable<string>, version?:Nullable<UUIDVersion> /* default version is UUIDv1 */) : UUID | null
-{ return typeof s === 'string' ? _regexvalidatedstring<UUID>(version === 4 ? __uuidV4Regex : __uuidV1Regex, s, UUID_LENGTH, UUID_LENGTH) : null ; }
+{
+    if (typeof s !== 'string') { return null ; }
+    const regex = version === 4 ? __uuidV4Regex : __uuidV1Regex ;
+    return _regexvalidatedstring<UUID>(regex, s, UUID_LENGTH, UUID_LENGTH) ;
+}
 
 export type IsoDateFormat = TSDateForm.ISO8601C | TSDateForm.ISO8601L | TSDateForm.ISO8601
 
@@ -165,7 +175,7 @@ export function $address(a:Nullable<Address>) : Address | null
 export function $unsignedornull(n:Nullable<string|number|bigint>) : uint | null
 {
 	if (!$ok(n)) { return null ; }
-	else if (typeof n === 'string') { n = parseInt(<string>n, 10) ; }
+	else if (typeof n === 'string') { n = Number.parseInt(<string>n, 10) ; }
     else if (typeof n === 'bigint') {
         return n >= UINT_MIN_BIG && n <= UINT_MAX_BIG ? Number(n) as uint : null ;
     }
@@ -181,8 +191,8 @@ export function $toint(v:Nullable<string|number|bigint>, defaultValue:int=<int>0
     else if (typeof v === 'bigint') {
         v = v >= INT_MIN_BIG && v <= INT_MAX_BIG ? Number(v) : defaultValue ;
     }
-    else if (typeof v === 'string') { v = parseInt(v, 10) ; }
-    return isNaN(v) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v, INT_MAX))) as int ;
+    else if (typeof v === 'string') { v = Number.parseInt(v, 10) ; }
+    return Number.isNaN(v) ? defaultValue : Math.max(INT_MIN, $icast(Math.min(v, INT_MAX))) as int ;
 }
 
 export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0) : uint
@@ -191,10 +201,10 @@ export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0
     else if (typeof v === 'bigint') {
         v = v >= UINT_MIN_BIG && v <= UINT_MAX_BIG ? Number(v) : defaultValue ;
     }
-    else if (typeof v === 'string') { v = parseInt(v, 10) ; }
-    return isNaN(v) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v, UINT_MAX))) as uint ;
+    else if (typeof v === 'string') { v = Number.parseInt(v, 10) ; }
+    return Number.isNaN(v) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v, UINT_MAX))) as uint ;
 }
-export interface $stringOptions {
+export interface $stringOptions { // NOSONAR: name accepted for matchnig the function
     objectToStringConversion: (v:any) => string ;
     nullRepresentation:string ;
     undefinedRepresentation:string ;
@@ -225,33 +235,16 @@ const __default$stringOptions: $stringOptions = {
     // (string/symbol/number) ever depend on $stringOptions to format, so the
     // bare recursive $string(p) below needs no options forwarded.
     objectToStringConversion: (v:any):string => {
-        const toPrimitive = v[Symbol.toPrimitive] ;
-        if (typeof toPrimitive === 'function') {
-            try {
-                const p = toPrimitive.call(v, 'string') ;2
-                if (typeof p === 'string') { return p ; }
-                if (typeof p === 'symbol') { return $symbol2string(p) ; }
-            }
-            catch { /* v's [Symbol.toPrimitive] misbehaved : fall through to toString() */ }
-        }
-        const toString = v.toString ;
-        if (typeof toString === 'function') {
-            try {
-                const p = toString.call(v) ;
-                if (typeof p === 'string') { return p ; }
-            }
-            catch { /* fall through to valueOf() */ }
-        }
-        const valueOf = v.valueOf ;
-        if (typeof valueOf === 'function') {
-            try {
-                const p = valueOf.call(v) ;
-                if (typeof p === 'string') { return p ; }
-                if (typeof p === 'number') { return ''+p ; } // fastest number conversion (see $string() for details)
-            }
-            catch { /* nothing left to try */ }
-        }
-        return '' ;
+        const p = _safecall(v, Symbol.toPrimitive, 'string') ;
+        if (typeof p === 'string') { return p ; }
+        if (typeof p === 'symbol') { return $symbol2string(p) ; }
+
+        const s = _safecall(v, 'toString') ;
+        if (typeof s === 'string') { return s ; }
+
+        const n = _safecall(v, 'valueOf') ;
+        if (typeof n === 'string') { return n ; }
+        return typeof n === 'number' ? ''+n : '' ; // fastest number conversion (see $string() for details)
     },
     nullRepresentation: '',
     undefinedRepresentation: '',
@@ -273,7 +266,7 @@ export function $string(v:any, options?:$stringOptions) : string {
             // bypass trueValue/falseValue ; boxed Number/BigInt/String have no such
             // customizable representation to bypass, so only this one needs
             // intercepting before it ever reaches objectToStringConversion.
-            if (v instanceof Boolean) { return v.valueOf() ? opts.trueValue : opts.falseValue ; }
+            if (v instanceof Boolean) { return v.valueOf() ? opts.trueValue : opts.falseValue ; } // NOSONAR: here we check an object, so instanceof is necessary
             return opts.objectToStringConversion(v) ;
         case 'boolean': return v ? opts.trueValue : opts.falseValue ;
         case 'number': return ''+v ; // fastest way to convert a number to string (twice as fast as calling v.toString() or String(v))
@@ -291,7 +284,8 @@ export function $strings(...values: Array<Nullable<string[] | string>>) : string
         case 0: 
             return [] ;
         case 1: 
-            return typeof values[0] === 'string' ? values as string[] : ($isarray(values[0]) ? values[0] : []) ;
+            if (typeof values[0] === 'string') { return values as string[] ; }
+            return $isarray(values[0]) ? values[0] : [] ;
         default:{
             const ret:string[] = [] ;
             values.forEach(v => {
@@ -313,15 +307,16 @@ export function $capacityForCount(count:number):uint
 }
 
 export function $count<T=any>(a: Nullable<ArrayLike<T> | Set<T>>) : number
-{ return a instanceof Set ? a.size : ($ok(a) ? (<ArrayLike<T>>a).length : 0) ; }
+{
+    if (a instanceof Set) { return a.size ; }
+    return $ok(a) ? (<ArrayLike<T>>a).length : 0 ;
+}
 
 export function $length(s: Nullable<string | TSDataLike | Blob>) : number
 { 
-    return s instanceof Blob ? 
-        s.size : 
-        (s instanceof ArrayBuffer ? 
-            s.byteLength : 
-            ($ok(s) ? (<string|Bytes|TSData>s).length : 0)) ; 
+    if (s instanceof Blob) { return s.size ; }
+    if (s instanceof ArrayBuffer) { return s.byteLength ; }
+    return $ok(s) ? (<string|Bytes|TSData>s).length : 0 ;
 }
 
 export function $lse<T>(s:Nullable<string | TSDataLike | ArrayLike<T>>, start?:Nullable<number>, end?:Nullable<number>) : [uint, uint, uint, uint] {
@@ -358,7 +353,7 @@ export function $jsonobj(v:any): any
 // own properties, e.g. an Array's own "length" — $objectcount([1,2,3]) must stay 3.
 export function $keys<T>(o:Nullable<T>):Array<keyof T> { return $ok(o) ? Object.keys(o!) as (keyof T)[] : [] ; }
 
-export interface $partialOptions<T,U> {
+export interface $partialOptions<T,U> { // NOSONAR: name accepted for matchnig the function
     properties?:Array<keyof T | keyof U>,
     filter?: (v:T[keyof T]) => T[keyof T]|U[keyof U]|undefined;
 }
@@ -375,9 +370,6 @@ export function $partial<T,U>(a:Nullable<T>, opts:$partialOptions<T,U>={}):[U, n
     return [ret as U, n] ;
 }
 
-// TODO: review all TSDictionary functions to make a specific file 
-// and a more thorough specifications. Here, all null, undefined and function
-// properties are removed
 export function $dict<T = object>(source:Nullable<T>, keys?:Array<keyof T>):TSDictionary {    
     const ret:TSDictionary = {} ;
     if ($ok(source)) { 
@@ -433,7 +425,7 @@ export function $includesdict(source:Nullable<object>, dict:TSDictionary, keys?:
 // only the given properties of a and b are fusionned
 // by default there is no fusion of array or sub-object properties.
 // you can turn that on by providing a fusionArray and a fusionObject method
-export interface $fusionOptions<T,U> {
+export interface $fusionOptions<T,U> { // NOSONAR: name accepted for matchnig the function
     A?:$partialOptions<T,U>,
     B?:$partialOptions<T,U>
     fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
@@ -466,7 +458,7 @@ export function $encoding(e:Nullable<StringEncoding>):NormativeStringEncoding {
 export function $symbol2string(v:symbol):string {
     const s = v.toString() ;
     if (s.startsWith('Symbol(') && s.endsWith(')')) {
-        return s.slice(7, s.length - 1) ;
+        return s.slice(7, -1) ;
     }
     return $value(Symbol.keyFor(v), '') ;
 }
@@ -479,6 +471,16 @@ export const __uuidV1Regex:RegExp   = /^[A-F\d]{8}-[A-F\d]{4}-[A-F\d]{4}-[A-F\d]
 export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A-F\d]{3}-[A-F\d]{12}$/i ;
 
 // ===== private functions ===================================
+// calls v[method](...args) and returns its result, or undefined if v has no such
+// method or if the call throws (a method that throws is treated like one that
+// returned nothing usable). The method itself is read outside of the try block.
+function _safecall(v:any, method:string|symbol, ...args:any[]):any {
+    const fn = v[method] ;
+    if (typeof fn !== 'function') { return undefined ; }
+    try { return fn.apply(v, args) ; }
+    catch { return undefined ; }
+}
+
 
 // BUG fixed:
 // ===========================================================================
@@ -492,8 +494,7 @@ export const __uuidV4Regex:RegExp = /^[A-F\d]{8}-[A-F\d]{4}-4[A-F\d]{3}-[89AB][A
 // many seconds). Requiring the dot on every repetition (label\.)* removes the
 // ambiguity : each repetition must consume an actual "." from the input, so
 // there is exactly one way to partition a given string, not exponentially many.
-const __emailRegex:RegExp = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.)*([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/ ;
-
+const __emailRegex:RegExp = /^(?:[^<>()[\]\s@".,;:]+(?:\.[^<>()[\]\s@".,;:]+)*|".+")@(?:[^<>()\s@".,;]+\.)*(?:[^<>()\s@".,;:]{2,}|[\d.]+)$/ ; // NOSONAR due to complex regex
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:Nullable<number>, maxLength?:number) : T | null 
 {
 	const v = $ftrim(s) ;
@@ -503,7 +504,7 @@ function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:N
 	return <T><unknown>v ;
 }
 
-interface _fillObjectOptions<T,U> extends $partialOptions<T,U> {
+interface _fillObjectOptions<T,U> extends $partialOptions<T,U> { // NOSONAR:
     fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
     fusionObjects?:(a:object, b:object) => object
 }
@@ -514,39 +515,71 @@ const _defaultFillObjectFilter = (v:any):any => $ok(v) && typeof v !== 'function
 
 function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObjectOptions<T,U>={}):number
 {
-    let ret = 0 ;
     // read into locals instead of `opts = {...opts}` + writing defaults back :
     // $fusion() passes its caller's opts.A straight through (no pre-clone on
     // that path), so mutating `opts` in place would leak _fillObject's
     // internal defaults onto an object the caller still owns.
     const properties = $ok(opts.properties) ? opts.properties! : $keys(source) as Array<keyof T | keyof U> ;
-    if (properties.length) {
-        const fusion_arrays = $isfunction(opts.fusionArrays) ;
-        const fusion_objects = $isfunction(opts.fusionObjects) ;
-        const filter = $isfunction(opts.filter) ? opts.filter! : _defaultFillObjectFilter ;
+    if (properties.length === 0) { return 0 ; }
 
-        for (let p of properties) {
-            if (typeof p !== 'string') {
-                TSError.throw(`$${fn}() needs to have valid string properties`,
-                { function:fn, source:source, destination:destination, options:opts}) ;
-            }
-            const v = filter(source[p]) ;
-            if ($defined(v)) {
-                if (fusion_arrays && $isarray(v) && $isarray(destination[p])) {
-                    destination[p] = opts.fusionArrays!(destination[p], v) ;
-                }
-                else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
-                    destination[p] = opts.fusionObjects!(destination[p], v) ;
-                }
-                else { destination[p] = v ; }
-                ret++ ;
-            }
+    let ret = 0 ;
+    const fusion_arrays = $isfunction(opts.fusionArrays) ;
+    const fusion_objects = $isfunction(opts.fusionObjects) ;
+    const filter = $isfunction(opts.filter) ? opts.filter! : _defaultFillObjectFilter ;
+
+    for (let p of properties) {
+        if (typeof p !== 'string') {
+            TSError.throw(`$${fn}() needs to have valid string properties`,
+            { function:fn, source:source, destination:destination, options:opts}) ;
         }
+        const v = filter(source[p]) ;
+        if (!$defined(v)) { continue ; }
+        if (fusion_arrays && $isarray(v) && $isarray(destination[p])) {
+            destination[p] = opts.fusionArrays!(destination[p], v) ;
+        }
+        else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
+            destination[p] = opts.fusionObjects!(destination[p], v) ;
+        }
+        else { destination[p] = v ; }
+        ret++ ;
     }
     return ret ;
 }
-const __IPV6Regex = /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/
-const __IPV4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+const __IPV4Regex = _ipv4Regex() ;
+const __IPV6Regex = _ipv6Regex() ;
+
+// IPv4 address: 4 decimal bytes, leading zeros accepted (eg. 010.001.1.1)
+function _ipv4Regex():RegExp {
+    const b = String.raw`(?:25[0-5]|2[0-4]\d|[01]?\d\d?)` ;
+    return new RegExp(String.raw`^${b}(?:\.${b}){3}$`) ;
+}
+
+/**
+ * IPv6 address: 8 groups of 1 to 4 hexadecimal digits, where a run of null groups
+ * may be compressed with '::' and where the 2 last groups may be written as an IPv4
+ * address (without leading zeros), followed by an optional zone index (eg. %eth0).
+ * There is one alternative per number of groups before the '::' (or per form if no '::').
+ * All groups are non capturing and all quantifiers are bounded except the zone index one,
+ * which avoids any polynomial backtracking.
+ * WARNING: the tested string must have been trimmed with $ftrim() before: the regex does
+ * not handle leading or trailing spaces ($ftrim() removes all the \s characters)
+ */
+function _ipv6Regex():RegExp {
+    const h = String.raw`[\da-f]{1,4}` ;
+    const b = String.raw`(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)` ;
+    const v4 = String.raw`${b}(?:\.${b}){3}` ;
+    const forms = [
+        `(?:${h}:){7}(?:${h}|:)`,
+        `(?:${h}:){6}(?::${h}|${v4}|:)`,
+        `(?:${h}:){5}(?:(?::${h}){1,2}|:${v4}|:)`,
+        `(?:${h}:){4}(?:(?::${h}){1,3}|(?::${h})?:${v4}|:)`,
+        `(?:${h}:){3}(?:(?::${h}){1,4}|(?::${h}){0,2}:${v4}|:)`,
+        `(?:${h}:){2}(?:(?::${h}){1,5}|(?::${h}){0,3}:${v4}|:)`,
+        `${h}:(?:(?::${h}){1,6}|(?::${h}){0,4}:${v4}|:)`,
+        `:(?:(?::${h}){1,7}|(?::${h}){0,5}:${v4}|:)`,
+    ] ;
+    return new RegExp(`^(?:${forms.join('|')})(?:%.+)?$`, 'i') ;
+}
 
 const __capacitiesForCounts = [
     /* 000 */   2,   2,   4,   4,   8,   8,   8,   8,

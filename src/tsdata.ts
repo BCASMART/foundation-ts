@@ -39,7 +39,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     // ============================ TSDATA creation =============================================
     constructor (source?:Nullable<number|TSDataLike>, opts:TSDataOptions={}) 
     {
-        this._allocFn = $ok(opts.allocMethod) ? opts.allocMethod! : (opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe) ;
+        if ($ok(opts.allocMethod)) { this._allocFn = opts.allocMethod! ; }
+        else { this._allocFn = opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe ; }
 
         if (!$ok(source)) { source = 0 ; }
         
@@ -148,7 +149,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (start < end) {
             this._willGrow(len) ;
             for (let i = start ; i < end ; i++) {
-                this._buf[this._len++] = source!.charCodeAt(i) & 0xff ;
+                this._buf[this._len++] = source!.charCodeAt(i) & 0xff ; // NOSONAR: appendASCII() appends one byte per UTF-16 code unit by design
             }
         }
         return this ;
@@ -431,7 +432,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public slowhash(options?: $hashOptions):string|Uint8Array { return $slowhash(this, options) ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
-        return hint === 'number' ? NaN : TSCharset.binaryCharset().stringFromData(this) ;
+        return hint === 'number' ? Number.NaN : TSCharset.binaryCharset().stringFromData(this) ;
     }
 
     // ============ TSObject conformance =============== 
@@ -619,12 +620,9 @@ export interface TSDataConstructor {
 }
 
 function _dataValue(value:TSDataLike|number|string, encoding?:Nullable<StringEncoding|TSCharset>):Uint8Array|number|null {
-    return typeof value === 'number' ?
-           ($isunsigned(value) ? value : null) :
-           ($isstring(value) ? 
-            $charset(encoding, TSCharset.binaryCharset()).uint8ArrayFromString(value) :
-            $uint8ArrayFromDataLike(value)
-           ) ;
+    if (typeof value === 'number') { return $isunsigned(value) ? value : null ; }
+    if ($isstring(value)) { return $charset(encoding, TSCharset.binaryCharset()).uint8ArrayFromString(value) ; }
+    return $uint8ArrayFromDataLike(value) ;
 }
 
 function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {

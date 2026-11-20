@@ -16,14 +16,14 @@ export const IntegerBoundaries:number[] = [
 
 // Non-finite / non-integer numeric values.
 export const NonFiniteNumbers:number[] = [
-    NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1.5, -1.5, -0,
+    Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1.5, -1.5, -0,
 ] ;
 
 // Values that are "foreign" to almost every foundation-ts class: any TSObject
 // asked to compare()/isEqual() against one of these must answer undefined / false,
 // never throw.
 export const ForeignValues:any[] = [
-    null, undefined, 0, 1, NaN, "", "a string", true, false,
+    null, undefined, 0, 1, Number.NaN, "", "a string", true, false,
     {}, { nope: 1 }, [], [1, 2, 3], () => 0, Symbol("s"), 10n,
 ] ;
 

@@ -19,12 +19,14 @@
  * not generated) is only called once, lazily, on the first transliterate() /
  * transliterateCP() call, from the memoized $transliterate / $transliterateCP
  * wrappers at the bottom of this file. If this file gets regenerated, keep the
- * payload wrapped in that function rather than run eagerly at module scope.
+ * payload wrapped in that function rather than run eagerly at module scope, and
+ * keep the String.fromCodePoint() calls of decodeString() and transliterateCP()
+ * (the generator used String.fromCharCode(), which SonarQube reports).
  */
 
 import { $decodeBase64 } from "./data";
 
-/* eslint-disable */
+/* eslint-disable */ //NOSONAR
 // prettier-ignore
 function __buildTransliterationData() {
 
@@ -8058,20 +8060,22 @@ function __buildTransliterationData() {
     const packed = SIDX[stridx];
     const off    = packed >> 6;
     const len    = packed & 0x3F;
+    // a loop is much faster than String.fromCodePoint(...POOL.subarray()) on such short strings
     let s = "";
-    for (let i = 0; i < len; i++) s += String.fromCharCode(POOL[off + i]);
+    for (let i = 0; i < len; i++) s += String.fromCodePoint(POOL[off + i]);
     return s;
   }
 
   function transliterateCP(cp: number, strict:boolean = false):string|null {
     let stridx = 0;
-    if      (cp <= 0x7f)     return String.fromCharCode(cp)
+    if      (cp <= 0x7f)     return String.fromCodePoint(cp)
     else if (cp <= 0xFFFF)   stridx = lookupPage(_bmp_l1,  _bmp_pd,  cp);
     else if (cp <= 0x1FFFF)  stridx = lookupPage(_p1_l1,   _p1_pd,   cp - 0x10000);
     else if (cp <= 0x2FFFF)  stridx = lookupPage(_p2_l1,   _p2_pd,   cp - 0x20000);
     else if (cp <= 0x3FFFF)  stridx = lookupPage(_p3_l1,   _p3_pd,   cp - 0x30000);
     else if (cp >= 0xE0000)  stridx = lookupPage(_p14_l1,  _p14_pd,  cp - 0xE0000);
-    return stridx === 0 ? (strict ? null : "") : decodeString(stridx);
+    if (stridx === 0) return strict ? null : "" ;
+    return decodeString(stridx);
   }
 
   function transliterate(str: string, strict:boolean = false):string|null {

@@ -184,7 +184,8 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
             a = a.next ;
             b = b.next ;
         }
-        return a === null ? ( b === null ? Same : Ascending) : Descending ;
+        if (a !== null) { return Descending ; }
+        return b === null ? Same : Ascending ;
     }
 
 	public toString(opts:TSListToStringOptions<T> = { prefix:'(', separator:',', suffix:')'}):string {

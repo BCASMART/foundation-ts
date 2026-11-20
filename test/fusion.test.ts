@@ -462,7 +462,7 @@ TSTest.group("Fusion — operators, params, constants", async (group) => {
         t.expect2(run("{{a..b}}", { a:{ b:1 } }).errors.includes("contains internal '..'")).true() ;
         t.expect3(run("{{a.zz}}", { a:{ b:1 } }).errors.includes("unknown method or preperty 'zz'")).true() ;
         t.expect4(run("{{a.foo}}", { a:{ foo:(x:number) => x } }).errors.includes("is not an sinple accessor")).true() ;
-        t.expect5(run("{{a.n}}", { a:{ n:NaN } }).errors.includes("would return NaN which was transformed to null")).true() ;
+        t.expect5(run("{{a.n}}", { a:{ n:Number.NaN } }).errors.includes("would return NaN which was transformed to null")).true() ;
     }) ;
 }),
 
@@ -584,6 +584,86 @@ TSTest.group("Fusion — template introspection & capacity", async (group) => {
         // a procedure that injects into the local context, then a local var that only exists in the data
         const proc = (_d:any, _r:any, local:TSDictionary) => { local.injected = 'I' ; return 'P' ; } ;
         t.expect8(F('{{*p}}{{.injected}}/{{.realKey}}', { realKey:'R' }, { procedures:{ p:proc } }).r).is('PI/R') ;
+    }) ;
+}),
+
+TSTest.group("Fusion — procedures, contexts and key paths", async (group) => {
+    const F = (s:string, data:any, glob:TSDictionary = {}, procedures:TSDictionary = {}) => {
+        const tpl = TSFusionTemplate.fromString(s, { procedures:procedures }) ;
+        const e:string[] = [] ;
+        return { r:tpl?.fusionWithDataContext(data, glob, e), e:e } ;
+    } ;
+
+    group.unary('procedure arguments inside an enumeration', async (t) => {
+        const seen:any[] = [] ;
+        const info = (d:any, r:any, _l:TSDictionary, g:TSDictionary, s:TSDictionary) => {
+            seen.push([d, r.title, g.gk, s.index, s.count, s.position, s.remaining]) ;
+            s.index = 99 ;  // the procedure receives a copy of the system context
+            return `<${d}>` ;
+        } ;
+        const res = F('{{items#:{{*info}}{{_index}};}}', { title:'T', items:['a', 'b'] }, { gk:'G' }, { info:info }) ;
+        t.expect0(res.r).is('<a>0;<b>1;') ;             // the modified copy does not change {{_index}}
+        t.expect1(res.e).is([]) ;
+        t.expect2(seen).is([['a', 'T', 'G', 0, 2, 1, 1], ['b', 'T', 'G', 1, 2, 2, 0]]) ;
+    }) ;
+
+    group.unary('local context written by a procedure', async (t) => {
+        const setx = (d:any, _r:any, l:TSDictionary) => { if (d.flag) { l.x = 'LOCAL' ; } return '' ; } ;
+        const tpl = TSFusionTemplate.fromString('[{{*setx}}][{{x}}][{{y}}]', { procedures:{ setx:setx } }) ;
+        if (!t.expect0(tpl).OK()) { return ; }
+        // the local context is predominant over the data, which is used for the other keys
+        // without any warning about the key 'y' which is not in the local context
+        const e1:string[] = [] ;
+        t.expect1(tpl!.fusionWithDataContext({ flag:true, x:'DATA', y:'Y' }, {}, e1)).is('[][LOCAL][Y]') ;
+        t.expect2(e1).is([]) ;
+        // the local contexts are cleaned at the beginning of each fusion
+        t.expect3(tpl!.fusionWithDataContext({ flag:false, x:'DATA', y:'Y' }, {}, [])).is('[][DATA][Y]') ;
+        // a key found neither in the local context nor in the data is still reported for both
+        const e2:string[] = [] ;
+        t.expect4(tpl!.fusionWithDataContext({ flag:true, x:'DATA' }, {}, e2)).is('[][LOCAL][]') ;
+        t.expect5(e2).is([
+            "WARNING: unknown method or preperty 'y' in local context.",
+            "!ERROR!: unknown method or preperty 'y' in target object.",
+            "WARNING: value returned for 'y' was undefined or null and should have result in data to merge in fusion.",
+        ]) ;
+    }) ;
+
+    group.unary('local contexts of the template levels', async (t) => {
+        const set = (d:any, _r:any, l:TSDictionary) => { l.mark = `M-${d.id ?? d}` ; return '' ; } ;
+        // inside an enumeration, each iteration has its own local context
+        const r1 = F('{{items#:[{{.mark}}{{*set}}{{.mark}}]}}', { items:[{ id:1 }, { id:2 }] }, {}, { set:set }) ;
+        t.expect0(r1.r).is('[M-1][M-2]') ;                          // nothing before the procedure call in each iteration
+        t.expect1(r1.e.filter(m => m.startsWith('WARNING: value returned for')).length).is(2) ;
+        // a test block does not create a new level: its local context is the one of the enclosing level
+        const r2 = F('{{flag?:{{*set}}}}[{{.mark}}]', { flag:true, id:'R' }, {}, { set:set }) ;
+        t.expect2(r2.r).is('[M-R]') ;
+        t.expect3(r2.e).is([]) ;
+        // the local context of an iteration does not leak to the enclosing level
+        const r3 = F('{{items#:{{*set}}}}[{{mark}}]', { items:['a'], mark:'DATA' }, {}, { set:set }) ;
+        t.expect4(r3.r).is('[DATA]') ;
+        // an enumerated data item with a '_localContext' property is not used as a local context
+        const r4 = F('{{items#:[{{mark}}]}}', { items:[{ _localContext:{ mark:'HIDDEN' }, mark:'ITEM' }] }) ;
+        t.expect5(r4.r).is('[ITEM]') ;
+    }) ;
+
+    group.unary('global, user, root and system contexts', async (t) => {
+        const res = F('[{{+u}}][{{$u}}][{{@title}}][{{items#:{{@title}}{{_count}}{{..title}}{{self}}|}}]', { title:'T', items:['a', 'b'] }, { u:'U' }) ;
+        t.expect0(res.r).is('[U][U][T][T2Ta|T2Tb|]') ;   // '+' user variables are read in the global context
+        t.expect1(res.e).is([]) ;
+    }) ;
+
+    group.unary('key path walk: self, accessors and NaN', async (t) => {
+        class Person {
+            constructor(public name:string) {}
+            public nanfn() { return Number.NaN ; }
+            public get me() { return this ; }
+        }
+        const res = F('[{{p.self.name}}][{{p.me.name}}][{{p.nanfn}}][{{ps#:{{fails}}}}]', { p:new Person('ann'), ps:[{ fails() { throw new Error('x') ; } }] }) ;
+        t.expect0(res.r).is('[ann][ann][][]') ;
+        t.expect1(res.e.includes("WARNING: key path 'p.nanfn' would return NaN which was transformed to null.")).true() ;  // a method returning NaN
+        t.expect2(res.e.includes('!ERROR!: method fails() execution did fail on local context')).true() ;
+        // an empty key path component inside the path
+        t.expect3(F('{{p..name}}', { p:new Person('ann') }).e.includes("!ERROR!: key path 'p..name' contains internal '..'.")).true() ;
     }) ;
 }),
 

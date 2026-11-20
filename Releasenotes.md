@@ -2,6 +2,71 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.8
+
+This is the first version after heavy sonar introspection.
+
+#### Breaking changes
+
+- Random generation no longer falls back on `Math.random()`: without any secure source (no `node:crypto`, no `globalThis.crypto`), `$password()`, `$encrypt()`, `$uuid()`, `$randomBytes()` and `$random()` now throw a `TSError`. Use `$setCryptoProvider()` in such environments.
+- Fusion: a procedure now receives the local context of its template level. Each iteration of an enumeration has its own local context. A procedure inside a `?:` or `!:` block writes in the local context of the enclosing level. A `_localContext` property of an enumerated data item is no longer used.
+  - **Drawback:** a procedure can no longer use its local context as a memory from one iteration to the next. For example, a counter procedure doing `local.c = (local.c ?? 0) + 1` in `{{items#:[{{*counter}}]}}` used to render `[1][2][3]` and now renders `[1][1][1]`. Use the system context (`{{_index}}`, `{{_position}}`, or the `index` / `position` fields of the system context given to the procedure) or store the data in the global context instead.
+- `$numcompare()` and `$numorder()` consider any non-number argument as `NaN` (no more string coercion).
+- `TSServer.clearCaches()` is now synchronous and returns `void` instead of `Promise<void>` (an `await` on it still works, a `.then()` does not).
+- `TSServer.isRunning()` is now synchronous and returns a `boolean` instead of `Promise<boolean>`. Code calling it without `await` used to always get a truthy promise, even when no server was running.
+- `TSURL`: an internationalized hostname is now converted to its ASCII punycode form, like the native `URL` class does (eg. `münchen.de` gives `xn--mnchen-3ya.de`). It used to be transliterated, which gave another domain (`munchen.de`), and an invalid one is now refused.
+- `TSURL` now escapes urls exactly like the native `URL` class does: the non-ASCII characters of the path, the search and the hash are percent-encoded in UTF-8 (eg. `/café` gives `/caf%C3%A9` in `href` and `pathname`), each part uses its own set of escaped characters (eg. `'` and `|` are no longer escaped in a path, `{` and `}` are no longer escaped in a search or a hash), tabs and new lines are removed, and backslashes are only replaced by slashes in the path of standard protocols. Two writings of the same URL are now equal.
+- `TSServer` query parameters: a key declared as an array in the endpoint `query` definition now always receives an array (`?ids=1&ids=2` → `[1, 2]`, `?ids=1` → `[1]`). A repeated key declared as a non array is now refused with a `400 BadQueryStructure` error, instead of silently keeping its last value. An undeclared repeated key accepted by `_acceptsUncheckedItems` is given as an array.
+- `TSUnaryTest.stop(reason)` now really stops the whole run once the current unary test is finished (it used to only set the `stopped` flag): the following tests are not run, `stopItCallback` is called, and the reason is logged and returned in the new `TSTesterResult.stopReason` field.
+
+#### Corrections
+
+- **Security** — `TSServer` static websites: a request path containing `..` segments (sent as is by a non-browser client, eg. `GET /../secret.html`) could read any file outside the website folder whose extension has a known mime type. Such files are now refused (404).
+- `$generateMultiPartBodyString()`: binary files were corrupted (their content was decoded as UTF-8 text), file names were never sent, and quotes or line breaks in names were not escaped. File names are now sent, a Blob is sent with the name `blob` like a browser `FormData` does, and names are escaped like browsers do. Use the new `$generateMultiPartBody()` to send binary files.
+- `TSParser`: a non mandatory object or dictionary now accepts a `null` or `undefined` value instead of throwing `Cannot convert undefined or null to object`. A `TSServer` endpoint with a non mandatory `query` definition used to answer 500 to a request without query string.
+- `TSParser.encode()` (and `rawEncode()`): a non mandatory absent object, dictionary or array, a nested `null` field, and an unchecked item accepted by `_acceptsUncheckedItems` no longer throw (`stringify()` used to return `null` for them, and a `TSServer` response parser to answer 500). Unchecked items are kept as they are, like in `interpret()`. The encoding options (eg. the `url` context) are now given to the items of an object.
+- `TSParser`: an invalid mandatory object item is no longer also reported as missing (`value.a is mandatory`), and a duplicate key is now reported even when its first occurrence was not valid. Some definition error messages were also corrected (`_keysCase field should be one of`, `cannot have ... as default value`).
+- `$logterm()` / `$writeterm()` in a browser page with a `ftsconsole` element: each call used to rewrite the whole element content, which was quadratic and made long outputs extremely slow. The new content is now appended.
+- `TSCountry`: `alpha2CodeForAlpha3Code()`, `alpha3CodeForAlpha2Code()`, `alpha2CodeForNumericCode()`, `alpha2Codes()`, `alpha3Codes()`, `numericCodes()` and `countriesForDialCode()` now load the countries like `country()` does. Called first, they used to throw, and so did the `TSParser` validation of an alpha-3 country code (eg. `'FRA'`).
+- `TSParser`: an `_enum` on a leaf type which does not support enumerations (eg. `boolean`) now gives definition errors instead of throwing `manager?.enum is not a function`.
+- `TSServerEndPoint`: a parametric token type may now contain digits after its first letter, so `/p/{id:uint32}` (and `uint8`, `uint16`...) is accepted instead of throwing a "forbidden first character" error.
+- `TSServerEndPoint`: the "Bad parameter" error of a parametric path now gives the token type (the message used to contain the source of the `nodeType()` method, and the error info had no `type`).
+- `TSServer` end points: the request path is now percent-decoded before routing, so an end point whose path contains a space, an accent or an apostrophe (eg. `/café`) is found. The static part of an end point path is now compared without case, like its parametric part: an end point declared as `/Echo` used to be found only with `/echo`.
+- `TSServer` static websites: the request path is now percent-decoded before looking for the file, so files whose name contains a space or an accent (eg. `a b.html`, `café.html`) are found. An encoded `..` (`%2e%2e`) is still refused.
+- `TSServer` static websites serve `.jpg` files as `image/jpeg` (was the non-standard `image/jpg`).
+- `$slowuuid()` (used by `$uuid(true)` or when `crypto.randomUUID()` is not available) generated UUIDs with 14 digits always set to `0`. Fixed.
+- `$password()` characters are now drawn without modulo bias.
+- `$HTML()` (and `String.toHTML()`) numeric entities are now closed by a `;` (`€1` used to give `&#83641`, which is another character), and a character outside the BMP gives one entity (eg. `&#128512;` for an emoji) instead of two invalid ones, one per UTF-16 code unit.
+- `$HTML()` (and `String.toHTML()`) no longer converts line breaks into `<br/>`: the default HTML encoding table was modified by the browser console of `$logterm()`.
+- `TSServerEndPoint` constructor error messages about forbidden characters now give the character code instead of the source of the `toHex4()` method.
+- `$readStreamBuffer()` now resolves to `null` when the stream fails or is closed before its end, instead of rejecting with `null` (or never resolving). On the server side, a client aborting its request body no longer makes the error handler crash: the endpoint now answers `400` if a body is mandatory.
+- `TSServer` CORS preflight cache: its validity test was inverted. Valid preflight responses were discarded (and removed by the periodic caches cleaning) while expired ones were kept, so the requests following a successful preflight did not get their `Access-Control-Allow-Origin` header.
+- `TSServer.start()` now waits for the server to really listen to its port. If it cannot (eg. port already used), it returns the `Error` and the server is not considered as running, instead of returning a success then crashing the process with an uncaught `EADDRINUSE` error.
+- `TSServer.stop()` now returns the closing error, as stated by its signature, instead of throwing it. It also no longer keeps the process alive for `forceCloseMsTimeout` (15 seconds by default) after the server is stopped.
+- `TSServer.start()` returns the `Error` when the HTTPS server cannot be created (eg. invalid certificate or key) instead of rejecting.
+- `TSServer` default preflight controller: the headers requested by the browser are now read in `Access-Control-Request-Headers` (it used to read `Access-Control-Allow-Headers`, so custom headers like `Authorization` were never allowed).
+- `TSServer` preflight responses: `content-type` and `accept` are now always part of `Access-Control-Allow-Headers` (they were added to the methods instead, so a `permisive` controller allowed no header at all).
+- `TSServerResponse.returnString()`, `returnData()` and `returnObject()` with two arguments: the second one is now correctly taken as a content type when it's a string and as a status otherwise. `returnString(s, status)` used to send the status as content type with a 200 status, and `returnData(d, type)` / `returnObject(v, type)` used to take the content type as a status.
+- `$insp()` (and `$inspect()` in a browser) no longer throws a `TypeError` on a symbol value.
+- `TSURL.pathname` setter now escapes `?` and `#` (as `%3F` and `%23`, like the native `URL` class) and adds the leading `/` to the pathname itself. A path containing them used to produce a wrong `href`, read back with another path, search and hash.
+- `$hashfile()` now resolves to `null` on failure instead of rejecting with `null`, and a missing or unreadable file no longer crashes the process (unhandled stream `'error'` event).
+- `$isipv6()` and `$isipaddress()` no longer have catastrophic backtracking on adversarial input (zone index).
+- Fusion: no more useless warning when a key absent from a local context filled by a procedure is found in the data.
+- Methods added to native classes (`String`, `Number`, `Date`, `Array`, `Map`, `Set`, `Uint8Array`, `ArrayBuffer`...) are now non-enumerable (invisible to `for...in`), writable and configurable, and their `name` is the method name. Loading two copies of foundation-ts in the same application no longer throws `Cannot redefine property`.
+- `TSTester.run()`: when the run is stopped (`stopOnFirstFail` or `stop()`), the group which did stop it is now counted in the result, so its failures appear in `failures` (a run stopped on a failed test used to report 0 failures).
+- `TSTester`: failure messages of `isipv4()`, `isipv6()` and `isip()` no longer expect "a folder", type checks messages no longer end with `>>`, and `toBeUnordered()` now respects `logAllTests`.
+
+#### What's new ?
+
+- `TSURL.utf8Href` gives the href as a readable UTF-8 string, for display: the percent-encoded non-ASCII characters are decoded and an internationalized hostname is given in Unicode. Encoded ASCII characters (eg. `%20`, `%2F`), invalid sequences and invisible or bidirectional characters stay encoded, like in a browser address bar.
+- `$generateMultiPartBody(dict, boundary)` returns a multipart/form-data body as bytes (`Uint8Array`), which keeps binary files unchanged. It can be given as is as a `TSRequest` body, with a `multipart/form-data; boundary=...` content type.
+- `TSParser.itemParserForKey(key)` returns the parser used for the value of a key (objects, with their aliases and keys case, and dictionaries).
+- new `$declareMethods()` function to declare several methods on a class, with the same descriptor as native methods. `$declareMethod()` accepts a new `writable` option.
+- `$isipv6()` is now a type guard (`o is string`), like `$isipv4()` and `$isipaddress()`.
+- `$shuffle()` is now O(n) instead of O(n²). `$isipv4()` and `$isipv6()` are 30 to 40% faster.
+
+<hr/>
+
 ## version 1.8.7
 
 #### What's new ?
@@ -20,7 +85,7 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 - new `$removeDirectory()` function.
 - function `$createDirectory()` now accepts a `mode` parameter and an `errors` string array. If `mode`is not set, `0xo755` is used when we really create the folder. If the folder did already existed on the disk and the asked `mode` is not the existing folder's `mode`, the function returns an error.
-- functions `$removeFile()` and `$realMoveFile()` now accepts an errors array to be filled,   
+- functions `$removeFile()` and `$realMoveFile()` now accepts an errors array to be filled,
 
 ## version 1.8.5
 
@@ -31,11 +96,11 @@ Prior to version 1.6, foundation-ts release notes where included in commit conte
 
 #### What's new ?
 
-- `TSColor` now caches all colors from all colourspaces. 
+- `TSColor` now caches all colors from all colourspaces.
 - `TSExpectAgent` is now really faster on instantiation (15x faster).
 - `TSRect` is also faster on instantiation (40% faster)
 - On `TSExpectAgent` you now have a method `.toStrictlyBe()`  or `.strictis()` wich handles a `===` comparison
-- On `TSExpectAgent` you now have a method `.notToStrictlyBe()`  or `.strictnotis()` wich handles a `!==` comparison 
+- On `TSExpectAgent` you now have a method `.notToStrictlyBe()`  or `.strictnotis()` wich handles a `!==` comparison
 
 <hr/>
 
@@ -50,7 +115,7 @@ This version is meant to bring bug foptimizations to foundation-ts
 
 #### What's new ?
 
-- new function `$titleCase()` which works like `$capitalize()` but instead change all letters which are the begining of a word to lower case. Did also ass a `.titleCase()` method on `String`. 
+- new function `$titleCase()` which works like `$capitalize()` but instead change all letters which are the begining of a word to lower case. Did also ass a `.titleCase()` method on `String`.
 - `SHA384` & `SHA12` crypto is back to full `JS` (no more bigint usage on calculation itself) and is now 2x to 3x faster
 - `SHA1` & `SHA256` crypto is also 20% faster by using internal scopped buffers
 - Native random bytes generation is now 2x to 3.5x faster than before (but is rarely called) and conforms to what the system function does.
@@ -79,8 +144,6 @@ This version is meant to bring bug foptimizations to foundation-ts
   }
   ```
 
-  
-
 <hr/>
 
 ## version 1.8.2
@@ -88,36 +151,21 @@ This version is meant to bring bug foptimizations to foundation-ts
 #### Corrections
 
 - `$decodeBase64()` / `$decodeBase64URL()` were buggy on malformed input: any embedded whitespace or extra `=` padding made it over-read and append garbage trailing bytes.
-
 - `$decodeBase64()` on a single leftover base64 character (6 bits, not enough for a byte) now returns an empty array instead of a one-byte array holding a partial value.
-
 - `$decodeBase64()` / `$decodeBase64URL()` / `$encodeBase64()` / `$encodeBase64URL()` / `$encodeBytesToHexa()` pure internal JS codec are know faster and usage to native Buffer() methods are more accurately used.
-
 - `$ok()` / `$defined()` /  `$isnumber()` dropped some redundant code
-
 - `$ltrim()` / `$rtrim()` / `$trim()` (same as `$ftrim`) are know faster by avoiding double regex usage
-
 - `$keys()` now lists only enumerable keys.
-
 - `$term()` / `$termclean()` were reimplemented and are really faster.
-
 - `Number.prototype.toHex1()` / `toHex2()` / `toHex4()` / `toHex8()` commes know bug free for number out of 4 octets range and are way faster.
-
 - `TSData.splice()` / `appendBytes()` / `replaceBytes()` / `appendData()` were writing bytes at a wrong offset when the source was a plain `number[]` or a non-`Buffer` `Uint8Array` **and** a `sourceStart` greater than 0 was given (or the internal grow-and-insert path was taken). `TSData` and `Buffer` sources were not affected. Fixed.
-
 - static method `TSURL.url()`did never throw even if the `throwsError`option was set. Fixed and added test to valid it.
-
 - `$string()` object conversion rewritten to follow the `JS` `ToPrimitive` algorithm (hint `"string"`): it tries `[Symbol.toPrimitive]`, then `toString()`, then `valueOf()`, keeping only a result of the type each is expected to give. The former ad-hoc `$ismethod()` probe plus a `` `${v}` `` fall-back **threw** on a null-prototype object (`Object.create(null)`); `$string()` never throws now. A boxed `Boolean` (`new Boolean(...)`) also correctly goes through the `trueValue` / `falseValue` options.
-
 - server error responses (`404` / `405` / `bad-query` / `bad-body` — every `TSError` carrying an `HTTP` `Resp` code) no longer pay V8's stack-trace capture, the dominant cost of constructing an `Error`, on paths that scan/probe traffic hits constantly. `TSError.status` and the server's inline status check now test membership in a `Set` built once instead of rebuilding `Object.values(Resp)` on every errored request.
-
--   Error, TSUniqueError and TSError are better handled by $insp()
-
+- Error, TSUniqueError and TSError are better handled by $insp()
 - `TSDate`, `TSColor`, `TSURL`, `TSData` and `TSCharset` `[Symbol.toPrimitive]` hint handling made consistent.
-
 - `TSListNode` toArray() methods now returns an array containing the list node data (coherent with all other methods)
 
-  
 #### What's new ?
 
 - `TSData.mutableBuffer` accessor know handles a cache which is really faster

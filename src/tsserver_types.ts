@@ -1,4 +1,5 @@
-import * as http from "http";
+import * as http from "http"; // NOSONAR due to webpack5 usage
+
 import { Resp, Verb } from "./tsrequest";
 import { Nullable, TSDataLike, TSDictionary } from "./types";
 import { TSLeafNode, TSNode, TSParser, TSParserOptions } from "./tsparser" ;
@@ -54,7 +55,7 @@ export interface TSEndPoint {
     query?: {[key: string]: TSLeafNode } ;
     body?:TSNode ;
     response?:TSNode ;
-    context?:Nullable<TSDictionary> ;
+    context?:Nullable<TSDictionary> ; // NOSONAR (optional field)
 }
 
 /** 
@@ -76,7 +77,7 @@ export interface TSPreflightResponse {
     allowedOrigin:Nullable<string> ; // if not set or empty, allowed origin is '*'
     allowedMethods:Nullable<string|string[]> ; // allowed methods. if not set or '*', all Verb union
     allowedHeaders:Nullable<string|string[]> ; // if not set '*'
-    timeout?:Nullable<number> ;  // max age value in seconds
+    timeout?:Nullable<number> ;  // NOSONAR (optional field) max age value in seconds
     // if not set or 0 or >= 86400 (1 day) the response is valid 1 day. if duration > 0 and duration < 10, duration = 10 
 }
 
@@ -178,7 +179,8 @@ function _statusAndType(r:TSServerResponse, fn:string, defaultType:string, args:
     switch (args.length) {
         case 1: break ;
         case 2:
-            if (typeof args[0] === 'string') { type = args[1] as string }
+            // the second argument is either a content type or a status
+            if (typeof args[1] === 'string') { type = args[1] ; }
             else { status = args[1] as Resp ; }
             break ;
         case 3:

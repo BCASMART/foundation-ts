@@ -6,9 +6,9 @@ import { TSTest } from '../src/tstester';
 
 export const rangeGroups = [
     TSTest.group("Testing TSRange creation & comparison", async (group) => {
-        const A = new TSRange(NaN, 8) ;
-        const B = new TSRange(12, NaN) ;
-        const C = new TSRange(NaN, NaN) ;
+        const A = new TSRange(Number.NaN, 8) ;
+        const B = new TSRange(12, Number.NaN) ;
+        const C = new TSRange(Number.NaN, Number.NaN) ;
         const X = TSRange.make(4, 8) ;
         const Y = new TSRange([4.0, 8.0]) ;
         const D1 = new TSDate(1945,5,8, 23, 1, 0) ;
@@ -70,17 +70,17 @@ export const rangeGroups = [
     }),
     TSTest.group("TSRange operations", async (group) => {
         group.unary(`range.isValid`, async (t) => {
-            t.expect0(TSRange.make(NaN,0).isValid).false() ;
-            t.expect1(TSRange.make(0,NaN).isValid).false() ;
-            t.expect2(TSRange.make(NaN,NaN).isValid).false() ;
+            t.expect0(TSRange.make(Number.NaN,0).isValid).false() ;
+            t.expect1(TSRange.make(0,Number.NaN).isValid).false() ;
+            t.expect2(TSRange.make(Number.NaN,Number.NaN).isValid).false() ;
             t.expect3(TSRange.make(3,0).isValid).true() ;
             t.expect4(TSRange.make(3,1).isValid).true() ;
         }) ;
     
         group.unary(`range.isEmpty`, async (t) => {
-            t.expect0(TSRange.make(NaN,0).isEmpty).true() ;
-            t.expect1(TSRange.make(0,NaN).isEmpty).true() ;
-            t.expect2(TSRange.make(NaN,NaN).isEmpty).true() ;
+            t.expect0(TSRange.make(Number.NaN,0).isEmpty).true() ;
+            t.expect1(TSRange.make(0,Number.NaN).isEmpty).true() ;
+            t.expect2(TSRange.make(Number.NaN,Number.NaN).isEmpty).true() ;
             t.expect3(TSRange.make(3,0).isEmpty).true() ;
             t.expect4(TSRange.make(3,1).isEmpty).false() ;
         }) ;
@@ -134,7 +134,7 @@ export const rangeGroups = [
             t.expect0(() => new (TSRange as any)()).throws() ;                       // no arguments
             t.expect1(() => new (TSRange as any)(5)).throws() ;                      // only location
             t.expect2(() => new TSRange([1, 2, 3] as any)).throws() ;               // not a range array
-            t.expect3(() => new TSRange([NaN, 3] as any)).throws() ;                // bad range array
+            t.expect3(() => new TSRange([Number.NaN, 3] as any)).throws() ;                // bad range array
             t.expect4(() => new TSRange(hugeInterval)).throws() ;                   // interval too large
             t.expect5(() => new TSRange(new TSDate(2000, 1, 2), new TSDate(2000, 1, 1))).throws() ; // anterior date
             t.expect6(() => new TSRange(1.5, 2)).throws() ;                         // non-int location
@@ -150,11 +150,11 @@ export const rangeGroups = [
 
         group.unary(`location / length setters`, async (t) => {
             const r = new TSRange(2, 5) ;
-            r.location = NaN ;
+            r.location = Number.NaN ;
             t.expect0(r.isValid).false() ;
             t.expect1(r.length).is(0) ;
             const r2 = new TSRange(2, 5) ;
-            r2.length = NaN ;
+            r2.length = Number.NaN ;
             t.expect2(r2.isValid).false() ;
             t.expect3(r2.length).is(0) ;
             t.expect4(() => { new TSRange(2, 5).location = 1.5 ; }).throws() ;
