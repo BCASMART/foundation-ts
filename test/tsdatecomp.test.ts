@@ -383,5 +383,55 @@ export const dateCompGroups = [
             t.expect6($durationNumber2StringFormat(3600, "%(%d%p100%%%)")).is("100%") ;          // _default('%') in else part
             t.expect7($durationNumber2StringFormat(30, "%(%dd%pno days%)")).is("no days") ;      // plain text else part
         }) ;
+
+        group.unary('$durationNumber2StringFormat() with a trailing % in the else part of a seconds part', async (t) => {
+            t.expect0($durationNumber2StringFormat(1, "x%{%b%")).is("x") ;          // there are seconds: the else part is not visible
+            t.expect1($durationNumber2StringFormat(TSDay, "x%{%b%")).is("x%") ;     // no seconds: the else part is visible
+            t.expect2($durationNumber2StringFormat(TSDay, "x%(%p%")).is("x") ;      // same behavior as a days part
+            t.expect3($durationNumber2StringFormat(1, "x%(%p%")).is("x%") ;
+        }) ;
+        group.unary('$components2StringWithOffset() bad options', async t => {
+            const C = new TSDate(1945, 5, 8, 23, 1, 35).toComponents() ;
+            t.expect0(() => $components2StringWithOffset(C, { minutesOffset:7.5 as any })).toThrow(/time zone offset must be an integer/) ;
+            t.expect1(() => $components2StringWithOffset(C, { minutesOffset:10 as any })).toThrow(/time zone offset must be multiple of 15/) ;
+            t.expect2(() => $components2StringWithOffset(C, { milliseconds:1000 as uint })).toThrow(/milliseconds offset should be in 0...999 range/) ;
+            t.expect3($components2StringWithOffset(C, { minutesOffset:-90 as any, milliseconds:999 as uint })).is('1945-05-08T23:01:35.999-01:30') ;
+        }) ;
+    }),
+    TSTest.group("tsdatecomp — parsing failures", async (group) => {
+        group.unary('a time is refused where none is wanted', async (t) => {
+            t.expect0($parsedate('01/02/2024 12:00')).null() ;                          // standard form
+            t.expect1($parsedate('2024-12-31T12:00:00', TSDateForm.ISO8601)).null() ;   // ISO form
+            t.expect2($parsedate('20241231T120000', TSDateForm.ISO8601C)).null() ;      // compact ISO form
+            t.expect3($parsedate('2024-12-31T12:00:00', TSDateForm.ISO8601L)).null() ;
+            t.expect4(TSDate.fromDateString('01/02/2024 12:00')).null() ;
+            // the same strings are accepted when a time is allowed
+            t.expect5($parsedatetime('2024-12-31T12:00:00', TSDateForm.ISO8601)).is({ year:2024, month:12, day:31, hour:12, minute:0, second:0 }) ;
+            t.expect6(TSDate.fromString('01/02/2024 12:00')?.toIsoString()).is('2024-02-01T12:00:00') ;
+            t.expect7($parsedatetime('01/02 12:00')).null() ;                           // a time needs a complete date
+        }) ;
+
+        group.unary('invalid times and unknown forms', async (t) => {
+            t.expect0($parsetime('1234567')).null() ;                                   // too many packed digits
+            t.expect1($parsetime('25:00')).null() ;
+            t.expect2($parsedatetime('01/02/2024 25:00')).null() ;
+            t.expect3($parsedatetime('2024-12-31 12:61', TSDateForm.Computer)).null() ;
+            t.expect4($parsedatetime('01/02/2024', 99 as TSDateForm)).null() ;          // not a parsing form
+            t.expect5($parsedate('01/02/2024', -1 as TSDateForm)).null() ;
+        }) ;
+
+        group.unary('compact computer dates need their 8 digits', async (t) => {
+            t.expect0($parsedate('20241231', TSDateForm.Computer)).is({ year:2024, month:12, day:31, hour:0, minute:0, second:0 }) ;
+            t.expect1($parsedate('2024123', TSDateForm.Computer)).null() ;
+            t.expect2($parsedate('241231', TSDateForm.Computer)).null() ;
+            t.expect3($parsedate('2024-12', TSDateForm.Computer)).null() ;             // a day is mandatory
+            t.expect4(TSDate.fromDateString('2024123', TSDateForm.Computer)).null() ;
+        }) ;
+
+        group.unary('$components2stringformat() keeps unknown directives', async (t) => {
+            const C = $parsedate('01/02/2024')! ;
+            t.expect0($components2stringformat(C, '%Z-%d')).is('%Z-01') ;
+            t.expect1($components2stringformat(C, '%d%')).is('01%') ;                   // a final lonely '%'
+        }) ;
     }),
 ] ;

@@ -29,7 +29,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     private static __countriesNumericMap:Map<number, country> ;
     private static __countries:TSCountry[] ;
     private static __dialCodeMap:Map<string, Array<TSCountry>> ;
-    private static __EULocale:Locales = {
+    private static readonly __EULocale:Locales = {
         language:Languages.en,
         names: { fr: "anglais", en: "english", de: "englisch", it: "inglese", es: "inglés", pt: "inglês", nl:"Engels", el:"αγγλικά" },
         months:["January", "February", "March", "April", "May", "June", "July", "August", "Septembre", "Octobre", "Novembre", "Decembre"],
@@ -70,9 +70,9 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public readonly currency: currency;
     public readonly locales:Locales;
     
-    private _vatValidator?:VATNumberValidator ;
+    private readonly _vatValidator?:VATNumberValidator ;
 
-    private _state?: country ;
+    private readonly _state?: country ;
     
     private constructor(info:CountryInfo, locales:Locales, nativeLanguage:Nullable<language>) {
         this.continent = info.continent ;
@@ -152,7 +152,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         return $value(array, []) ;
     }
 
-    public static country(c:Nullable<country|string|number>) : TSCountry | null {
+    public static country(c:Nullable<string|number>) : TSCountry | null {
         if (typeof c === 'number') { c = $fpad3(c) ; }
         c = $ftrim(c) ;
         if (c.length) {
@@ -166,7 +166,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
     public static alpha2CodeForAlpha3Code(c:Nullable<string>):country|null
     { TSCountry._loaded() ; return $length(c) === 3 ? $valueornull(TSCountry.__countriesAlpha3Map.get(c!)) : null ; }
 
-    public static alpha3CodeForAlpha2Code(c:Nullable<country|string>):string|null
+    public static alpha3CodeForAlpha2Code(c:Nullable<string>):string|null
     { TSCountry._loaded() ; return $length(c) === 2 ? $valueornull(TSCountry.__countriesAlpha2Map.get(c as country)) : null ; }
 
     public static alpha2CodeForNumericCode(c:Nullable<number>):string|null
@@ -256,7 +256,7 @@ export class TSCountry implements TSObject, TSLeafInspect, TSClone<TSCountry> {
         return this.leafInspect()
     }
     // ============ Static VAT constants =============== 
-    private static CountriesVATInfo:{ [key in Countries]?:VATNumberValidator } = {
+    private static readonly CountriesVATInfo:{ [key in Countries]?:VATNumberValidator } = {
         AT:(s:string) => { 
             const m = /^AT\s*U\s*(\d{8})$/.exec(s) ;
             return $count(m) === 2 ? `ATU${m![1]}` : null ;

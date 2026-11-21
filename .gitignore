@@ -1,6 +1,5 @@
 node_modules
 dist
-exe
 tdist
 coverage
 .nyc_output

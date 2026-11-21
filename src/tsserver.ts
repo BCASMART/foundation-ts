@@ -1,5 +1,5 @@
-import * as http from "http";    // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
-import * as https from "https";  // NOSONAR: idem
+import * as http from "http";    // NOSONAR: no 'node:' prefix for webpack 5
+import * as https from "https";  // NOSONAR: no 'node:' prefix for webpack 5
 
 import { $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
@@ -48,16 +48,16 @@ export interface TSServerOptions {
     port?:uint16 ;
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
-    key?:Nullable<TSDataLike> ; // NOSONAR (optional field)
-    certificate?:Nullable<TSDataLike> ; // NOSONAR (optional field)
-    certificateAuthority?:Nullable<TSDataLike> ; // NOSONAR (optional field)
-    mtls?:Nullable<boolean> ; // NOSONAR (optional field). if true, the server will request a client certificate for mTLS authentication  
-    maxHeaderSize?:Nullable<number> ; // NOSONAR (optional field)
-    tlsSecTimeout?:Nullable<number> ; // NOSONAR (optional field). The number of seconds after which a TLS session will no longer be resumable. default 300.
-    handshakeMsTimeout?:Nullable<number> ; // NOSONAR (optional field). Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
-    forceCloseMsTimeout?:Nullable<number> ; // NOSONAR (optional field). timeout to force remaining connection after server stop. Default is 15000
-    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ; // NOSONAR (optional field)
-    clearCacheInterval?:Nullable<number> ; // NOSONAR (optional field). default is 900s (15 mn)
+    key?:Nullable<TSDataLike> ; // NOSONAR: optional
+    certificate?:Nullable<TSDataLike> ; // NOSONAR: optional
+    certificateAuthority?:Nullable<TSDataLike> ; // NOSONAR: optional
+    mtls?:Nullable<boolean> ; // NOSONAR: optional. if true, the server will request a client certificate for mTLS authentication
+    maxHeaderSize?:Nullable<number> ; // NOSONAR: optional
+    tlsSecTimeout?:Nullable<number> ; // NOSONAR: optional. The number of seconds after which a TLS session will no longer be resumable. default 300.
+    handshakeMsTimeout?:Nullable<number> ; // NOSONAR: optional. Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
+    forceCloseMsTimeout?:Nullable<number> ; // NOSONAR: optional. timeout to force remaining connection after server stop. Default is 15000
+    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ; // NOSONAR: optional
+    clearCacheInterval?:Nullable<number> ; // NOSONAR: optional. default is 900s (15 mn)
     log?: {
         logger?: TSServerLogger;
         level?: TSServerLogLevel;
@@ -366,7 +366,7 @@ export class TSServer {
         url.pathname = this.rootPath ;
     }
 
-    private async _executeEndPoint(endPoint:TSServerEndPoint, parameters:TSDictionary, url:TSURL, method:Verb, originKey:string, req: http.IncomingMessage, res: http.ServerResponse) { // NOSONAR: private method, all parameters are needed
+    private async _executeEndPoint(endPoint:TSServerEndPoint, parameters:TSDictionary, url:TSURL, method:Verb, originKey:string, req: http.IncomingMessage, res: http.ServerResponse) {
         this._applyValidPreflight(originKey, res) ;
         if (this._developerMode) { await this._logRequestHeaders(req) ; }
         await endPoint.execute({

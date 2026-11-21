@@ -36,9 +36,9 @@ import { TSClone, TSObject } from "./tsobject";
  * - does not provide user and password
  */
 export interface TSURLParseOptions {
-    acceptedProtocols?:Nullable<string[]> ; // NOSONAR (optional field)
-    refusesParameters?:Nullable<boolean> ; // NOSONAR (optional field)
-    throwsError?:Nullable<boolean> ; // NOSONAR (optional field)
+    acceptedProtocols?:Nullable<string[]> ; // NOSONAR: optional
+    refusesParameters?:Nullable<boolean> ; // NOSONAR: optional
+    throwsError?:Nullable<boolean> ; // NOSONAR: optional
 }
 
 export class TSURL implements TSObject, TSClone<TSURL> {
@@ -48,16 +48,16 @@ export class TSURL implements TSObject, TSClone<TSURL> {
     public static readonly AutoEscapeCharSet = new Set(TSURL.AutoEscapeChars) ;
     public static readonly EndhostCharSet = new Set(['%', '/', '?', ';', '#', ...TSURL.AutoEscapeChars]) ;
 
-    private _auth:string ;
-    private _hash:string ;
-    private _hostname:string ;
+    private readonly _auth:string ;
+    private readonly _hash:string ;
+    private readonly _hostname:string ;
     private _pathname:string ;
     private _port:string ;
     private _protocol: string ;
-    private _search:string ;
+    private readonly _search:string ;
     private _w3cProtocol:boolean ;
-    private _ipv6:boolean ;
-    private _acceptedProtocols:string[] ;
+    private readonly _ipv6:boolean ;
+    private readonly _acceptedProtocols:string[] ;
 
     private _searchParams:URLSearchParams|undefined = undefined ; // calculated only if needed
     private _href:url | undefined = undefined ; // idem
@@ -106,8 +106,16 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         return new TSURL(protocol, host.hostname, host.port, path, hash, auth, search, host.ipv6, w3c, aps) ;
     }
     
-    private constructor (protocol:string, hostname:string, port:string, pathname:string, hash:string, auth:string, search:string, ipv6:boolean, w3c:boolean, protocols:string[]) // NOSONAR: it's a private constructor, it does not matter
-    {
+    private constructor (protocol:string, // NOSONAR: private, only called by from() and clone() with already parsed parts
+                         hostname:string, 
+                         port:string, 
+                         pathname:string, 
+                         hash:string, 
+                         auth:string, 
+                         search:string, 
+                         ipv6:boolean, 
+                         w3c:boolean, 
+                         protocols:string[]) {
         this._auth = auth ;
         this._hash = hash ;
         this._hostname = hostname ;
@@ -342,7 +350,7 @@ function _parseAuth(url:string, p:number):[string, number] {
     return atpos >= 0 ? [decodeURIComponent(url.slice(p, p+atpos)), p + atpos + 1] : ['', p] ;
 }
 
-interface _TSURLHost { // NOSONAR (internal interface)
+interface URLHost {
     hostname:string ;
     port:string ;
     ipv6:boolean ;
@@ -350,7 +358,7 @@ interface _TSURLHost { // NOSONAR (internal interface)
 }
 
 // hostname and port of an url, or the description of the error
-function _parseHost(s:string):_TSURLHost|string {
+function _parseHost(s:string):URLHost|string {
     let [hostname, port] = _parseHostAndPort(s) ;
     if (!hostname.length || hostname.length > TSURL.HostMaxLength) { return 'bad hostname' ; }
     if (hostname.startsWith('[') && hostname.endsWith(']')) {

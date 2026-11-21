@@ -133,6 +133,34 @@ export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) =>
         t.expectB(ex === null || ex instanceof TSPhoneNumber).true() ; // generator runs; result may be null
     }) ;
 
+    group.unary('$phoneFromString() refuses misplaced separators and parentheses', async (t) => {
+        const M = PhoneValidity.MalformedNumber ;
+        const bad = (s:string) => { const [r, c, v,, step] = $phoneFromString(s) ; return [r, c, v, step] ; } ;
+        t.expect0(bad('+33((1)45')).is(['+33((1)45', null, M, 3]) ;                 // two opening parentheses
+        t.expect1(bad('+33)145678901')).is(['+33)145678901', null, M, 3]) ;         // closing without opening
+        t.expect2(bad('+33(1)45)678901')).is(['+33(1)45)678901', null, M, 3]) ;     // two closing parentheses
+        t.expect3(bad('+33(1)(45)678901')).is(['+33(1)(45)678901', null, M, 3]) ;   // a second parenthesis group
+        t.expect4(bad('+-33145678901')).is(['+-33145678901', null, M, 3]) ;         // a separator at first
+        t.expect5(bad('+33--145678901')).is(['+33--145678901', null, M, 3]) ;       // two following separators
+        t.expect6(bad('+33(-1)45678901')).is(['+33(-1)45678901', null, M, 3]) ;     // a separator after '('
+        t.expect7(bad('+33(1-)45678901')).is(['+33(1-)45678901', null, M, 3]) ;     // ')' after a separator
+        t.expect8(bad('+33.1.45.67.89.0-')).is(['+33.1.45.67.89.0-', null, M, 3]) ; // ending with a separator
+        t.expect9(bad('+33(145678901')).is(['+33(145678901', null, M, 3]) ;         // unclosed parenthesis
+        t.expectA(bad('+33x145678901')).is(['+33x145678901', null, M, 3]) ;         // unauthorized character
+        t.expectB(TSPhoneNumber.fromString('+33((1)45')).null() ;
+        t.expectC(TSPhoneNumber.validity('+33--145678901')).is(M) ;
+        t.expectD($isphonenumber('+33(1)45)678901')).false() ;
+        // accepted separators, for reference
+        t.expectE(TSPhoneNumber.fromString('+33.1.45.67.89.01')?.number).is('0145678901') ;
+        t.expectF(TSPhoneNumber.fromString('+33 (1) 45 67 89 01')?.number).is('0145678901') ;
+    }) ;
+
+    group.unary('TSPhoneNumber.exampleNumber() without any dummy number', async (t) => {
+        // Albania, Andorra or Austria phone plans have no dummy numbers
+        t.expect0(TSPhoneNumber.exampleNumber(TSCountry.country('AL'))).null() ;
+        t.expect1(TSPhoneNumber.exampleNumber(TSCountry.country('AT'))).null() ;
+    }) ;
+
     // the fixture is loaded from disk through $loadJSON()/$absolute(), which
     // assert against a browser environment: skip it under jsdom / headless Chrome.
     if (!$inbrowser()) { group.unary('Phone recognition from JSON test base', async t => {

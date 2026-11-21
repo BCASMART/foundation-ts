@@ -543,5 +543,51 @@ export const cryptoGroups = [
             const dec2 = $decrypt(enc2!, "crypt16octetskey", { algorithm:AES128, noInitializationVector:true }) ;
             t.expect2(dec2).is("hello world") ;
         }) ;
+
+        group.unary("$encrypt() / $decrypt() refuse bad sources and bad keys", async (t) => {
+            const key = "my32octetskeyforcryptingZPOL1na0" ;
+            const noIV = { noInitializationVector:true } ;
+            const enc = $encrypt("secret message", key, noIV) as string ;
+            t.expect0(enc.length).is(32) ;
+            t.expect1($decrypt(enc, key, noIV)).is("secret message") ;
+
+            t.expect2($decrypt("abc", key)).null() ;                       // not a multiple of the block length
+            t.expect3($decrypt(enc, key)).null() ;                         // one block only: too short with an initialization vector
+            t.expect4($decrypt(new Uint8Array(15), key, noIV)).null() ;    // 15 bytes
+            t.expect5($decrypt("z".repeat(32), key, noIV)).null() ;        // not an hexa string
+            t.expect6($decrypt(enc, "a too short key", noIV)).null() ;     // bad key length
+            t.expect7($decrypt(enc, "my32octetskeyforcryptingZPOL1na1", noIV)).null() ;  // wrong key: bad padding
+            const tampered = enc.slice(0, 30) + (enc.slice(30) === '00' ? '01' : '00') ;
+            t.expect8($decrypt(tampered, key, noIV)).null() ;              // modified content: bad padding
+
+            t.expect9($encrypt("secret message", "a too short key")).null() ;
+            t.expectA($encrypt("", key)).null() ;
+            t.expectB($encrypt(new Uint8Array(0), key)).null() ;
+        }) ;
+
+        group.unary("$password() length errors and options", async (t) => {
+            t.expect0(() => $password(2)).toThrow('$password(): asked length is too short (2<3) for your generation options') ;
+            t.expect1(() => $password(3, { usesLowercase:true, usesUppercase:true, usesDigits:true, usesSpecials:true })).toThrow(/too short \(3<4\)/) ;
+            t.expect2(() => $password(65)).toThrow('$password(): asked length is too long (65>64)') ;
+            t.expect3($password(64).length).is(64) ;
+            const opts = {} ;
+            t.expect4(/^[a-z]{8}$/.test($password(8, opts))).true() ;   // lowercase letters by default
+            t.expect5(opts).is({}) ;                               // the given options used to be modified
+        }) ;
+
+        group.unary("$encrypt() failure returns null without logging", async (t) => {
+            const originalLog = console.log ;
+            let logged = 0 ;
+            $setCryptoProvider({ createCipheriv:() => { throw new Error('cipher failure') ; } }) ;
+            console.log = () => { logged++ ; } ;
+            try {
+                t.expect0($encrypt("secret message", "my32octetskeyforcryptingZPOL1na0")).null() ;
+            }
+            finally {
+                console.log = originalLog ;
+                $setCryptoProvider(null) ;
+            }
+            t.expect1(logged).is(0) ;   // the error used to be written in the console
+        }) ;
     })
 ] ;

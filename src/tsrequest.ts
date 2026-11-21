@@ -38,24 +38,26 @@ export function $query(baseURL:string, query:TSDictionary) : string {
         key = $ftrim(key) ;
         if (key.length && $ok(value)) {
             if ($iscollection(value)) { value = value.getItems() ; }
-            if ($isarray(value) || value instanceof Set) {
-                let uniques = new Set<string>() ; // we don't want to add the same value twice
-                for (let v of (value as any[] || Set)) {
-                    if ($ok(v)) { 
-                        v = $string(v) ; 
-                        if (!uniques.has(v)) {
-                            uniques.add(v) ;
-                            params.append(key, v) ; 
-                        }
-                    }
-                }
-            }
+            if ($isarray(value) || value instanceof Set) { _appendUniqueQueryValues(params, key, value as Iterable<any>) ; }
             else { params.append(key, $string(value)) ; }
         }
     }
 
     const s = params.toString() ;
     return $length(s) ? baseURL + '?' + s : baseURL ;
+}
+
+function _appendUniqueQueryValues(params:URLSearchParams, key:string, values:Iterable<any>) {
+    let uniques = new Set<string>() ; // we don't want to add the same value twice
+    for (let v of values) {
+        if ($ok(v)) { 
+            v = $string(v) ; 
+            if (!uniques.has(v)) {
+                uniques.add(v) ;
+                params.append(key, v) ; 
+            }
+        }
+    }
 }
 
 export enum Resp {
@@ -157,7 +159,7 @@ export const NO_HEADERS = {} ;
 
 export type TSRequestHeaders = { [key:string]: string | string[] | number } ;
 export type TSResponseHeaders = Headers ;
-export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ; // NOSONAR: encoding is really optional
+export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ; // NOSONAR: optional
 
 export type TSResponseType = Nullable<object | string | number | boolean | ReadableStream> ;
 export interface TSResponse {
@@ -167,10 +169,10 @@ export interface TSResponse {
     statusDescription?:string ;
 } ;
 export interface TSRequestOptions {
-    headers?:Nullable<TSRequestHeaders> ;   // NOSONAR: field is optional
-    timeout?:Nullable<number> ;             // NOSONAR: field is optional
-    managesCredentials?:Nullable<boolean> ; // NOSONAR: field is optional
-    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // NOSONAR: field is optional. if TSDataLike, we need to convert it to base64
+    headers?:Nullable<TSRequestHeaders> ;   // NOSONAR: optional
+    timeout?:Nullable<number> ;             // NOSONAR: optional
+    managesCredentials?:Nullable<boolean> ; // NOSONAR: optional
+    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // NOSONAR: optional. if TSDataLike, we need to convert it to base64
 }
 
 export class TSRequest {
@@ -286,63 +288,29 @@ export class TSRequest {
 		else if ($length(this.basicAuth)) {
 			requestHeaders!['Authorization'] = this.basicAuth! ;
 		}
+        const errorInfo = { 
+            relativeURL:relativeURL, 
+            method:method, 
+            responseType:responseType, 
+            body:body,
+            suplHeaders:suplHeaders,
+            timeout:timeout
+        } ;
         let finalURL = TSURL.compose(this.baseURL, $string(relativeURL))?.href as Nullable<string> ;
         if (!$ok(finalURL)) {
-            TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', { 
-                relativeURL:relativeURL, 
-                method:method, 
-                responseType:responseType, 
-                body:body,
-                suplHeaders:suplHeaders,
-                timeout:timeout
-            }) ; 
+            TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', errorInfo) ; 
         }
         if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, -1) ; }
 
-        switch (typeof body) {
-            case 'undefined': break ;
-            case 'string': 
-                // QUESTION: should we not JSON.stringify the string here ? Or do we consider in that case that the user should have done it before
-                config.body = body ; 
-                break ; 
-            case 'number': 
-            case 'boolean':
-                config.body = JSON.stringify(body) ;
-                _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
-                break ;
-            case 'object':
-                if (body === null) { break ; }
-                else if (body instanceof TSData) { config.body = new Uint8Array(body.mutableBuffer) ; }
-                else if (body instanceof FormData || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || _isReadableStream(body!) || body instanceof Blob) { config.body = body as BodyInit ; }
-                else if (body instanceof URLSearchParams) { 
-                    config.body = body.toString() ;
-                    _maySetContentType(requestHeaders, RequestBodyType.UrlEncoded) ;
-                } else {
-                    config.body = JSON.stringify(body) ;
-                    _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
-                }
-                break ;
-            default:
-                TSError.throw(`TSRequest.req(): impossible to send a ${typeof body} as a body`, { 
-                    relativeURL:relativeURL, 
-                    method:method, 
-                    responseType:responseType, 
-                    body:body,
-                    suplHeaders:suplHeaders,
-                    timeout:timeout
-                }) ; 
+        _setRequestBody(config, requestHeaders, body, errorInfo) ;
+        // checked before the network is used, like the other parameters (fetch() used to throw a TypeError)
+        const upperMethod = $string(method).toUpperCase() ;
+        if ($ok(config.body) && (upperMethod === Verb.Get || upperMethod === 'HEAD')) {
+            TSError.throw(`TSRequest.req(): a ${upperMethod} request cannot have a body`, errorInfo) ;
         }
 
-
         if ($ok(timeout) && timeout < 0) { 
-            TSError.throw('TSRequest.req(): if set, timeout parameter should be positive or 0', { 
-                relativeURL:relativeURL, 
-                method:method, 
-                responseType:responseType, 
-                body:body,
-                suplHeaders:suplHeaders,
-                timeout:timeout
-            }) ; 
+            TSError.throw('TSRequest.req(): if set, timeout parameter should be positive or 0', errorInfo) ; 
         }
 
 		timeout = $tounsigned(timeout) ;
@@ -361,60 +329,12 @@ export class TSRequest {
                 const response:Response = resp ;
                 status = response.status ;
                 headers = response.headers ;
-                // wa don't catch conversion errors because they should not occur and
-                // an occurence means a local error or a protocol discrepency between
-                // the server and the client
-                switch (responseType) {
-                    case RespType.Buffer:
-                        ret = Buffer.from(await response.arrayBuffer()) ;
-                        break ;
-                    case RespType.OptionalJson:
-                        const text = $ftrim(await response.text());
-                        // here we consider that an empty body, meaning no body or a body with only whitespaces, 
-                        // is a valid response and we return null in that case
-                        ret = text.length ? $jsonparse(text) : null ;
-                        break ;
-                    case RespType.Json:
-                        ret = await response.json() ;                        
-                        break ;
-                    case RespType.Stream:
-                        ret = response.body ;
-                        break ;
-                    case RespType.String:
-                        ret = await response.text() ;
-                        break ;
-                }
+                ret = await _responseContent(response, responseType) ;
             }
 		}
 		catch (e:any) {
             ret = null ;
-            if (e === timeoutError) {
-				status = Resp.TimeOut ;
-            }
-			else if ($isnumber(e?.statusCode)) {
-				status = e.statusCode ;
-			}
-			else if ($isnumber(e?.status)) {
-				status = e.status ;
-			}
-			else {
-                let code = (((e as TypeError)?.cause) as any)?.code ;
-                if (!$length(code)) {
-                    code = $string(e?.code)
-                }
-                switch (code) {
-                    case 'ECONNREFUSED': 
-                    case 'DEPTH_ZERO_SELF_SIGNED_CERT':
-                        status = Resp.Misdirected ; 
-                        break ;
-                    case 'ECONNABORTED': case 'ETIMEDOUT': case 'ERR_PARSE_TIMEOUT':
-                        status = Resp.TimeOut ;
-                        break ;
-                    default:
-        				// all other errors must throw
-                        throw e ;
-                }
-			}
+            status = _fetchErrorStatus(e, timeoutError) ; // throws e if this is not a known error
 		}
 		return { status:status, response:ret, headers:headers}  ;
 	}
@@ -424,6 +344,85 @@ export class TSRequest {
         this._channel = axios.create({baseURL:this._baseURL, withCredentials:!!this._managesCredential}) ;
     } */
 
+}
+
+type RequestBodyValue = BodyInit|TSData|number|boolean|object ;
+
+function _setRequestBody(config:RequestInit, requestHeaders:StringDictionary, body:Nullable<RequestBodyValue>, errorInfo:TSDictionary) {
+    switch (typeof body) {
+        case 'undefined': break ;
+        case 'string': 
+            // QUESTION: should we not JSON.stringify the string here ? Or do we consider in that case that the user should have done it before
+            config.body = body ; 
+            break ; 
+        case 'number': 
+        case 'boolean':
+            config.body = JSON.stringify(body) ;
+            _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
+            break ;
+        case 'object':
+            if (body !== null) { _setObjectRequestBody(config, requestHeaders, body) ; }
+            break ;
+        default:
+            TSError.throw(`TSRequest.req(): impossible to send a ${typeof body} as a body`, errorInfo) ; 
+    }
+}
+
+function _setObjectRequestBody(config:RequestInit, requestHeaders:StringDictionary, body:NonNullable<object>) {
+    if (body instanceof TSData) { config.body = new Uint8Array(body.mutableBuffer) ; }
+    else if (body instanceof FormData || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || _isReadableStream(body) || body instanceof Blob) { config.body = body as BodyInit ; }
+    else if (body instanceof URLSearchParams) { 
+        config.body = body.toString() ;
+        _maySetContentType(requestHeaders, RequestBodyType.UrlEncoded) ;
+    } else {
+        config.body = JSON.stringify(body) ;
+        _maySetContentType(requestHeaders, RequestBodyType.Json) ;        
+    }
+}
+
+// wa don't catch conversion errors because they should not occur and
+// an occurence means a local error or a protocol discrepency between
+// the server and the client
+async function _responseContent(response:Response, responseType:RespType):Promise<TSResponseType> {
+    switch (responseType) {
+        case RespType.Buffer:
+            return Buffer.from(await response.arrayBuffer()) ;
+        case RespType.OptionalJson: {
+            const text = $ftrim(await response.text());
+            // here we consider that an empty body, meaning no body or a body with only whitespaces, 
+            // is a valid response and we return null in that case
+            return text.length ? $jsonparse(text) : null ;
+        }
+        case RespType.Json:
+            return await response.json() ;
+        case RespType.Stream:
+            return response.body ;
+        case RespType.String:
+            return await response.text() ;
+        default:
+            return null ;
+    }
+}
+
+// returns the status corresponding to a fetch error or throws the error
+function _fetchErrorStatus(e:any, timeoutError:any):number {
+    if (e === timeoutError) { return Resp.TimeOut ; }
+    if ($isnumber(e?.statusCode)) { return e.statusCode ; }
+    if ($isnumber(e?.status)) { return e.status ; }
+    let code = (((e as TypeError)?.cause) as any)?.code ;
+    if (!$length(code)) {
+        code = $string(e?.code)
+    }
+    switch (code) {
+        case 'ECONNREFUSED': 
+        case 'DEPTH_ZERO_SELF_SIGNED_CERT':
+            return Resp.Misdirected ; 
+        case 'ECONNABORTED': case 'ETIMEDOUT': case 'ERR_PARSE_TIMEOUT':
+            return Resp.TimeOut ;
+        default:
+            // all other errors must throw
+            throw e ;
+    }
 }
 
 function _maySetContentType(headers:StringDictionary, type:RequestBodyType){
@@ -544,10 +543,12 @@ export async function $generateMultiPartBody(dict:TSDictionary<TSMultipartEntry>
     const parts:Uint8Array[] = [] ;
     for (const [key, value] of Object.entries(dict)) {
         if (!$isstring(value) && !(value instanceof Blob)) { continue ; } // File is a subclass of Blob
-        parts.push(encoder.encode(_multipartHeaders(key, value, boundary))) ;
-        // the blob content is sent unchanged (it used to be decoded as an UTF-8 text, which did corrupt binary files)
-        parts.push($isstring(value) ? encoder.encode(value) : new Uint8Array(await value.arrayBuffer())) ; // NOSONAR: sequential by design
-        parts.push(encoder.encode('\r\n')) ;
+        parts.push(
+            encoder.encode(_multipartHeaders(key, value, boundary)),
+            // the blob content is sent unchanged (it used to be decoded as an UTF-8 text, which did corrupt binary files)
+            $isstring(value) ? encoder.encode(value) : new Uint8Array(await value.arrayBuffer()), // NOSONAR: blobs read one by one in part order, parallel reads would gain nothing
+            encoder.encode('\r\n')
+        ) ;
     }
     if (!parts.length) { return null ; }
     parts.push(encoder.encode(`--${boundary}--\r\n`)) ;

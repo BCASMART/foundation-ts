@@ -21,12 +21,9 @@ export function $strictascii(source: Nullable<string>): string | null {
 export function $asciifs(source: Nullable<string>, posix: boolean = false): string {
     source = $ftrim(source);
     if (!source.length) { return '' };
-    source = $ascii(source).replace(/[\x00-\x1F]/g, "");
+    source = $ascii(source).replace(/[^ -\uFFFF]/g, ''); // removes control characters (U+0000 to U+001F)
     if (!source.length) { return '' };
-    return !posix ?
-        source.replace(/[<>:\"\/\\\*\?\|]/g, '_') :
-        source?.replace(/[^A-Za-z0-9\._-]/g, "_")
-        ;
+    return posix ? source.replace(/[^\w.-]/g, '_') : source.replace(/[<>:"/\\*?|]/g, '_') ;
 }
 
 /**
@@ -90,48 +87,25 @@ export function $right(source: Nullable<string>, rightPart?: Nullable<number>): 
  * If useOnlyASCIISeparators is set, only CR, LF and CRLF are used as line separators
  * 
  */
+// CR, LF and, for the second one, FF, NEL, LS and PS
+function _isASCIILineSeparator(c:number):boolean { return c === 0x0D || c === 0x0A ; }
+function _isLineSeparator(c:number):boolean { return c === 0x0D || c === 0x0A || c === 0x2028 || c === 0x2029 || c === 0x85 || c === 0x0C ; }
+
 export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = false): string[] {
-    const len = $length(s)
-    const ret: string[] = [];
-    if (len > 0) {
-        enum LCState { CR, NewLine, Other };
-        const [CR, LF, FF, NEL, LS, PS] = [0x000D, 0x000A, 0x000C, 0x0085, 0x02028, 0x02029];
-        const isOtherLineSeparator = useOnlyASCIISeparators ? (_: number) => false : (c: number) => c === LS || c === PS || c === NEL || c === FF;
-
-        let lcstate: LCState = LCState.Other;
-        let lastPosition = 0, pos = 0;
-
-        while (pos < len) {
-            const c = s!.charCodeAt(pos); // NOSONAR: line separators are all in the BMP, UTF-16 code units are what we need
-            if (lcstate === LCState.CR) {
-                ret.push(s!.slice(lastPosition, pos - 1));
-                if (c === LF) { lastPosition = pos + 1; lcstate = LCState.NewLine; }
-                else if (isOtherLineSeparator(c)) { ret.push(''); lastPosition = pos + 1; lcstate = LCState.NewLine; }
-                else { lcstate = LCState.Other; lastPosition = pos--; } // we rewind the last char as if the precedent one was not CR
-            }
-            else if (c === CR) { lcstate = LCState.CR; }
-            else if (c === LF || isOtherLineSeparator(c)) {
-                ret.push(s!.slice(lastPosition, pos));
-                lastPosition = pos + 1;
-                lcstate = LCState.NewLine;
-            }
-            else { lcstate = LCState.Other; }
-            pos++;
-        }
-        switch (lcstate) {
-            case LCState.CR:
-                ret.push(s!.slice(lastPosition, pos - 1));
-                ret.push('');
-                break;
-            case LCState.NewLine:
-                ret.push('');
-                break;
-            case LCState.Other:
-                if (lastPosition < pos) { ret.push(s!.slice(lastPosition, pos)); }
-                break;
-        }
+    const len = $length(s) ;
+    if (!len) { return $ok(s) ? [''] : [] ; }
+    const isSeparator = useOnlyASCIISeparators ? _isASCIILineSeparator : _isLineSeparator ;
+    const ret: string[] = [] ;
+    let lastPosition = 0, pos = 0 ;
+    while (pos < len) {
+        const c = s!.charCodeAt(pos); // NOSONAR: line separators are all in the BMP, UTF-16 code units are what we need
+        if (!isSeparator(c)) { pos++ ; continue ; }
+        ret.push(s!.slice(lastPosition, pos)) ;
+        // CR LF is a single separator
+        pos += c === 0x0D && s!.charCodeAt(pos + 1) === 0x0A ? 2 : 1 ; // NOSONAR: CR and LF are BMP code units
+        lastPosition = pos ;
     }
-    else if ($ok(s)) { ret.push(''); }
+    ret.push(s!.slice(lastPosition)) ; // the last line is empty when the string ends with a separator
     return ret;
 }
 export interface $normspacesOptions { // NOSONAR: name accepted for matchnig the function

@@ -1,5 +1,5 @@
-import { inspect } from "util";  // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
-import { Stream } from "stream"; // NOSONAR: idem
+import { inspect } from "util";  // NOSONAR: no 'node:' prefix for webpack 5
+import { Stream } from "stream"; // NOSONAR: no 'node:' prefix for webpack 5
 
 import { $count, $defined, $isarray, $isfunction, $isint, $ismethod, $isproperty, $isstring, $length, $ok, $unsigned } from "./commons";
 import { $HTML, $normspaces } from "./strings";
@@ -347,11 +347,11 @@ export function $stack(): TSCall[] {
 
 
 function _nodeInspect(v: any, level: number = 10) { return inspect(v, false, level); }
-interface _tsInspectEntry { // NOSONAR (internal interface)
+interface InspectEntry {
     key: any;
     value: any;
 }
-class _tsInspectNode { // NOSONAR (internal class)
+class InspectNode {
     protected static __prefixString: string = "                                                                                                                                      ";
     id?: number;
     type?: string;
@@ -367,13 +367,13 @@ class _tsInspectNode { // NOSONAR (internal class)
     }
 
     toString(): string {
-        const prefix = _tsInspectNode.__prefixString.slice(0, 2 * this.level);
+        const prefix = InspectNode.__prefixString.slice(0, 2 * this.level);
         let s = $defined(this.id) ? `<ref *${this.id}> ` : '';
         if ($length(this.type)) { s += this.type! + ' '; }
 
         s += this.left;
         let continued = false;
-        for (let e of (this.value as _tsInspectEntry[])) {
+        for (let e of (this.value as InspectEntry[])) {
             if (continued) { s += ','; }
             s += `\n${prefix}  ${e.key}${this.sepa}` + ($isstring(e.value) ? e.value : (e.value as any).toString());
             continued = true;
@@ -384,7 +384,7 @@ class _tsInspectNode { // NOSONAR (internal class)
     }
 }
 
-class _tsArrayNode extends _tsInspectNode { // NOSONAR (internal class)
+class InspectArrayNode extends InspectNode {
     constructor(level: number) {
         super(level);
         this.right = ']';
@@ -393,7 +393,7 @@ class _tsArrayNode extends _tsInspectNode { // NOSONAR (internal class)
 
     toString(): string {
         const plen = 2 * this.level;
-        const prefix = _tsInspectNode.__prefixString.slice(0, plen);
+        const prefix = InspectNode.__prefixString.slice(0, plen);
         let s = $defined(this.id) ? `<ref *${this.id}> ` : '';
         if ($length(this.type)) { s += this.type! + ' '; }
         s += this.left;
@@ -409,7 +409,7 @@ class _tsArrayNode extends _tsInspectNode { // NOSONAR (internal class)
     }
 }
 
-class _tsSetNode extends _tsArrayNode { // NOSONAR (internal class)
+class InspectSetNode extends InspectArrayNode {
     constructor(level: number) {
         super(level);
         this.right = '}';
@@ -417,25 +417,25 @@ class _tsSetNode extends _tsArrayNode { // NOSONAR (internal class)
     }
 }
 
-interface _tsInspectContext { // NOSONAR (internal interface)
+interface InspectContext {
     nextId: number;
     max: number;
-    map: Map<any, _tsInspectNode>;
+    map: Map<any, InspectNode>;
     requestedLevel: number;         // max depth requested by the caller, for native inspect()
 }
 
 function _tsinspect(v: any, level: number = 10): string {
-    const context: _tsInspectContext = {
+    const context: InspectContext = {
         nextId: 1,
         max: Math.min($unsigned(level), 63) + 1,
-        map: new Map<any, _tsInspectNode>(),
+        map: new Map<any, InspectNode>(),
         requestedLevel: level,
     };
     return _recursiveInspect(v, context, 0).toString();
 }
 
 // level is the current recursion depth (not the max depth requested to _tsinspect())
-function _recursiveInspect(v: any, context: _tsInspectContext, level: number): any {
+function _recursiveInspect(v: any, context: InspectContext, level: number): any {
     switch (typeof v) {
         case 'string': return "'" + JSON.stringify(v).slice(1, - 1) + "'";
         case 'undefined': return 'undefined';
@@ -448,7 +448,7 @@ function _recursiveInspect(v: any, context: _tsInspectContext, level: number): a
     }
 }
 
-function _inspectObject(v: any, context: _tsInspectContext, level: number): any {
+function _inspectObject(v: any, context: InspectContext, level: number): any {
     if (v === null) { return 'null'; }
     if ($isfunction(v.leafInspect)) { return v.leafInspect(); }
     // No leafInspect : a native Error (or a third-party one) has no
@@ -471,24 +471,24 @@ function _inspectObject(v: any, context: _tsInspectContext, level: number): any 
     return isSet || $isarray(v) ? _inspectList(v, isSet, context, level) : _inspectDictionary(v, context, level) ;
 }
 
-function _inspectList(v: any, isSet: boolean, context: _tsInspectContext, level: number): any {
+function _inspectList(v: any, isSet: boolean, context: InspectContext, level: number): any {
     if (level === context.max) { return isSet ? '[Set]' : '[Array]'; }
-    let node: _tsInspectNode ;
+    let node: InspectNode ;
     if (isSet) {
         v = Array.from(v);
-        node = new _tsSetNode(level);
+        node = new InspectSetNode(level);
         node.type = `Set(${v.length})`;
     }
-    else { node = new _tsArrayNode(level); }
+    else { node = new InspectArrayNode(level); }
     context.map.set(v, node) ;
     node.value = (v as any[]).map(e => _recursiveInspect(e, context, level + 1));
     context.map.delete(v);
     return node;
 }
 
-function _inspectDictionary(v: any, context: _tsInspectContext, level: number): any {
+function _inspectDictionary(v: any, context: InspectContext, level: number): any {
     if (level === context.max) { return '[Object]'; }
-    const node = new _tsInspectNode(level);
+    const node = new InspectNode(level);
     const isMap = v instanceof Map;
     if (isMap) {
         node.sepa = ' => ';

@@ -10,10 +10,9 @@
 import { $components, $isostring2components, $parsedate, $parsedatetime, $componentsarevalid, TSDateComp, TSDateForm, $components2string, $components2timestamp, $components2date, $components2stringformat, $components2StringWithOffset, $timezoneOffsetWithComponents } from "./tsdatecomp"
 import { $isint, $isnumber, $ok, $isstring, IsoDateFormat, $toint, $value, $isdate } from "./commons";
 import { $datecompare, $numcompare } from "./compare";
-import { Comparison, country, isodate, language, Nullable, Same, uint } from "./types";
+import { Comparison, isodate, Nullable, Same, uint } from "./types";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { TSCountry } from "./tscountry";
-import { Locales } from "./tsdefaults";
+import { LocaleInfo } from "./tsdefaults";
 import { $div } from "./number";
 import { TSError } from "./tserrors";
 import { $ftrim } from "./strings";
@@ -54,69 +53,12 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     constructor(nullDate: null);
     constructor();
     constructor() {
-        let n = arguments.length;
-        if (n >= 3) {
-            if (!$dayisvalid(arguments[0], arguments[1], arguments[2])) { 
-                TSError.throw(`TSDate.constructor() : Bad year, month or day argument`, { arguments:Array.from(arguments)}) ; 
-            }
-            if (n !== 3 && n !== 6 ) { 
-                TSError.throw(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
-            }
-            if (n === 6) {
-                if (!$timeisvalid(arguments[3], arguments[4], arguments[5])) { 
-                    TSError.throw(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:Array.from(arguments)}) ; 
-                }
-                this._timestamp = _insetTimeStamp($timestamp(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5])) ;
-            }
-            else {
-                this._timestamp = _insetTimeStamp($timestamp(arguments[0], arguments[1], arguments[2], 0, 0, 0)) ;
-            }
-        }
+        const n = arguments.length;
+        if (n >= 3) { this._timestamp = _timestampFromComponents(Array.from(arguments)) ; }
         else if (n === 2) { 
             TSError.throw(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:Array.from(arguments)}) ; 
         }
-        else { // n === 1 || n === 0
-            let t = arguments[0] ; // undefined if n === 0
-            if (t === Number.POSITIVE_INFINITY) { this._timestamp = TSMaxTimeStamp ; }
-            else if (t === Number.NEGATIVE_INFINITY) { this._timestamp = TSMinTimeStamp ; }
-            else if ($isnumber(t)) { 
-                this._timestamp = $insettimestamp(t) ; // we trash the seconds here by making ts an integer
-			}
-            else if (t instanceof TSDate) {
-                this._timestamp = t.timestamp;
-			}
-			else {
-				let comps:TSDateComp|null = null ;
-
-				if ($isstring(t)) {
-                    if (t === TSDate.ZULU) {
-                        this._timestamp = $div(Date.now(),1000) - TSSecsFrom19700101To20010101 ;
-                        return ;
-                    }
-                    else if (t === TSDate.FUTURE) {
-                        this._timestamp = TSMaxTimeStamp ;
-                        return ;
-                    } 
-                    else if (t === TSDate.PAST) {
-                        this._timestamp = TSMinTimeStamp ;
-                        return ;
-                    }
-                    else if (t === TSDate.EPOCH) {
-                        this._timestamp = - TSSecsFrom19700101To20010101 ;
-                        return ;
-                    }
-                    else {
-                        comps = $isostring2components(t) ; 
-                    } 
-                }
-				else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
-
-				if (!$ok(comps)) { 
-                    TSError.throw(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
-                }
-				this._timestamp = _insetTimeStamp($components2timestamp(<TSDateComp>comps)) ;
-			}
-        }
+        else { this._timestamp = _timestampFromValue(arguments[0]) ; } // n === 1 || n === 0 (undefined argument)
     }
 
     public static past()   : TSDate { return new TSDate(TSDate.PAST) ; }
@@ -192,8 +134,8 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
 
 
 	// ================= instance methods ========================
-	public clone():TSDate { return this ; } // no clone on immutable objects
-    public toTSDate(): TSDate { return this.clone() ; }
+	public clone():this { return this ; } // no clone on immutable objects
+    public toTSDate(): this { return this.clone() ; }
 
     public get timestamp():number { return this._timestamp ; }
     public valueOf():number { return this._timestamp ; }
@@ -307,16 +249,16 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return false ;
     }
 	
-    public toString(format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
+    public toString(format?:Nullable<TSDateForm|string>, locale?:LocaleInfo) : string {
         if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
         return this._toString(false, format, locale) ;
     }
 
-    public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:Nullable<language|country|TSCountry|Locales>) : string {
+    public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:LocaleInfo) : string {
         return this._toString(true, format, locale) ;
     }
 
-    public toTimezoneString(timezone:string, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>):string {
+    public toTimezoneString(timezone:string, format?:Nullable<TSDateForm|string>, locale?:LocaleInfo):string {
         return this._toString(timezone, format, locale) ;
     }
 
@@ -332,7 +274,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     }
     
 	// ============ Private methods =============== 
-    private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:Nullable<language|country|TSCountry|Locales>) : string {
+    private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:LocaleInfo) : string {
         let offset = 0 ; 
         if (typeof localTimeOrTZ == 'string') {
             offset = $timezoneOffsetWithComponents($ftrim(localTimeOrTZ), $components(this._timestamp)) * TSMinute ;
@@ -377,7 +319,7 @@ export function $isleap(y: number) : boolean
 
 export function $dayisvalid(year: number, month: number, day: number) : boolean {
 	if (!$isint(day) || !$isint(month) || !$isint(year) || day < 1 || day > 31 || month < 1 || month > 12) { return false ; }
-	if (day > TSDaysInMonth[month]) { return (month === 2 && day === 29 && $isleap(year)) ? true : false ; }
+	if (day > TSDaysInMonth[month]) { return month === 2 && day === 29 && $isleap(year) ; }
 	return true ;
 }
 
@@ -458,3 +400,43 @@ function _yearReference(y:number, offset:number=0) : number {
 	return firstDayOfYear + d * TSDay ;
 }
 
+// (year, month, day) or (year, month, day, hours, minutes, seconds) TSDate constructor arguments
+function _timestampFromComponents(args:any[]):number {
+    const n = args.length ;
+    if (!$dayisvalid(args[0], args[1], args[2])) { 
+        TSError.throw(`TSDate.constructor() : Bad year, month or day argument`, { arguments:args }) ; 
+    }
+    if (n !== 3 && n !== 6 ) { 
+        TSError.throw(`TSDate.constructor() : Wrong number (${n}) of argumens`, { arguments:args }) ; 
+    }
+    if (n === 3) { return _insetTimeStamp($timestamp(args[0], args[1], args[2], 0, 0, 0)) ; }
+    if (!$timeisvalid(args[3], args[4], args[5])) { 
+        TSError.throw(`TSDate.constructor() : Bad hours, minutes or day seconds`, { arguments:args }) ; 
+    }
+    return _insetTimeStamp($timestamp(args[0], args[1], args[2], args[3], args[4], args[5])) ;
+}
+
+// the unique (or absent) TSDate constructor argument
+function _timestampFromValue(t:any):number {
+    if (t === Number.POSITIVE_INFINITY) { return TSMaxTimeStamp ; }
+    if (t === Number.NEGATIVE_INFINITY) { return TSMinTimeStamp ; }
+    if ($isnumber(t)) { return $insettimestamp(t) ; } // we trash the seconds here by making ts an integer
+    if (t instanceof TSDate) { return t.timestamp ; }
+
+    let comps:TSDateComp|null = null ;
+    if ($isstring(t)) {
+        switch (t) {
+            case TSDate.ZULU:   return $div(Date.now(),1000) - TSSecsFrom19700101To20010101 ;
+            case TSDate.FUTURE: return TSMaxTimeStamp ;
+            case TSDate.PAST:   return TSMinTimeStamp ;
+            case TSDate.EPOCH:  return - TSSecsFrom19700101To20010101 ;
+            default:            comps = $isostring2components(t) ; 
+        }
+    }
+    else if (!$ok(t) || t instanceof Date) { comps = $components(t) ; }
+
+    if (!$ok(comps)) { 
+        TSError.throw(`Bad TSDate constructor unique argument: ${t}`, { argument:t }) ; 
+    }
+    return _insetTimeStamp($components2timestamp(<TSDateComp>comps)) ;
+}

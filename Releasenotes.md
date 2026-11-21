@@ -2,6 +2,96 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.9
+
+This version does not trigger any SonarQube warnings or errors from SonarQube for IDE VSCode extension. Il also remove the `tools` directory and all its configuration files.
+
+#### Breaking changes
+
+- `$octets()` function and `Number.octets()` instance method were deprecated a long time ago: they are now removed from foundation-ts. Use `$bytes()` and `Number.bytes()` instead. In fusion templates, the `$octets()` standard global function is replaced by `$bytes()`.
+- `TSTracer` no longer has writable static fields:
+  - `TSTracer.log = fn` and `TSTracer.write = fn` are replaced by `TSTracer.setDefaults({ log:fn, write:fn })`, and restoring the original outputs by `TSTracer.resetDefaults()`. The current outputs are given by `TSTracer.defaultLog` and `TSTracer.defaultWrite`.
+  - `TSTracer.index` is now read only. Use `TSTracer.resetIndex()` to restart the trace numbering.
+- `TSParser` default values (`_default`) are now checked and interpreted like given values:
+  - a definition whose default value is not in its enumeration (`_enum`) is now refused, like a default value of a wrong type already was,
+  - the default value of an absent object item is now interpreted (eg. `{ _type:'uint8', _default:'12' }` gives `12` instead of `'12'`) and its specific checker (`_checker`) is applied, so the interpretation now fails if the default value does not pass it.
+- `TSInterval` is now aligned with `TSRange` (half-open intervals `[start, end[`, a null bound meaning infinite):
+  - like `new TSRange(startDate, endDate)`, `new TSInterval(start, end)` and `TSInterval.make(start, end)` now throw if the end date is anterior to the start date. Such an inverted interval used to be silently handled as `[start, +∞[`. An interval inverted afterwards (by changing `first` or `second`) is invalid: it contains nothing, intersects nothing and is continuous with nothing (`containsDate()`, `contains()`, `intersects()` and `continuousWith()` return false).
+  - `isValid` is now true for `]-∞, end[` and `]-∞, +∞[` intervals (it used to be true only with a start date), and false for an inverted interval.
+- `TSRange.intersectionRange()` of two disjoint ranges now returns a bad range (`isValid` is false, `isEmpty` is still true, `location` is `NaN`). It used to return the valid empty range `[0,0[`, as if the ranges met at location 0. Touching ranges still give an empty range at their common location (`[0,5[ ∩ [5,10[` is `[5,5[`).
+- `TSRangeSet` methods no longer throw for an empty or invalid range, an empty range set or a non-integer number. They now answer like `TSRange` (an empty range is a location, an invalid range or an empty set has no location); only an argument of a wrong type still throws:
+  - `contains()` is true for an empty range whose location is in the set, `intersects()` is false for an empty or invalid range and for an empty set, and a number is a location (`contains(1.5)` used to throw).
+  - `unionWidth()` and `substractFrom()` with an empty or invalid range or an empty set change nothing, and `intersectWidth()` empties the set.
+
+#### Corrections
+
+- **Security** — `$email()` and `$isemail()` (and therefore `String.isEmail()`, the `email` type of `TSParser` and the email validation of `TSServer` endpoints): the regular expression had a quadratic backtracking on some invalid inputs (eg. `'a@' + '1.'.repeat(20000) + '!'` took 1.3 s, and 4 times more each time the length doubled), so that one request could block the server. An email is now split on its last `@` and its local part and domain are checked by two linear regular expressions, and an email longer than 254 characters (RFC 5321, new `EMAIL_MAX_LENGTH` constant) is now refused. The same input is now refused in less than 0.1 ms. Some malformed domains, which were accepted by mistake, are now refused:
+  - a domain whose last label is a single digit (eg. `abc@b.1`, `abc@b.cd.1`),
+  - a domain ending with one or more dots after a numeric label (eg. `abc@b.12.`, `abc@b.1..`),
+  - a domain starting with a dot or containing an empty label, when it ends with digits (eg. `abc@.1`, `abc@..1`),
+  - a numeric domain which is not an IPv4 address made of 4 numbers of 1 to 3 digits (eg. `abc@1.2`, `abc@1.2.3`, `abc@1234.5`, `abc@1.2.3.4.`).
+  IPv4 domains (eg. `a@192.168.0.1`) are still accepted, without checking that each number is at most 255, as before.
+- `$durationNumber2StringFormat()` (and `$duration2String()`): a format ending with a `%` in the else part (`%b`) of a seconds part (`%{`) tested the days instead of the seconds to decide whether the `%` was written (eg. `"x%{%b%"` gave `"x%"` for a 1 second duration and `"x"` for a 1 day duration, instead of the opposite).
+- `$parsedenv()`: two names of the parser definition which are the same once trimmed (eg. `' AA'` and `'AA'`) now throw a `found duplicate name definition` error, as expected. The second definition used to silently replace the first one.
+- `TSQualifier.validateValue()`: the `validateValueForCondition` callback is now given to the qualifiers nested in an `AND`, `OR` or `NOT` qualifier. A nested composite qualifier with dictionary conditions (eg. `AND([OR([{ minAge:40 }])])`) used to throw `need a validateValueForCondition() callback`.
+- `TSFusionTemplate.fromHTMLData()`: a `<fusion type="!TEST">` tag is now a negative test, like `type="!"`, `type="NOT"` or `type="IFNOT"`. It used to be a positive test.
+- `$createDirectory(path, mode)` always failed (`Path exists and is a directory but mode does not match`) on an existing folder when a mode was given, even if the folder had this mode: the compared mode also held the file type bits.
+- `TSServer` end points:
+  - an empty request body is now an absent body: a missing mandatory body gives a `MissingBody` error (it used to give a `BadJSONBody` error), and an absent optional body is accepted (it used to give a `BadJSONBody` error too).
+  - a `query`, `body` or `response` definition with an unknown root type (eg. `query:'notatype'`) is now refused when the end point is defined (it used to be accepted).
+- `$password()` no longer modifies the given options object (`usesLowercase` used to be set to `true` in it when no character kind was asked), and the "too short" error message is now spelled correctly.
+- `TSData.length = n` and `TSData.truncateBy(n)` error messages named `TSDate` instead of `TSData`.
+- `TSData.length = n` did not change the length when growing a data created with the `fillWithZeros` option, and the added bytes are now always zeroed (with `fillWithZeros`, the bytes removed by a previous truncation used to come back).
+- `TSParser`: an absent non mandatory array (`_mandatory:false`) with a minimal size (`_min`) is now valid, as documented: `_min` and `_max` only apply to a given array. It used to be refused (`value.size is too small (0 < 1).`). The specific checker (`_checker`) is no longer called for an absent array, like for objects and dictionaries.
+- `TSRequest.req()`: a `GET` or `HEAD` request with a body now throws a `TSError` (`TSRequest.req(): a GET request cannot have a body`) before using the network, like the other parameter errors. It used to be the `TypeError` thrown by `fetch()`.
+- `$charsetFromBytes()` (and therefore `TSCharset.charsetFromDataLike()` and `$charset(data)`):
+  - with equal MacRoman and ANSI weights, the detection now gives latin1 (or ANSI if latin1 was eliminated), like when MacRoman is eliminated. It used to give null, so that `$charset(data)` decoded these non UTF-8 data as UTF-8 (eg. `[0xA1]` or `[0xA9, 0xB0]`).
+  - a UTF-16 little endian BOM alone (2 bytes) is now detected, and a UTF-16 big endian BOM (`FE FF`) now gives the new UTF-16 big endian charset instead of a single byte charset.
+- `TSCharset.encoding()` and `$charset(name)` now find the charsets which are not `Buffer` encodings by their names (eg. `'UTF-16BE'`). An unknown name still gives UTF-8.
+- `TSQualifier.validateValue()`: like SQL `IS NULL` and `IS NOT NULL`, `EQ(key, null)` now matches an absent or null value and `NEQ(key, null)` a present one. `EQ(key, null)` used to match nothing, so the `canUnspecify` option of `INCLUDED()` and `INTERSECTS()` had no effect in memory (the qualifier structure, used to build database requests, is unchanged).
+- `TSQualifier.INRANGE(key, range)` with a length 1 range used to give `EQ(key, location)`, which did not match a non-integer value: it now always gives `key >= start AND key < end`, like `TSRange.containsLocation()`. With an empty range it now matches nothing instead of throwing.
+- Some `TSQualifier` error messages named another method (`INCLUDING()`, `prototype.addRange()`).
+- `TSQualifier.validateValue()`: the error thrown for a dictionary condition without `validateValueForCondition()` callback now gives this condition in its `info.condition` (it used to be the absent callback).
+- `TSRangeSet` stored the `TSRange` instances given to its constructor or to `unionWidth()`, and could then modify them (eg. `s.unionWidth(r) ; s.substractFrom([5, 10])` changed `r` from `[0,10[` to `[0,5[`). The given ranges are now copied.
+- `TSRangeSet.intersection(rangeSet)` and `intersectWidth(rangeSet)` intersected the range set successively with each range of the given set, so the result was empty as soon as the given set had two ranges (`{[0,10[} ∩ {[1,2[, [5,6[}` gave `{}`). It is now the intersection with all the ranges of the given set.
+- `TSRangeSet.intersects(rangeSet)` returned true only if all the ranges of the given set intersected the range set (`{[0,5[}.intersects({[2,3[, [10,11[})` returned false). It now returns true if one of them does.
+- `TSRange.continuousWith()`, `TSInterval.continuousWith()` and `TSRangeSet.continuousWith()`: an empty range (or interval) strictly inside the other one is now continuous with it, as when it is at one of its bounds. It used to be not continuous, while their intersection was this empty range and their union had no gap.
+- `TSRange.unionRange()`: the union of two empty ranges is now located like any other union (`[5,5[ ∪ [5,5[` is `[5,5[`, `[5,5[ ∪ [8,8[` is `[5,8[`). It used to be the empty range `[0,0[`, while an empty range already took part in a union with a non-empty one with its location.
+- `TSInterval.contains(emptyInterval)` now returns true if the date of the empty interval is in the interval, like `TSRange.contains()`.
+- `TSInterval.containsDate()` gave inverted results for an interval with only a start date (`[2021, +∞[` contained 2020 but not 2022). It now contains the dates greater than or equal to its start.
+- `$args()` and `$parsedenv()`: an argument or an environment variable with an unknown type is now refused with its name (`bad structure definition for argument 'count'`, `bad parser definition for env var 'AA'`). It used to fail later, with a message which did not name it.
+- `TSRect` constructor: `new TSRect(x, y, format)` with an unknown document format now throws a `TSError` (`bad [number, number, size or format] parameters`) instead of a `TypeError` (`Cannot read properties of undefined`).
+- `@TSTrace`: an asynchronous method (returning a promise or any thenable) used to be traced with an unsettled `Promise` as result, an execution time measured before its end, and no trace of its rejection. Its result (or its error) and its real execution time are now traced when it's settled.
+- `@TSTrace` on a static method gave `Function.method` instead of `Class.method` in the traces.
+- `TSColor`: the conversions from [0 .. 1] components or opacities to [0 .. 255] bytes were truncated instead of rounded. Converting an RGB color to CMYK and back gave another color (one of its channels changed by 1) in nearly half of the cases, `rgbcomponents(0.5, 0.5, 0.5)` gave `rgb(127,127,127)` and an opacity lost a little each time it was converted to an alpha. All these conversions are now rounded, so the byte to component to byte conversions are exact. Some colors computed from components, opacities, `lighterColor()` or `darkerColor()` may change by 1 (eg. `toOpacity(0.5)` now gives an alpha of 128, like CSS, instead of 127).
+- `TSColor.gray` (and `toGrayscale()`) of an RGB color was rounded to a percentage, so `rgb(129,129,129).toGrayscale()` did not give back `rgb(129,129,129)`.
+- `TSColor.toGrayscale()` lost the opacity of the color (the gray color was always opaque).
+- `TSColor.grayscale(gray, opacity)` did not bound its opacity in [0 .. 1] (eg. `grayscale(0.5, 2).opacity` was `2`).
+- `TSColor.cmyk()` and `TSColor.grayscale()` could return a cached color with slightly different components (eg. `cmyk(0.1001, 0, 0, 0).cyan` was `0.1` once `cmyk(0.1, 0, 0, 0)` was created). The cache now only merges computation jitters (eg. `1 - 0.7` and `0.3`).
+- `TSColor.isSimilar()` now compares the RGB bytes and the alpha of the colors, whatever their color spaces are. Two CMYK or gray colors giving the same RGB color used to be considered as different when their components were not exactly the same.
+- `TSParser`: an enumeration tag can now be used as a default value (eg. `{ _type:'uint8', _enum:{ red:1, blue:2 }, _default:'red' }`). Such a definition used to be refused.
+- `$args()`: the regular expression used to convert the parser errors into argument errors had a O(n²) backtracking . It's now linear.
+- `TSData` is faster
+
+#### What's new ?
+
+- @TSTrace` can now be given options, eg. `@TSTrace({ log:myLogger, write:myWriter, label:'Users.find' })`: specific outputs (the default ones are used for absent outputs) and a specific name for the traced method. `@TSTrace` without options still works.
+- `@TSTrace` can now be used as a standard TypeScript 5 method decorator, as well as a legacy one (with the `experimentalDecorators` option).
+- `TSParser` array nodes now also accept a `Set` or a `TSCollection` (eg. a `TSList`) in `validate()`, `interpret()` and `encode()` (which used to refuse them, so that a model with a `Set` field could not be encoded). The result is always an array, and the `_checker` function always receives an array. Strings, maps, typed arrays and one-shot iterators are still refused.
+- `TSInterval.unionInterval(other)` and `TSInterval.intersectionInterval(other)` give the union (the smallest interval containing both intervals, even disjoint ones) and the intersection of two intervals, like `TSRange.unionRange()` and `TSRange.intersectionRange()`, infinite bounds included (eg. `[2022, +∞[ ∩ ]-∞, 2023[` is `[2022, 2023[`). The intersection of touching intervals is an empty interval at their common date. Both methods return `null` if one of the intervals is not valid, and `intersectionInterval()` returns `null` for disjoint intervals (where `TSRange.intersectionRange()` returns a bad range).
+- `TSRangeSet.containsLocation()`, `TSRangeSet.containedIn()` and `TSRangeSet.continuousWith()`, like the `TSRange` methods (a range set is continuous with ranges which intersect or touch one of its ranges).
+- `TSQualifier` interval qualifiers named after the `TSRange` methods whose meaning they have (half-open intervals `[start, end[`). The interval is a `TSRange` (or its `[location, length]` array), a `TSInterval` (a null bound is infinite), a `TSRangeSet` (one condition for each of its ranges) or `start` and `end` values (null for infinite); an invalid or inverted interval throws. All of them are made of the existing operators, so they can be translated to database requests like the other qualifiers:
+  - `INRANGE(key, interval)` and `INRANGE(key, start, end)`: `key` is in the interval, like `TSRange.containsLocation()`.
+  - `CONTINUOUS(startKey, endKey, interval, canUnspecify?)`: the `[startKey, endKey[` interval of the value intersects or touches the interval, like `TSRange.continuousWith()`, empty intervals included.
+  - `OVERLAPS(startKey, endKey, interval, canUnspecify?)`: it intersects the interval, like `TSRange.intersects()` (except for a value with an empty interval strictly inside the interval, which is matched: excluding it would need to compare two keys).
+  - `CONTAINS(startKey, endKey, interval, canUnspecify?)` and `CONTAINEDIN(startKey, endKey, interval)`: it contains or is contained in the interval, like `TSRange.contains()` and `containedIn()` (except for a value with an empty interval located at the excluded end of the interval, which `CONTAINEDIN()` matches).
+  - With `canUnspecify`, a null start or end value is infinite. The instance methods are `inRange()`, `continuous()`, `overlaps()`, `contains()` and `containedIn()`.
+- **<u>Deprecated</u>**: `TSQualifier.INCLUDED()` and `included()` (closed intervals: use `INRANGE()`), `TSQualifier.INTERSECTS()` and `intersects()` (use `CONTINUOUS()`, which gives the same conditions, or `OVERLAPS()`, which gives the conditions of the strict mode), and `LAZY_INTERSECTION`.
+- UTF-16 big endian charset: `TSCharset.utf16BECharset()`, also named `utf16be`, `utf-16be`, `UTF-16BE`... (new `StringEncoding` names). Like in Node and in the WHATWG encoding standard, the other UTF-16 names (`utf16`, `UTF-16`, `unicode`, `ucs2`...) are still UTF-16 little endian (`TSCharset.unicodeCharset()`). The UTF-16 big endian charset cannot be used by fusion templates, like the little endian one.
+- `TSCharset.stringFromDetectedData(data, defaultCharset?)` detects the charset of the data and decodes them, giving the string and the charset. Like `TextDecoder` or a .NET `StreamReader`, the byte order mark which gave the charset (UTF-8, UTF-16 LE or BE) is removed. The `stringFromData()` and `stringFromBytes()` methods still keep a byte order mark (`'\uFEFF'`), like `Buffer.toString()`, and no byte order mark is ever added when encoding.
+
+<hr/>
+
 ## version 1.8.8
 
 This is the first version after heavy sonar introspection.

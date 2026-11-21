@@ -1,6 +1,6 @@
 {
     "include": ["./src/**/*", "index.ts"],
-    "exclude": ["node_modules", "dist", "tdist", "exe"],
+    "exclude": ["node_modules", "dist", "tdist"],
     "compilerOptions": {
         "allowJs": false,
         "allowUnreachableCode": false,

@@ -1,8 +1,9 @@
 import { TSTest } from "../src/tstester";
-import { TSFusionTemplate } from '../src/tsfusion';
+import { TSFusionTemplate, TSStringTemplate } from '../src/tsfusion';
+import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from '../src/tsfusionnode';
 import { TSDictionary } from "../src/types";
 import { TSData } from "../src/tsdata";
-import { $inspect } from "../src/utils";
+import { $inbrowser, $inspect } from "../src/utils";
 import { TSCharset } from "../src/tscharset";
 import { TSDate } from "../src/tsdate";
 
@@ -399,7 +400,7 @@ TSTest.group("Fusion — operators, params, constants", async (group) => {
     group.unary('standard global functions (in nested form)', async (t) => {
         const o = { addStandardGlobalFunctions:true } ;
         t.expect0(S('[{{x#:{{$max(3,9)}}}}]', { x:1 }, o).r).is('[9]') ;
-        t.expect1(S('[{{x#:{{$octets(1536,1)}}}}]', { x:1 }, o).r).is('[1.5 ko]') ;
+        t.expect1(S('[{{x#:{{$bytes(1536,1)}}}}]', { x:1 }, o).r).is('[1.5 ko]') ;
         t.expect2(S('[{{n#:{{$meters(current,0)}}}}]', { n:5 }, o).r).is('[5 m]') ;
     }) ;
 
@@ -664,6 +665,81 @@ TSTest.group("Fusion — procedures, contexts and key paths", async (group) => {
         t.expect2(res.e.includes('!ERROR!: method fails() execution did fail on local context')).true() ;
         // an empty key path component inside the path
         t.expect3(F('{{p..name}}', { p:new Person('ann') }).e.includes("!ERROR!: key path 'p..name' contains internal '..'.")).true() ;
+    }) ;
+
+    group.unary('fromHTMLData() — type="!TEST" is a negative test', async (t) => {
+        const html = TSCharset.utf8Charset().dataFromString('<p><fusion type="!TEST" path="flag">no</fusion></p>') ;
+        const template = TSFusionTemplate.fromHTMLData(html) ;
+        t.expect0(template?.fusionStringWithDataContext({ flag:false }, {})).is('<p>no</p>') ;
+        t.expect1(template?.fusionStringWithDataContext({ flag:true }, {})).is('<p></p>') ;
+    }) ;
+
+    group.unary('template definition and structure errors', async (t) => {
+        const error = (source:string, opts?:any):string => {
+            try { new TSStringTemplate(source, opts) ; return '' ; }
+            catch (e) { return (e as Error).message ; }
+        } ;
+        // marks and separator
+        t.expect0(error('a {{b}}', { startingMark:'{{', endingMark:'{{' })).is('starting mark, ending mark and separator must be distinct') ;
+        t.expect1(error('a {{b}}', { separator:'{{' })).is('starting mark, ending mark and separator must be distinct') ;
+        t.expect2(error('a ,{b}}', { startingMark:',{' })).is('first character of starting mark cannot be a comma') ;
+        t.expect3(error('a {{b(x', { endingMark:'(x' })).is('first character of ending mark cannot be a left parenthesis or a comma') ;
+        t.expect4(error('a {{b,}', { endingMark:',}' })).is('first character of ending mark cannot be a left parenthesis or a comma') ;
+        t.expect5(error('a {{b}}', { separator:'(a' })).is('first character of separator cannot be a parenthesis or a comma') ;
+        t.expect6(error('a {{b}}', { separator:')a' })).is('first character of separator cannot be a parenthesis or a comma') ;
+        t.expect7(error('a {{b}}', { separator:',a' })).is('first character of separator cannot be a parenthesis or a comma') ;
+        // structure
+        t.expect8(error('a {{x?:yes')).is('Malformed template structure. Template is not properly closed.') ;
+        t.expect9(error('a {{list#:{{y}}')).is('Malformed template structure. Template is not properly closed.') ;
+        t.expectA(/^Malformed template structure : found forbidden character 0xc3 .* at position 9 /.test(error('a {{b("x\\é")}}'))).true() ;
+        t.expectB(error('')).is('template string to small') ;
+        // the from...() functions return null instead of throwing
+        t.expectC(TSFusionTemplate.fromString('a {{x?:yes')).null() ;
+        t.expectD(TSFusionTemplate.fromString('')).null() ;
+        t.expectE(TSFusionTemplate.fromHTMLData(new Uint8Array(0))).null() ;
+        t.expectF(TSFusionTemplate.fromHTMLData(TSData.fromString('<p>{{x?:yes</p>')!)).null() ;
+        t.expectG(TSFusionTemplate.fromHTMLData(TSData.fromString('<p>{{x}}</p>')!)).OK() ;
+        t.expectH(TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'utf16be')).null() ;   // UTF-16 cannot be used, like utf16le
+        t.expectI(TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'utf16le')).null() ;
+    }) ;
+
+    group.unary('TSFusionTreeNode construction errors', async (t) => {
+        const root = TSFusionTreeNode.root() ;
+        root.pushData(new Uint8Array([65])) ;
+        const data = root.nodes![0] ;
+        t.expect0(() => data.pushData(new Uint8Array([66]))).toThrow('Impossible to add subnode to a text FusionTreeNode') ;
+        t.expect1(() => data.pushVariable('x', TSFusionNodeType.Variable, TSFusionContextType.Local)).toThrow('Impossible to add subnode to a text FusionTreeNode') ;
+        t.expect2(() => root.pushVariable('', TSFusionNodeType.Variable, TSFusionContextType.Local)).toThrow('Impossible to add an unamed fusion variable to Root variable.') ;
+        t.expect3(() => root.pushVariable('x', TSFusionNodeType.Root, TSFusionContextType.Local)).toThrow(`Impossible to add fusion variable 'x' as a root variable`) ;
+        t.expect4(() => root.pushVariable('x', TSFusionNodeType.Data, TSFusionContextType.Local)).toThrow(`Impossible to add fusion variable 'x' as a data variable`) ;
+        const variable = root.pushVariable('x', TSFusionNodeType.Variable, TSFusionContextType.Local) ;
+        t.expect5(variable.label).is('x') ;
+        t.expect6(() => variable.fusion(TSFusionTemplate.fromString('a {{x}}')!, {})).toThrow('Impossible invoque fusion() method on non-root FusionNodeType') ;
+    }) ;
+
+    group.unary('TSFusionTemplate.fromData() failures', async (t) => {
+        t.expect0(TSFusionTemplate.fromData(new Uint8Array(0))).null() ;                          // empty source
+        t.expect1(TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'hex')).null() ;        // forbidden encodings
+        t.expect2(TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'utf16le')).null() ;
+        t.expect3(TSFusionTemplate.fromData(TSData.fromString('a {{x?:yes')!, 'utf8')).null() ;   // parsing error
+        t.expect4(TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'utf8')).OK() ;
+
+        // with the debugParsing option, the failures are logged
+        const originalLog = console.log ;
+        let output = '' ;
+        console.log = ((...args:any[]) => { output += args.join(' ') + '\n' ; }) as any ;
+        let forbidden:any, malformed:any ;
+        try {
+            forbidden = TSFusionTemplate.fromData(TSData.fromString('a {{x}}')!, 'hex', { debugParsing:true }) ;
+            malformed = TSFusionTemplate.fromData(TSData.fromString('a {{x?:yes')!, 'utf8', { debugParsing:true }) ;
+        }
+        finally { console.log = originalLog ; }
+        t.expect5(forbidden).null() ;
+        t.expect6(malformed).null() ;
+        if (!$inbrowser()) {
+            t.expect7(output.includes("Data Parsing cannot use encoding: 'hex'")).true() ;
+            t.expect8(output.includes('Data Parsing did encounter error')).true() ;
+        }
     }) ;
 }),
 

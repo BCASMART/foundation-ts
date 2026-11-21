@@ -106,6 +106,9 @@ export const errorsGroups = TSTest.group("Error classes en functions tests", asy
         else              { t.expect5(() => TSError.assertNotInBrowser('fn')).doesNotThrow() ; }
         t.expect6(() => TSError.assert(false)).throws(/assert\(\) did fail/) ;
         t.expect7(() => TSError.assert(false, 'custom msg', 42)).throws('custom msg') ;
+        t.expect8(() => TSError.assert(false, 'msg3', 42, { a:1 })).throws((e:any) => e.message === 'msg3' && e.errorCode === 42 && e.info?.a === 1) ;
+        t.expect9(() => TSError.assert(false, 'msg4', { a:1 }, 43)).throws((e:any) => e.errorCode === 43 && e.info?.a === 1) ;
+        t.expectA(() => TSError.assert(true, 'never', 42, { a:1 })).doesNotThrow() ;
     }) ;
 
     group.unary("TSUniqueError singletons", async (t) => {

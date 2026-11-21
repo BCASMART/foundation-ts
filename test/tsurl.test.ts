@@ -789,5 +789,16 @@ export const TSURLGroups = [
             t.expectF(() => TSURL.url('not a url', { throwsError:true })).throws((e:any) => e instanceof TSError) ;
         }) ;
     }),
+    TSTest.group("TSURL — invalid punycode hostnames", async (group) => {
+        group.unary('utf8Href keeps the labels which cannot be decoded', async (t) => {
+            const h = (s:string) => TSURL.url(s)?.utf8Href ;
+            t.expect0(h('https://xn--a_b.com/')).is('https://xn--a_b.com/') ;                   // '_' is not a punycode digit
+            t.expect1(h('https://xn--a-9999z.com/')).is('https://xn--a-9999z.com/') ;           // code point beyond 0x10FFFF
+            t.expect2(h('https://xn--999999999999.com/')).is('https://xn--999999999999.com/') ; // integer overflow
+            t.expect3(h('https://xn--99999999.com/')).is('https://xn--99999999.com/') ;         // truncated integer
+            t.expect4(h('https://www.xn--a_b.xn--mnchen-3ya.de/')).is('https://www.xn--a_b.münchen.de/') ; // only the bad label is kept
+            t.expect5(TSURL.url('https://xn--a_b.com/')?.href).is('https://xn--a_b.com/') ;
+        }) ;
+    }),
 ] ;
 

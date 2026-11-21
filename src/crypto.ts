@@ -1,5 +1,5 @@
-import { createReadStream } from 'fs'; // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'; // NOSONAR: idem
+import { createReadStream } from 'fs'; // NOSONAR: no 'node:' prefix for webpack 5
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'; // NOSONAR: no 'node:' prefix for webpack 5
 
 
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
@@ -120,17 +120,17 @@ export function $commonInitializationVectorCopy():Buffer
 { return $bufferFromBytes(__CommonInitializationVector, { forceCopy:true }) ; }
 
 export interface $encryptOptions { // NOSONAR: name accepted for matchnig the function
-    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: encoding is optional and default charset is binary
-    keyEncoding?:Nullable<StringEncoding | TSCharset> ; // NOSONAR: keyEncoding is optional and default key charset is binary
-    algorithm?: Nullable<EncryptionAlgorithm> ; // NOSONAR: algorithm is optional
-    noInitializationVector?:Nullable<boolean> ; // NOSONAR: noInitializationVector is optional
-    dataOutput?: Nullable<boolean>; // NOSONAR: dataOutput is optional
+    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default charset is binary
+    keyEncoding?:Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default key charset is binary
+    algorithm?: Nullable<EncryptionAlgorithm> ; // NOSONAR: optional
+    noInitializationVector?:Nullable<boolean> ; // NOSONAR: optional
+    dataOutput?: Nullable<boolean>; // NOSONAR: optional
 }
 
 // default encryption mode is AES256-CBC with a random generated initialization vector
 // default output is an hexa string
 export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, opts?: Nullable<$encryptOptions>):  TSData | string | null {
-    if (!_cipherAvailable(false)) {
+    if (!_cipherAvailable()) {
         TSError.throw(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
     }
 
@@ -151,8 +151,7 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
         encrypted.appendBytes(cipher.final()) ;
         returnValue = !opts?.dataOutput ? encrypted.hexaString() : encrypted; // output is a TSData OR an hexa string
     }
-    catch (e) {
-        console.log(e) ;
+    catch {
         returnValue = null;
     }
     return returnValue;
@@ -162,7 +161,7 @@ export interface $decryptOptions extends $encryptOptions {} // NOSONAR: name acc
 
 // default returned value is a string to be conform to "standard" encrypt/decryp functions
 export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, opts?: Nullable<$decryptOptions>): TSData | string | null {
-    if (!_cipherAvailable(true)) {
+    if (!_decipherAvailable()) {
         TSError.throw(`$decrypt() : function createDecipheriv() is not available in your system.`, { source:source, options:opts }) ;
     }
 
@@ -249,9 +248,9 @@ export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMeth
 }
 
 export interface $hashOptions { // NOSONAR: name accepted for matchnig the function
-    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: field is optional. default charset is binary
-    method?: Nullable<HashMethod> ; // NOSONAR: field is optional
-    dataOutput?: Nullable<boolean>; // NOSONAR: field is optional
+    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default charset is binary
+    method?: Nullable<HashMethod> ; // NOSONAR: optional
+    dataOutput?: Nullable<boolean>; // NOSONAR: optional
 }
 
 // $slowhash() is 5 to 7 times slower than node.js implementation
@@ -350,12 +349,12 @@ export const TS_MAX_PASSWORD_LENGTH = 64
 export function $password(len:number, opts: $passwordOptions = {}):string 
 {
     if (!opts.usesLowercase && !opts.usesDigits && !opts.usesSpecials && !opts.usesUppercase) {
-        opts.usesLowercase = true ;
+        opts = { ...opts, usesLowercase:true } ; // the caller options are left unchanged (they used to be modified)
     }
 
     const minLen = Math.max((!opts.usesLowercase?0:1)+(!opts.usesUppercase?0:1)+(!opts.usesDigits?0:1)+(!opts.usesSpecials?0:1), 3) ; 
     if (len < minLen) {
-        TSError.throw(`$password(): asked length is too short (${len}<${minLen}) for your gneration options`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
+        TSError.throw(`$password(): asked length is too short (${len}<${minLen}) for your generation options`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
     }
     else if (len > TS_MAX_PASSWORD_LENGTH) {
         TSError.throw(`$password(): asked length is too long (${len}>${TS_MAX_PASSWORD_LENGTH})`, { length:len, min:minLen, max:TS_MAX_PASSWORD_LENGTH, ... opts})
@@ -529,7 +528,7 @@ function _createHash(method?:Nullable<HashMethod>):TSHasher {
 }
 
 function _hashAvailable():boolean
-{ return $ok(_providerFn('createHash')) || typeof createHash !== 'undefined' ; }
+{ return $ok(_providerFn('createHash')) || createHash !== undefined ; }
 
 function _createCipher(decrypt:boolean, algo:string, key:Uint8Array, iv:Uint8Array):TSCipher {
     const provided = _providerFn(decrypt ? 'createDecipheriv' : 'createCipheriv') ;
@@ -537,10 +536,14 @@ function _createCipher(decrypt:boolean, algo:string, key:Uint8Array, iv:Uint8Arr
     return decrypt ? createDecipheriv(algo, key, iv) : createCipheriv(algo, key, iv) ;
 }
 
-function _cipherAvailable(decrypt:boolean):boolean {
-    return $ok(_providerFn(decrypt ? 'createDecipheriv' : 'createCipheriv')) ||
-           typeof (decrypt ? createDecipheriv : createCipheriv) !== 'undefined' ;
+function _cipherAvailable():boolean {
+    return $ok(_providerFn('createCipheriv')) || createCipheriv !== undefined ;
 }
+
+function _decipherAvailable():boolean {
+    return $ok(_providerFn('createDecipheriv')) || createDecipheriv !== undefined ;
+}
+
 
 function _charsetKeyAndAlgo(skey: string | TSDataLike, opts?: Nullable<$encryptOptions>): [TSCharset | null, Uint8Array, string] {
     const defaultCharset = TSCharset.binaryCharset() ;

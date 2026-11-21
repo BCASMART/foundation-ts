@@ -23,7 +23,7 @@ import {
     chmodSync,
     StatOptions,
     rmSync
-} from 'fs'  // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+} from 'fs'  // NOSONAR: no 'node:' prefix for webpack 5
 
 import {
     basename,
@@ -34,9 +34,9 @@ import {
     normalize,
     resolve,
     sep
-} from 'path'; // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+} from 'path'; // NOSONAR: no 'node:' prefix for webpack 5
 
-import { homedir } from 'os';  // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+import { homedir } from 'os';  // NOSONAR: no 'node:' prefix for webpack 5
 
 import { $isbool, $isstring, $isunsigned, $length, $ok, $strings, $value, $valueornull } from './commons';
 import { $tmp } from './tsdefaults';
@@ -82,7 +82,7 @@ export interface CommonStats {
     mode:number|bigint ;
     modifiedAt:number|bigint ;   // ms from Epoch
     readable:boolean ;
-    size:number|bigint ;        // octets
+    size:number|bigint ;        // Bytes
     uid:number|bigint ;
     writable:boolean ;
 } ;
@@ -184,7 +184,7 @@ export function $createDirectory(p: Nullable<string>, wantedMode?:Nullable<numbe
     const stats = $stats(p);
     if ($ok(stats)) { 
         if (stats.isDirectory()) { 
-            if (!$ok(wantedMode) || stats.mode === mode) {
+            if (!$ok(wantedMode) || (stats.mode & 0o777) === mode) { // stats.mode also holds the file type bits
                 return true ; // folder is here and mode matches (or no specific mode was requested)
             }
             errors?.push(`Path exists and is a directory but mode does not match: "${p}"`);
@@ -395,16 +395,16 @@ export function $readString(src: Nullable<string>, encoding?: Nullable<StringEnc
 }
 
 export interface BasicWriteOptions { 
-    attomically?: Nullable<boolean>; // NOSONAR: field is optional
-    removePrecedentVersion?: Nullable<boolean>; // NOSONAR: field is optional
-    mode?: Nullable<number>; // NOSONAR: field is optional
-    errors?: Nullable<string[]>; // NOSONAR: field is optional. when set, every error encountered (not warnings) is pushed here
+    attomically?: Nullable<boolean>; // NOSONAR: optional
+    removePrecedentVersion?: Nullable<boolean>; // NOSONAR: optional
+    mode?: Nullable<number>; // NOSONAR: optional
+    errors?: Nullable<string[]>; // NOSONAR: optional. when set, every error encountered (not warnings) is pushed here
 }
 
 export interface $writeStringOptions extends BasicWriteOptions { // NOSONAR: name accepted for matchnig the function
-    encoding?: Nullable<StringEncoding | TSCharset>, // NOSONAR: field is optional
-    stringStart?: Nullable<number>, // NOSONAR: field is optional
-    stringEnd?: Nullable<number> // NOSONAR: field is optional
+    encoding?: Nullable<StringEncoding | TSCharset>, // NOSONAR: optional
+    stringStart?: Nullable<number>, // NOSONAR: optional
+    stringEnd?: Nullable<number> // NOSONAR: optional
 }
 
 export function $writeString(src: Nullable<string>, str: string, opts: $writeStringOptions = {}): boolean {
@@ -450,106 +450,117 @@ export function $writeBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBu
 // returns [OK/KO and the name of the precedent version if it exists
 export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBufferView, opts: $writeBufferOptions): [boolean, string | null] {
     TSError.assertNotInBrowser('$fullWriteBuffer');
-    let done = false;
-    let precedent: string | null = null;
-    const fail = (message: string) => { if (opts.errors) { opts.errors.push(message); } };
-
     let start = $ok(opts.byteStart) ? opts.byteStart! : 0;
     let end = $ok(opts.byteEnd) ? opts.byteEnd! : buf.byteLength;
-    let mode = $ok(opts.mode) ? opts.mode! : 0o666;
+    const mode = $ok(opts.mode) ? opts.mode! : 0o666;
 
-    if ($length(src) && $isunsigned(start) && $isunsigned(end) && $isunsigned(mode)) {
-        const pathToWrite = opts.attomically ? $uniquefile(src) : src!;
-        end = Math.min(end!, buf.byteLength);
-        start = Math.min(start!, end);
-        const stats = $stats(src) ;
-
-        if (!$ok(stats) || stats?.isFile()) {
-            // never move the next line of code before this point because
-            // TSData.byteLength may be different from its internal storage buffer length
-            // warning: this method works because it's not async so we can
-            // consider that TSData is immutable during this scope
-            if (buf instanceof TSData) { [buf,] = buf.internalStorage; }
-
-            try {
-                const fd = openSync(pathToWrite, 'w', mode);
-                const MAX_TRY = 3;
-                try {
-                    let retries = 0;
-                    while (start < end) {
-                        const wlen = writeSync(fd, buf, start, end - start);
-                        if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
-                        if (retries > MAX_TRY) {
-                            const message = `$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.` ;
-                            fail(message) ;
-                            TSError.throw(message, {
-                                path: src,
-                                buffer: buf,
-                                options: opts
-                            });
-                        }
-                        start += wlen;
-                    }
-                    done = true;
-                }
-                finally {
-                    closeSync(fd);
-                }
-            }
-            catch (e) {
-                done = false;
-                fail(`$fullWriteBuffer(): unable to write file '${pathToWrite}' (${(e as Error)?.message ?? e}).`) ;
-            }
-        }
-        else {
-            fail(`$fullWriteBuffer(): '${src}' exists and is not a regular file.`) ;
-        }
-
-        if (done && opts.attomically) {
-            if ($ok(stats)) {
-                const renamedExistingFile = $uniquefile(src);
-                done = _safeRename(src!, renamedExistingFile, opts.errors);
-                if (!done) { 
-                    fail(`$fullWriteBuffer(): unable to rename existing file '${src}' to '${renamedExistingFile}' before atomic replace.`) ;
-                 }
-                if (done && !_safeRename(pathToWrite, src!, opts.errors)) {
-                    // we immediately try to give back its name to our original file
-                    if (!_safeRename(renamedExistingFile, src!, opts.errors)) {
-                        // we should have been able to give our initial file its original name back
-                        // but we could'nt do it, so, in this very hypothetical case, we will not
-                        // destroy anything and will throw an Error will all the info in it
-                        const message = `Unable to atomically finish writing file '${src}'` ;
-                        fail(message) ;
-                        TSError.throw(message, {
-                            wantedPath: src,
-                            renamedExistingFile: renamedExistingFile,
-                            writtenDataFile: pathToWrite
-                        });
-                    }
-                    fail(`$fullWriteBuffer(): unable to atomically replace '${src}' with the new content ; original file restored.`) ;
-                    done = false;
-                }
-                if (!done) {
-                    // we may let a newly created temporary file here if unlink does not succeed
-                    if (!_safeUnlink(pathToWrite, opts.errors)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
-                }
-                else if (opts.removePrecedentVersion) { _safeUnlink(renamedExistingFile, opts.errors); }
-                else { precedent = renamedExistingFile; }
-            }
-            else {
-                done = _safeRename(pathToWrite, src!, opts.errors) ;
-                if (!done) {
-                    fail(`$fullWriteBuffer(): unable to rename temporary file '${pathToWrite}' to '${src}'.`) ;
-                    // we may let a newly created temporary file here if unlink does not succeed
-                    if (!_safeUnlink(pathToWrite, opts.errors)) { fail(`$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
-                }
-            }
-        }
+    if (!$length(src) || !$isunsigned(start) || !$isunsigned(end) || !$isunsigned(mode)) {
+        _writeFailure(opts, `$fullWriteBuffer(): bad parameters for '${src}' (path, byteStart, byteEnd or mode).`) ;
+        return [false, null];
     }
-    else {
-        fail(`$fullWriteBuffer(): bad parameters for '${src}' (path, byteStart, byteEnd or mode).`) ;
+
+    const pathToWrite = opts.attomically ? $uniquefile(src) : src!;
+    end = Math.min(end, buf.byteLength);
+    start = Math.min(start, end);
+    const stats = $stats(src) ;
+
+    if ($ok(stats) && !stats!.isFile()) {
+        _writeFailure(opts, `$fullWriteBuffer(): '${src}' exists and is not a regular file.`) ;
+        return [false, null];
     }
-    return [done, precedent];
+
+    // never move the next line of code before this point because
+    // TSData.byteLength may be different from its internal storage buffer length
+    // warning: this method works because it's not async so we can
+    // consider that TSData is immutable during this scope
+    const data = buf instanceof TSData ? buf.internalStorage[0] : buf ;
+
+    if (!_writeFileRange(src!, pathToWrite, data, start, end, mode, opts)) { return [false, null]; }
+    if (!opts.attomically) { return [true, null]; }
+    return $ok(stats) ? _atomicReplaceFile(src!, pathToWrite, opts) : [_atomicRenameFile(src!, pathToWrite, opts), null];
+}
+
+function _writeFailure(opts: $writeBufferOptions, message: string) { if (opts.errors) { opts.errors.push(message); } }
+
+// writes data[start..end[ in pathToWrite. returns false on failure
+function _writeFileRange(src: string, pathToWrite: string, data: NodeJS.ArrayBufferView, start: number, end: number, mode: number, opts: $writeBufferOptions): boolean {
+    try {
+        const fd = openSync(pathToWrite, 'w', mode);
+        try { _writeAll(fd, src, data, start, end, opts) ; }
+        finally { closeSync(fd); }
+        return true ;
+    }
+    catch (e) {
+        _writeFailure(opts, `$fullWriteBuffer(): unable to write file '${pathToWrite}' (${(e as Error)?.message ?? e}).`) ;
+        return false ;
+    }
+}
+
+function _writeAll(fd: number, src: string, data: NodeJS.ArrayBufferView, start: number, end: number, opts: $writeBufferOptions) {
+    const MAX_TRY = 3;
+    let retries = 0;
+    while (start < end) {
+        const wlen = writeSync(fd, data, start, end - start);
+        if (wlen === 0) { retries++; } else { retries = 0; } // we never should have wlen === 0 but ...
+        if (retries > MAX_TRY) {
+            const message = `$fullWriteBuffer(): tried to fs.writeSync() ${retries} times without any success.` ;
+            _writeFailure(opts, message) ;
+            TSError.throw(message, {
+                path: src,
+                buffer: data,
+                options: opts
+            });
+        }
+        start += wlen;
+    }
+}
+
+// src exists: it is renamed, then replaced by the written file
+function _atomicReplaceFile(src: string, pathToWrite: string, opts: $writeBufferOptions): [boolean, string | null] {
+    const renamedExistingFile = $uniquefile(src);
+    let done = _safeRename(src, renamedExistingFile, opts.errors);
+    if (!done) {
+        _writeFailure(opts, `$fullWriteBuffer(): unable to rename existing file '${src}' to '${renamedExistingFile}' before atomic replace.`) ;
+    }
+    if (done && !_safeRename(pathToWrite, src, opts.errors)) {
+        // we immediately try to give back its name to our original file
+        if (!_safeRename(renamedExistingFile, src, opts.errors)) {
+            // we should have been able to give our initial file its original name back
+            // but we could'nt do it, so, in this very hypothetical case, we will not
+            // destroy anything and will throw an Error will all the info in it
+            const message = `Unable to atomically finish writing file '${src}'` ;
+            _writeFailure(opts, message) ;
+            TSError.throw(message, {
+                wantedPath: src,
+                renamedExistingFile: renamedExistingFile,
+                writtenDataFile: pathToWrite
+            });
+        }
+        _writeFailure(opts, `$fullWriteBuffer(): unable to atomically replace '${src}' with the new content ; original file restored.`) ;
+        done = false;
+    }
+    if (!done) {
+        _removeTemporaryFile(pathToWrite, opts) ;
+        return [false, null] ;
+    }
+    if (opts.removePrecedentVersion) {
+        _safeUnlink(renamedExistingFile, opts.errors);
+        return [true, null] ;
+    }
+    return [true, renamedExistingFile] ;
+}
+
+// src does not exist: the written file is simply renamed
+function _atomicRenameFile(src: string, pathToWrite: string, opts: $writeBufferOptions): boolean {
+    if (_safeRename(pathToWrite, src, opts.errors)) { return true ; }
+    _writeFailure(opts, `$fullWriteBuffer(): unable to rename temporary file '${pathToWrite}' to '${src}'.`) ;
+    _removeTemporaryFile(pathToWrite, opts) ;
+    return false ;
+}
+
+function _removeTemporaryFile(pathToWrite: string, opts: $writeBufferOptions) {
+    // we may let a newly created temporary file here if unlink does not succeed
+    if (!_safeUnlink(pathToWrite, opts.errors)) { _writeFailure(opts, `$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
 }
 
 export function $localRenameFile(src: Nullable<string>, dest: Nullable<string>, errors?: Nullable<string[]>): boolean {
@@ -575,39 +586,30 @@ export function $removeDirectory(src: Nullable<string>, force?:Nullable<boolean>
  */
 export function $realMoveFile(src: Nullable<string>, dest: Nullable<string>, errors?: Nullable<string[]>): boolean {
     TSError.assertNotInBrowser('$realMoveFile');
-    let done = false;
-    if ($length(src) && $length(dest) && src !== dest && $isfile(src)) {
-        if ($isdirectory(dest)) {
-            dest = $path(dest!, $filename(src));
-            if (src === dest) { return false; }
-        }
-        done = _safeRename(src!, dest!, undefined); // we dont want any error stored here since we may want to copy the file if rename fails
-        if (!done) {
-            // rename function did not work, so we will try to copy
-            // the file
-            try {
-                copyFileSync(src!, dest!);
-                done = true;
-            }
-            catch (e:any) {
-                errors?.push(`Failed to copy "${src}" to "${dest}" with error: ${e.message}`);
-                done = false;
-            }
-            if (done) {
-                done = false ;
-                try { 
-                    unlinkSync(src!); 
-                    done = true ;
-                }
-                catch (e:any) { 
-                    // WARNING: if we fails here, we may have made the copy() done properly but not the unlink()
-                    errors?.push(`Failed to unlink "${src}" after copying to "${dest}" with error: ${e.message}`); 
-                    done = false ;
-                }
-            }
-        }
+    if (!$length(src) || !$length(dest) || src === dest || !$isfile(src)) { return false ; }
+    if ($isdirectory(dest)) {
+        dest = $path(dest!, $filename(src));
+        if (src === dest) { return false; }
     }
-    return done;
+    // we dont want any error stored here since we may want to copy the file if rename fails
+    if (_safeRename(src!, dest!, undefined)) { return true ; }
+    // rename function did not work, so we will try to copy the file
+    return _copyThenUnlink(src!, dest!, errors) ;
+}
+
+function _copyThenUnlink(src: string, dest: string, errors?: Nullable<string[]>): boolean {
+    try { copyFileSync(src, dest); }
+    catch (e:any) {
+        errors?.push(`Failed to copy "${src}" to "${dest}" with error: ${e.message}`);
+        return false ;
+    }
+    try { unlinkSync(src); }
+    catch (e:any) {
+        // WARNING: if we fails here, we may have made the copy() done properly but not the unlink()
+        errors?.push(`Failed to unlink "${src}" after copying to "${dest}" with error: ${e.message}`);
+        return false ;
+    }
+    return true ;
 }
 
 export function $copyFile(src: Nullable<string>, dest: Nullable<string>, overwrite: boolean = false): boolean {
@@ -674,36 +676,33 @@ function _safeCheckPermissions(src: Nullable<string>, permissions: number): bool
 
 function _internalPath(...paths: string[]): string {
     const n = paths.length;
-    if (n > 0) {
-        const firstComponents = paths[0].split('/');
-        const isAbsolute = paths[0].startsWith('/');
-        const comps: string[] = []
+    if (n === 0) { return ''; }
+    const isAbsolute = paths[0].startsWith('/');
+    const comps: string[] = []
 
-        function _addComponent(comps: string[], s: string) {
-            if (s === '..') {
-                if (comps.length > 0) {
-                    if (comps[comps.length - 1] != '..') { comps.pop(); }
-                    else { comps.push('..'); }
-                }
-                else if (!isAbsolute) { comps.push('..'); }
-            }
-            else if (s.length > 0 && s !== '.') { comps.push(s); }
+    for (let p of paths[0].split('/')) { _addPathComponent(comps, p, isAbsolute); }
+    for (let i = 1; i < n; i++) {
+        const p = paths[i];
+        if (p.length > 0) {
+            for (let s of p.split('/')) { _addPathComponent(comps, s, isAbsolute); }
         }
-
-        for (let p of firstComponents) { _addComponent(comps, p); }
-        for (let i = 1; i < n; i++) {
-            const p = paths[i];
-            if (p.length > 0) {
-                for (let s of p.split('/')) { _addComponent(comps, s); }
-            }
-        }
-        if (comps.length) {
-            const s = comps.join('/');
-            return isAbsolute ? '/' + s : s;
-        }
-        else if (isAbsolute) { return '/'; }
     }
-    return '';
+    if (comps.length) {
+        const s = comps.join('/');
+        return isAbsolute ? '/' + s : s;
+    }
+    return isAbsolute ? '/' : '';
+}
+
+function _addPathComponent(comps: string[], s: string, isAbsolute: boolean) {
+    if (s === '..') {
+        if (comps.length > 0) {
+            if (comps.at(-1) !== '..') { comps.pop(); }
+            else { comps.push('..'); }
+        }
+        else if (!isAbsolute) { comps.push('..'); }
+    }
+    else if (s.length > 0 && s !== '.') { comps.push(s); }
 }
 
 declare global {

@@ -42,7 +42,7 @@ export interface TSTesterResult {
 const _emptyTesterResult:TSTesterResult = { groups:0, passed:0, silent:0, failed:0, expectations:0, failures:0, stopped:false } ;
 
 export class TSTester {
-    public static globalOptions:TSTesterGlobalOptions = {} ; // NOSONAR: this static variable is meant to be public
+    public static globalOptions:TSTesterGlobalOptions = {} ; // NOSONAR: kept public and writable to avoid a breaking change
 
     public groups:TSTestGroup[] = [] ;
     public _names:Set<string> ;
@@ -200,7 +200,7 @@ export abstract class TSGenericTest {
 }
 
 export class TSTestGroup extends TSGenericTest {
-    private _unaries:TSGenericTest[] = [] ; 
+    private readonly _unaries:TSGenericTest[] = [] ; 
     private _stopReason:string|undefined = undefined ;
     public constructor(s:string, f:groupFN, opts?:TSGenericTestOptions) {
         super(s, f as testFN, opts) ;
@@ -414,9 +414,9 @@ export class TSUnaryTest extends TSGenericTest {
 }
 
 export class TSExpectAgent {
-    private _value:any ;
-    private _step:TSUnaryTest ;
-    private _message:string ;
+    private readonly _value:any ;
+    private readonly _step:TSUnaryTest ;
+    private readonly _message:string ;
     public constructor(step:TSUnaryTest, value:any, msg:string='') {
         this._step = step ;
         this._value = value ;

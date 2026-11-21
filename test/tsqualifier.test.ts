@@ -1,6 +1,12 @@
 import { Address } from "../src/types";
 import { TSTest } from '../src/tstester';
-import { $valuesForKeyPath, TSQualifier } from "../src/tsqualifier";
+import { $sqllike, $valuesForKeyPath, TSQualifier } from "../src/tsqualifier";
+import { TSDate } from "../src/tsdate";
+import { TSRange } from "../src/tsrange";
+import { TSRangeSet } from "../src/tsrangeset";
+import { TSInterval } from "../src/tsinterval";
+import { Nullable, TSDictionary } from "../src/types";
+import { $ok } from "../src/commons";
 
 interface People {
     firstName:string ;
@@ -258,10 +264,14 @@ export const qualifierGroups = [
             t.expect3(durand.inverse().operator).is('NOT') ;
         }) ;
 
-        group.unary('INRANGE collapses to EQ for a length-1 range, throws on empty', async (t) => {
-            t.expect0(TSQualifier.INRANGE<People>('age', [23, 1]).operator).is('EQ') ;
+        group.unary('INRANGE with a length-1 range and with an empty range', async (t) => {
+            // a length 1 range used to give EQ(key, location), which did not match a non-integer value
+            t.expect0(TSQualifier.INRANGE<People>('age', [23, 1]).operator).is('AND') ;
             t.expect1(idx(TSQualifier.INRANGE<People>('age', [23, 1]))).is([2]) ;
-            t.expect2(() => TSQualifier.INRANGE<People>('age', [0, 0])).throws() ;
+            t.expect2(TSQualifier.INRANGE<any>('x', [23, 1]).validateValue({ x:23.5 })).true() ;
+            // an empty range used to throw: it now matches nothing, like TSRange.containsLocation()
+            t.expect3(idx(TSQualifier.INRANGE<People>('age', [23, 0]))).is([]) ;
+            t.expect4(() => TSQualifier.INRANGE<People>('age', [0, -1])).throws(/invalid range/) ;
         }) ;
     }),
 
@@ -285,11 +295,18 @@ export const qualifierGroups = [
             t.expect0(TSQualifier.INCLUDED<Slot>('a', 5, 25).operator).is('AND') ;
             t.expect1(sidx(TSQualifier.INTERSECTS<Slot>('start', 'end', 6, 25)).includes(2)).true() ; // [20,30] overlaps [6,25]
             t.expect2(() => TSQualifier.INCLUDED<Slot>('a', null, null)).throws() ;
+            t.expect(('abc' as any).sqlLike(null), 'like1').false() ;
+            t.expect($sqllike(null, 'a%'), 'like2').false() ;
+            t.expect($sqllike(123, '1_3'), 'like3').true() ;           // a non string value is compared with its string form
+            t.expect($sqllike('a.c', 'a_c'), 'like4').true() ;
+            t.expect($sqllike('abc', 'a.c'), 'like5').false() ;        // a regex special character is a plain character
             // canUnspecify path
             const q = TSQualifier.INTERSECTS<Slot>('start', 'end', 6, 25, true) ;
             t.expect3(q.operator).is('AND') ;
-            t.expect4(sidx(q).includes(3)).false() ;   // EQ(key,null) does not match a *missing* key
+            t.expect4(sidx(q).includes(3)).true() ;    // missing start and end are infinite (EQ(key,null) used to match nothing)
             t.expect5(sidx(q).includes(0)).true() ;
+            // the condition which cannot be interpreted is given in the error (it used to be the absent callback)
+            t.expect6(() => TSQualifier.AND<Slot>([{ a:1 }]).validateValue(slots[0])).throws((e:any) => e.info?.condition?.a === 1) ;
         }) ;
 
         group.unary('builder methods throw on non-AND/OR qualifiers', async (t) => {
@@ -342,6 +359,127 @@ export const qualifierGroups = [
             t.expect3(orq.validateValue(peoples[5], cb)).true() ;
             const notq = TSQualifier.NOT<People>({ minAge:40 } as any) ;
             t.expect4(notq.validateValue(peoples[7], cb)).true() ;
+        }) ;
+
+        group.unary('validateValue() gives the callback to nested composite qualifiers', async (t) => {
+            const cb = (p:People, cond:any) => (p.age ?? 0) >= cond.minAge ;
+            const V = (q:TSQualifier<People>, p:People) => { try { return q.validateValue(p, cb) ; } catch (e) { return (e as Error).message ; } } ;
+            const q = TSQualifier.AND<People>([TSQualifier.OR<People>([{ minAge:40 } as any])]) ;
+            t.expect0(V(q, peoples[5])).true() ;    // age 47
+            t.expect1(V(q, peoples[7])).false() ;   // age 9
+            const notq = TSQualifier.NOT<People>(TSQualifier.AND<People>([{ minAge:40 } as any])) ;
+            t.expect2(V(notq, peoples[7])).true() ;
+        }) ;
+    }),
+
+    TSTest.group("TSQualifier — null values, INRANGE / CONTINUOUS / OVERLAPS / CONTAINS / CONTAINEDIN", async (group) => {
+        group.unary('EQ(key, null) and NEQ(key, null) are IS NULL and IS NOT NULL', async (t) => {
+            const isNull = TSQualifier.EQ<any>('a', null), notNull = TSQualifier.NEQ<any>('a', null) ;
+            t.expect0(isNull.validateValue({ a:null })).true() ;      // used to be false
+            t.expect1(isNull.validateValue({})).true() ;              // absent
+            t.expect2(isNull.validateValue({ a:0 })).false() ;
+            t.expect3(isNull.validateValue({ a:[] })).true() ;        // no value
+            t.expect4(notNull.validateValue({ a:0 })).true() ;
+            t.expect5(notNull.validateValue({ a:null })).false() ;
+            t.expect6(notNull.validateValue({})).false() ;
+            t.expect7(TSQualifier.EQ<any>('a.b', undefined).validateValue({ a:{ c:1 } })).true() ;
+            t.expect8(TSQualifier.EQ<any>('a', 0).validateValue({ a:null })).false() ;
+            // the qualifier structure (used to build database requests) does not change
+            t.expect9(isNull.operator).is('EQ') ;
+            t.expectA(isNull.value()).null() ;
+        }) ;
+
+        group.unary('INRANGE() forms', async (t) => {
+            const V = (q:TSQualifier<any>, x:any) => q.validateValue({ x:x }) ;
+            const D = (n:number) => TSDate.fromEpoch(n)! ;
+            t.expect0(V(TSQualifier.INRANGE('x', 2, 5), 2)).true() ;
+            t.expect1(V(TSQualifier.INRANGE('x', 2, 5), 5)).false() ;           // half-open
+            t.expect2(V(TSQualifier.INRANGE('x', null, 5), -100)).true() ;      // infinite start
+            t.expect3(V(TSQualifier.INRANGE('x', 2, null), 1e9)).true() ;       // infinite end
+            t.expect4(V(TSQualifier.INRANGE('x', null, null), 'anything')).true() ;
+            t.expect5(TSQualifier.INRANGE('x', 2, null).operator).is('GTE') ;
+            t.expect6(() => TSQualifier.INRANGE('x', 5, 2)).throws(/anterior/) ;
+            const set = new TSRangeSet([[0, 2], [10, 2]]) ;
+            t.expect7(TSQualifier.INRANGE('x', set).operator).is('OR') ;
+            t.expect8([0, 1, 2, 9, 10, 11, 12].map(x => V(TSQualifier.INRANGE('x', set), x))).is([true, true, false, false, true, true, false]) ;
+            t.expect9(() => TSQualifier.INRANGE('x', new TSRangeSet())).throws(/always returns false/) ;
+            const interval = new TSInterval(D(100), null) ;
+            t.expectA(V(TSQualifier.INRANGE('x', interval), D(100))).true() ;
+            t.expectB(V(TSQualifier.INRANGE('x', interval), D(99))).false() ;
+            t.expectC(V(TSQualifier.INRANGE('x', new TSInterval(null, null)), D(1))).true() ;
+            t.expectD(() => TSQualifier.INRANGE('x', 'nope' as any)).throws(/invalid range/) ;
+            const inverted = new TSInterval(D(1), D(2)) ; inverted.first = D(3) ;
+            t.expectE(() => TSQualifier.INRANGE('x', inverted)).throws(/invalid interval/) ;
+            // instance method
+            const q = TSQualifier.AND<any>().inRange('x', 2, 5).inRange('y', [0, 1]) ;
+            t.expectF(q.validateValue({ x:3, y:0 })).true() ;
+            t.expectG(q.validateValue({ x:3, y:1 })).false() ;
+        }) ;
+
+        // every pair of ranges (empty ones included) of 0..12: the qualifiers on { s, e } objects
+        // must give the same results as the TSRange methods
+        group.unary('same results as TSRange (all pairs of ranges)', async (t) => {
+            const ranges:TSRange[] = [] ;
+            for (let a = 0 ; a <= 12 ; a++) { for (let l = 0 ; l <= 6 ; l += 2) { ranges.push(new TSRange(a, l)) ; }}
+            const counts:TSDictionary<number> = {} ;
+            const failure = (name:string) => { counts[name] = (counts[name] ?? 0) + 1 ; } ;
+            for (const o of ranges) {
+                const obj = { s:o.location, e:o.maxRange } ;
+                const strictlyIn = (e:TSRange, r:TSRange) => e.isEmpty && e.location > r.location && e.location < r.maxRange ;
+                const strictlyInside = (w:TSRange) => strictlyIn(o, w) ;
+                for (const w of ranges) {
+                    if (TSQualifier.CONTINUOUS<any>('s', 'e', w).validateValue(obj) !== o.continuousWith(w)) { failure('CONTINUOUS') ; }   // exact
+                    // documented exception: an empty object strictly inside the interval
+                    if (TSQualifier.OVERLAPS<any>('s', 'e', w).validateValue(obj) !== (o.intersects(w) || strictlyInside(w))) { failure('OVERLAPS') ; }
+                    if (TSQualifier.CONTAINS<any>('s', 'e', w).validateValue(obj) !== o.contains(w)) { failure('CONTAINS') ; }
+                    // documented exception: an empty object located at the excluded end of the interval
+                    const atEnd = o.isEmpty && o.location === w.maxRange && !w.isEmpty ;
+                    if (TSQualifier.CONTAINEDIN<any>('s', 'e', w).validateValue(obj) !== (o.containedIn(w) || atEnd)) { failure('CONTAINEDIN') ; }
+                    for (let x = -1 ; x <= 20 ; x++) {
+                        if (TSQualifier.INRANGE<any>('x', w).validateValue({ x:x }) !== w.containsLocation(x)) { failure('INRANGE') ; }
+                    }
+                }
+            }
+            t.expect0(counts).is({}) ;
+        }) ;
+
+        // with canUnspecify, a null start or end value is infinite: same results as TSInterval
+        group.unary('canUnspecify gives the same results as TSInterval with infinite bounds', async (t) => {
+            const D = (n:number) => TSDate.fromEpoch(n)! ;
+            const bounds:[Nullable<number>, Nullable<number>][] = [] ;
+            const values = [null, 0, 3, 6, 9] ;
+            for (const a of values) { for (const b of values) { if (!$ok(a) || !$ok(b) || a! <= b!) { bounds.push([a, b]) ; }}}
+            const I = ([a, b]:[Nullable<number>, Nullable<number>]) => new TSInterval($ok(a) ? D(a!) : null, $ok(b) ? D(b!) : null) ;
+            const counts:TSDictionary<number> = {} ;
+            const failure = (name:string) => { counts[name] = (counts[name] ?? 0) + 1 ; } ;
+            for (const ob of bounds) {
+                const oi = I(ob) ;
+                const obj = { s:oi.first ?? null, e:oi.second ?? null } ;
+                for (const wb of bounds) {
+                    const wi = I(wb) ;
+                    const inside = oi.isEmpty && wi.containsDate(oi.start) && !(oi.start.isEqual(wi.start) && $ok(wi.first)) ;
+                    if (TSQualifier.CONTINUOUS<any>('s', 'e', wi, true).validateValue(obj) !== oi.continuousWith(wi)) { failure('CONTINUOUS') ; }   // exact
+                    if (TSQualifier.OVERLAPS<any>('s', 'e', wi, true).validateValue(obj) !== (oi.intersects(wi) || inside)) { failure('OVERLAPS') ; }
+                    if (TSQualifier.CONTAINS<any>('s', 'e', wi, true).validateValue(obj) !== oi.contains(wi)) { failure('CONTAINS') ; }
+                }
+            }
+            t.expect0(counts).is({}) ;
+            t.expect1(() => TSQualifier.CONTAINS<any>('s', 'e', new TSInterval(null, D(3)))).throws(/needs the canUnspecify option/) ;
+            t.expect2(TSQualifier.CONTINUOUS<any>('s', 'e', 3, 6, true).validateValue({ s:null, e:null })).true() ;
+            t.expect3(TSQualifier.CONTINUOUS<any>('s', 'e', 3, 6).validateValue({ s:null, e:null })).false() ;  // without canUnspecify
+        }) ;
+
+        group.unary('structure of the generated qualifiers (as translated to database requests)', async (t) => {
+            const c = TSQualifier.CONTINUOUS<any>('s', 'e', 3, 6) ;
+            t.expect0(c.operator).is('AND') ;
+            t.expect1(c.conditions().map((q:any) => [q.operator, q.key(), q.value()])).is([['GTE', 'e', 3], ['LTE', 's', 6]]) ;
+            const o = TSQualifier.OVERLAPS<any>('s', 'e', 3, 6) ;
+            t.expect2(o.conditions().map((q:any) => [q.operator, q.key(), q.value()])).is([['GT', 'e', 3], ['LT', 's', 6]]) ;
+            const u = TSQualifier.OVERLAPS<any>('s', 'e', 3, 6, true) ;
+            t.expect3(u.conditions().map((q:any) => q.operator)).is(['OR', 'OR']) ;
+            t.expect4((u.conditions()[0] as any).conditions().map((q:any) => [q.operator, q.key(), q.value()])).is([['GT', 'e', 3], ['EQ', 'e', null]]) ;
+            t.expect5(TSQualifier.CONTAINEDIN<any>('s', 'e', null, 6).operator).is('LTE') ;
+            t.expect6(TSQualifier.AND<any>().continuous('s', 'e', 3, 6).overlaps('s', 'e', [0, 10]).contains('s', 'e', 4, 5).containedIn('s', 'e', 0, 10).conditions().length).is(8) ;
         }) ;
     }),
  ] ;

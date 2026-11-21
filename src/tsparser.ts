@@ -10,6 +10,7 @@ import { TSDate } from "./tsdate";
 import { TSDocumentFormat, TSDocumentFormats } from "./tsgeometry";
 import { TSPhoneNumber } from "./tsphonenumber";
 import { TSURL } from './tsurl';
+import { $iscollection, TSCollection } from "./tsobject";
 
 import { TSError } from "./tserrors";
 
@@ -83,12 +84,12 @@ export enum TSParserActionContext {
 
 export type TSParserActionContextType = keyof typeof TSParserActionContext ;
 export interface TSParserOptions {
-    errors?:Nullable<string[]> ;                    // NOSONAR : field is optional
-    context?:Nullable<TSParserActionContextType> ;  // NOSONAR : field is optional
-    acceptsUncheckedItems?:Nullable<boolean> ;      // NOSONAR : field is optional
+    errors?:Nullable<string[]> ;                    // NOSONAR: optional
+    context?:Nullable<TSParserActionContextType> ;  // NOSONAR: optional
+    acceptsUncheckedItems?:Nullable<boolean> ;      // NOSONAR: optional
 }
 export interface TSParserActionOptions extends TSParserOptions {
-    options?:Nullable<TSDictionary> ;               // NOSONAR : field is optional
+    options?:Nullable<TSDictionary> ;               // NOSONAR: optional
 }
 export type TSParserAction<T>   = (v:any, opts?:Nullable<TSParserActionOptions>) => T ;
 export type TSParserChecker     = TSParserAction<boolean> ;
@@ -139,16 +140,14 @@ export type TSObjectNode = { [key: string]: TSNode } | {
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
     _mandatory?:boolean ;
-    _keysCase?:Nullable<TSCase> ;                       // NOSONAR : field is optional
-    _aliases?:Nullable<Map<string, string>> ;           // NOSONAR : field is optional
-    _outputAliases?:Nullable<Map<string, string>> ;     // NOSONAR : field is optional
-    _aliasUnsensitive?:boolean ;                        // NOSONAR : field is optional
+    _keysCase?:Nullable<TSCase> ;                       // NOSONAR: optional
+    _aliases?:Nullable<Map<string, string>> ;           // NOSONAR: optional
+    _outputAliases?:Nullable<Map<string, string>> ;     // NOSONAR: optional
+    _aliasUnsensitive?:boolean ;
 }
 
 export type TSNode = TSLeafNode | TSObjectNode | TSArrayNode | TSExtendedArrayNode ;
 
-// FIXME: the default value on a node is used as it is without any check (so it seems)
-// TODO: activate alias in parser in order to have input fields different from final fields
 export abstract class TSParser {
     public readonly errors:string[] = [] ;
     public readonly mandatory:boolean ;
@@ -223,8 +222,8 @@ export abstract class TSParser {
 
 // ========================== PRIVATE CLASSES ==========================================
 class TSDictionaryParser extends TSParser {
-    private _keysParser:TSLeafParser ;
-    private _valuesParser:TSParser ;
+    private readonly _keysParser:TSLeafParser ;
+    private readonly _valuesParser:TSParser ;
 
     public constructor(node:TSObjectNode, keysParser:TSParser, valuesParser:TSParser) {
         const m = node._mandatory ;
@@ -305,15 +304,15 @@ class TSDictionaryParser extends TSParser {
 }
 
 class TSObjectParser extends TSParser {
-    private _itemsParsers:TSDictionary<TSParser> ;
-    private _count:number ;
-    private _keyTransform:(s:string)=>string = (s:string) => s ;
-    private _keysCase:TSCase = TSCase.standard ;
-    private _acceptsUncheckedItems:boolean ;
-    private _defaultValueKeys:string[] = [] ; 
-    private _aliases:Map<string, string> ;
-    private _outputAliases:Map<string, string> ;
-    private _aliasUnsensitive:boolean ;
+    private readonly _itemsParsers:TSDictionary<TSParser> ;
+    private readonly _count:number ;
+    private readonly _keyTransform:(s:string)=>string = (s:string) => s ;
+    private readonly _keysCase:TSCase = TSCase.standard ;
+    private readonly _acceptsUncheckedItems:boolean ;
+    private readonly _defaultValueKeys:string[] = [] ; 
+    private readonly _aliases:Map<string, string> ;
+    private readonly _outputAliases:Map<string, string> ;
+    private readonly _aliasUnsensitive:boolean ;
 
     public constructor(node:TSObjectNode, itemsParsers:TSDictionary<TSParser>, acceptsUncheckedItems:boolean) {
         const m = node._mandatory ;
@@ -403,19 +402,30 @@ class TSObjectParser extends TSParser {
         }
         // look for mandatory fields not present
         if (founds.size < this._count && !this._mandatoryItemsFound(founds, path, opts)) { doomed = true ; }
+        // the default values of absent items are validated like given values
+        if (!this._absentItemsDefaultValuesAreValid(founds, p, opts)) { doomed = true ; }
         if (doomed) { return false ;}
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
     // a described item is added to founds, even if it is not valid (an invalid mandatory
     // item used to be also reported as missing)
-    private _validateItem(k:string, v:any, founds:Set<string>, path:string, itemsPath:string, opts?:Nullable<TSParserOptions>):boolean { // NOSONAR: private method, all parameters are needed
+    private _validateItem(k:string, v:any, founds:Set<string>, path:string, itemsPath:string, opts?:Nullable<TSParserOptions>):boolean { 
         if (founds.has(k)) { return _serror(opts, path, `.${k} is present several times`) ; }
         const struct = this._itemsParsers[k] ;
         if (!$ok(struct)) { return this._acceptsUncheckedItems || _serror(opts, path, `.${k} is unknown`) ; }
         founds.add(k) ;
         // @ts-ignore
         return struct._validate(v, `${itemsPath}.${k}`, opts) ;
+    }
+
+    private _absentItemsDefaultValuesAreValid(founds:Set<string>, itemsPath:string, opts?:Nullable<TSParserOptions>):boolean {
+        let ret = true ;
+        for (let k of this._defaultValueKeys) {
+            // @ts-ignore
+            if (!founds.has(k) && !this._itemsParsers[k]._validate(undefined, `${itemsPath}.${k}`, opts)) { ret = false ; }
+        }
+        return ret ;
     }
 
     private _mandatoryItemsFound(founds:Set<string>, path:string, opts?:Nullable<TSParserOptions>):boolean {
@@ -443,7 +453,8 @@ class TSObjectParser extends TSParser {
         for (let k of this._defaultValueKeys) {
             const kf = this._resolvedKey(k) ;
             if (!$ok(ret[kf])) {
-                ret[kf] = this._itemsParsers[k].includedDefaultValue() ;
+                // the default value is interpreted like a given value (it used to be returned as it was)
+                ret[kf] = this._itemsParsers[k].rawInterpret(undefined, opts) ;
             }
         }
 
@@ -466,9 +477,9 @@ class TSObjectParser extends TSParser {
 }
 
 class TSArrayParser extends TSParser {
-    private _min:number ;
-    private _max:number ;
-    private _itemsParser:TSParser ;
+    private readonly _min:number ;
+    private readonly _max:number ;
+    private readonly _itemsParser:TSParser ;
 
     public constructor(node:TSExtendedArrayNode, itemParser:TSParser) {
         const m = node._mandatory ;
@@ -518,10 +529,12 @@ class TSArrayParser extends TSParser {
 
     protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!super._validate(value, path, opts)) { return false ; }
-        if ($ok(value) && !$isarray(value)) { // TODO: accepts other classes than array (like collections) 
-            return _serror(opts, path, 'is not an array') ;
-        } 
-        const n = $count(value) ;
+        // a non mandatory absent value is valid: _min and _max only apply to a given array
+        // (it used to be refused if _min was defined), like for objects and dictionaries
+        if (!$ok(value)) { return true ; }
+        const items = _arrayNodeItems(value) ;
+        if (!items) { return _serror(opts, path, 'is not an array') ; }
+        const n = items.length ;
         if (n < this._min) { 
             return _serror(opts, path, `.size is too small (${n} < ${this._min})`) ;
         }
@@ -532,46 +545,44 @@ class TSArrayParser extends TSParser {
         let doomed = false ;
         for (let i = 0 ; i < n ; i++) { 
             // @ts-ignore
-            if (!this._itemsParser._validate(value[i], `${p}[${i}]`, opts)) { doomed = true ; } 
+            if (!this._itemsParser._validate(items[i], `${p}[${i}]`, opts)) { doomed = true ; } 
         }
         if (doomed) { return false ; }
-        return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
+        // the specific checker always receives an array
+        if (!this._check(items, opts)) { return _serror(opts, path, 'specific check did fail') ; }
+        return true ;
     }
 
     public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value) && !this.mandatory) { return value ; }
-        const ret:Array<any> = [] ;
-        for (let v of value) { 
-            ret.push(this._itemsParser.rawInterpret(v, opts)) ;
-        }
+        const ret = _arrayNodeItems(value)!.map(v => this._itemsParser.rawInterpret(v, opts)) ;
         return this._transform(ret, opts) ;
     }
 
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         if (!$ok(value)) { return value ; } // a non mandatory absent value (it used to throw)
-        const ret:Array<any> = [] ;
-        for (let v of value) { 
-            ret.push(this._itemsParser.rawEncode(v, opts)) ;
-        }
+        const ret = _arrayNodeItems(value)!.map(v => this._itemsParser.rawEncode(v, opts)) ;
         return this._natify ? this._natify(ret, opts) : ret ;
     }
 
 }
 
+// the values an array node accepts: arrays, sets and TSCollection objects (TSList...).
+// strings, maps and one-shot iterators are refused on purpose (a string would be split
+// in characters, a map is a dictionary and an iterator would be consumed by the validation)
+function _arrayNodeItems(value:any):any[]|null {
+    if ($isarray(value)) { return value ; }
+    if (value instanceof Set) { return [...value] ; }
+    if ($iscollection(value)) { return (value as TSCollection<any>).getItems() ; }
+    return null ;
+}
+
 export function isLeafParserType(s:Nullable<string>) {
     return $length(s) ? TSLeafParser.isLeafParserType(s!) : false ;
 }
-class TSLeafParser extends TSParser {
-    private _manager:TSLeafNodeManager ;
-    private _type:TSLeafOptionalNode ;
-    private _conversion:TSDictionary<number|string>|undefined ;
-    private _reverse:Map<string|number, string>|undefined ;
-    private _enumeration:Set<string|number>|undefined ;
-    private _options:TSDictionary|undefined ;
-    private _defaultValue:any = undefined ;
-    private _exportAsEnum:boolean = false ;
 
-    public static __managers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
+
+    const __TSLeafParserManagers:{ [key in TSLeafOptionalNode]?:TSLeafNodeManager } = {
         'boolean' :  { valid:_isBoolean, trans:$bool, str2v:$bool}, // QUESTION?: should we use v2nat here
         'charset' :  { valid:_isCharset, str2v:(s:string) => TSCharset.charset(s), v2nat:(v:any) => v.name},
         'color':     { valid:_iscolor, str2v:(s:string) => TSColor.fromString(s), v2nat:_color2str},
@@ -592,7 +603,7 @@ class TSLeafParser extends TSParser {
         'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isLanguage, iskey:true},
         'native' :   { valid:_isNativeValue, str2v:(s:string) => s, v2nat:_nativeValue2nat},
-        'number' :   { valid:_isNumber, str2v:(s:string) => Number(s), enum:(v) => $isnumber(v)},
+        'number' :   { valid:_isNumber, str2v:Number, enum:(v) => $isnumber(v)},
         'paper':     { valid:_isDocumentFormat, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isDocumentFormat, iskey:true},
         'path':      { valid:_isPath, str2v:(s:string) => s, enum:_isPath, iskey:true },
         'phone':     { valid:(v:any) => $isphonenumber(v), str2v:(s:string) => TSPhoneNumber.fromString(s), v2nat:(v:TSPhoneNumber) => v.standardNumber, iskey:true },
@@ -605,12 +616,23 @@ class TSLeafParser extends TSParser {
         'uuid':      { valid:(v:any) => $isuuid(v), str2v:(s:string) => $UUID(s), enum:(v:any) => $isuuid(v), iskey:true },
     }
 
-    public static isLeafParserType(s:string):boolean { return $ok(TSLeafParser.__managers[s as TSLeafOptionalNode])}
 
-    private static __dummyManager:TSLeafNodeManager = { valid:(_:any)=>false, str2v:(_:string) => undefined} ;
+class TSLeafParser extends TSParser {
+    private readonly _manager:TSLeafNodeManager ;
+    private readonly _type:TSLeafOptionalNode ;
+    private readonly _options:TSDictionary|undefined ;
+    private _conversion:TSDictionary<number|string>|undefined ;
+    private _reverse:Map<string|number, string>|undefined ;
+    private _enumeration:Set<string|number>|undefined ;
+    private _defaultValue:any = undefined ;
+    private _exportAsEnum:boolean = false ;
+
+    public static isLeafParserType(s:string):boolean { return $ok(__TSLeafParserManagers[s as TSLeafOptionalNode])}
+
+    private static readonly __dummyManager:TSLeafNodeManager = { valid:(_:any)=>false, str2v:(_:string) => undefined} ;
 
     public constructor(node:TSExtendedLeafNode) {
-        const manager =  $isstring(node._type) ? TSLeafParser.__managers[node._type] : undefined ;
+        const manager =  $isstring(node._type) ? __TSLeafParserManagers[node._type] : undefined ;
         const transformer = node._transformer ?? manager?.trans ?? undefined ;
         const natifier = node._natifier ?? manager?.v2nat ?? undefined ;
         const mandatory = !!node._mandatory ;
@@ -630,8 +652,10 @@ class TSLeafParser extends TSParser {
             this.errors.push(`Bad enumeration definition for type '${node._type}'`) ;
         }
         if ($ok(node._options)) { this._options = node._options ;}
-        if ($ok(node._default)) { this._setDefaultValue(node, mandatory, manager) ; }
-        
+        if ($ok(node._default)) {
+            if (mandatory) { this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ; }
+            else { this._setDefaultValue(node, manager) ; }
+        }        
         this._type = node._type ;
     }
 
@@ -652,7 +676,7 @@ class TSLeafParser extends TSParser {
         this._enumeration = new Set<string|number>() ;
         this._reverse = new Map() ;
         for (let [key, item] of Object.entries(enumeration)) {
-            if (!key.length || !IsFielOrEnumdRegex.test(key)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
+            if (!key.length || !IsFieldOrEnumRegex.test(key)) { this.errors.push(`Wrong enumeration key '${key}' for type '${node._type}'`) ; }
             if (manager?.enum?.(item)) {
                 this._enumeration.add(item) ;
                 this._reverse.set(item, key) ;
@@ -666,15 +690,21 @@ class TSLeafParser extends TSParser {
         this._exportAsEnum = !!node._exportAsEnum ;
     }
 
-    private _setDefaultValue(node:TSExtendedLeafNode, mandatory:boolean, manager:TSLeafNodeManager|undefined) {
-        if (mandatory) {
-            this.errors.push(`Parser type '${node._type}' cannot be mandatory and have a default value at the same time`) ;
+    // the default value is checked like a given value (an enumeration tag is accepted), except
+    // for the specific checker which may depend on the interpretation options: it is called
+    // when the default value is used
+    private _setDefaultValue(node:TSExtendedLeafNode, manager:TSLeafNodeManager|undefined) {
+        const d = node._default ;
+        const v = this._conversion && $isstring(d) ? this._conversion[d] : d ;
+        const lopts = this._localOptions(undefined) ;
+        if (!$ok(v) || !manager?.valid(v, lopts)) {
+            this.errors.push(`Parser type '${node._type}' cannot have ${d} as default value`) ;
         }
-        else if (!manager?.valid(node._default)) {
-            this.errors.push(`Parser type '${node._type}' cannot have ${node._default} as default value`) ;
+        else if (this._enumeration && !this._enumeration.has(this._convertIfString(v, lopts))) {
+            this.errors.push(`Parser type '${node._type}' cannot have ${d} as default value (not in its enumeration)`) ;
         }
         else {
-            this._defaultValue = node._default ;
+            this._defaultValue = d ;
         }
     }
 
@@ -774,7 +804,7 @@ export function $bool(v:any, opts?:Nullable<TSParserActionOptions>):boolean {
 export { $bool as $isLE }
 
 export function $validateParsedValue(v:NonNullable<any>, type:TSLeafOptionalNode, opts?:Nullable<TSParserActionOptions>):boolean
-{ return $ok(v) && !!TSLeafParser.__managers[type]?.valid(v, opts) ; }
+{ return $ok(v) && !!__TSLeafParserManagers[type]?.valid(v, opts) ; }
 
 // ========================== PRIVATE CONSTANTS, TYPES AND FUNCTIONS ==========================================
 
@@ -873,8 +903,9 @@ function _valueToTSURL(v:any, opts?:Nullable<TSParserActionOptions>):TSURL {
     return ret! ;
 }
 
-const _b64regex =    /^[A-Za-z0-9\+\/]+[\=]*$/ ;
-const _b64URLregex = /^[A-Za-z0-9\-\_]+[\=]*$/ ;
+const _b64regex =    /^[A-Za-z\d+/]+=*$/ ;
+const _b64URLregex = /^[\w-]+=*$/ ;
+
 function _isData(v:any, opts?:Nullable<TSParserActionOptions>):boolean      
 { return $isdataobject(v) || ($isstring(v) && (opts?.context === TSParserActionContext.url ? _b64URLregex : _b64regex).test(v)) ; }
 
@@ -907,14 +938,14 @@ function _iscolor(o:any) : boolean
 function _color2str(v:any):string { return v.toString({ colorSpace:TSColorSpace.RGB, removeAlpha:false, rgbaCSSLike:true, shortestCSS:false, uppercase:false}) ; }
 
 function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):false {
-    opts?.errors?.push(`${path.length>0?path:'value'}${error.startsWith('.')?'':' '}${error}${error.endsWith('')?'':'.'}`) ;
+    opts?.errors?.push(`${path.length>0?path:'value'}${error.startsWith('.')?'':' '}${error}${error.endsWith('.')?'':'.'}`) ;
     return false ;
 }
 
 // this is the function wich convert you data model definition
 // into a tree of structures
 // no 'g' flag: with it, test() would keep its lastIndex from one key to the next one
-const IsFielOrEnumdRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/
+const IsFieldOrEnumRegex = /^[a-zA-Z][\w-]*$/ ; // \w is [A-Za-z0-9_]
 const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases', '_aliasUnsensitive']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
@@ -995,7 +1026,7 @@ function _objectConstruction(node:TSObjectNode, errors:Nullable<string[]>):TSPar
     let found = 0 ;
     for (let [key, subnode] of Object.entries(node)) {
         if (InternalFieldsSet.has(key)) { continue ; }
-        if (!IsFielOrEnumdRegex.test(key)) {
+        if (!IsFieldOrEnumRegex.test(key)) {
             errors?.push(`wrong key '${key}' for object node definition`) ;
             continue ;
         }

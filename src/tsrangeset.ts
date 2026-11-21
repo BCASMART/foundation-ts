@@ -1,9 +1,10 @@
 import { $count, $isarray, $isnumber, $ok } from "./commons";
 import { TSError } from "./tserrors";
-import { TSList, TSListConstructor } from "./tslist";
+import { TSList, TSListConstructor, TSListNode } from "./tslist";
 import { $comformsToInterval, Interval, TSBadRange, TSRange } from "./tsrange";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
+export type RangesLike = number|TSRange|Interval|TSRangeSet|number[] ;
 
 type trrs = TSRange|number|Interval|Array<number> ;
 type trrsa = Array<trrs> ;
@@ -19,35 +20,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 				v.forEach(r => super.add(r.clone())) ; // super here is just like this. This is JS at its best OOD.
 				return ;
 			}
-            if (!$isarray(v)) {
-                if ($isnumber(v)) {
-                    v = [new TSRange(v, 1)] ;
-                }
-                else if ((v instanceof TSRange) || $comformsToInterval(v)) {
-                    v = [v as trrs] ;
-                }
-                else { TSError.throw('TSRangeSet.constructor(): invalid parameter', { parameter:v}) ; }
-            }
-            let u = v as trrsa;
-
-            let tmp:TSRange[] = [] ;
-            if ($count(u) === 2 && $isnumber(u[0]) && $isnumber(u[1])) {
-                const r = TSRange.fromArray(u as Array<number>) ;
-                if ($ok(r)) { u = [r] ; }
-                else { TSError.throw('TSRangeSet.constructor(): invalid range as array parameter', { parameter:v}) ; }
-            }
-
-            for (let e of u) {
-                let r:Nullable<TSRange> = undefined ;
-                if (e instanceof TSRange) { r = e as TSRange ; }
-                else if ($isarray(e)) { r = TSRange.fromArray(e as Array<number>) ; }
-                else if ($comformsToInterval(e) && (e as Interval).hasSignificantRange) { r = (e as Interval).range ; }
-                if (!$ok(r)) {TSError.throw('TSRangeSet.constructor(): invalid array parameter', { parameter:v}) ; ; }
-                else if (!r!.hasSignificantRange) { TSError.throw('TSRangeSet.constructor(): invalid range parameter', { parameter:v}) ; ;}
-                else { tmp.push(r!) ; }
-            }
-
-            for (let r of tmp) { this._addRange(r) ; }
+            // all ranges are validated before the first one is added
+            for (let r of _rangesFromArray(_rangeSetArgumentsArray(v!))) { this._addRange(r) ; }
 		}
 	}
 
@@ -77,6 +51,8 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		return TSBadRange() ;
 	}
 
+    // an empty set has no location: its range is TSBadRange(), so it is not valid (and it is empty),
+    // like the intersection of two disjoint ranges given by TSRange.intersectionRange()
     public get isValid():boolean { return this.range.isValid ; }
 	public get isEmpty():boolean { return this.range.isEmpty ; }
 
@@ -91,50 +67,51 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		while(l !== null) {
 			if (l.data.continuousWith(r)) {
 				l.data = l.data.unionRange(r) ;
-				while(l !== null && l.next !== null && l.data.continuousWith(l.next.data)) {
+				while(l?.next !== null && l.data.continuousWith(l.next.data)) {
 					l.data = l.data.unionRange(l.next.data) ;
 					super.removeNode(l.next) ; // super here is just like this. This is JS at its best OOD.
 				}
 				return ;
 			}
 			else if (r.maxRange < l.data.location) {
-				super.insert(r, l) ; // super here is just like this. This is JS at its best OOD.
+				super.insert(r.clone(), l) ; // never stores the caller's range, which _removeRange() may modify
 				return ;
 			}
 			l = l.next ;
 		}
-		super.add(r) ; // super here is just like this. This is JS at its best OOD.
+		super.add(r.clone()) ; // never stores the caller's range, which _removeRange() may modify
 	}
 
 	// here r must be a valid range
 	private _removeRange(r:TSRange):void {
-		if (this.intersects(r)) {
-			let l = this.first ;
-			
-			while (l !== null && r.maxRange >= l.data.location) {
-				const inter = r.intersectionRange(l.data) ;
-				if (l.data.isEqual(inter)) {
-					let n = l.next ;
-					super.removeNode(l) ; // super here is just like this. This is JS at its best OOD.
-					l = n ;
-				}
-				else {
-					if (!inter.isEmpty) {
-						if (inter.location > l.data.location) {
-							if (inter.maxRange < l.data.maxRange) {
-								const upRange = new TSRange(inter.maxRange, l.data.maxRange - inter.maxRange) ;
-								if (l.next) { super.insert(upRange, l.next) ; } // super here is just like this. This is JS at its best OOD.
-								else { super.add(upRange) ; } // super here is just like this. This is JS at its best OOD.
-							}
-							l.data.length = inter.location - l.data.location ;
-						}
-						else if (inter.location == l.data.location) {
-							l.data = new TSRange(inter.maxRange, l.data.maxRange - inter.maxRange) ;
-						}
-					}
-					l = l.next ;
-				}
+		if (!this.intersects(r)) { return ; }
+		let l = this.first ;
+		while (l !== null && r.maxRange >= l.data.location) {
+			const inter = r.intersectionRange(l.data) ;
+			if (l.data.isEqual(inter)) {
+				const n = l.next ;
+				super.removeNode(l) ; // super here is just like this. This is JS at its best OOD.
+				l = n ;
 			}
+			else {
+				if (!inter.isEmpty) { this._removeIntersection(l, inter) ; }
+				l = l.next ;
+			}
+		}
+	}
+
+	// removes inter (a non empty part of l.data but not all of it) from node l
+	private _removeIntersection(l:TSListNode<TSRange>, inter:TSRange):void {
+		if (inter.location > l.data.location) {
+			if (inter.maxRange < l.data.maxRange) {
+				const upRange = new TSRange(inter.maxRange, l.data.maxRange - inter.maxRange) ;
+				if (l.next) { super.insert(upRange, l.next) ; } // super here is just like this. This is JS at its best OOD.
+				else { super.add(upRange) ; } // super here is just like this. This is JS at its best OOD.
+			}
+			l.data.length = inter.location - l.data.location ;
+		}
+		else if (inter.location === l.data.location) {
+			l.data = new TSRange(inter.maxRange, l.data.maxRange - inter.maxRange) ;
 		}
 	}
 
@@ -145,7 +122,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 				let l = this.first ;
 				while (l && !l.data.intersects(r)) { let n = l.next ; super.removeNode(l) ; l = n ; } // super here is just like this. This is JS at its best OOD.
 				let inter:TSRange ;
-				while (l && (inter = r.intersectionRange(l.data)).length > 0) {
+				while (l && (inter = r.intersectionRange(l.data)).length > 0) { // NOSONAR: intentional loop with assignment inside condition
 					l.data = inter ;
 					l = l.next ;
 				}
@@ -156,163 +133,90 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 			}
 		}
 	}
-	public contains(v:Number|TSRange|Interval|TSRangeSet|number[]):boolean {
-		if (!this.hasSignificantRange) return false ;
-		if (typeof v === 'number') { return this.contains(new TSRange(v, 1)) ; }
-        else if ($isarray(v)) {
-            const rs = TSRange.fromArray(v) ;
-            if (!$ok(rs) || !rs?.hasSignificantRange) {
-                TSError.throw('TSRangeSet.contains(): invalid range array parameter', { parameter:v}) ;
-            }
-			return $ok(this.search(r => r.contains(rs!))) ;
-        }
-        else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.contains(): invalid range parameter', { parameter:v}) ;
-            }
-			return $ok(this.search(r => r.contains(v))) ;
-		}
-		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.contains(): invalid range set parameter', { parameter:v}) ;
-            }
-			return this.range.contains(v.range) && !$ok(v.search(r => !this.contains(r))) ;
-		}
-		if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
-            TSError.throw('TSRangeSet.contains(): invalid interval parameter', { parameter:v}) ;
-        }
-		return this.contains((v as Interval).range) ;
+
+	// intersects the set with the union of the ranges of s (s may be this)
+	private _intersectRangeSet(s:TSRangeSet):void {
+		const inters = _sortedRangesIntersection([...this], [...s]) ;
+		this.clear() ;
+		// the intersections are new TSRange instances, already sorted, disjoint and not touching
+		inters.forEach(r => super.add(r)) ; // super here is just like this. This is JS at its best OOD.
 	}
 
-	public intersects(v:Number|TSRange|Interval|TSRangeSet|number[]):boolean {
-		if (!this.hasSignificantRange) return false ;
-		if (typeof v === 'number') { return this.intersects(new TSRange(v, 1)) ; }
-        else if ($isarray(v)) {
-            const rs = TSRange.fromArray(v) ;
-            if (!$ok(rs) || !rs?.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersects(): invalid range array parameter', { parameter:v}) ;
-            }
-			return $ok(this.search(r => r.intersects(rs!))) ;
-        }
-        else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersects(): invalid range parameter', { parameter:v}) ;
-            }
-			return $ok(this.search(r => r.intersects(v as TSRange))) ;
-		}
-		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersects(): invalid range set parameter', { parameter:v}) ;
-            }
-			return this.range.intersects(v.range) && !$ok(v.search(r => !this.intersects(r))) ;
-		}
-		if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
-            TSError.throw('TSRangeSet.intersects(): invalid interval parameter', { parameter:v}) ;
-        }
-		return this.intersects((v as Interval).range) ;
+	// Like TSRange: a number is a location, an empty range is a location (a point) and an invalid
+	// range or an empty set has no location. Only an argument of a wrong type throws.
+	public containsLocation(loc:number):boolean {
+		return $isnumber(loc) && $ok(this.search(r => r.containsLocation(loc))) ;
 	}
 
-
-	public unionWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
-		if (typeof v === 'number') { this._addRange(new TSRange(v, 1)) ; }
-        else if ($isarray(v)) {
-            const r = TSRange.fromArray(v) ;
-            if (!$ok(r) || !r?.hasSignificantRange) {
-                TSError.throw('TSRangeSet.unionWidth(): invalid range array parameter', { parameter:v}) ;
-            }
-			this._addRange(r!) ;
-        }
-    	else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.unionWidth(): invalid range parameter', { parameter:v}) ;
-            }
-			this._addRange(v) ;
+	public contains(v:RangesLike):boolean {
+		const op = _operand(v, 'contains') ;
+		if (!this.hasSignificantRange) { return false ; }
+		if (typeof op === 'number') { return this.containsLocation(op) ; }
+		if (op instanceof TSRangeSet) {
+			return op.hasSignificantRange && this.range.contains(op.range) && !$ok(op.search(r => !this.contains(r))) ;
 		}
-		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.unionWidth(): invalid range set parameter', { parameter:v}) ;
-            }
-			(v as TSRangeSet).forEach(r => this._addRange(r)) ;
-		}
-        else {
-            if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
-                TSError.throw('TSRangeSet.unionWidth(): invalid interval parameter', { parameter:v}) ;
-            }
-            this._addRange((v as Interval).range) ;
-        }
+		if (!op.isValid) { return false ; }
+		if (op.isEmpty) { return this.containsLocation(op.location) ; } // an empty range is contained if its location is
+		return $ok(this.search(r => r.contains(op))) ;
 	}
 
-	public substractFrom(v:number|TSRange|TSRangeSet|Interval|number[]) {
-		if (typeof v === 'number') { this._removeRange(new TSRange(v, 1)) ; }
-        else if ($isarray(v)) {
-            const r = TSRange.fromArray(v) ;
-            if (!$ok(r) || !r?.hasSignificantRange) {
-                TSError.throw('TSRangeSet.substractFrom(): invalid range array parameter', { parameter:v}) ;
-            }
-			this._removeRange(r!) ;
-        }
-		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.substractFrom(): invalid range parameter', { parameter:v}) ;
-            }
-			this._removeRange(v) ;
+	public intersects(v:RangesLike):boolean {
+		const op = _operand(v, 'intersects') ;
+		if (!this.hasSignificantRange) { return false ; }
+		if (typeof op === 'number') { return this.containsLocation(op) ; }
+		if (op instanceof TSRangeSet) {
+			return op.hasSignificantRange && this.range.intersects(op.range) && $ok(op.search(r => this.intersects(r))) ;
 		}
-		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.substractFrom(): invalid range set parameter', { parameter:v}) ;
-            }
-			(v as TSRangeSet).forEach(r => this._removeRange(r)) ;
-		}
-		else {
-            if (!$comformsToInterval(v) || !(v as Interval).hasSignificantRange) {
-                TSError.throw('TSRangeSet.substractFrom(): invalid interval parameter', { parameter:v}) ;
-            }
-		    this._removeRange((v as Interval).range) ;
-        }
+		return op.hasSignificantRange && $ok(this.search(r => r.intersects(op))) ; // an empty or invalid range intersects nothing
 	}
 
-	public intersectWidth(v:number|TSRange|TSRangeSet|Interval|number[]) {
-		if (typeof v === 'number') { this._intersectRange(new TSRange(v, 1)) ; }
-        else if ($isarray(v)) {
-            const r = TSRange.fromArray(v) ;
-            if (!$ok(r) || !r?.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersectWidth(): invalid range array parameter', { parameter:v}) ;
-            }
-			this._intersectRange(r!) ;
-        }
-		else if (v instanceof TSRange) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersectWidth(): invalid range parameter', { parameter:v}) ;
-            }
-			this._intersectRange(v) ;
-		}
-		else if (v instanceof TSRangeSet) {
-			if (!v.hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersectWidth(): invalid range set parameter', { parameter:v}) ;
-            }
-			(v as TSRangeSet).forEach(r => this._intersectRange(r)) ;
-		}
-        else {
-            if (!$comformsToInterval(v) ||!(v as Interval).hasSignificantRange) {
-                TSError.throw('TSRangeSet.intersectWidth(): invalid interval parameter', { parameter:v}) ;
-            }
-            this._intersectRange((v as Interval).range) ;
-        }
+	public containedIn(v:TSRange|TSRangeSet|Interval|number[]):boolean {
+		const op = _operand(v, 'containedIn') ;
+		if (!this.hasSignificantRange || typeof op === 'number') { return false ; }
+		return op instanceof TSRangeSet ? op.contains(this) : op.contains(this.range) ;
+	}
+
+	// true if one of the ranges of the set intersects or touches the given range(s), so that their union
+	// joins them (like TSRange.continuousWith(), an empty range is a location, continuous with a range containing it)
+	public continuousWith(v:TSRange|TSRangeSet|Interval|number[]):boolean {
+		const op = _operand(v, 'continuousWith') ;
+		if (!this.hasSignificantRange || typeof op === 'number') { return false ; }
+		if (op instanceof TSRangeSet) { return $ok(op.search(o => this.continuousWith(o))) ; }
+		return op.isValid && $ok(this.search(r => r.continuousWith(op))) ;
+	}
+
+	// an empty or invalid range, or an empty set, adds nothing (it used to throw)
+	public unionWidth(v:RangesLike) {
+		for (const r of _operandRanges(_operand(v, 'unionWidth'))) { this._addRange(r) ; }
+	}
+
+	// an empty or invalid range, or an empty set, removes nothing (it used to throw)
+	public substractFrom(v:RangesLike) {
+		for (const r of _operandRanges(_operand(v, 'substractFrom'))) { this._removeRange(r) ; }
+	}
+
+	// an empty or invalid range, or an empty set, has no common part with the set, which becomes empty (it used to throw)
+	public intersectWidth(v:RangesLike) {
+		const op = _operand(v, 'intersectWidth') ;
+		if (op instanceof TSRangeSet) { this._intersectRangeSet(op) ; return ; }
+		const ranges = _operandRanges(op) ;
+		if (ranges.length) { this._intersectRange(ranges[0]) ; }
+		else { this.clear() ; }
 	}
 	
-	public union(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
+	public union(v:RangesLike):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.unionWidth(v) ;
 		return ret ;
 	}
 
-	public intersection(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
+	public intersection(v:RangesLike):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.intersectWidth(v) ;
 		return ret ;
 	}
 
-	public substraction(v:number|TSRange|Interval|TSRangeSet|number[]):TSRangeSet {
+	public substraction(v:RangesLike):TSRangeSet {
 		let ret = new TSRangeSet(this) ;
 		ret.substractFrom(v) ;
 		return ret ;
@@ -367,4 +271,67 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 export interface TSRangeSetConstructor extends TSListConstructor<TSRange>
 {
     new (v?:Nullable<TSRangeSet|trrs|trrsa>): TSRangeSet ;
+}
+
+// normalizes the TSRangeSet constructor parameter to an array (v is not a TSRangeSet)
+function _rangeSetArgumentsArray(v:trrs|trrsa):trrsa {
+    if ($isarray(v)) { return v as trrsa ; }
+    if ($isnumber(v)) { return [new TSRange(v as number, 1)] ; }
+    if ((v instanceof TSRange) || $comformsToInterval(v)) { return [v as trrs] ; }
+    TSError.throw('TSRangeSet.constructor(): invalid parameter', { parameter:v}) ;
+}
+
+// v is the normalized constructor parameter, used in error messages
+function _rangesFromArray(v:trrsa):TSRange[] {
+    let u = v ;
+    if ($count(u) === 2 && $isnumber(u[0]) && $isnumber(u[1])) {
+        const r = TSRange.fromArray(u as Array<number>) ;
+        if (!$ok(r)) { TSError.throw('TSRangeSet.constructor(): invalid range as array parameter', { parameter:v}) ; }
+        u = [r!] ;
+    }
+    return u.map(e => _rangeFromElement(e, v)) ;
+}
+
+// the argument of contains(), intersects()... as a location, a range (possibly empty or invalid) or
+// a range set. Throws only for an argument of a wrong type
+function _operand(v:any, fn:string):number|TSRange|TSRangeSet {
+    if (typeof v === 'number' || v instanceof TSRange || v instanceof TSRangeSet) { return v ; }
+    if ($isarray(v)) {
+        const r = TSRange.fromArray(v) ;
+        if (!$ok(r)) { TSError.throw(`TSRangeSet.${fn}(): invalid range array parameter`, { parameter:v}) ; }
+        return r! ;
+    }
+    if (!$comformsToInterval(v)) { TSError.throw(`TSRangeSet.${fn}(): invalid parameter`, { parameter:v}) ; }
+    return (v as Interval).range ;
+}
+
+// the non empty ranges of an operand (a number is the [n, n+1[ range)
+function _operandRanges(op:number|TSRange|TSRangeSet):TSRange[] {
+    if (typeof op === 'number') { return [new TSRange(op, 1)] ; }
+    if (op instanceof TSRangeSet) { return [...op] ; }
+    return op.hasSignificantRange ? [op] : [] ;
+}
+
+// a and b are sorted lists of disjoint and not touching ranges.
+// returns the sorted list of the non empty intersections of a range of a with a range of b
+function _sortedRangesIntersection(a:TSRange[], b:TSRange[]):TSRange[] {
+    const ret:TSRange[] = [] ;
+    let i = 0, j = 0 ;
+    while (i < a.length && j < b.length) {
+        const inter = a[i].intersectionRange(b[j]) ;
+        if (inter.length > 0) { ret.push(inter) ; }
+        // the range ending first cannot intersect any further range of the other list
+        if (a[i].maxRange < b[j].maxRange) { i++ ; } else { j++ ; }
+    }
+    return ret ;
+}
+
+function _rangeFromElement(e:trrs, v:trrsa):TSRange {
+    let r:Nullable<TSRange> = undefined ;
+    if (e instanceof TSRange) { r = e as TSRange ; }
+    else if ($isarray(e)) { r = TSRange.fromArray(e as Array<number>) ; }
+    else if ($comformsToInterval(e) && (e as Interval).hasSignificantRange) { r = (e as Interval).range ; }
+    if (!$ok(r)) { TSError.throw('TSRangeSet.constructor(): invalid array parameter', { parameter:v}) ; }
+    if (!r!.hasSignificantRange) { TSError.throw('TSRangeSet.constructor(): invalid range parameter', { parameter:v}) ; }
+    return r! ;
 }

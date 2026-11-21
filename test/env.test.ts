@@ -344,6 +344,49 @@ TSTest.group("env.ts — parser internals & error paths", async (group) => {
         t.expect1(run('input=x&no-limit=maybe').d).null() ;             // unknown -> literal -> rejected
         t.expect2(run('input=x&tags=a&tags=b&tags=c').d?.tags).is(['a', 'b', 'c']) ;
     }) ;
+
+    group.unary('$parsedenv() — duplicate names after trimming', async (t) => {
+        t.expect0(() => $parsedenv('AA=1', { parser:{ ' AA':'string', 'AA':'uint32' } as any })).throws(/duplicate name/) ;
+        t.expect1($parsedenv('AA=1', { parser:{ 'AA':'uint32' } as any })).is({ AA:1 }) ;
+    }) ;
+
+    group.unary('$args() — command line errors', async (t) => {
+        const def:TSArgumentDictionary = {
+            verbose:{ struct:'boolean', short:'v' },
+            level:{ struct:'number', short:'l' },
+            name:'string',
+        } ;
+        const errorsFor = (args:string[]):[TSDictionary|null, string[]] => {
+            const errors:string[] = [] ;
+            const [dict] = $args(def, { arguments:args, errors }) ;
+            return [dict, errors] ;
+        } ;
+        t.expect0(errorsFor(['-l'])).is([null, [`Found no value for argument '-l'.`]]) ;               // at the end
+        t.expect1(errorsFor(['-l', '-v'])).is([null, [`Found no value for argument '-l'.`]]) ;         // followed by another argument
+        t.expect2(errorsFor(['--name', 'a', '-l'])).is([null, [`Found no value for argument '-l'.`]]) ;
+        t.expect3(errorsFor(['-'])).is([null, ['Solitary dash (-) was found as an argument.']]) ;
+        t.expect4(errorsFor(['--'])).is([null, ['Solitary double dash (--) was found as an argument.']]) ;
+        t.expect5(errorsFor(['--unknown'])).is([null, [`Unknown argument '--unknown'.`]]) ;
+        t.expect6(errorsFor(['-x'])).is([null, [`Unknown argument '-x'.`]]) ;
+        t.expect7(errorsFor(['-v', '-l', '2'])).is([{ verbose:true, level:2 }, []]) ;
+    }) ;
+
+    group.unary('$args() — definition errors', async (t) => {
+        t.expect0(() => $args({ ' verbose':'boolean', verbose:'boolean' } as any)).throws(`$args(): argument 'verbose' is declared twice`) ; // same name once trimmed
+        // an unknown type is refused with the name of the argument (it used to fail later, with a vague message)
+        t.expect1(() => $args({ count:'notatype' } as any, { arguments:[] })).throws(`bad structure definition for argument 'count'`) ;
+        t.expect2(() => $args({ count:{ struct:'notatype', short:'c' } } as any, { arguments:[] })).throws(`bad structure definition for argument 'count'`) ;
+        t.expect3(() => $parsedenv('AA=1', { parser:{ AA:'notatype' } as any })).throws(`$parsedenv(): bad parser definition for env var 'AA'`) ;
+        t.expect4(() => $parsedenv('AA=1', { parser:{ AA:{ _type:'notatype' } } as any })).throws(`$parsedenv(): bad parser definition for env var 'AA'`) ;
+    }) ;
+}),
+
+TSTest.group("env.ts — arguments names collisions", async (group) => {
+    group.unary('$args() — a name already used by another argument', async (t) => {
+        // 'quiet' is already the negative version of 'verbose'
+        t.expect0(() => $args({ verbose:{ struct:'boolean', negative:'quiet' }, quiet:'string' }, { arguments:[] })).throws("bad structure definition for argument 'quiet'") ;
+        t.expect1(() => $args({ verbose:{ struct:'boolean', negative:'quiet' }, quiet:{ struct:'string' } }, { arguments:[] })).throws("bad structure definition for argument 'quiet'") ;
+    }) ;
 }),
 
 ] ;

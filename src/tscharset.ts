@@ -23,7 +23,8 @@ enum TSCachedCharset {
     UTF8,
     UTF16,
     ANSI,
-    MAC
+    MAC,
+    UTF16BE
 } ;
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
@@ -37,12 +38,24 @@ export abstract class TSCharset {
     public static latin1Charset()     { return TSCharset._cachedCharset(TSCachedCharset.Latin1, 'latin1') ; }
     public static binaryCharset()     { return TSCharset.latin1Charset() ; }
     public static utf8Charset()       { return TSCharset._cachedCharset(TSCachedCharset.UTF8,   'utf8') ; }
+    // like in Node and in the WHATWG encoding standard, 'utf16', 'utf-16', 'unicode', 'ucs2'... are UTF-16 little endian
     public static unicodeCharset()    { return TSCharset._cachedCharset(TSCachedCharset.UTF16,  'utf16le') ; }
+    public static utf16BECharset()    { return TSCharset._cachedCharset(TSCachedCharset.UTF16BE, 'utf16be') ; }
     public static ansiCharset()       { return TSCharset._cachedCharset(TSCachedCharset.ANSI,   'ansi') ; }
     public static macCharset()        { return TSCharset._cachedCharset(TSCachedCharset.MAC,    'mac') ; }
 
     public static charsetFromDataLike(rawData:TSDataLike):TSCharset|null {
         return $charsetFromBytes($bytesFromDataLike(rawData)) ;
+    }
+
+    // detects the charset of the data (defaultCharset if it cannot be detected) and decodes them.
+    // Like TextDecoder or a .NET StreamReader, a byte order mark is removed when it gave the charset
+    // (the stringFromData() methods keep it, like Buffer.toString(): '\uFEFF' in the returned string)
+    public static stringFromDetectedData(rawData:TSDataLike, defaultCharset:TSCharset = TSCharset.utf8Charset()):[string, TSCharset] {
+        const bytes = $bytesFromDataLike(rawData) ;
+        const detected = $charsetFromBytes(bytes) ;
+        if (!$ok(detected)) { return [defaultCharset.stringFromBytes(bytes), defaultCharset] ; }
+        return [detected!.stringFromBytes(bytes, _bomLength(bytes, detected!)), detected!] ;
     }
 
     public static isUTF8Charset(rawData:TSDataLike):boolean {
@@ -65,7 +78,8 @@ export abstract class TSCharset {
         return $value(TSCharset.charset(_systemEncoding()), TSCharset.utf8Charset()) ;
     }
 
-    public static encoding(enc:StringEncoding) { return this.charset($encoding(enc))! ; }
+    // the charsets which are not Buffer encodings (UTF-16 big endian) are found by their names
+    public static encoding(enc:StringEncoding) { return $value(this.charset(enc), this.charset($encoding(enc))!) ; }
 
     public static charset(name:string):TSCharset|undefined {
         const map = TSCharset._charsetMap() ;
@@ -87,8 +101,7 @@ export abstract class TSCharset {
 
             ['ANSI', 'MacRoman'].forEach(c => { 
                 if (!$ok(TSCharset.__charsetsMap!.get(c.toLowerCase()))) {
-                    TSError.throw(`TSCharset.charset() : system loaded charset '${c}' is missing.`, { name:name }) ;
-                }
+                    TSError.throw(`TSCharset: charset '${c}' is missing from the loaded charset definitions.`, { name:c }) ;                }
             }) ;
 
             
@@ -104,6 +117,10 @@ export abstract class TSCharset {
                 TSCharset.__charsetsMap!.set(name, charset) ;
                 aliases.forEach(a => TSCharset.__charsetsMap!.set(a, charset))
             }) ;
+
+            // ----------- UTF-16 big endian (not a Buffer encoding) -----------
+            const be = new TSUTF16BECharset() ;
+            [be.name, ...be.aliases].forEach(a => TSCharset.__charsetsMap!.set(a, be)) ;
         }
         return TSCharset.__charsetsMap! ;
     }
@@ -150,10 +167,10 @@ export abstract class TSCharset {
 }
 
 class TSLoadedCharset extends TSCharset {
-    private static UnicodeBufferSize = 256 ;
-    private _toUnicodeTable:string[] ;
-    private _fromUnicodeTable:Uint8Array ;
-    private _fromUnicodeMap:Map<number,uint8> ;
+    private static readonly UnicodeBufferSize = 256 ;
+    private readonly _toUnicodeTable:string[] ;
+    private readonly _fromUnicodeTable:Uint8Array ;
+    private readonly _fromUnicodeMap:Map<number,uint8> ;
     
     public constructor(def:CharsetDefinition) {
         const n = TSLoadedCharset.UnicodeBufferSize ;
@@ -207,6 +224,27 @@ class TSLoadedCharset extends TSCharset {
         return target ;
     }
 
+}
+
+// UTF-16 big endian: the bytes are swapped around the UTF-16 little endian Buffer encoding.
+// A last odd byte is ignored, like Buffer.toString('utf16le') does
+class TSUTF16BECharset extends TSCharset {
+    public constructor() { super('utf16be', ['utf-16be', 'utf_16be']) ; }
+
+    public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes {
+        const [len, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        if (start >= end) { return [] ; }
+        return Buffer.from(start === 0 && end === len ? source : source.slice(start, end), 'utf16le').swap16() ;
+    }
+
+    public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
+        const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        const n = (end - start) & ~1 ; // an even number of bytes
+        if (n <= 0) { return '' ; }
+        const swapped = Buffer.alloc(n) ;
+        for (let i = 0 ; i < n ; i += 2) { swapped[i] = source[start + i + 1] ; swapped[i + 1] = source[start + i] ; }
+        return swapped.toString('utf16le') ;
+    }
 }
 
 export class TSSystemCharset extends TSCharset {
@@ -282,96 +320,101 @@ export function $charsetFromBytes(bytes:Bytes):TSCharset|null {
     const len = $count(bytes) ;
     if (!len) { return null ; }
 
-    // UTF-16 (little endian) BOM
-    if (len > 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) { return TSCharset.unicodeCharset() ; }
-    let i = 0 ;
-    for ( ; i < len ; i++) {
-        if (bytes[i] > 0x7f) { break }
-    }
-    if (i === len) { return TSCharset.asciiCharset() ; }
+    // UTF-16 (little endian) BOM, even alone (2 bytes used to be ignored)
+    if (len >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) { return TSCharset.unicodeCharset() ; }
+    // UTF-16 big endian BOM (it used to be detected as a single byte charset: 'þÿ...')
+    if (len >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) { return TSCharset.utf16BECharset() ; }
+    if (_isASCII(bytes, len)) { return TSCharset.asciiCharset() ; }
     if (_isUTF8Charset(bytes, len)) { return TSCharset.utf8Charset() ; }
-    const latin1 = TSCharset.latin1Charset() ;
-    const mac    = TSCharset.macCharset() ;
-    const ansi   = TSCharset.ansiCharset() ;
-    let macWeight = 0 ;
-    let ansiiWeight = 0 ;
+    return _singleByteCharset(bytes, len) ;
+}
 
-    const charsets = new Set<TSCharset>([latin1, mac, ansi]) ;
-    for (i = 0 ; i < len && charsets.size > 0 ; i++) {
-        const c = bytes[i] ;
-        if (c === 0) { continue ; } // 0 always accepted as potential string terminator
-        if (c === 0x7f) { charsets.delete(mac) ; }
-        else if (c >= 0x80) { 
-            if (c <= 0x9f) {
-                charsets.delete(latin1) ; 
-                if (c === 0x81 || c === 0x8d || c === 0x8f || c === 0x90 || c === 0x9d) { charsets.delete(ansi) ; }
-            }
-            ansiiWeight += __ANSIWeights[c - 0x80] ;
-            macWeight += __MacWeights[c - 0x80] ;
+// the length of the byte order mark which gave the charset of the data, or 0
+function _bomLength(bytes:Bytes, charset:TSCharset):number {
+    const len = $count(bytes) ;
+    if (charset === TSCharset.utf8Charset()) { return len >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF ? 3 : 0 ; }
+    if (charset === TSCharset.unicodeCharset()) { return len >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE ? 2 : 0 ; }
+    if (charset === TSCharset.utf16BECharset()) { return len >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF ? 2 : 0 ; }
+    return 0 ;
+}
 
-        }
-        else if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) { charsets.delete(mac) ; }
+function _isASCII(bytes:Bytes, len:number):boolean {
+    for (let i = 0 ; i < len ; i++) {
+        if (bytes[i] > 0x7f) { return false ; }
     }
+    return true ;
+}
+
+interface SingleByteCharsets { latin1:TSCharset, mac:TSCharset, ansi:TSCharset } 
+interface SingleByteWeights { mac:number, ansi:number }
+
+// latin1, mac or ansi: the bytes eliminate some charsets, and the weights decide between mac and ansi
+function _singleByteCharset(bytes:Bytes, len:number):TSCharset|null {
+    const cs:SingleByteCharsets = { latin1:TSCharset.latin1Charset(), mac:TSCharset.macCharset(), ansi:TSCharset.ansiCharset() } ;
+    const weights:SingleByteWeights = { mac:0, ansi:0 } ;
+    const charsets = new Set<TSCharset>([cs.latin1, cs.mac, cs.ansi]) ;
+    for (let i = 0 ; i < len && charsets.size > 0 ; i++) { _eliminateCharsets(bytes[i], charsets, cs, weights) ; }
     switch (charsets.size) {
         case 0: return null ;
         case 1: return charsets.values().next().value!
         default:
-            if (charsets.has(mac)) {
-                if (macWeight > ansiiWeight) { return mac ; }
-                if (macWeight === ansiiWeight) { return null ; }
-            }
-            return charsets.has(latin1) ? latin1 : ansi ;
+            // MacRoman needs more evidence than ANSI. Otherwise, latin1 (or ANSI if latin1 was eliminated) is
+            // chosen, like when MacRoman was eliminated (equal weights used to give null, so that $charset()
+            // decoded these non UTF-8 data as UTF-8)
+            if (charsets.has(cs.mac) && weights.mac > weights.ansi) { return cs.mac ; }
+            return charsets.has(cs.latin1) ? cs.latin1 : cs.ansi ;
     }
+}
+
+function _eliminateCharsets(c:number, charsets:Set<TSCharset>, cs:SingleByteCharsets, weights:SingleByteWeights) {
+    if (c === 0) { return ; } // 0 always accepted as potential string terminator
+    if (c === 0x7f) { charsets.delete(cs.mac) ; }
+    else if (c >= 0x80) { 
+        if (c <= 0x9f) {
+            charsets.delete(cs.latin1) ; 
+            if (c === 0x81 || c === 0x8d || c === 0x8f || c === 0x90 || c === 0x9d) { charsets.delete(cs.ansi) ; }
+        }
+        weights.ansi += __ANSIWeights[c - 0x80] ;
+        weights.mac += __MacWeights[c - 0x80] ;
+    }
+    else if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) { charsets.delete(cs.mac) ; }
 }
 
 function _isUTF8Charset(bytes: Bytes, len: number): boolean {
     let i = 0;
-
     while (i < len) {
-        const b0 = bytes[i];
-
         // ASCII (should normally no longer occur here since we know the data is not 100% ASCII, 
         // but a single ASCII byte in the middle of a valid UTF-8 string remains... valid)
-
-        if (b0 <= 0x7F) { i += 1; continue; }
-
-        let extraBytes: number;
-        let minCodePoint: number;           // detect "overlong" sequences
-        let codePoint: number;
-
-        if ((b0 & 0xE0) === 0xC0) {        // 110xxxxx -> 2 bytes
-            extraBytes = 1;
-            minCodePoint = 0x80;
-            codePoint = b0 & 0x1F;
-        }
-        else if ((b0 & 0xF0) === 0xE0) {   // 1110xxxx -> 3 bytes
-            extraBytes = 2;
-            minCodePoint = 0x800;
-            codePoint = b0 & 0x0F;
-        }
-        else if ((b0 & 0xF8) === 0xF0) {   // 11110xxx -> 4 bytes
-            extraBytes = 3;
-            minCodePoint = 0x10000;
-            codePoint = b0 & 0x07;
-        }
-        else {
-            return false; // 10xxxxxx alone or 11111xxx : invalid in UTF-8
-        }
-
-        if (i + extraBytes >= len) { return false; } // truncated sequence
-
-        for (let j = 1; j <= extraBytes; j++) {
-            const b = bytes[i + j];
-            if ((b & 0xC0) !== 0x80) { return false; } // not a 10xxxxxx continuation byte 
-            codePoint = (codePoint << 6) | (b & 0x3F);
-        }
-
-        if (codePoint < minCodePoint) { return false; }         // "overlong" sequence
-        if (codePoint > 0x10FFFF) { return false; }             // out of Unicode range
-        if (codePoint >= 0xD800 && codePoint <= 0xDFFF) { return false; } // invalid UTF-8 surrogate 
-
-        i += extraBytes + 1;
+        const sequenceLength = bytes[i] <= 0x7F ? 1 : _utf8SequenceLength(bytes, i, len) ;
+        if (!sequenceLength) { return false ; }
+        i += sequenceLength ;
     }
-
     return true;
+}
+
+// [extra bytes, minimal code point (to detect "overlong" sequences), code point bits mask] of a leading byte
+function _utf8Lead(b0:number):[number, number, number]|null {
+    if ((b0 & 0xE0) === 0xC0) { return [1, 0x80, 0x1F] ; }     // 110xxxxx -> 2 bytes
+    if ((b0 & 0xF0) === 0xE0) { return [2, 0x800, 0x0F] ; }    // 1110xxxx -> 3 bytes
+    if ((b0 & 0xF8) === 0xF0) { return [3, 0x10000, 0x07] ; }  // 11110xxx -> 4 bytes
+    return null ;                                               // 10xxxxxx alone or 11111xxx : invalid in UTF-8
+}
+
+// returns the length of the valid non-ASCII UTF-8 sequence at index i, or 0
+function _utf8SequenceLength(bytes:Bytes, i:number, len:number):number {
+    const lead = _utf8Lead(bytes[i]) ;
+    if (!lead) { return 0 ; }
+    const [extraBytes, minCodePoint, mask] = lead ;
+    if (i + extraBytes >= len) { return 0 ; } // truncated sequence
+
+    let codePoint = bytes[i] & mask ;
+    for (let j = 1; j <= extraBytes; j++) {
+        const b = bytes[i + j];
+        if ((b & 0xC0) !== 0x80) { return 0 ; } // not a 10xxxxxx continuation byte 
+        codePoint = (codePoint << 6) | (b & 0x3F);
+    }
+    if (codePoint < minCodePoint) { return 0 ; }                       // "overlong" sequence
+    if (codePoint > 0x10FFFF) { return 0 ; }                           // out of Unicode range
+    if (codePoint >= 0xD800 && codePoint <= 0xDFFF) { return 0 ; }    // invalid UTF-8 surrogate 
+    return extraBytes + 1 ;
 }

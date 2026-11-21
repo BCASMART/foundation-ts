@@ -58,7 +58,7 @@ TSTest.group("TSColor class ", async (group) => {
         t.expect8(TSColor.rgb('green').isSimilar(TSColor.green())).true() ;
         t.expect9(TSColor.green().isSimilar(TSColor.rgb('green'))).true() ;
         t.expectA(TSColor.cmyk(0,0,0,0.5).isSimilar(realGray)).true() ;
-        t.expectB(realGray.isSimilar(TSColor.rgb(127,127,127))).true() ;
+        t.expectB(realGray.isSimilar(TSColor.rgb(128,128,128))).true() ; // 0.5 * 255 = 127.5 is rounded to 128
         t.expectC(realGray.isSimilar(rgbGray)).true() ;
     }) ;
 
@@ -68,7 +68,7 @@ TSTest.group("TSColor class ", async (group) => {
         t.expect2(realGray.toCMYK()).is(cmykGray) ;
         t.expect3(realGray.toRGB()).is(rgbGray) ;
         t.expect4(cmykGray.toGrayscale()).is(realGray) ;
-        t.expect5(rgbGray.toGrayscale()).is(realGray) ;
+        t.expect5(rgbGray.toGrayscale().isSimilar(realGray)).true() ; // the gray of rgb(128,128,128) is 128/255, not 0.5
     }) ;
 
     group.unary("TSColors names", async(t) => {
@@ -97,10 +97,10 @@ TSTest.group("TSColor class ", async (group) => {
         t.expect4([H5, S5, B5]).is([0,0,50]) ;
         t.expect5([H6, S6, B6]).is([0,0,50]) ;
         t.expect6(realGray.gray).is(0.5) ;
-        t.expect7(rgbGray.gray).is(0.5) ;
+        t.expect7(rgbGray.gray).is(128/255) ; // no more rounding to a percentage
     }) ;
     group.unary("TSColor.toAlpha() and TSColor.toOpacity()", async(t) => {
-        const yaRGB1 = yellowRGB.toAlpha(127 as uint8) ;
+        const yaRGB1 = yellowRGB.toAlpha(128 as uint8) ; // 0.5 * 255 = 127.5 is rounded to 128
         const yaRGB2 = yellowRGB.toOpacity(0.5) ;
 
         t.expect0(yaRGB2).is(yaRGB1) ;
@@ -129,7 +129,7 @@ TSTest.group("TSColor class ", async (group) => {
         t.expect3(yellowCMYK.toString({ uppercase:true, colorSpace:TSColorSpace.RGB, shortestCSS:true})).is('#FF0') ;
         t.expect4(yellowCMYK.toString()).is('cmyk(0,0,1,0)') ;
         t.expect5(yellowRGB.toString({ rgbaCSSLike:true })).is('#ffff00ff') ;
-        t.expect6(yellowRGB.toOpacity(0.5).toString({ rgbaCSSLike:true })).is('#ffff007f') ;
+        t.expect6(yellowRGB.toOpacity(0.5).toString({ rgbaCSSLike:true })).is('#ffff0080') ; // like CSS: 50% gives 80
     }) ;
 }),
 
@@ -232,7 +232,7 @@ TSTest.group("TSColor — CMYK / grayscale spaces, factories guards & toString f
         t.expect0(TSColor.rgb(10, 20, 30, 128).toString().startsWith('rgba(10,20,30,0.50')).true() ;
         const grey = TSColor.rgb(100, 100, 100) ;
         t.expect1(grey.darkerColor().toString()).is('#464646') ;
-        t.expect2(grey.darkestColor().toString()).is('#333333') ;
+        t.expect2(grey.darkestColor().toString()).is('#343434') ; // 51.93 is rounded to 52 (0x34)
     }) ;
 
     group.unary('CMYK/Grayscale colors are cached : identity, discrimination, quantization', async (t) => {
@@ -274,6 +274,70 @@ TSTest.group("TSColor — CMYK / grayscale spaces, factories guards & toString f
 
     group.unary('logColorCache() does not throw', async (t) => {
         t.expect0(() => TSColor.logColorCache()).doesNotThrow() ;
+    
+    group.unary('exact conversions between [0..255] bytes and [0..1] components', async (t) => {
+        let rgbComponentsErrors = 0, opacityErrors = 0, grayErrors = 0, cmykErrors = 0 ;
+        for (let k = 0 ; k < 256 ; k++) {
+            if (TSColor.rgbcomponents(k/255, k/255, k/255).red !== k) { rgbComponentsErrors++ ; }
+            if (TSColor.rgb(255, 255, 255, k).toOpacity(k/255).alpha !== k) { opacityErrors++ ; }
+            if (TSColor.rgb(k, k, k).toGrayscale().toRGB().red !== k) { grayErrors++ ; }
+        }
+        for (let r = 0 ; r < 256 ; r += 15) {
+            for (let g = 0 ; g < 256 ; g += 15) {
+                for (let b = 0 ; b < 256 ; b += 15) {
+                    const color = TSColor.rgb(r, g, b, (r + b) % 256) ;
+                    const back = color.toCMYK().toRGB() ;
+                    if (back.red !== r || back.green !== g || back.blue !== b || back.alpha !== color.alpha) { cmykErrors++ ; }
+                }
+            }
+        }
+        t.expect0(rgbComponentsErrors).is(0) ;
+        t.expect1(opacityErrors).is(0) ;
+        t.expect2(grayErrors).is(0) ;
+        t.expect3(cmykErrors).is(0) ;   // there were 47% of wrong conversions
+        t.expect4(TSColor.rgbcomponents(0.5, 0.5, 0.5).red).is(128) ;
+        t.expect5(TSColor.cmyk(0.2, 0.4, 0.6, 0.1, 0.5).toRGB().opacity).is(128/255) ;
+    }) ;
+
+    group.unary('opacity is kept and normalized in all color spaces', async (t) => {
+        t.expect0(TSColor.rgb(10, 20, 30, 128).toGrayscale().alpha).is(128) ;   // was lost (opaque)
+        t.expect1(TSColor.grayscale(0.5, 2).opacity).is(1) ;                    // was 2
+        t.expect2(TSColor.grayscale(0.5, -1).opacity).is(0) ;
+        const c1 = TSColor.cmyk(0.1, 0.2, 0.3, 0.4, 0.5) ;
+        t.expect3(c1.isSimilar(c1.toRGB().toCMYK())).true() ;
+        t.expect4(c1.toArray()).is([0.1, 0.2, 0.3, 0.4, 0.5]) ;
+        t.expect5(TSColor.rgb(1, 2, 3, 4).toArray()).is([1, 2, 3, 4]) ;
+        t.expect6(TSColor.rgb(1, 2, 3, 4).toJSON()).is({ red:1, green:2, blue:3, alpha:4 }) ;
+    }) ;
+
+    group.unary('the CMYK cache never changes the asked components', async (t) => {
+        t.expect0(TSColor.cmyk(0.1, 0, 0, 0).cyan).is(0.1) ;
+        t.expect1(TSColor.cmyk(0.1001, 0, 0, 0).cyan).is(0.1001) ;              // used to be 0.1 (the cached color)
+        t.expect2(TSColor.cmyk(0, 0, 0, 1 - 0.7)).strictis(TSColor.cmyk(0, 0, 0, 0.3)) ; // computation jitters are merged
+    }) ;
+
+    group.unary('rgb() / toAlpha() errors and isSimilar() alpha', async (t) => {
+        const C = TSColor as any ;
+        t.expect0(() => C.rgb()).toThrow('TSColor.rgb() : Bad parameters') ;
+        t.expect1(() => C.rgb(1, 2)).toThrow('TSColor.rgb() : Bad parameters') ;
+        t.expect2(() => C.rgb(1, 2, 3, 4, 5)).toThrow('TSColor.rgb() : Bad parameters') ;
+        const red = TSColor.rgb(255, 0, 0) ;
+        t.expect3(() => red.toAlpha(256 as uint8)).toThrow('TSColor.toAlpha() : Bad alpha parameter 256') ;
+        t.expect4(() => red.toAlpha(-1 as uint8)).toThrow('TSColor.toAlpha() : Bad alpha parameter -1') ;
+        t.expect5(red.isSimilar(red.toAlpha(128 as uint8))).false() ;     // same RGB bytes, other alpha
+        t.expect6(red.isSimilar('red' as any)).false() ;                  // not a color
+        t.expect7(red.isSimilar(TSColor.rgb('#FF0000'))).true() ;
+    }) ;
+}) ;
+}),
+
+TSTest.group("TSColor — fromString() of empty strings", async (group) => {
+    group.unary('empty or whitespace only strings give no color', async (t) => {
+        t.expect0(TSColor.fromString('')).null() ;
+        t.expect1(TSColor.fromString('   ')).null() ;
+        t.expect2(TSColor.fromString(' \t\n ')).null() ;
+        t.expect3(TSColor.fromString(null)).null() ;
+        t.expect4(TSColor.fromString(undefined)).null() ;
     }) ;
 }),
 

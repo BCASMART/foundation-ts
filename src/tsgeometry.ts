@@ -367,62 +367,64 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
 			case 0:
                 this.x = this.y = this.w = this.h = 0 ;
                 break ;
-            case 1:{
-                if ($isstring(arguments[0])) {
-                    const s = TSDocumentFormats[arguments[0] as TSDocumentFormat] ;
-                    this._setInternalValues('bad document format parameter', 0, 0, s?.w, s?.h, $ok(s)) ;
-                }
-                else if ($isarray(arguments[0])) {
-                    const a = arguments[0] as Array<number> ;
-                    this._setInternalValues('bad rect definition array parameter', a[0], a[1], a[2], a[3], a.length === 4) ;
-                }
-                else if ((arguments[0] instanceof TSRect)) {
-                    const r = arguments[0] as TSRect ;
-                    this._setInternalValues('bad TSRect parameter', r.minX, r.minY, r.width, r.height) ;
-                }
-                else if ($conformsToFrame(arguments[0])) {
-                    const f = arguments[0] as TSFrame ;
-                    this._setInternalValues('bad TSFrame parameter', f.x, f.y, f.w, f.h) ;
-                }
-                else {
-                    TSError.throw('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter', { arguments:Array.from(arguments)}) ;
-                }
-                break ;
-            }
-            case 2:
-                if ($comformsToPoint(arguments[0])) {
-                    const s = $isstring(arguments[1]) ? TSDocumentFormats[arguments[1] as TSDocumentFormat] : arguments[1] as TSSize ;
-                    if ($conformsToSize(s)) {
-                        const p = arguments[0] as TSPoint ;
-                        this._setInternalValues('bad TSPoint+(TSSize or TSDocumentFormat) 2 parameters', p.x, p.y, s.w, s.h) ;
-                    }
-                    else {
-                        TSError.throw('TSRect.constructor() : 2nd parameeter is not a TSSize', { arguments:Array.from(arguments)}) ;
-                    }
-                }
-                else {
-                    TSError.throw('TSRect.constructor() : 1st parameter is not a TSPoint', { arguments:Array.from(arguments)}) ;
-                }
-                break ;
-            case 3:
-                if ($isnumber(arguments[0]) && $isnumber(arguments[1]) && ($isstring(arguments[2]) || $conformsToSize(arguments[2]))) {
-                    const s = $isstring(arguments[2]) ? TSDocumentFormats[arguments[2] as TSDocumentFormat] : arguments[2] as TSSize ;
-                    this._setInternalValues('bad [number, number, size or format] parameters', arguments[0], arguments[1], s.w, s.h) ;
-                }
-                else if ($comformsToPoint(arguments[0]) && $isnumber(arguments[1]) && $isnumber(arguments[2])) {
-                    const p = (arguments[0] as TSPoint) ;
-                    this._setInternalValues('bad [point, number, number] parameters', p.x, p.y, arguments[1], arguments[2]) ;
-                }
-                else {
-                    TSError.throw('TSRect.constructor() : bad TSPoint, TSSize or number parameter', { arguments:Array.from(arguments)}) ;
-                }
-                break ;
+            case 1: this._initWithOneArgument(arguments[0], Array.from(arguments)) ; break ;
+            case 2: this._initWithOriginAndSize(arguments[0], arguments[1], Array.from(arguments)) ; break ;
+            case 3: this._initWithThreeArguments(arguments[0], arguments[1], arguments[2], Array.from(arguments)) ; break ;
             case 4:
                 this._setInternalValues('one or more bad number parameter', arguments[0], arguments[1], arguments[2], arguments[3]) ;
                 break ;
-
             default:
                 TSError.throw('TSRect.constructor() : too much arguments', { arguments:Array.from(arguments)}) ;
+        }
+    }
+
+    // a document format, a [x, y, w, h] array, a TSRect or a TSFrame
+    private _initWithOneArgument(arg:any, args:any[]) {
+        if ($isstring(arg)) {
+            const s = TSDocumentFormats[arg as TSDocumentFormat] ;
+            this._setInternalValues('bad document format parameter', 0, 0, s?.w, s?.h, $ok(s)) ;
+        }
+        else if ($isarray(arg)) {
+            const a = arg as Array<number> ;
+            this._setInternalValues('bad rect definition array parameter', a[0], a[1], a[2], a[3], a.length === 4) ;
+        }
+        else if ((arg instanceof TSRect)) {
+            this._setInternalValues('bad TSRect parameter', arg.minX, arg.minY, arg.width, arg.height) ;
+        }
+        else if ($conformsToFrame(arg)) {
+            const f = arg as TSFrame ;
+            this._setInternalValues('bad TSFrame parameter', f.x, f.y, f.w, f.h) ;
+        }
+        else {
+            TSError.throw('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter', { arguments:args }) ;
+        }
+    }
+
+    // a TSPoint and a TSSize or a document format
+    private _initWithOriginAndSize(origin:any, size:any, args:any[]) {
+        if (!$comformsToPoint(origin)) {
+            TSError.throw('TSRect.constructor() : 1st parameter is not a TSPoint', { arguments:args }) ;
+        }
+        const s = $isstring(size) ? TSDocumentFormats[size as TSDocumentFormat] : size as TSSize ;
+        if (!$conformsToSize(s)) {
+            TSError.throw('TSRect.constructor() : 2nd parameter is not a TSSize', { arguments:args }) ;
+        }
+        const p = origin as TSPoint ;
+        this._setInternalValues('bad TSPoint+(TSSize or TSDocumentFormat) 2 parameters', p.x, p.y, s.w, s.h) ;
+    }
+
+    // x, y and a TSSize or a document format, or a TSPoint, w and h
+    private _initWithThreeArguments(a0:any, a1:any, a2:any, args:any[]) {
+        if ($isnumber(a0) && $isnumber(a1) && ($isstring(a2) || $conformsToSize(a2))) {
+            const s = $isstring(a2) ? TSDocumentFormats[a2 as TSDocumentFormat] : a2 as TSSize ;
+            this._setInternalValues('bad [number, number, size or format] parameters', a0, a1, s?.w, s?.h, $ok(s)) ;
+        }
+        else if ($comformsToPoint(a0) && $isnumber(a1) && $isnumber(a2)) {
+            const p = (a0 as TSPoint) ;
+            this._setInternalValues('bad [point, number, number] parameters', p.x, p.y, a1, a2) ;
+        }
+        else {
+            TSError.throw('TSRect.constructor() : bad TSPoint, TSSize or number parameter', { arguments:args }) ;
         }
     }
 
@@ -440,7 +442,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
     public get midX():number    { return this.x + this.w/2 ; }
     public get midY():number    { return this.y + this.h/2 ; }
 
-    public get isEmpty():boolean  { return this.w > 0 && this.h > 0 ? false : true ; }
+    public get isEmpty():boolean  { return !(this.w > 0 && this.h > 0) ; }
 
     public contains(p:Nullable<TSPoint|TSRect|number[]>):boolean {
         if (p instanceof TSRect) {
@@ -481,7 +483,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         try { r = $isarray(r) ? new TSRect(r) : r ; }
         catch { return false ; }
 
-        return this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty ? false : true ;
+        return !(this.maxX <= r.minX || r.maxX <= this.minX || this.maxY <= r.minY || r.maxY <= this.minY || this.isEmpty || r.isEmpty) ;
     }
     public intersectsRect(r:Nullable<TSRect|number[]>):boolean { return this.intersects(r) ; }
 
@@ -612,19 +614,8 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
         const area = this.width * this.height ;
         const otherArea = other.width * other.height ;
 
-        if (area === otherArea) {
-            const aX = this.minX ; const aY = this.minY ;
-            const bX = other.minX ; const bY = other.minY ;
-            if (aX === bX) {
-                if (aY < bY) { return Ascending ; }
-                return aY > bY ? Descending : Same ;
-            }
-            if (aY === other.y) { return aX < bX ? Ascending : Descending ; }
-            if (aX < bX && aY < bY) { return Ascending ; }
-            if (aX > bX && aY > bY) { return Descending ; }
-            return undefined ; // same area but origins are not comparable
-        }
-        return area < otherArea ? Ascending : Descending ;
+        if (area !== otherArea) { return area < otherArea ? Ascending : Descending ; }
+        return _compareOrigins(this.minX, this.minY, other.minX, other.minY, other.y) ;
     }
     
     public toJSON():TSFrame { return this.frame ; } 
@@ -646,8 +637,8 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
     }
     
     // ============ private methods ===============
-    _setInternalValues(message:string, x:any, y:any, w:any, h:any, _moreTest:boolean = true) {
-        if (!!_moreTest && $isnumber(x) && $isnumber(y) && $isnumber(w) && $isnumber(h) && w >= 0 && h >= 0) {
+    private _setInternalValues(message:string, x:any, y:any, w:any, h:any, _moreTest:boolean = true) {
+        if (_moreTest && $isnumber(x) && $isnumber(y) && $isnumber(w) && $isnumber(h) && w >= 0 && h >= 0) { // NOSONAR: one test validating x, y, w, h together (_moreTest is the caller check)
             this.x = x ; this.y = y ;
             this.w = w ; this.h = h ;    
         }
@@ -729,3 +720,15 @@ export function $conformsToSize(v:any):boolean
 
 export function $conformsToFrame(v:any):boolean
 { return $comformsToPoint(v) && $conformsToSize(v) ; }
+
+// compares the origins of 2 rects with the same area (otherY is the y of the other rect)
+function _compareOrigins(aX:number, aY:number, bX:number, bY:number, otherY:number):Comparison {
+    if (aX === bX) {
+        if (aY < bY) { return Ascending ; }
+        return aY > bY ? Descending : Same ;
+    }
+    if (aY === otherY) { return aX < bX ? Ascending : Descending ; }
+    if (aX < bX && aY < bY) { return Ascending ; }
+    if (aX > bX && aY > bY) { return Descending ; }
+    return undefined ; // same area but origins are not comparable
+}

@@ -55,6 +55,7 @@ export type isodate = Opaque<string> ;
 
 export const UUID_LENGTH = 36 ;
 export const EMAIL_MIN_LENGTH = 6 ;
+export const EMAIL_MAX_LENGTH = 254 ; // RFC 5321
 
 export type GUID    = UUID ; // NOSONAR just an alias
 
@@ -65,6 +66,8 @@ export type StringEncoding = NormativeStringEncoding |
                             'bin' | 'BIN' | 'binary' | 'BINARY' | 'LATIN1' | 'iso-latin1' | 'ISO-LATIN1' | 'isolatin1' | 'ISOLATIN1' | 'latin-1' | 'LATIN-1' | 'latin_1' | 'LATIN_1' | 'ISOLatin1' | 'ISO-8859-1' | 'iso-8859-1' | '8859-1' | 'ISO_8859-1' | 'iso-ir-100' | '819' | 'cp819' | 'CP819' | 'IBM819' | 'l1' | 'csISOLatin1' | 'ansicpg819' | '\\ansicpg819' | "ISO8859-1" |
                             'utf-8' | 'UTF8' | 'UTF-8' | 'utf_8' | 'UTF_8' | 
                             'unicode' | 'UNICODE' | 'utf16' | 'utf-16' | 'utf_16' | 'UTF16' | 'UTF-16' | 'UTF_16' | "ucs2" | "ucs-2" | 'ucs_2' | 'UCS2' | 'UCS-2' | 'UCS_2' | 'utf-16le' | 'UTF-16LE' | 'utf_16le' | 'UTF_16LE' | 'UTF16LE' |
+                            // UTF-16 big endian is not a Buffer encoding: $encoding() does not know it, only TSCharset does
+                            'utf16be' | 'UTF16BE' | 'utf-16be' | 'UTF-16BE' | 'utf_16be' | 'UTF_16BE' |
                             'BASE64' | 'BASE64URL' | 'base64-url' | 'BASE64-URL' | 'base64_url' |  'BASE64_URL' |
                             'HEX' | 'hexa' | 'HEXA' | 'hexadecimal' | 'HEXADECIMAL' ;
 

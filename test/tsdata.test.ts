@@ -247,6 +247,93 @@ export const mutableDataGroups = [
             t.expect2(data.getUint8(5)).is(0xBB) ;
             t.expect3(data.getUint8(1)).is(0x00) ;
         }) ;
+        group.unary('splice() gives the same result as Array.splice() (random operations)', async(t) => {
+            // deterministic pseudo random numbers
+            let seed = 42 ;
+            const rnd = (n:number) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff ; return seed % n ; } ;
+            const sourceKinds = [
+                (a:number[]) => a,
+                (a:number[]) => new Uint8Array(a),
+                (a:number[]) => Buffer.from(a),
+                (a:number[]) => new TSData(a as uint8[]),
+            ] ;
+            let failures = 0 ;
+            for (let i = 0 ; i < 600 ; i++) {
+                const start = Array.from({ length:rnd(40) }, () => rnd(256)) ;
+                const source = Array.from({ length:rnd(20) }, () => rnd(256)) ;
+                const targetStart = rnd(50), deleteCount = rnd(30), padding = rnd(256) ;
+                const expected = [...start] ;
+                while (expected.length < targetStart) { expected.push(padding) ; }
+                expected.splice(targetStart, deleteCount, ...source) ;
+                const data = new TSData(start as uint8[]) ;
+                data.splice(targetStart, deleteCount, sourceKinds[i % 4](source) as any, null, null, padding) ;
+                if (!data.isEqual(new Uint8Array(expected))) { failures++ ; }
+            }
+            t.expect0(failures).is(0) ;
+        }) ;
+
+        group.unary('appendASCII(), length = n, iteration', async(t) => {
+            const d = new TSData() ;
+            d.appendASCII('xA\u0141\u00e9y', 1, 4) ;               // one byte per UTF-16 code unit: its low byte
+            t.expect0([...d]).is([0x41, 0x41, 0xE9]) ;
+            d.appendASCII('z'.repeat(100)) ;                         // with a capacity growth
+            t.expect1(d.length).is(103) ;
+            t.expect2(d.getUint8(102)).is(0x7A) ;
+
+            // with the fillWithZeros option, a growing length used to be ignored
+            const z = new TSData(Buffer.from('abcde'), { fillWithZeros:true }) ;
+            z.length = 2 ;
+            z.length = 5 ;
+            t.expect3(z.length).is(5) ;
+            t.expect4([...z]).is([0x61, 0x62, 0, 0, 0]) ;          // the truncated bytes are zeroed
+            const u = new TSData(Buffer.from('abcde')) ;
+            u.length = 2 ;
+            u.length = 4 ;
+            t.expect5([...u]).is([0x61, 0x62, 0, 0]) ;
+
+            // the iteration reads the bytes when they are iterated
+            const it = new TSData([1, 2, 3] as uint8[]) ;
+            const seen:number[] = [] ;
+            for (const b of it) { seen.push(b) ; if (b === 1) { it.appendByte(4 as uint8) ; } }
+            t.expect6(seen).is([1, 2, 3, 4]) ;
+            const iterator = it[Symbol.iterator]() ;
+            t.expect7(iterator[Symbol.iterator]()).is(iterator) ;
+            t.expect8([...new TSData()]).is([]) ;
+        }) ;
+
+        group.unary('startsWith() / endsWith() at the bounds', async(t) => {
+            const d = TSData.fromString('abcab')! ;
+            t.expect0(d.startsWith('ab')).true() ;
+            t.expect1(d.startsWith('abcab')).true() ;
+            t.expect2(d.startsWith('abcabc')).false() ;
+            t.expect3(d.startsWith(0x61)).true() ;
+            t.expect4(d.startsWith(0x62)).false() ;
+            t.expect5(d.endsWith(0x62)).true() ;
+            t.expect6(d.endsWith('cab')).true() ;
+            t.expect7(d.endsWith('abcab')).true() ;
+            t.expect8(d.endsWith('xabcab')).false() ;
+            t.expect9(d.startsWith(new TSData([0x61, 0x62] as uint8[]))).true() ;
+            t.expectA(d.startsWith('b')).false() ;   // found later, but not at the start
+        }) ;
+
+        group.unary('includes() / startsWith() / endsWith() / isEqual() refusals', async(t) => {
+            const d = TSData.fromString('abc')! ;
+            const empty = new TSData() ;
+            t.expect0(d.includes(300)).false() ;          // not a byte
+            t.expect1(d.startsWith(300)).false() ;
+            t.expect2(d.endsWith(300)).false() ;
+            t.expect3(d.endsWith('')).false() ;           // nothing to search
+            t.expect4(d.endsWith('abcd')).false() ;       // longer than the data
+            t.expect5(d.endsWith('bc')).true() ;
+            t.expect6(d.startsWith(null)).false() ;
+            t.expect7(d.startsWith('bc')).false() ;
+            t.expect8(empty.startsWith('a')).false() ;
+            t.expect9(empty.endsWith('a')).false() ;
+            t.expectA(empty.includes('a')).false() ;
+            t.expectB(d.isEqual(TSData.fromString('ab'))).false() ;      // other length
+            t.expectC(d.isEqual(new Uint8Array([97, 98]))).false() ;
+            t.expectD(d.isEqual(new Uint8Array([97, 98, 99]))).true() ;
+        }) ;
         group.unary('data.length = n', async(t) => {
             const data = new TSData() ;
             data.length = 10 ;
@@ -255,6 +342,10 @@ export const mutableDataGroups = [
             data.length = 5 ;
             t.expect2(data.length).is(5) ;
             t.expect3(data).is(TSData.fromHexaString("0000000000")) ;
+            t.expect4(() => { data.length = 1.5 ; }).toThrow(/^TSData\.length = 1\.5 is not valid/) ;  // the message used to say TSDate
+            t.expect5(() => { data.length = -1 ; }).toThrow(/^TSData\.length = -1 is not valid/) ;
+            t.expect6(() => data.truncateBy(-2)).toThrow(/^TSData\.truncateBy\(-2\) is not valid/) ;
+            t.expect7(data.length).is(5) ;
         }) ;
         group.unary('check TSData boundaries using number reading methods', async(t) => {
             const data = new TSData() ;
@@ -580,6 +671,13 @@ export const mutableDataGroups = [
                 $removeFile(p) ;
             }) ;
         }
+    }),
+    TSTest.group("TSData — constructor parameters", async (group) => {
+        group.unary('TSData constructor refuses bad parameters', async (t) => {
+            t.expect0(() => new TSData({} as any)).throws('TSData.constructor() : Bad parameters') ;
+            t.expect1(() => new TSData('abc' as any)).throws('TSData.constructor() : Bad parameters') ;
+            t.expect2(() => new TSData(true as any)).throws('TSData.constructor() : Bad parameters') ;
+        }) ;
     })
 ] ;
 

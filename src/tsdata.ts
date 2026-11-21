@@ -24,7 +24,7 @@ export interface TSDataOptions {
 export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClone<TSData> {
     protected _len:number ;
     protected _buf:Buffer ;
-    private _allocFn:(n:number) => Buffer ;
+    private readonly _allocFn:(n:number) => Buffer ;
     private _dataView:DataView|undefined = undefined ;
 
     // cached mutableBuffer view (see the getter). It is a live view onto `_buf`,
@@ -39,8 +39,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     // ============================ TSDATA creation =============================================
     constructor (source?:Nullable<number|TSDataLike>, opts:TSDataOptions={}) 
     {
-        if ($ok(opts.allocMethod)) { this._allocFn = opts.allocMethod! ; }
-        else { this._allocFn = opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe ; }
+        this._allocFn = _allocFunction(opts) ;
 
         if (!$ok(source)) { source = 0 ; }
         
@@ -114,28 +113,36 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     // ============================ STANDARD JS ENUMERATION =============================================
-    public *[Symbol.iterator]()
-    { for (let i = 0 ; i < this._len ; i++) { yield this._buf[i] ; }}
+    // a plain iterator is several times faster than a generator. As before, the bytes are read
+    // when they are iterated (a change made during the iteration is seen)
+    public [Symbol.iterator]():IterableIterator<number> {
+        let i = 0 ;
+        const iterator:IterableIterator<number> = {
+            next: ():IteratorResult<number> => i < this._len ? { value:this._buf[i++], done:false } : { value:undefined, done:true },
+            [Symbol.iterator]() { return iterator ; }
+        } ;
+        return iterator ;
+    }
 
     // ============================ POTENTIALLY MUTABLE OPERATIONS =============================================
 
-    public splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):TSData {
+    public splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):this {
         return this._splice(targetStart, deleteCount, source, sourceStart, sourceEnd, paddingByte) ;    
     }
     
-    public appendByte(source:uint8):TSData {
+    public appendByte(source:uint8):this {
         this._willGrow(1) ;
         this._buf[this._len++] = source & 0xff ;
         return this ;
     }
 
-    public appendBytes(source:Nullable<Bytes>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData
+    public appendBytes(source:Nullable<Bytes>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this
     { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
-    public appendData(source:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData
+    public appendData(source:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this
     { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
-    public appendString(source:Nullable<string>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public appendString(source:Nullable<string>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [,start,end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
             const b = $charset(encoding, TSCharset.binaryCharset()).stringToBytes(source!, start, end) ;
@@ -144,28 +151,27 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this ;
     }
     
-    public appendASCII(source:Nullable<string>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public appendASCII(source:Nullable<string>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
             this._willGrow(len) ;
-            for (let i = start ; i < end ; i++) {
-                this._buf[this._len++] = source!.charCodeAt(i) & 0xff ; // NOSONAR: appendASCII() appends one byte per UTF-16 code unit by design
-            }
+            // the latin1 encoding writes the low byte of each UTF-16 code unit, like charCodeAt(i) & 0xff
+            this._len += this._buf.write(source!.substring(start, end), this._len, len, 'latin1') ;
         }
         return this ;
     }
 
-    public replaceBytes(source:Nullable<Bytes>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public replaceBytes(source:Nullable<Bytes>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         return this._splice($tounsigned(targetStart), len, source, start, end) ;
     }
 
-    public replaceData(source:Nullable<TSDataLike>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public replaceData(source:Nullable<TSDataLike>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         return this._splice($tounsigned(targetStart), len, source, start, end) ; // we remove 
     }
 
-    public replaceString(source:Nullable<string>, targetStart?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public replaceString(source:Nullable<string>, targetStart?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const datasource = $ok(source) ? $charset(encoding, TSCharset.binaryCharset()).bufferFromString(source!, sourceStart, sourceEnd) : null ;
         const [, start, end, len] = $lse(datasource) ;
         return this._splice($tounsigned(targetStart), len, datasource, start, end) ; 
@@ -224,20 +230,20 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
 
-    public removeTraillingNewLines():TSData
+    public removeTraillingNewLines():this
     { while (this._len > 0 && this._buf[this._len-1].isNewLine()) { this._len -- ; } ; return this ;}
 
-    public removeTraillingSpaces():TSData 
+    public removeTraillingSpaces():this
     { while (this._len > 0 && this._buf[this._len-1].isWhiteSpace()) { this._len -- ; } ; return this ;}
 
-    public removeTraillingStrictSpaces():TSData 
+    public removeTraillingStrictSpaces():this
     { while (this._len > 0 && this._buf[this._len-1].isStrictWhiteSpace()) { this._len -- ; } ; return this ;}
 
-    public removeTraillingZeros():TSData
+    public removeTraillingZeros():this
     { while (this._len > 0 && this._buf[this._len-1] === 0) { this._len -- ; } ; return this ;}
 
-    public truncateBy(n:number):TSData {
-        if (!$isunsigned(n)) { TSError.throw(`TSDate.truncateBy(${n}) is not valid.`, { data:this, truncateBy:n}) ; }
+    public truncateBy(n:number):this {
+        if (!$isunsigned(n)) { TSError.throw(`TSData.truncateBy(${n}) is not valid.`, { data:this, truncateBy:n}) ; }
         this.length = n >= this._len ? 0 : this._len - n ;
         return this ;
     }
@@ -253,10 +259,13 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public get internalStorage():[Buffer, number] { return [this._buf, this._len] ; } // use that to your own risk
     
     public set length(n:number) {
-        if (!$isunsigned(n)) { TSError.throw(`TSDate.length = ${n} is not valid.`, { data:this, length:n}) ; }
+        if (!$isunsigned(n)) { TSError.throw(`TSData.length = ${n} is not valid.`, { data:this, length:n}) ; }
         if (n > this._len) { 
             this._willGrow(n-this._len) ; 
-            if (this._allocFn !== Buffer.alloc) { while (this._len < n) { this._buf[this._len++] = 0 ; }}
+            // always zeroed: even with Buffer.alloc, the bytes after a truncation are not
+            // (and the length used to stay unchanged with the fillWithZeros option)
+            this._buf.fill(0, this._len, n) ;
+            this._len = n ;
         }
         else { this._len = n ; }
     }
@@ -279,7 +288,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public keys():    IterableIterator<number>           { return this.mutableBuffer.keys() ; }
     public values():  IterableIterator<number>           { return this.mutableBuffer.values() ; }
 
-    public includes(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<StringEncoding|TSCharset>): boolean
+    public includes(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<StringEncoding|TSCharset>): boolean // NOSONAR: union used only here, no alias needed
     {
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return false ; }
@@ -290,15 +299,13 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     { 
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return false ; }
-        return this._index(data!, 0 as uint) === 0 ;
+        return this._matchesAt(data!, 0) ;
     }
 
     public endsWith(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<StringEncoding|TSCharset>):boolean {
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ;    if (!$ok(data)) { return false ; }
-        const slen = _searchedLength(data) ; if (slen <= 0) { return false ; }
-        const i = this._len - slen ;         if (i < 0) { return false ; } 
-        return this._index(data!, i as uint) === i ;
+        return this._matchesAt(data!, this._len - _searchedLength(data)) ;
     }
 
     public indexOf(value:Nullable<TSDataLike | number | string>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
@@ -380,43 +387,43 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public readDoubleLE(offset:number = 0): number     { return this.getFloat64(offset, TSEndianness.LE) ; }
     public readDoubleBE(offset:number = 0): number     { return this.getFloat64(offset, TSEndianness.BE) ; }
 
-    public writeInt8(value: number, offset:number = 0):TSData        { this.setInt8(offset, value) ; return this ; }
-    public writeUInt8(value: number, offset:number = 0):TSData       { this.setUint8(offset, value) ; return this ; }
-    public writeInt16LE(value: number, offset:number = 0):TSData     { this.setInt16(offset, value, TSEndianness.LE) ; return this ; }
-    public writeInt16BE(value: number, offset:number = 0):TSData     { this.setInt16(offset, value, TSEndianness.BE) ; return this ; }
-    public writeUInt16LE(value: number, offset:number = 0):TSData    { this.setUint16(offset, value, TSEndianness.LE) ; return this ; } 
-    public writeUInt16BE(value: number, offset:number = 0):TSData    { this.setUint16(offset, value, TSEndianness.BE) ; return this ; }   
-    public writeInt32LE(value: number, offset:number = 0):TSData     { this.setInt32(offset, value, TSEndianness.LE) ; return this ; }
-    public writeInt32BE(value: number, offset:number = 0):TSData     { this.setInt32(offset, value, TSEndianness.BE) ; return this ; }
-    public writeUInt32LE(value: number, offset:number = 0):TSData    { this.setUint32(offset, value, TSEndianness.LE) ; return this ; }   
-    public writeUInt32BE(value: number, offset:number = 0):TSData    { this.setUint32(offset, value, TSEndianness.BE) ; return this ; }   
-    public writeBigInt64LE(value:bigint, offset:number = 0):TSData   { this.setBigInt64(offset, value, TSEndianness.LE) ; return this ; }
-    public writeBigInt64BE(value:bigint, offset:number = 0):TSData   { this.setBigInt64(offset, value, TSEndianness.BE) ; return this ; }
-    public writeBigUInt64LE(value:bigint, offset:number = 0):TSData  { this.setBigUint64(offset, value, TSEndianness.LE) ; return this ; }
-    public writeBigUInt64BE(value:bigint, offset:number = 0):TSData  { this.setBigUint64(offset, value, TSEndianness.BE) ; return this ; }
-    public writeFloatLE(value: number, offset:number = 0):TSData     { this.setFloat32(offset, value, TSEndianness.LE) ; return this ; }
-    public writeFloatBE(value: number, offset:number = 0):TSData     { this.setFloat32(offset, value, TSEndianness.BE) ; return this ; }
-    public writeDoubleLE(value: number, offset:number = 0):TSData    { this.setFloat64(offset, value, TSEndianness.LE) ; return this ; }
-    public writeDoubleBE(value: number, offset:number = 0):TSData    { this.setFloat64(offset, value, TSEndianness.BE) ; return this ; }
+    public writeInt8(value: number, offset:number = 0):this        { this.setInt8(offset, value) ; return this ; }
+    public writeUInt8(value: number, offset:number = 0):this       { this.setUint8(offset, value) ; return this ; }
+    public writeInt16LE(value: number, offset:number = 0):this     { this.setInt16(offset, value, TSEndianness.LE) ; return this ; }
+    public writeInt16BE(value: number, offset:number = 0):this     { this.setInt16(offset, value, TSEndianness.BE) ; return this ; }
+    public writeUInt16LE(value: number, offset:number = 0):this    { this.setUint16(offset, value, TSEndianness.LE) ; return this ; } 
+    public writeUInt16BE(value: number, offset:number = 0):this    { this.setUint16(offset, value, TSEndianness.BE) ; return this ; }   
+    public writeInt32LE(value: number, offset:number = 0):this     { this.setInt32(offset, value, TSEndianness.LE) ; return this ; }
+    public writeInt32BE(value: number, offset:number = 0):this     { this.setInt32(offset, value, TSEndianness.BE) ; return this ; }
+    public writeUInt32LE(value: number, offset:number = 0):this    { this.setUint32(offset, value, TSEndianness.LE) ; return this ; }   
+    public writeUInt32BE(value: number, offset:number = 0):this    { this.setUint32(offset, value, TSEndianness.BE) ; return this ; }   
+    public writeBigInt64LE(value:bigint, offset:number = 0):this   { this.setBigInt64(offset, value, TSEndianness.LE) ; return this ; }
+    public writeBigInt64BE(value:bigint, offset:number = 0):this   { this.setBigInt64(offset, value, TSEndianness.BE) ; return this ; }
+    public writeBigUInt64LE(value:bigint, offset:number = 0):this  { this.setBigUint64(offset, value, TSEndianness.LE) ; return this ; }
+    public writeBigUInt64BE(value:bigint, offset:number = 0):this  { this.setBigUint64(offset, value, TSEndianness.BE) ; return this ; }
+    public writeFloatLE(value: number, offset:number = 0):this     { this.setFloat32(offset, value, TSEndianness.LE) ; return this ; }
+    public writeFloatBE(value: number, offset:number = 0):this     { this.setFloat32(offset, value, TSEndianness.BE) ; return this ; }
+    public writeDoubleLE(value: number, offset:number = 0):this    { this.setFloat64(offset, value, TSEndianness.LE) ; return this ; }
+    public writeDoubleBE(value: number, offset:number = 0):this    { this.setFloat64(offset, value, TSEndianness.BE) ; return this ; }
 
-    public appendInt8(value: number):TSData        { this.setInt8(this._len, value) ; return this ; }
-    public appendUInt8(value: number):TSData       { this.setUint8(this._len, value) ; return this ; }
-    public appendInt16LE(value: number):TSData     { this.setInt16(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendInt16BE(value: number):TSData     { this.setInt16(this._len, value, TSEndianness.BE) ; return this ; }
-    public appendUInt16LE(value: number):TSData    { this.setUint16(this._len, value, TSEndianness.LE) ; return this ; } 
-    public appendUInt16BE(value: number):TSData    { this.setUint16(this._len, value, TSEndianness.BE) ; return this ; }   
-    public appendInt32LE(value: number):TSData     { this.setInt32(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendInt32BE(value: number):TSData     { this.setInt32(this._len, value, TSEndianness.BE) ; return this ; }
-    public appendUInt32LE(value: number):TSData    { this.setUint32(this._len, value, TSEndianness.LE) ; return this ; }   
-    public appendUInt32BE(value: number):TSData    { this.setUint32(this._len, value, TSEndianness.BE) ; return this ; }   
-    public appendBigInt64LE(value:bigint):TSData   { this.setBigInt64(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendBigInt64BE(value:bigint):TSData   { this.setBigInt64(this._len, value, TSEndianness.BE) ; return this ; }
-    public appendBigUInt64LE(value:bigint):TSData  { this.setBigUint64(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendBigUInt64BE(value:bigint):TSData  { this.setBigUint64(this._len, value, TSEndianness.BE) ; return this ; }
-    public appendFloatLE(value: number):TSData     { this.setFloat32(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendFloatBE(value: number):TSData     { this.setFloat32(this._len, value, TSEndianness.BE) ; return this ; }
-    public appendDoubleLE(value: number):TSData    { this.setFloat64(this._len, value, TSEndianness.LE) ; return this ; }
-    public appendDoubleBE(value: number):TSData    { this.setFloat64(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendInt8(value: number):this        { this.setInt8(this._len, value) ; return this ; }
+    public appendUInt8(value: number):this       { this.setUint8(this._len, value) ; return this ; }
+    public appendInt16LE(value: number):this     { this.setInt16(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendInt16BE(value: number):this     { this.setInt16(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendUInt16LE(value: number):this    { this.setUint16(this._len, value, TSEndianness.LE) ; return this ; } 
+    public appendUInt16BE(value: number):this    { this.setUint16(this._len, value, TSEndianness.BE) ; return this ; }   
+    public appendInt32LE(value: number):this     { this.setInt32(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendInt32BE(value: number):this     { this.setInt32(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendUInt32LE(value: number):this    { this.setUint32(this._len, value, TSEndianness.LE) ; return this ; }   
+    public appendUInt32BE(value: number):this    { this.setUint32(this._len, value, TSEndianness.BE) ; return this ; }   
+    public appendBigInt64LE(value:bigint):this   { this.setBigInt64(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendBigInt64BE(value:bigint):this   { this.setBigInt64(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendBigUInt64LE(value:bigint):this  { this.setBigUint64(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendBigUInt64BE(value:bigint):this  { this.setBigUint64(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendFloatLE(value: number):this     { this.setFloat32(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendFloatBE(value: number):this     { this.setFloat32(this._len, value, TSEndianness.BE) ; return this ; }
+    public appendDoubleLE(value: number):this    { this.setFloat64(this._len, value, TSEndianness.LE) ; return this ; }
+    public appendDoubleBE(value: number):this    { this.setFloat64(this._len, value, TSEndianness.BE) ; return this ; }
 
     public base64String():string { return $encodeBase64(this.mutableBuffer) ; }
     public base64URL():string { return $encodeBase64URL(this.mutableBuffer) ; }
@@ -505,10 +512,9 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     { return this.compareToData(other) === Same ; }
 
     // ============ private methods =============== 
-    private _splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):TSData {
+    private _splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         const padding = Math.min($tounsigned(paddingByte), UINT8_MAX) ;
-        //console.log('LSE:', start, end, len) ;
         targetStart = $tounsigned(targetStart) ;
         deleteCount = $tounsigned(deleteCount) ;
 
@@ -516,9 +522,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             // here delete count is unsignificant because if we delete something, 
             // it's all the end of the buffer, so, all we have to do 
             // is to add the content of our source at the insertion point
-            //console.log('splice1:', targetStart, len, this._len, targetStart + len - this._len) ;
             if (targetStart + len > this._len) { this._willGrow(targetStart + len - this._len) ; }
-            for (let i = this._len ; i < targetStart ; i++) { this._buf[i] = padding ; } // fill intermediate part with padding character (0 if unspecified)
+            if (this._len < targetStart) { this._buf.fill(padding, this._len, targetStart) ; } // fill intermediate part with padding character (0 if unspecified)
             this._insideCopy(source!, start, end, targetStart) ; 
             this._len = targetStart + len ;
         }
@@ -527,8 +532,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             // a part of our data after the copy 
             this._insideCopy(source!, start, end, targetStart) ;
             if (deleteCount > len) {
-                let dstart = targetStart + len ;
-                for (let i = targetStart + deleteCount ; i < this._len ; i++) { this._buf[dstart++] = this._buf[i] ; }
+                this._buf.copy(this._buf, targetStart + len, targetStart + deleteCount, this._len) ; // overlapping copies are handled
                 this._len -= deleteCount - len ; 
             }
         }
@@ -538,8 +542,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             this._willGrow(glen) ;
             this._insideCopy(source!, start, start+deleteCount, targetStart) ;
 
-            const tend = targetStart + len ;
-            for (let i = this._len + glen - 1 ; i >= tend ; i--) { this._buf[i] = this._buf[i-glen] ; }
+            this._buf.copy(this._buf, targetStart + len, targetStart + deleteCount, this._len) ; // overlapping copies are handled
             this._insideCopy(source!, start+deleteCount, end, targetStart+deleteCount) ;
             this._len += glen ;
         }
@@ -562,10 +565,18 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return this.mutableBuffer.lastIndexOf(value!, byteOffset) ;
     }
 
+    // true if value is found at position i (a byte or a non empty sequence of bytes)
+    private _matchesAt(value:number | Uint8Array, i:number):boolean {
+        if (typeof value === 'number') { return i >= 0 && i < this._len && value <= UINT8_MAX && this._buf[i] === value ; }
+        const slen = value.length ;
+        return slen > 0 && i >= 0 && i + slen <= this._len && this._buf.compare(value, 0, slen, i, i + slen) === 0 ;
+    }
+
     private _insideCopy(source:TSDataLike, start:number, end:number, targetStart:number) {
         if (start < end) {
             if (source instanceof ArrayBuffer) { $bufferFromArrayBuffer(source).copy(this._buf, targetStart, start, end) ;}
             else if (source instanceof Buffer || source instanceof TSData) { source.copy(this._buf, targetStart, start, end) ; }
+            else if (source instanceof Uint8Array) { this._buf.set(source.subarray(start, end), targetStart) ; }
             // source[start..end[ must land at _buf[targetStart..] — like the Buffer.copy() above.
             else { for (let i = start ; i < end ; i++) { this._buf[targetStart + i - start] = source[i] & 0xff } ; }
         }
@@ -597,7 +608,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         const endPos = offset + n ;
         if (endPos > this._len) { 
             this._willGrow(endPos-this._len) ; 
-            for (let i = this._len ; i < offset ; i++) { this._buf[i] = 0 ; }
+            if (this._len < offset) { this._buf.fill(0, this._len, offset) ; }
             this._len = endPos ;
         }
         return offset ;
@@ -615,9 +626,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
 }
-export interface TSDataConstructor {
-    new (source?:Nullable<TSDataLike|number>, opts?:TSDataOptions): TSData;
-}
+export type TSDataConstructor = new (source?:Nullable<TSDataLike|number>, opts?:TSDataOptions) => TSData;
 
 function _dataValue(value:TSDataLike|number|string, encoding?:Nullable<StringEncoding|TSCharset>):Uint8Array|number|null {
     if (typeof value === 'number') { return $isunsigned(value) ? value : null ; }
@@ -632,4 +641,7 @@ function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {
     return $ok(value) ? (<TSData|Uint8Array>value).length : -1 ; 
 }
 
-
+function _allocFunction(opts:TSDataOptions):(n:number) => Buffer {
+    if ($ok(opts.allocMethod)) { return opts.allocMethod! ; }
+    return opts.fillWithZeros ? Buffer.alloc : Buffer.allocUnsafe ;
+}

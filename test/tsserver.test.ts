@@ -12,7 +12,7 @@ import { TSEndPointRouter, TSServerEndPoint } from "../src/tsserver_endpoints";
 import { TSStaticWebsite } from "../src/tsserver_websites";
 import { PassThrough } from "stream";
 import { createServer as createNetServer } from "net";
-import { get as httpGet } from "http";
+import { get as httpGet, request as httpRequest } from "http";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { parserStructureTestDefinition, parserStructureTestInterpretation, parserStructureTestValue } from "./tsparser.test";
@@ -132,6 +132,10 @@ export const serverGroups = [
             // the error message gives the code of the forbidden character (it used to contain the source of toHex4())
             t.expectB(mk('/a^b', { GET:fn })).throws(/forbidden character '\\u005E' in path/) ;
             t.expectC(mk('/v{9bad}', { GET:fn })).throws(/forbidden first character '\\u0039'/) ;
+            t.expectD(mk('/a/{id', { GET:fn })).throws(/malformed parametric path '\/a\/\{id'/) ;   // unclosed token
+            t.expectE(mk('/api', { GET:{ controller:'notafunction' } })).throws(/has no valid controller function/) ;
+            t.expectF(mk('/api', { GET:{ controller:fn, query:'notatype' } })).throws(/has invalid query definition/) ;
+            t.expectG(mk('/api', { POST:{ controller:fn, body:{ a:'notatype' } } })).throws(/has invalid body definition/) ;
         }) ;
 
         group.unary('token types may contain digits', async (t) => {
@@ -156,6 +160,19 @@ export const serverGroups = [
             t.expectG(new TSServerEndPoint('/v{vers}/user/{id:boolean}', { GET:fn }).uri).is('/v') ; // typed token
             t.expect5(new TSServerEndPoint('/a-b.c(d)/x', { GET:fn }).uri).is('/a-b.c(d)/x') ;        // special chars kept in the static part
             t.expect6(new TSServerEndPoint('/MixedCase', { GET:fn }).uri).is('/mixedcase') ;         // static part lower-cased
+        }) ;
+
+        group.unary('parametersFromPath() refuses other paths', async (t) => {
+            const ep = new TSServerEndPoint('/v{vers}/user/{id}', { GET:fn }) ;
+            t.expect0(ep.parametersFromPath('/v2/user/7')).is({ vers:'2', id:'7' }) ;
+            t.expect1(ep.parametersFromPath('/x2/user/7')).null() ;      // does not start with the endpoint uri
+            t.expect2(ep.parametersFromPath('/')).null() ;
+            t.expect3(ep.parametersFromPath('/v')).null() ;              // empty parametric part
+            t.expect4(ep.parametersFromPath('/v2/other/7')).null() ;     // parametric part not matching
+            const st = new TSServerEndPoint('/plain/path', { GET:fn }) ;
+            t.expect5(st.parametersFromPath('/plain/path')).is({}) ;
+            t.expect6(st.parametersFromPath('/plain/path/x')).null() ;  // a static end point only matches its uri
+            t.expect7(st.parametersFromPath('/other')).null() ;
         }) ;
     }),
 
@@ -281,7 +298,7 @@ if (!$inbrowser()) {
                 // a repeated non array key is refused (it used to silently keep the last value)
                 const rep = await fetch('/q?n=3&n=4&s=a') ;
                 t.expect4(rep[0]).is(Resp.BadRequest) ;
-                t.expect5(rep[1].info.errors).is(['value.n is present several times']) ;
+                t.expect5(rep[1].info.errors).is(['value.n is present several times.']) ;
                 t.expect6((await fetch('/q?ids=1&ids=x'))[0]).is(Resp.BadRequest) ;
                 // no query at all on a non mandatory query definition (it used to be a 500 error)
                 t.expect7(await fetch('/q')).is([Resp.OK, { q:null }]) ;
@@ -637,8 +654,8 @@ if (!$inbrowser()) {
                 t.expectF(r.error).is('TSServerResponse.returnObject(): Invalid structured response') ;
                 t.expectG(r.info?.errors).toBeArray() ;
                 t.expectH(r.info?.errors.length).is(2) ;
-                t.expectI(r.info?.errors[0]).is('value.textColor is mandatory') ;
-                t.expectJ(r.info?.errors[1]).is('value.country is mandatory') ;
+                t.expectI(r.info?.errors[0]).is('value.textColor is mandatory.') ;
+                t.expectJ(r.info?.errors[1]).is('value.country is mandatory.') ;
                 t.expectK(r.info?.serverError).is(TSServerErrorCodes.BadResponseStructure) ;
                 const stopped = await TSServer.stop() ;
                 t.expectZ(stopped).toBeUndefined() ;   
@@ -886,6 +903,89 @@ if (!$inbrowser()) {
                 t.expect4((await client.req('p/notanint', Verb.Get, RespType.OptionalJson)).status).is(Resp.BadRequest) ;   // bad path parameter
                 t.expect5((await client.req('echo', Verb.Delete, RespType.OptionalJson)).status).gte(Resp.BadRequest) ; // method not implemented on that endpoint
                 t.expect6((await client.req('nowhere', Verb.Get, RespType.OptionalJson)).status).is(Resp.NotFound) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        // a raw request, to send what TSRequest never sends (an unknown method, a body without content type...)
+        const rawRequest = (method:string, path:string, headers:TSDictionary<string>, body?:string):Promise<[number, any]> => new Promise((resolve, reject) => {
+            const req = httpRequest({ host:'localhost', port, method, path, headers }, res => {
+                const chunks:Buffer[] = [] ;
+                res.on('data', c => chunks.push(c)) ;
+                res.on('end', () => resolve([res.statusCode!, $jsonparse(Buffer.concat(chunks).toString('utf8'))])) ;
+            }) ;
+            req.on('error', reject) ;
+            if ($length(body)) { req.write(body) ; }
+            req.end() ;
+        }) ;
+
+        group.unary('missing body, missing MIME type, unknown method, internal errors', async (t) => {
+            const errorEndpoints:any = {
+                ...endpoints,
+                '/boom': { GET: async () => { throw new Error('') ; } },           // not a TSError, no message
+                '/crash': { GET: async () => { throw { status:999 } ; } },         // not an error, not a valid status
+                '/optional': { POST: {
+                    controller: async (req:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ hasBody:req.body !== undefined }) ; },
+                    body: { name:'string!' },
+                } },
+            } ;
+            const st = await TSServer.start(errorEndpoints, { port, log: { level: TSServerLogLevel.None } }) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                // an empty body used to be decoded and gave a bad JSON error
+                const [s1, r1] = await rawRequest('POST', '/echo', { 'content-type':'application/json' }) ;
+                t.expect1(s1).is(Resp.BadRequest) ;
+                t.expect2(r1?.info?.serverError).is(TSServerErrorCodes.MissingBody) ;
+                const [sa, ra] = await rawRequest('POST', '/optional', { 'content-type':'application/json' }) ;
+                t.expectA(sa).is(Resp.OK) ;          // an absent optional body is accepted
+                t.expectB(ra).is({ hasBody:false }) ;
+
+                const [s2, r2] = await rawRequest('POST', '/echo', {}, '{"name":"Bob"}') ;
+                t.expect3(s2).is(Resp.BadRequest) ;
+                t.expect4(r2?.info?.serverError).is(TSServerErrorCodes.MissingMimeType) ;
+
+                const [s3, r3] = await rawRequest('PROPFIND', '/echo', {}) ;
+                t.expect5(s3).is(Resp.NotAllowed) ;
+                t.expect6(r3?.info?.serverError).is(TSServerErrorCodes.UnknownMethod) ;
+
+                const [s4, r4] = await rawRequest('GET', '/boom', {}) ;
+                t.expect7(s4).is(Resp.InternalError) ;
+                t.expect8(r4?.error).is('Unknown internal Error') ;
+
+                const [s5] = await rawRequest('GET', '/crash', {}) ;
+                t.expect9(s5).is(Resp.InternalError) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('bad server port', async (t) => {
+            const ret = await TSServer.start(endpoints, { port:70000 as uint16, log: { level: TSServerLogLevel.None } }) ;
+            t.expect0(ret instanceof TSError).true() ;
+            t.expect1((ret as Error).message).is('TSServer.constructor(): Bad HTTP server port 70000.') ;
+            t.expect2(TSServer.isRunning()).false() ;
+        }) ;
+    })) ;
+
+    serverGroups.push(TSTest.group("TSServerResponse — bad arguments", async (group) => {
+        const port = 8413 as uint16 ;
+        const endpoints:any = {
+            '/object-data': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject(Buffer.from([1, 2])) ; },
+            '/error3': async (_r:TSServerRequest, resp:TSServerResponse) => { (resp as any).returnError('a', 400, 'b') ; },
+            '/string4': async (_r:TSServerRequest, resp:TSServerResponse) => { (resp as any).returnString('a', 'text/plain', 201, 'b') ; },
+            '/error1': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnError(Resp.Conflict) ; },
+        } ;
+        group.unary('returnObject() with data, too many arguments', async (t) => {
+            t.expect0(await TSServer.start(endpoints, { port, log: { level: TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(`http://localhost:${port}/`) ;
+                const r0 = await client.req('object-data', Verb.Get, RespType.Json) ;
+                t.expect1(r0.status).is(Resp.InternalError) ;
+                t.expect2((r0.response as any)?.info?.serverError).is(TSServerErrorCodes.ForbiddenDataResponse) ;
+                const r1 = await client.req('error3', Verb.Get, RespType.Json) ;
+                t.expect3((r1.response as any)?.error).is('TSServerResponse.returnError() : Bad arguments') ;
+                const r2 = await client.req('string4', Verb.Get, RespType.Json) ;
+                t.expect4((r2.response as any)?.error).is('TSServerResponse.returnString() : Bad arguments') ;
+                t.expect5((await client.req('error1', Verb.Get, RespType.OptionalJson)).status).is(Resp.Conflict) ;
             }
             finally { await TSServer.stop() ; }
         }) ;

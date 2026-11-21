@@ -104,4 +104,80 @@ export const charsetGroups = TSTest.group("TSCharset & $charset()", async (group
         t.expect4(TSCharset.isUTF8Charset(utf8.bufferFromString("déjà vu"))).true() ;
         t.expect5(TSCharset.isUTF8Charset(Buffer.from(""))).false() ;
     }) ;
+
+    group.unary("$charsetFromBytes() single byte charsets detection", async(t) => {
+        const latin1 = TSCharset.latin1Charset(), mac = TSCharset.macCharset(), ansi = TSCharset.ansiCharset() ;
+        // 0x7F eliminates MacRoman, 0x81 eliminates latin1 and ANSI : no candidate
+        t.expect0($charsetFromBytes(Buffer.from([0x7F, 0x81]))).null() ;
+        // 0xA1 has no weight for both MacRoman and ANSI: latin1, like when MacRoman is eliminated (it used to be null)
+        t.expect1($charsetFromBytes(Buffer.from([0xA1]))).is(latin1) ;
+        // 0x80...0x9F bytes eliminate latin1, some of them ANSI too
+        t.expect2($charsetFromBytes(Buffer.from([0x81]))).is(mac) ;
+        t.expect3($charsetFromBytes(Buffer.from([0x7F, 0x80]))).is(ansi) ;
+        t.expect4($charsetFromBytes(Buffer.from([0x85]))).is(mac) ;
+        // MacRoman eliminated, latin1 still possible
+        t.expect5($charsetFromBytes(Buffer.from([0x7F, 0x41, 0xA1]))).is(latin1) ;
+        t.expect6($charsetFromBytes(Buffer.from([0x01, 0xA1]))).is(latin1) ;
+        // ANSI weight greater than the MacRoman one
+        t.expect7($charsetFromBytes(Buffer.from([0xC3]))).is(latin1) ;
+        // equal weights: no more null
+        t.expect8($charsetFromBytes(Buffer.from([0xA9, 0xB0]))).is(latin1) ;         // © and °: no weight
+        t.expect9($charsetFromBytes(Buffer.from([0x87]))).is(ansi) ;                 // latin1 eliminated, no weight
+        t.expectA($charsetFromBytes(Buffer.from([0x8E, 0xE9]))).is(ansi) ;          // 2 against 2, latin1 eliminated
+        t.expectB($charsetFromBytes(Buffer.from([0x8E, 0x8E]))).is(mac) ;           // MacRoman 'é' twice: more evidence
+        // and $charset() no longer decodes them as UTF-8
+        t.expectC($charset(Buffer.from([0xA1]))).is(latin1) ;
+        t.expectD(TSCharset.charsetFromDataLike(Buffer.from([0xA9]))!.stringFromBytes(Buffer.from([0xA9]))).is('©') ;
+    }) ;
+
+    group.unary("UTF-16 big endian charset", async(t) => {
+        const be = TSCharset.utf16BECharset() ;
+        t.expect0(be.name).is('utf16be') ;
+        t.expect1(['utf16be', 'UTF16BE', 'utf-16be', 'UTF-16BE', 'utf_16be', 'UTF_16BE'].every(n => TSCharset.charset(n) === be)).true() ;
+        t.expect2(TSCharset.encoding('UTF-16BE')).is(be) ;            // used to give UTF-8
+        t.expect3($charset('utf-16be')).is(be) ;
+        t.expect4([...be.bytesFromString('Aé€')]).is([0x00, 0x41, 0x00, 0xE9, 0x20, 0xAC]) ;
+        t.expect5(be.stringFromBytes(Buffer.from([0x00, 0x41, 0x00, 0xE9, 0x20, 0xAC]))).is('Aé€') ;
+        t.expect6(be.stringFromBytes(Buffer.from([0xD8, 0x3D, 0xDE, 0x00]))).is('😀') ;   // a surrogate pair
+        t.expect7(be.stringFromBytes(Buffer.from([0x00, 0x41, 0x00]))).is('A') ;          // a last odd byte is ignored
+        t.expect8(be.stringFromBytes(Buffer.from([0x00, 0x41, 0x00, 0x42, 0x00, 0x43]), 2, 4)).is('B') ;
+        t.expect9([...be.bytesFromString('ABC', 1, 2)]).is([0x00, 0x42]) ;
+        t.expectA(be.stringFromData(be.dataFromString('Hello é'))).is('Hello é') ;
+        t.expectB(be.stringFromBytes(Buffer.from([]))).is('') ;
+        t.expectC([...be.bytesFromString('')]).is([]) ;
+        // little endian is still the default UTF-16
+        t.expectD(TSCharset.encoding('UTF-16')).is(TSCharset.unicodeCharset()) ;
+        t.expectE([...TSCharset.unicodeCharset().bytesFromString('A')]).is([0x41, 0x00]) ;
+    }) ;
+
+    group.unary("TSCharset.stringFromDetectedData() removes the byte order mark which gave the charset", async(t) => {
+        const D = (a:number[]) => Buffer.from(a) ;
+        t.expect0(TSCharset.stringFromDetectedData(D([0xEF, 0xBB, 0xBF, 0x41, 0xC3, 0xA9]))).is(['Aé', TSCharset.utf8Charset()]) ;
+        t.expect1(TSCharset.stringFromDetectedData(D([0xFF, 0xFE, 0x41, 0x00, 0xE9, 0x00]))).is(['Aé', TSCharset.unicodeCharset()]) ;
+        t.expect2(TSCharset.stringFromDetectedData(D([0xFE, 0xFF, 0x00, 0x41, 0x00, 0xE9]))).is(['Aé', TSCharset.utf16BECharset()]) ;
+        t.expect3(TSCharset.stringFromDetectedData(D([0x41, 0xC3, 0xA9]))).is(['Aé', TSCharset.utf8Charset()]) ;   // no BOM
+        t.expect4(TSCharset.stringFromDetectedData(D([0x41, 0xE9]))).is(['Aé', TSCharset.latin1Charset()]) ;
+        t.expect5(TSCharset.stringFromDetectedData(D([0x41]))).is(['A', TSCharset.asciiCharset()]) ;
+        t.expect6(TSCharset.stringFromDetectedData(D([0xFF, 0xFE]))).is(['', TSCharset.unicodeCharset()]) ;        // the BOM alone
+        // a BOM which did not give the charset is kept, like the stringFromData() methods always do
+        t.expect7(TSCharset.utf8Charset().stringFromData(D([0xEF, 0xBB, 0xBF, 0x41]))).is('\uFEFFA') ;
+        t.expect8(TSCharset.stringFromDetectedData(new Uint8Array(0))).is(['', TSCharset.utf8Charset()]) ;         // default charset
+        t.expect9(TSCharset.stringFromDetectedData(D([0x7F, 0x81]), TSCharset.ansiCharset())[1]).is(TSCharset.ansiCharset()) ;
+    }) ;
+
+    group.unary("$charsetFromBytes() UTF-16 byte order marks", async(t) => {
+        t.expect0($charsetFromBytes(Buffer.from([0xFF, 0xFE]))).is(TSCharset.unicodeCharset()) ;          // the BOM alone (used to be ignored)
+        t.expect1($charsetFromBytes(Buffer.from([0xFF, 0xFE, 0x41, 0x00]))).is(TSCharset.unicodeCharset()) ;
+        t.expect2($charsetFromBytes(Buffer.from([0xFE, 0xFF]))).is(TSCharset.utf16BECharset()) ;           // big endian
+        t.expect3($charsetFromBytes(Buffer.from([0xFE, 0xFF, 0x00, 0x41]))).is(TSCharset.utf16BECharset()) ; // used to be a single byte charset
+        t.expect4($charsetFromBytes(Buffer.from([0xFE]))).is(TSCharset.latin1Charset()) ;                  // one byte only: not a BOM
+    }) ;
+
+    group.unary("invalid UTF-8 lead bytes", async(t) => {
+        t.expect0(TSCharset.isUTF8Charset(Buffer.from([0x80, 0x41]))).false() ;     // a lonely continuation byte
+        t.expect1(TSCharset.isUTF8Charset(Buffer.from([0xF8, 0x88, 0x80, 0x80, 0x80]))).false() ; // 5 bytes form
+        t.expect2(TSCharset.isUTF8Charset(Buffer.from([0xFF, 0x41]))).false() ;
+        t.expect3($charsetFromBytes(Buffer.from([0xF8, 0x41]))).is(TSCharset.latin1Charset()) ;
+        t.expect4($charsetFromBytes(Buffer.from([0x80, 0x41]))).is(TSCharset.macCharset()) ;
+    }) ;
 }) ;

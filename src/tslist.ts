@@ -33,6 +33,7 @@ export interface TSListToStringOptions<T> {
 }
 
 export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration, TSClone<TSList<T>>, Iterable<T> {
+    private static readonly __defaultTSListToStringOptions = { prefix:'(', separator:',', suffix:')'} ;
 	private _f: TSListNode<T> | null = null ;
 	private _l: TSListNode<T> | null = null ;
 	private _n: number = 0 ;
@@ -187,8 +188,7 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
         if (a !== null) { return Descending ; }
         return b === null ? Same : Ascending ;
     }
-
-	public toString(opts:TSListToStringOptions<T> = { prefix:'(', separator:',', suffix:')'}):string {
+	public toString(opts:TSListToStringOptions<T> = TSList.__defaultTSListToStringOptions):string {
 		let s = $ok(opts.prefix) ? opts.prefix : '' ;
 		if (!$ok(opts.printer)) opts.printer = d => (d as any).toString() ;
 
@@ -234,6 +234,4 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 
 }
 
-export interface TSListConstructor<T> {
-    new (data: T): TSList<T>;
-}
+export type TSListConstructor<T> = new (data: T) => TSList<T>;

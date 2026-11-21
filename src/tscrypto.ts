@@ -483,14 +483,14 @@ function _add64x2(ah:number, al:number, bh:number, bl:number):void {
 
 // (a+b+c+d) mod 2**64 : summing the four lo halves as plain Numbers never
 // exceeds 2**34, well inside the 53-bit integer range, so it stays exact.
-function _add64x4(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number):void {
+function _add64x4(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number):void { // NOSONAR: hi/lo 32-bit pairs passed as numbers: no allocation in the SHA-512 hot loop
     const lo = al + bl + cl + dl ;
     _tl = lo >>> 0 ;
     const carry = Math.floor(lo / 0x100000000) ;
     _th = (ah + bh + ch + dh + carry) >>> 0 ;
 }
 
-function _add64x5(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number, eh:number, el:number):void {
+function _add64x5(ah:number, al:number, bh:number, bl:number, ch:number, cl:number, dh:number, dl:number, eh:number, el:number):void { // NOSONAR: hi/lo 32-bit pairs passed as numbers: no allocation in the SHA-512 hot loop
     const lo = al + bl + cl + dl + el ;
     _tl = lo >>> 0 ;
     const carry = Math.floor(lo / 0x100000000) ;

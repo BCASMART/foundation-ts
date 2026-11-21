@@ -2,7 +2,7 @@ import { $equal } from "./compare";
 import { FoundationStringEncodingsMap, FoundationWhiteSpacesNumberCodeSet, FoundationWhiteSpacesStringCodeSet } from "./string_tables";
 import { $components, $components2string, $parsedatetime, TSDateComp, TSDateForm } from "./tsdatecomp";
 import { $country } from "./tsdefaults";
-import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, url, UUID, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, TSDictionary, EMAIL_MIN_LENGTH, UUID_LENGTH } from "./types";
+import { int, INT_MAX, INT_MIN, UINT_MAX, uint, email, url, UUID, UUIDVersion, isodate, Address, Nullable, UINT_MIN, StringEncoding, NormativeStringEncoding, Bytes, INT_MIN_BIG, INT_MAX_BIG, UINT_MIN_BIG, UINT_MAX_BIG, TSDataLike, TSDictionary, EMAIL_MIN_LENGTH, EMAIL_MAX_LENGTH, UUID_LENGTH } from "./types";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { $ftrim } from "./strings";
@@ -110,7 +110,7 @@ export function $hasproperties(obj:any, properties:Nullable<string[]>)
     return true ;
 }
 
-export function $intornull(n:Nullable<string|number|bigint>) : int | null // NOSONAR: I don't want to define a specific type for that parameter
+export function $intornull(n:Nullable<string|number|bigint>) : int | null // NOSONAR: union used only here, no alias needed
 {
 	if (!$ok(n)) { return null ; }
 	else if (typeof n === 'string') { n = Number.parseInt(n, 10) ; }
@@ -124,10 +124,13 @@ export function $intornull(n:Nullable<string|number|bigint>) : int | null // NOS
 export function $int(n:Nullable<string|number|bigint>, defaultValue:int=<int>0) : int
 { return $value($intornull(n), defaultValue) ; }
 
+// the smallest email is a@b.xx where xx is the domain name, and the longest one
+// has 254 characters (RFC 5321), which also bounds the validation time
 export function $email(s:Nullable<string>) : email | null
 {
-    const m = _regexvalidatedstring<email>(__emailRegex, s, EMAIL_MIN_LENGTH) ; // smallest email is a@b.xx where xx is the domain name
-    return $ok(m) ? m!.toLowerCase() as email : null ;
+    const v = $ftrim(s) ;
+    if (v.length < EMAIL_MIN_LENGTH || v.length > EMAIL_MAX_LENGTH || !_isEmailString(v)) { return null ; }
+    return v.toLowerCase() as email ;
 }
 
 export function $phonenumber(s:Nullable<string>, country?:Nullable<TSCountry>): TSPhoneNumber | null
@@ -438,7 +441,7 @@ export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T
     else if (!$ok(b)) { return $partial(a, opts.A as any) ; }
 
     let [ret, n] = $partial(a, opts.A) ;
-    let fopts:_fillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
+    let fopts:FillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
     if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays ; }
     if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects ; }
     n += _fillObject<T,U>('fusion', ret, b, fopts) ;
@@ -484,17 +487,20 @@ function _safecall(v:any, method:string|symbol, ...args:any[]):any {
 
 // BUG fixed:
 // ===========================================================================
-// domain part used to read (label\.{0,1})+ : a label is one-or-more non-dot
-// chars followed by an OPTIONAL dot, repeated one-or-more times. Since the
-// trailing dot is optional on every repetition, a long dot-free run of chars
-// can be re-partitioned across that outer "+" in 2^(n-1) different ways, so a
-// crafted "a@" + "a".repeat(n) + "<" input (garbage the pattern can never
-// consume) made the engine explore all of them before failing : catastrophic
-// backtracking, ~doubling in time every 2 extra chars (n=24 -> ~1s, n=26+ ->
-// many seconds). Requiring the dot on every repetition (label\.)* removes the
-// ambiguity : each repetition must consume an actual "." from the input, so
-// there is exactly one way to partition a given string, not exponentially many.
-const __emailRegex:RegExp = /^(?:[^<>()[\]\s@".,;:]+(?:\.[^<>()[\]\s@".,;:]+)*|".+")@(?:[^<>()\s@".,;]+\.)*(?:[^<>()\s@".,;:]{2,}|[\d.]+)$/ ; // NOSONAR due to complex regex
+// An email is split on its last '@' (the domain part cannot contain any '@'), and its two parts
+// are checked separately. Both regular expressions are linear: each label is a run of non-dot
+// characters which must be followed by an actual '.', so there is only one way to partition a
+// given string. The domain is either a dot separated list of labels whose last one has at least
+// 2 characters, or an IPv4 address. It used to end with an alternative [\d.]+ which overlapped the
+// labels (eg. "a@" + "1.".repeat(n) + "!" had a quadratic backtracking : 1.3 s for n = 20000).
+const __emailLocalPartRegex:RegExp = /^(?:[^<>()[\]\s@".,;:]+(?:\.[^<>()[\]\s@".,;:]+)*|".+")$/ ;
+const __emailDomainRegex:RegExp = /^(?:(?:[^<>()\s@".,;]+\.)*[^<>()\s@".,;:]{2,}|\d{1,3}(?:\.\d{1,3}){3})$/ ;
+
+function _isEmailString(v:string):boolean {
+    const i = v.lastIndexOf('@') ;
+    return i > 0 && __emailLocalPartRegex.test(v.slice(0, i)) && __emailDomainRegex.test(v.slice(i + 1)) ;
+}
+
 function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:Nullable<number>, maxLength?:number) : T | null 
 {
 	const v = $ftrim(s) ;
@@ -504,7 +510,7 @@ function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:N
 	return <T><unknown>v ;
 }
 
-interface _fillObjectOptions<T,U> extends $partialOptions<T,U> { // NOSONAR:
+interface FillObjectOptions<T,U> extends $partialOptions<T,U> {
     fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
     fusionObjects?:(a:object, b:object) => object
 }
@@ -513,7 +519,7 @@ interface _fillObjectOptions<T,U> extends $partialOptions<T,U> { // NOSONAR:
 // case for $partial/$dict/$fusion) instead of allocating a fresh arrow per call.
 const _defaultFillObjectFilter = (v:any):any => $ok(v) && typeof v !== 'function' ? v : undefined ;
 
-function _fillObject<T,U>(fn:string, destination:any, source:any, opts:_fillObjectOptions<T,U>={}):number
+function _fillObject<T,U>(fn:string, destination:any, source:any, opts:FillObjectOptions<T,U>={}):number
 {
     // read into locals instead of `opts = {...opts}` + writing defaults back :
     // $fusion() passes its caller's opts.A straight through (no pre-clone on

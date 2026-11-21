@@ -1,7 +1,7 @@
 import { $isarray, $isobject, $isstring, $length, $ok, $value, $valueornull } from "./commons";
 import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
-import os from 'os'
+import os from 'os' // NOSONAR: no 'node:' prefix for webpack 5
 import { TSCountry } from "./tscountry";
 import localesList from './locales.json'
 import { $inbrowser, $logterm } from "./utils";
@@ -10,6 +10,7 @@ import { $ascii, $ftrim, $strictascii } from "./strings";
 import { TSError } from "./tserrors";
 import { TSCharset } from "./tscharset";
 
+export type LocaleInfo = Nullable<language|country|TSCountry|Locales> ;
 export interface Locales {
     names:StringTranslation;
     language: language,
@@ -42,10 +43,10 @@ export interface UnitDefinition {
 }
 
 export interface DefaultsConfigurationOptions {
-    encoding?:Nullable<StringEncoding|TSCharset> ;
-    debug?:Nullable<boolean>
-    underscoreMax?:Nullable<number> ;
-    variableMax?:Nullable<number> ;
+    encoding?:Nullable<StringEncoding|TSCharset> ;  // NOSONAR: optional
+    debug?:Nullable<boolean>                        // NOSONAR: optional
+    underscoreMax?:Nullable<number> ;               // NOSONAR: optional
+    variableMax?:Nullable<number> ;                 // NOSONAR: optional
 }
 export type StringTranslations = { [key in Languages]?:StringDictionary } ;
 export type CurrenciesInfo = { [key in Currencies]?: { [key in Languages]?:Partial<CurrencyInfo> }} ;
@@ -68,7 +69,7 @@ export class TSDefaults {
      * countries. So we have the 27 countries of the EEC here + some other
      * to complete the panel of the european nations and some others like the US.
      */
-    private static __locales = localesList as Locales[] ;
+    private static readonly __locales = localesList as Locales[] ;
     private _defaultLanguage:language ;
     private _defaultCurrency:currency ;
     private _defaultCountry:TSCountry ;
@@ -76,11 +77,11 @@ export class TSDefaults {
 
     private _values:TSDictionary = {} ;
     private _localizations:StringTranslations = {} ;
-    private _countriesMap:Map<string, country> ;
-    private _languagesMap:Map<string, language> ;
-    private _currenciesMap:Map<string, currency> ;
-    private _managedLocalesMap:Map<string, Locales> ;
-    private _managedLanguages:language[] ;
+    private readonly _countriesMap:Map<string, country> ;
+    private readonly _languagesMap:Map<string, language> ;
+    private readonly _currenciesMap:Map<string, currency> ;
+    private readonly _managedLocalesMap:Map<string, Locales> ;
+    private readonly _managedLanguages:language[] ;
 
     private constructor() {        
         this._countriesMap = new Map<string,country>() ;
@@ -158,7 +159,7 @@ export class TSDefaults {
         else { this._localizations[lang] = {...actualLocalization, ...loc} ; }    
     }
     
-    public localizations(locale:Nullable<language|country|TSCountry|string>) : StringDictionary {
+    public localizations(locale:Nullable<TSCountry|string>) : StringDictionary {
         if (locale instanceof TSCountry) {
             return this._localizations[locale.language!] || {} ;
         }
@@ -176,7 +177,7 @@ export class TSDefaults {
         return {}
     }
 
-    public locales(locale?:Nullable<language|country|TSCountry|string>):Locales {
+    public locales(locale?:Nullable<TSCountry|string>):Locales {
         if (locale instanceof TSCountry) { return locale.locales ; }
         locale = $strictascii($ftrim(locale)) ;
         if ($length(locale) > 0) {
@@ -286,20 +287,13 @@ export function $default(key:string):any { return TSDefaults.defaults().getValue
 export function $setdefault(key:string, value:any=undefined) { TSDefaults.defaults().setValue(key, value) ; }
 export function $removedefault(key:string) { TSDefaults.defaults().setValue(key, undefined) ; }
 
-export function $unitDefinition(key:string, locale?:Nullable<language|country|TSCountry|Locales>):Nullable<UnitDefinition> {
+export function $unitDefinition(key:string, locale?:LocaleInfo):Nullable<UnitDefinition> {
     const loc = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
     const a = loc.unitNames[key] ;
-    if ($ok(a)) {
-        if ($isarray(a)) {
-            if ($isstring(a[0]) && $isstring(a[1])) {
-                const s = $ftrim(a[0]) ;
-                const p = $ftrim(a[1]) ;
-                if (s.length > 0 && p.length > 0) {
-                    return { singular:s, plural:p, unit:$isstring(a[2]) ? $ftrim(a[2]) : ''} ;
-                }
-            }
-        }
-        return null ;
-    }
-    return undefined ;
+    if (!$ok(a)) { return undefined ; }
+    if (!$isarray(a) || !$isstring(a[0]) || !$isstring(a[1])) { return null ; }
+    const s = $ftrim(a[0]) ;
+    const p = $ftrim(a[1]) ;
+    if (!s.length || !p.length) { return null ; }
+    return { singular:s, plural:p, unit:$isstring(a[2]) ? $ftrim(a[2]) : ''} ;
 }

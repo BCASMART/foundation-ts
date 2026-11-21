@@ -1,5 +1,5 @@
 import { $isnumber, $length, $ok, $unsigned, $isstring, $isunsigned, $isint, $tounsigned, $value, $count } from "./commons";
-import { $default, $locales, $unitDefinition, Locales, UnitDefinition } from "./tsdefaults";
+import { $default, $locales, $unitDefinition, LocaleInfo, Locales, UnitDefinition } from "./tsdefaults";
 import { 
     $dayisvalid, 
     $timeisvalid, 
@@ -18,7 +18,7 @@ import {
     TSMaxTimeStamp,
     TSMinTimeStamp
 } from "./tsdate";
-import { country, int, language, Nullable, uint, UINT_MIN } from "./types";
+import { int, Nullable, StringDictionary, uint, UINT_MIN } from "./types";
 import { TSCountry } from "./tscountry";
 import { $div, $fpad, $fpad2, $fpad3, $fpad4 } from "./number";
 import { $ftrim } from "./strings";
@@ -107,9 +107,9 @@ export function $components(source: Nullable<number|Date|TSDate>) : TSDateComp {
 	if (!$ok(source)) { source = new Date() ;}
 	else if (source instanceof TSDate) { source = (<TSDate>source).timestamp ; }
 
-    if (source === Number.NEGATIVE_INFINITY) { source = TSMinTimeStamp ; }
-    else if (source === Number.POSITIVE_INFINITY) { source = TSMaxTimeStamp ; }
-    
+	if (source === Number.NEGATIVE_INFINITY) { source = TSMinTimeStamp ; }
+	else if (source === Number.POSITIVE_INFINITY) { source = TSMaxTimeStamp ; }
+
 	if ($isnumber(source)) {
 		const timestamp = Math.max(Math.min(source, TSMaxTimeStamp), TSMinTimeStamp)  ;
 		let Z =                  Math.floor(timestamp/TSDay) + TSDaysFrom00000229To20010101 ;
@@ -158,20 +158,20 @@ export function $componentshavetime(c:TSDateComp) : boolean {
 	return c.hour > 0 || c.minute > 0 || c. second > 0
 }
 
-// hoisted to named module constants : keeps the (bounded, backtracking-safe -
-// see _parsedt()'s regexes below) parse patterns out of the call expressions
-// and makes their reuse across calls explicit rather than implicit in V8's cache.
-const TIME_PARSE_REGEX = /^\s*(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?\s*$/ ;
+// These regular expressions are applied on trimmed strings (String.trim() removes the
+// same characters as \s). All their quantifiers are bounded or applied on disjoint
+// character sets, so there's no catastrophic backtracking.
+// Since both optional groups have the same pattern, there cannot be seconds without minutes
+const TIME_PARSE_REGEX = /^(?<hours>\d{1,6})(?:\s*[:.]\s*(?<minutes>\d{1,2}))?(?:\s*[:.]\s*(?<seconds>\d{1,2}))?$/ ;
 
 export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
 	if (!$length(s)) { return null ; }
-	// res[1] = hours-or-packed-number, res[3] = minutes, res[5] = seconds
-	const m = TIME_PARSE_REGEX.exec(<string>s) ;
-	if (!$ok(m)) { return null ; }
-	const res = m as RegExpMatchArray ;
+	// hours may be a packed number
+	const g = TIME_PARSE_REGEX.exec(s!.trim())?.groups ;
+	if (!$ok(g)) { return null ; }
 	const c:TSTimeComp = { hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN } ;
 
-	if (!_fillTime(c, res[1], res[3], res[5])) { return null ; }
+	if (!_fillTime(c, g!.hours, g!.minutes, g!.seconds)) { return null ; }
 	return $timeisvalid(c.hour, c.minute, c.second) ? c : null ;
 }
 
@@ -192,19 +192,15 @@ export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
  * 
  * ==WARNING== dayOfWeek is not initialized after parsing.
  */
-// all quantifiers here are bounded ({1,2}/{1,4}/{1,6}/{1,8}, digits vs.
-// separators are disjoint char sets) : nested but not unbounded-over-unbounded,
-// so no catastrophic-backtracking risk despite the nested optional groups —
-// verified empirically against adversarial all-digit input up to 320 chars.
-const DATETIME_PARSE_REGEX = /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4})(\s+(\d{1,6})(\s*[:.]\s*(\d{1,2})(\s*[:.]\s*(\d{1,2}))?)?)?)?)?\s*$/ ;
-const DATE_PARSE_REGEX = /^\s*(\d{1,8})([/\-.](\d{1,2})([/\-.](\d{1,4}))?)?\s*$/ ;
+const DATE_PARSE_REGEX = /^(?<n1>\d{1,8})(?:[-/.](?<n2>\d{1,2})(?:[-/.](?<n3>\d{1,4}))?)?$/ ;
+const SPACE_REGEX = /\s/ ;
 
 export function $parsedatetime(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
-	return _parsedt(s, DATETIME_PARSE_REGEX, form) ;
+	return _parsedt(s, true, form) ;
 }
 
 export function $parsedate(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
-	return _parsedt(s, DATE_PARSE_REGEX, form, { noTime:true }) ;
+	return _parsedt(s, false, form, { noTime:true }) ;
 }
 
 /**
@@ -236,39 +232,47 @@ export function $parsedate(s:Nullable<string>, form:TSDateForm=TSDateForm.Standa
 export interface Iso8601ParseOptions {
 	noTime?:boolean ;
 }
-const NO_TIME_ISO_REGEX = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})$/ ;
-const TIME_ISO_REGEX     = /^([0-9]{2,6})\-([0-9]{1,2})\-([0-9]{1,2})([Tt]([0-9]{1,2})(:([0-9]{1,2})(:([0-9]{1,2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
-
-const COMPACT_NO_TIME_ISO_REGEX = /^([0-9]{4})([0-9]{2})([0-9]{2})$/
-const COMPACT_TIME_ISO_REGEX     = /^([0-9]{4})([0-9]{2})([0-9]{2})([Tt]([0-9]{2})(([0-9]{2})(([0-9]{2})(\.000)?)?)?([zZ]|\+00(:?00)?)?)?$/ ;
+const ISO_DATE_REGEX          = /^(?<year>\d{2,6})-(?<month>\d{1,2})-(?<day>\d{1,2})$/ ;
+const ISO_TIME_REGEX          = /^(?<hour>\d{1,2})(?::(?<minute>\d{1,2})(?::(?<second>\d{1,2})(?:\.000)?)?)?$/ ;
+const COMPACT_ISO_DATE_REGEX  = /^(?<year>\d{4})(?<month>\d{2})(?<day>\d{2})$/ ;
+const COMPACT_ISO_TIME_REGEX  = /^(?<hour>\d{2})(?:(?<minute>\d{2})(?:(?<second>\d{2})(?:\.000)?)?)?$/ ;
+const ISO_TIME_SEPARATOR_REGEX = /[Tt]/ ;
+const GMT_ZONE_REGEX          = /(?:[Zz]|\+00(?::?00)?)$/ ; // only accepted after a time
 
 export function $isostring2components(source:Nullable<string>, opts:Iso8601ParseOptions={}) : TSDateComp|null {
     const s = $ftrim(source) ;
 	if (!s.length) { return null ; }
 
-    let m:Nullable<RegExpMatchArray> = undefined ;
-
-    if (opts.noTime) {
-        m = NO_TIME_ISO_REGEX.exec(s) ; 
-        if (!$ok(m)) { m = COMPACT_NO_TIME_ISO_REGEX.exec(s) ; }
-    }
-    else {
-        m = TIME_ISO_REGEX.exec(s) ;
-        if (!$ok(m)) { m = COMPACT_TIME_ISO_REGEX.exec(s) ; }
-    }
-    if (!$ok(m)) { return null ; }
-
-	const res = m as RegExpMatchArray ;
-	const l = res.length ;
+    const g = _isoGroups(s, !!opts.noTime) ;
+    if (!$ok(g)) { return null ; }
+	// absent time groups give UINT_MIN
 	const c:TSDateComp = {
-		year:_yearFrom(res[1]),
-		month:$unsigned(res[2]),
-		day:$unsigned(res[3]),
-		hour:l>5?$unsigned(res[5]):UINT_MIN,
-		minute:l>7?$unsigned(res[7]):UINT_MIN,
-		second:l>9?$unsigned(res[9]):UINT_MIN
+		year:_yearFrom(g!.year),
+		month:$unsigned(g!.month),
+		day:$unsigned(g!.day),
+		hour:$unsigned(g!.hour),
+		minute:$unsigned(g!.minute),
+		second:$unsigned(g!.second)
 	}
 	return $componentsarevalid(c) ? c : null ;
+}
+
+// a date, a 'T' or 't' and a time followed by an optional GMT time zone, in the extended
+// (2024-12-31T12:00:00) or the compact (20241231T120000) form
+function _isoGroups(s:string, noTime:boolean):Nullable<StringDictionary> {
+	const t = s.search(ISO_TIME_SEPARATOR_REGEX) ;
+	if (t < 0) { return ISO_DATE_REGEX.exec(s)?.groups ?? COMPACT_ISO_DATE_REGEX.exec(s)?.groups ; }
+	if (noTime) { return null ; }
+	const date = s.slice(0, t) ;
+	const time = s.slice(t + 1).replace(GMT_ZONE_REGEX, '') ;
+	return _dateTimeGroups(date, time, ISO_DATE_REGEX, ISO_TIME_REGEX) ?? _dateTimeGroups(date, time, COMPACT_ISO_DATE_REGEX, COMPACT_ISO_TIME_REGEX) ;
+}
+
+function _dateTimeGroups(date:string, time:string, dateRegex:RegExp, timeRegex:RegExp):Nullable<StringDictionary> {
+	const d = dateRegex.exec(date)?.groups ;
+	if (!$ok(d)) { return null ; }
+	const t = timeRegex.exec(time)?.groups ;
+	return $ok(t) ? { ...d, ...t } : null ;
 }
 
 export function $components2timestamp(c:TSDateComp) : number {
@@ -276,7 +280,7 @@ export function $components2timestamp(c:TSDateComp) : number {
 }
 
 export function $components2date(c:TSDateComp, milliseconds:number = 0, utcDate:boolean = false) : Date {
-	return utcDate ?
+	return utcDate ? // NOSONAR: I want to have only one method here
             new Date(Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, milliseconds)) : 
             new Date(c.year, c.month - 1, c.day, c.hour, c.minute, c.second, milliseconds);
 }
@@ -320,36 +324,42 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
 
     if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
     if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
-    if (!$isint(opts.minutesOffset)) { 
-        TSError.throw('$components2StringWithOffset() : output time zone offset must be a plain unsigned integer', { timeZoneOffset:opts.minutesOffset}) ;
-    }
+    _checkStringWithOffsetOptions(opts) ;
+
     const m = opts.minutesOffset! as int ;
     const a = Math.abs(m) ;
-    
-    if (a % 15 !== 0) { 
-        TSError.throw('$components2StringWithOffset() : output time zone offset must be multiple of 15', { timeZoneOffset:opts.minutesOffset}) ;
-    }
-
-    if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { 
-        TSError.throw('$components2StringWithOffset() : milliseconds offset should be in 0...999 range', {millisecondsOffset:opts.milliseconds}) ;
-    }    
-    
     let s = $components2string(c, opts.form!) ;
     
     if ($ok(opts.milliseconds)) {
         s += '.'+$fpad3(opts.milliseconds) ;
     }
 
-    if (opts.form === TSDateForm.ISO8601C) {
-        // in short form, we use Z, +HH and +HHMM offsets
-        if (!a) { return s+'Z' ;}
-        const hoursOffset = `${s}${m < 0 ? '-' : '+'}${$fpad2($div(a, 60) as int)}` ;
-        return a % 60 === 0 ? hoursOffset : hoursOffset + $fpad2((a % 60) as int) ;
-    }
+    // in short form, we use Z, +HH and +HHMM offsets
+    if (opts.form === TSDateForm.ISO8601C) { return s + _compactOffset(m) ; }
     if (!a && opts.forceZ) { return s+'Z' ; }
 
     // other forms commes with +HH:MM offsets, even for hour's round offsets
     return `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
+}
+
+function _checkStringWithOffsetOptions(opts:$c2StrWOffsetOpts) {
+    if (!$isint(opts.minutesOffset)) { 
+        TSError.throw('$components2StringWithOffset() : output time zone offset must be an integer', { timeZoneOffset:opts.minutesOffset}) ;
+    }
+    if (Math.abs(opts.minutesOffset!) % 15 !== 0) { 
+        TSError.throw('$components2StringWithOffset() : output time zone offset must be multiple of 15', { timeZoneOffset:opts.minutesOffset}) ;
+    }
+    if ($ok(opts.milliseconds) && !$isunsigned(opts.milliseconds, 999)) { 
+        TSError.throw('$components2StringWithOffset() : milliseconds offset should be in 0...999 range', {millisecondsOffset:opts.milliseconds}) ;
+    }    
+}
+
+// Z, +HH or +HHMM offsets
+function _compactOffset(m:int):string {
+    const a = Math.abs(m) ;
+    if (!a) { return 'Z' ;}
+    const hoursOffset = `${m < 0 ? '-' : '+'}${$fpad2($div(a, 60) as int)}` ;
+    return a % 60 === 0 ? hoursOffset : hoursOffset + $fpad2((a % 60) as int) ;
 }
 
 /**
@@ -400,156 +410,113 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
  *          (meaning enabled if hour > 0 || minute > 0 || second > 0)
  *      %]  exit previous format zone without time
  */
-export function $components2stringformat(comp:TSDateComp, format:Nullable<string|TSDatePredefinedFormat>='', locale?:Nullable<language|country|TSCountry|Locales>) : string | null {
+export function $components2stringformat(comp:TSDateComp, format:Nullable<string>='', locale?:LocaleInfo) : string | null {
     if (!$componentsarevalid(comp)) { return null ; }
-    const ts = $components2timestamp(comp) ;
     const trs = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
-    let fmtlen = $length(format) ;
-    let ret = "" ;
+    const ctx:DateDirectiveContext = { comp:comp, ts:$components2timestamp(comp), trs:trs, locale:locale } ;
+    const fmt = _dateFormat(format, trs) ;
+    const fmtlen = fmt.length ;
+    const st:DateFormatState = { ret:'', skipIncludedIfNoTime:false } ;
     let escape = false ;
-    let skipIncludedIfNoTime = false ;
-
-    if (!fmtlen) { 
-        format = trs.dateTimeFormat ;
-    }
-    else {
-        switch (format as TSDatePredefinedFormat) {
-            case 'date':
-                format = trs.dateFormat ;
-                break ;
-            case 'short-date':
-                format = trs.shortDateFormat ;
-                break ;
-            case 'date-time':
-                format = trs.dateTimeFormat ;
-                break ;
-            case 'short-date-time':
-                format = trs.shortDateTimeFormat ;
-                break ;
-            case 'date-short-time':
-                format = trs.datePartialTimeFormat ;
-                break ;
-            case 'short-date-short-time':
-                format = trs.shortDatePartialTimeFormat ;
-                break ;
-            case 'time':
-                format = trs.timeFormat ;
-                break ;
-            case 'short-time':
-                format = trs.partialTimeFormat ;
-                break ;
-            default:
-                break ; 
-        }
-    }
-    fmtlen = format!.length ;
     
     for (let i = 0 ; i < fmtlen ; i++) {
-        const c = format!.charAt(i) ;
+        const c = fmt.charAt(i) ;
         if (escape) {
             escape = false ;
-            if (skipIncludedIfNoTime) {
-                if (c === ']') { skipIncludedIfNoTime = false ; }
-            }
-            else {
-                switch (c) {
-                    case '%': ret += '%' ; break ;
-                    case 'a':
-                        ret += trs.shortDays[$dayOfWeekFromTimestamp(ts)] ;
-                        break ;
-                    case 'A':
-                        ret += trs.days[$dayOfWeekFromTimestamp(ts)] ;
-                        break ;
-                    case 'b': ret += trs.shortMonths[comp.month-1] ; break ;
-                    case 'B': ret += trs.months[comp.month-1] ; break ;
-                    case 'd': ret += $fpad2(comp.day) ; break ;
-                    case 'e': ret += comp.day ; break ;
-                    case 'E': ret += (comp.day < $count(trs.ordinals) ? trs.ordinals![comp.day] : comp.day) ; break ;
-                    case 'f':
-                        ret += $dayOfWeekFromTimestamp(ts) ;
-                        break ;
-                    case 'F':
-                        ret += $dayOfWeekFromTimestamp(ts, trs.startingWeekDay) ;
-                        break ;
-                    case 'H': ret += $fpad2(comp.hour) ; break ;
-                    case 'J': 
-                        ret += $fpad2((comp.hour > 12 ? comp.hour - 12 : comp.hour) as uint) ; 
-                        break ;
-                    case 'I': ret += comp.hour ; break ;
-                    case 'K': ret += comp.hour > 12 ? comp.hour - 12 : comp.hour ; break ;
-                    case 'm': ret += $fpad2(comp.month) ; break ;
-                    case 'M': ret += $fpad2(comp.minute) ; break ;
-                    case 'N': ret += comp.minute ; break ;
-                    case 'n': ret += comp.month ; break ;
-                    case 'p': {
-                        const s = $components2stringformat(comp, trs.partialTimeFormat, locale) ;
-                        if (!$ok(s)) { return null ; }
-                        ret += s! ;
-                        break ;
-                    }
-                    case 'P': ret += trs.ampm[comp.hour <= 12 ? 0 : 1] ; break ;
-                    case 'q': 
-                        ret += $fpad3($dayOfYear(ts)) ;
-                        break ;
-                    case 'r': 
-                        ret += $dayOfYear(ts) ;
-                        break ;
-                    case 'S': ret += $fpad2(comp.second) ; break ;
-                    case 'T': ret += comp.second ; break ;
-                    case 't': {
-                        const s = $components2stringformat(comp, trs.timeFormat, locale) ;
-                        if (!$ok(s)) { return null ; }
-                        ret += s! ;
-                        break ;
-                    }
-                    case 'v':
-                        ret += $fpad2($weekOfYear(ts, trs.startingWeekDay)) ;
-                        break ;
-                    case 'w':
-                        ret += $weekOfYear(ts, trs.startingWeekDay) ;
-                        break ;
-                    case 'x': {
-                        const s = $components2stringformat(comp, trs.shortDateFormat, locale) ;
-                        if (!$ok(s)) { return null ; }
-                        ret += s! ;
-                        break ;
-                    }
-                    case 'X': {
-                        const s = $components2stringformat(comp, trs.dateFormat, locale) ;
-                        if (!$ok(s)) { return null ; }
-                        ret += s! ;
-                        break ;
-                    }
-                    case 'y': ret += $fpad2((comp.year % 100) as uint) ; break ;
-                    case 'Y': ret += $fpad4(comp.year) ; break ;
-                    case 'z': ret += comp.year ; break ;
-                    case '[': 
-                        skipIncludedIfNoTime = comp.hour == 0 && comp.minute == 0 && comp.second == 0 ; 
-                        break ;
-                    case ']':
-                        skipIncludedIfNoTime = false ;
-                        break ;
-                    default: 
-                        ret += '%' ;
-                        ret += c ; 
-                        break ;
-                }
-            }
+            if (st.skipIncludedIfNoTime) { st.skipIncludedIfNoTime = c !== ']' ; }
+            else if (!_appendDateDirective(st, c, ctx)) { return null ; }
         }
         else if (c === '%') { escape = true ; }
-        else {
-            escape = false ; 
-            if (!skipIncludedIfNoTime) { ret += c ; } 
-        }
+        else if (!st.skipIncludedIfNoTime) { st.ret += c ; } 
     }
-    if (escape && !skipIncludedIfNoTime) { ret += '%' ; }
-    return ret ;
+    if (escape && !st.skipIncludedIfNoTime) { st.ret += '%' ; }
+    return st.ret ;
 }
+
+interface DateFormatState {
+    ret:string ;
+    skipIncludedIfNoTime:boolean ;
+}
+
+function _dateFormat(format:Nullable<string>, trs:Locales):string {
+    if (!$length(format)) { return trs.dateTimeFormat ; }
+    switch (format as TSDatePredefinedFormat) {
+        case 'date':                    return trs.dateFormat ;
+        case 'short-date':              return trs.shortDateFormat ;
+        case 'date-time':               return trs.dateTimeFormat ;
+        case 'short-date-time':         return trs.shortDateTimeFormat ;
+        case 'date-short-time':         return trs.datePartialTimeFormat ;
+        case 'short-date-short-time':   return trs.shortDatePartialTimeFormat ;
+        case 'time':                    return trs.timeFormat ;
+        case 'short-time':              return trs.partialTimeFormat ;
+        default:                        return format! ; 
+    }
+}
+
+interface DateDirectiveContext {
+    comp:TSDateComp ;
+    ts:number ;             // the timestamp of comp
+    trs:Locales ;
+    locale?:LocaleInfo ;    // NOSONAR: optional. the locale used for sub-formats
+}
+
+// returns false if the date cannot be formatted
+function _appendDateDirective(st:DateFormatState, c:string, ctx:DateDirectiveContext):boolean {
+    if (c === '[') { 
+        st.skipIncludedIfNoTime = ctx.comp.hour == 0 && ctx.comp.minute == 0 && ctx.comp.second == 0 ; 
+        return true ;
+    }
+    const handler = _dateDirectiveHandlers[c] ;
+    const s = $ok(handler) ? handler(ctx) : '%' + c ;
+    if (!$ok(s)) { return false ; }
+    st.ret += s! ;
+    return true ;
+}
+
+function _hour12(h:number):number { return h > 12 ? h - 12 : h ; }
+
+// the date format directives (see $components2stringformat() documentation).
+// A handler returns null only if a sub-format cannot be formatted
+const _dateDirectiveHandlers:{[key:string]:(x:DateDirectiveContext) => string|null} = {
+    '%': ()  => '%',
+    'a': (x) => `${x.trs.shortDays[$dayOfWeekFromTimestamp(x.ts)]}`,
+    'A': (x) => `${x.trs.days[$dayOfWeekFromTimestamp(x.ts)]}`,
+    'b': (x) => `${x.trs.shortMonths[x.comp.month-1]}`,
+    'B': (x) => `${x.trs.months[x.comp.month-1]}`,
+    'd': (x) => $fpad2(x.comp.day),
+    'e': (x) => `${x.comp.day}`,
+    'E': (x) => `${x.comp.day < $count(x.trs.ordinals) ? x.trs.ordinals![x.comp.day] : x.comp.day}`,
+    'f': (x) => `${$dayOfWeekFromTimestamp(x.ts)}`,
+    'F': (x) => `${$dayOfWeekFromTimestamp(x.ts, x.trs.startingWeekDay)}`,
+    'H': (x) => $fpad2(x.comp.hour),
+    'J': (x) => $fpad2(_hour12(x.comp.hour) as uint),
+    'I': (x) => `${x.comp.hour}`,
+    'K': (x) => `${_hour12(x.comp.hour)}`,
+    'm': (x) => $fpad2(x.comp.month),
+    'M': (x) => $fpad2(x.comp.minute),
+    'N': (x) => `${x.comp.minute}`,
+    'n': (x) => `${x.comp.month}`,
+    'p': (x) => $components2stringformat(x.comp, x.trs.partialTimeFormat, x.locale),
+    'P': (x) => `${x.trs.ampm[x.comp.hour <= 12 ? 0 : 1]}`,
+    'q': (x) => $fpad3($dayOfYear(x.ts)),
+    'r': (x) => `${$dayOfYear(x.ts)}`,
+    'S': (x) => $fpad2(x.comp.second),
+    'T': (x) => `${x.comp.second}`,
+    't': (x) => $components2stringformat(x.comp, x.trs.timeFormat, x.locale),
+    'v': (x) => $fpad2($weekOfYear(x.ts, x.trs.startingWeekDay)),
+    'w': (x) => `${$weekOfYear(x.ts, x.trs.startingWeekDay)}`,
+    'x': (x) => $components2stringformat(x.comp, x.trs.shortDateFormat, x.locale),
+    'X': (x) => $components2stringformat(x.comp, x.trs.dateFormat, x.locale),
+    'y': (x) => $fpad2((x.comp.year % 100) as uint),
+    'Y': (x) => $fpad4(x.comp.year),
+    'z': (x) => `${x.comp.year}`,
+    ']': ()  => '', // closing a zone we're not skipping
+} ;
 
 export function $datetimeDescription(
     date:TSDateComp|Date|TSDate|number, 
     predefinedFormat:TSDateTimeFormat, 
-    locale:Nullable<language|country|TSCountry|Locales>=undefined,
+    locale:LocaleInfo=undefined,
     timezoneOffset?:Nullable<number>):string|null
 {
     let ts:number ;
@@ -595,14 +562,14 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
 
 
 export interface $durationDescriptionOptions { // NOSONAR: name accepted for matchnig the function
-    depth?:Nullable<TSDurationDescriptionDepth> ;
-    locale?:Nullable<language|country|TSCountry|Locales> ;
-    noDays?:Nullable<boolean> ;
+    depth?:Nullable<TSDurationDescriptionDepth> ; // NOSONAR: optional
+    locale?:LocaleInfo ;  // NOSONAR: optional
+    noDays?:Nullable<boolean> ;  // NOSONAR: optional
 }
 
 // hoisted to module scope for the same reason as the directive handlers above :
 // avoids redefining a closure over `a`/`locale` on every $durationDescription() call.
-function _durationRepString(key:string, value:number, defaultDefinition:UnitDefinition, locale:Nullable<language|country|TSCountry|Locales>):string {
+function _durationRepString(key:string, value:number, defaultDefinition:UnitDefinition, locale:LocaleInfo):string {
     const def = $value($unitDefinition(key, locale), defaultDefinition) ;
     return `${value} ${value===1?def?.singular:def.plural}` ;
 }
@@ -612,53 +579,58 @@ export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable
     // to normalize the number of days, hours, minutes and seconds
     let duration = typeof comps === 'number' ? comps : $duration(comps) ;
     let c = $isunsigned(duration) ? $durationcomponents(duration) : null ;
-    if ($ok(c)) {
-        switch (opts?.depth) {
-            case 'days':
-                if ((duration % TSDay) >= TSDay/2) { c.days ++ ; } 
-                c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
-                break ;
-            case 'days-cut':
-                c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
-                break ;
-            case 'hours':
-                if ((duration % TSHour) >= TSHour/2) {
-                    c.hours++ ; if (c.hours === 24) { c.days ++ ; c.hours = UINT_MIN ; }
-                }
-                c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
-                break ;
-            case 'hours-cut':
-                c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
-                break ;
-            case 'minutes':
-                if (c.seconds >= 30) {
-                    c.minutes++ ;
-                    if (c.minutes === 60) { c.hours ++ ; c.minutes = UINT_MIN ; }
-                    if (c.hours === 24) { c.days ++ ; c.hours = UINT_MIN ; }
-                }
-                c.seconds = UINT_MIN ;
-                break ;
-            case 'minutes-cut':
-                c.seconds = UINT_MIN ;
-                break ;
-            default:
-                // full depth = seconds
-                break ;
-        }
-        const a:string[] = [] ;
-        const locale = opts?.locale ;
-        if (!!opts?.noDays && c!.days > 0) {
-            c!.hours = (c!.hours + 24 * c!.days) as uint ;
-            c!.days = UINT_MIN ;
-        }
-        if (c!.days > 0)    { a.push(_durationRepString('day',    c!.days,    { singular:'day', plural:'days', unit:'' }, locale)) ; }
-        if (c!.hours > 0)   { a.push(_durationRepString('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }, locale)) ; }
-        if (c!.minutes > 0) { a.push(_durationRepString('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }, locale)) ; }
-        if (c!.seconds > 0) { a.push(_durationRepString('second', c!.seconds, { singular:'second', plural:'seconds', unit:'' }, locale)) ; }
+    if (!$ok(c)) { return '' ; }
 
-        return a.join(' ') ;
+    _roundDurationComponents(c!, duration, opts?.depth) ;
+    const a:string[] = [] ;
+    const locale = opts?.locale ;
+    if (!!opts?.noDays && c!.days > 0) {
+        c!.hours = (c!.hours + 24 * c!.days) as uint ;
+        c!.days = UINT_MIN ;
     }
-    return '' ;
+    if (c!.days > 0)    { a.push(_durationRepString('day',    c!.days,    { singular:'day', plural:'days', unit:'' }, locale)) ; }
+    if (c!.hours > 0)   { a.push(_durationRepString('hour',   c!.hours,   { singular:'hour', plural:'hours', unit:'' }, locale)) ; }
+    if (c!.minutes > 0) { a.push(_durationRepString('minute', c!.minutes, { singular:'minute', plural:'minutes', unit:'' }, locale)) ; }
+    if (c!.seconds > 0) { a.push(_durationRepString('second', c!.seconds, { singular:'second', plural:'seconds', unit:'' }, locale)) ; }
+
+    return a.join(' ') ;
+}
+
+function _roundDurationComponents(c:TSDurationComp, duration:number, depth:Nullable<TSDurationDescriptionDepth>) {
+    switch (depth) {
+        case 'days':
+            if ((duration % TSDay) >= TSDay/2) { c.days ++ ; } 
+            c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
+            break ;
+        case 'days-cut':
+            c.hours = UINT_MIN ; c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
+            break ;
+        case 'hours':
+            if ((duration % TSHour) >= TSHour/2) { c.hours++ ; _carryDurationHours(c) ; }
+            c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
+            break ;
+        case 'hours-cut':
+            c.minutes = UINT_MIN ; c.seconds = UINT_MIN ;
+            break ;
+        case 'minutes':
+            if (c.seconds >= 30) { _roundUpDurationMinutes(c) ; }
+            c.seconds = UINT_MIN ;
+            break ;
+        case 'minutes-cut':
+            c.seconds = UINT_MIN ;
+            break ;
+        default:
+            // full depth = seconds
+            break ;
+    }
+}
+
+function _carryDurationHours(c:TSDurationComp) { if (c.hours === 24) { c.days ++ ; c.hours = UINT_MIN ; } }
+
+function _roundUpDurationMinutes(c:TSDurationComp) {
+    c.minutes++ ;
+    if (c.minutes === 60) { c.hours ++ ; c.minutes = UINT_MIN ; }
+    _carryDurationHours(c) ;
 }
 
 
@@ -727,8 +699,9 @@ export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable
 // as ~15 fresh closures per call (the previous _d/_D/_E/.../_pop/_push/_default
 // functions each closed over that call's comp/ret/stack/state/elsePart). Each
 // handler here only reads the (per-call) duration components it's given, so
-// the table never needs to change ; the state machine itself stays local to
-// the function below.
+// the table never needs to change ; the state machine itself is described
+// by the DurationFormatState, _durationFormatParts and _durationFormatOpeners
+// tables below.
 const _durationDirectiveHandlers:{[key:string]:(comp:TSDurationComp) => string} = {
     'd': (c) => `${c.days}`,
     'D': (c) => $fpad2(c.days),
@@ -744,45 +717,79 @@ const _durationDirectiveHandlers:{[key:string]:(comp:TSDurationComp) => string} 
     'S': (c) => $fpad2(c.seconds),
 } ;
 
-function _durationFormatPush<S>(stack:{state:S, elsePart:boolean}[], state:S, elsePart:boolean, newState:S):[S, boolean]
-{ stack.push({state:state, elsePart:elsePart}) ; return [newState, false] ; }
-
-function _durationFormatPop<S>(stack:{state:S, elsePart:boolean}[]):[S, boolean]
-{ const p = stack.pop() ; return [p!.state, p!.elsePart] ; }
-
 function _durationFormatDefault(c:string):string { return c === '%' ? '%' : `%${c}` ; }
 
-export function $durationNumber2StringFormat(duration: Nullable<number>, format?:Nullable<string>) : string {
-    
-    enum State {
-        Standard = 0,
-        StandardEscape,
-        DaysPart,
-        DaysPartEscape,
-        HoursPart,
-        HoursPartEscape,
-        SecondsPart,
-        SecondsPartEscape,
-        SubdaysPart,
-        SubdaysPartEscape,
-        SubhoursPart,
-        SubhoursPartEscape,
-    } ;
-    interface Stack {
-        state:State,
-        elsePart:boolean
-    }
+// the automat states of $durationNumber2StringFormat(). Each conditional part state
+// is an even number immediately followed by its escape state.
+enum DurationFormatState {
+    Standard = 0,
+    StandardEscape,
+    DaysPart,
+    DaysPartEscape,
+    HoursPart,
+    HoursPartEscape,
+    SecondsPart,
+    SecondsPartEscape,
+    SubdaysPart,
+    SubdaysPartEscape,
+    SubhoursPart,
+    SubhoursPartEscape,
+} ;
 
+interface DurationFormatPart {
+    opener:string ;     // the char (after %) opening the part
+    closing:string ;    // the char (after %) closing the part
+    elseChar:string ;   // the char (after %) switching to the else part
+    directives:string ; // the directives allowed in the part
+}
+
+const _durationFormatParts:{[state:number]:DurationFormatPart} = {
+    [DurationFormatState.DaysPart]:     { opener:'(', closing:')', elseChar:'p', directives:'DdE' },
+    [DurationFormatState.HoursPart]:    { opener:'≤', closing:'≥', elseChar:'q', directives:'HhIiJ' },
+    [DurationFormatState.SecondsPart]:  { opener:'{', closing:'}', elseChar:'b', directives:'Ss' },
+    [DurationFormatState.SubdaysPart]:  { opener:'[', closing:']', elseChar:'!', directives:'HhIiJMmSs' },
+    [DurationFormatState.SubhoursPart]: { opener:'<', closing:'>', elseChar:'c', directives:'MmSs' },
+} ;
+
+const _durationFormatOpeners:{[c:string]:DurationFormatState} = {
+    '(': DurationFormatState.DaysPart,
+    '≤': DurationFormatState.HoursPart,
+    '{': DurationFormatState.SecondsPart,
+    '[': DurationFormatState.SubdaysPart,
+    '<': DurationFormatState.SubhoursPart,
+} ;
+
+interface DurationFormatAutomat {
+    comp:TSDurationComp ;
+    visibility:{[state:number]:boolean} ;   // is the (non else) part of each conditional part visible
+    state:DurationFormatState ;
+    elsePart:boolean ;
+    stack:{state:DurationFormatState, elsePart:boolean}[] ;
+    ret:string ;
+}
+
+export function $durationNumber2StringFormat(duration: Nullable<number>, format?:Nullable<string>) : string {
     const comp = $durationcomponents(duration) ;
 
     if (!$length(format)) { format = "%(%d-%)%H:%M%{:%S%}" ; }
-    let fmtlen = format!.length ;
-    let state = State.Standard ;
-    let ret = "" ;
-    let elsePart = false ;
+    const fmt = format! ;
+    const fmtlen = fmt.length ;
     const subhour = comp.minutes > 0 || comp.seconds > 0 ;
     const subday = comp.hours > 0 || subhour ;
-    let stack:Stack[] = [] ;
+    const a:DurationFormatAutomat = {
+        comp:comp,
+        visibility: {
+            [DurationFormatState.DaysPart]:     comp.days > 0,
+            [DurationFormatState.HoursPart]:    comp.hours > 0,
+            [DurationFormatState.SecondsPart]:  comp.seconds > 0,
+            [DurationFormatState.SubdaysPart]:  subday,
+            [DurationFormatState.SubhoursPart]: subhour,
+        },
+        state:DurationFormatState.Standard,
+        elsePart:false,
+        stack:[],
+        ret:''
+    } ;
     const debug = $default("debugDurationStateAutomat") ;
 
     if (debug) {
@@ -796,183 +803,79 @@ export function $durationNumber2StringFormat(duration: Nullable<number>, format?
     }
 
     for (let i = 0 ; i < fmtlen ; i++) {
-        const c = format!.charAt(i) ;
-        if (debug) $logterm(`stack.count = ${stack.length}, state = ${state}, elsePart = ${elsePart}, char[${i}] = '${c}'`) ;
-        switch (state) {
-            case State.Standard:
-                elsePart = false ;
-                if (c === '%') { state = State.StandardEscape ; }
-                else { ret += c ; }
-                break ;
-            case State.StandardEscape:
-                state = State.Standard ;
-                switch (c) {
-                    case '%': ret += '%' ; break ;
-                    case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
-                    case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
-                    case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
-                    case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
-                    case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
-                    case 'D': ret += _durationDirectiveHandlers['D'](comp) ; break ; case 'd': ret += _durationDirectiveHandlers['d'](comp) ; break ; case 'E': ret += _durationDirectiveHandlers['E'](comp) ; break ;
-                    case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
-                    case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
-                    case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
-                    default: ret += '%', ret += c ; break ;
-                }
-                break ;
-            case State.DaysPart:
-                if (c === '%') { state = State.DaysPartEscape ; }
-                else if ((comp.days > 0 && !elsePart) || (!comp.days && elsePart)) { ret += c ; }
-                break ;
-            case State.DaysPartEscape:
-                if (c === ')') { [state, elsePart] = _durationFormatPop(stack) ; }
-                else {
-                    state = state = State.DaysPart ;
-                    if (c === 'p') { elsePart = !elsePart ; }                    
-                    else if (comp.days > 0 && !elsePart) {
-                        switch (c) {
-                            case '%': ret += '%' ; break ;
-                            case 'D': ret += _durationDirectiveHandlers['D'](comp) ; break ; case 'd': ret += _durationDirectiveHandlers['d'](comp) ; break ; case 'E': ret += _durationDirectiveHandlers['E'](comp) ; break ;
-                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
-                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
-                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
-                            default: ret += '%', ret += c ; break ;
-                        }
-                    }
-                    else if (elsePart && !comp.days) { ret += _durationFormatDefault(c) ; }
-                }
-                break ;
-            case State.HoursPart:
-                if (c === '%') { state = State.HoursPartEscape ; }
-                else if ((comp.hours > 0 && !elsePart) || (!comp.hours && elsePart)) { ret += c ; }
-                break ;
-            case State.HoursPartEscape:
-                if (c === '≥') { [state, elsePart] = _durationFormatPop(stack) ; }
-                else {
-                    state = State.HoursPart ;
-                    if (c === 'q') { elsePart = !elsePart ; }                    
-                    else if (comp.hours > 0 && !elsePart) {
-                        switch (c) {
-                            case '%': ret += '%' ; break ;
-                            case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
-                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
-                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
-                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
-                            default: ret += '%', ret += c ; break ;
-                        }
-                    }
-                    else if (elsePart && !comp.hours) { ret += _durationFormatDefault(c) ; }
-                }
-                break ;
-            case State.SecondsPart:
-                if (c === '%') { state = State.SecondsPartEscape ; }
-                else if ((comp.seconds > 0 && !elsePart) || (!comp.seconds && elsePart)) { ret += c ; }
-                break ;
-            case State.SecondsPartEscape:
-                if (c === '}') { [state, elsePart] = _durationFormatPop(stack) ; }
-                else {
-                    state = State.SecondsPart ;
-                    if (c === 'b') { elsePart = !elsePart ; }                    
-                    else if (comp.seconds > 0 && !elsePart) {
-                        switch (c) {
-                            case '%': ret += '%' ; break ;
-                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
-                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
-                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
-                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
-                            default: ret += '%', ret += c ; break ;    
-                        }
-                    }
-                    else if (elsePart && !comp.seconds) { ret += _durationFormatDefault(c) ; }
-                }
-                break ;
-            case State.SubdaysPart:
-                if (c === '%') { state = State.SubdaysPartEscape ; }
-                else if ((subday && !elsePart) || (!subday && elsePart)) { ret += c ; }
-                break ;
-            case State.SubdaysPartEscape:
-                if (c === ']') { [state, elsePart] = _durationFormatPop(stack) ; }
-                else {
-                    state = State.SubdaysPart ;
-                    if (c === '!') { elsePart = !elsePart ; }
-                    else if (subday && !elsePart) {
-                        switch (c) {
-                            case '%': ret += '%' ; break ;
-                            case 'H': ret += _durationDirectiveHandlers['H'](comp) ; break ; case 'h': ret += _durationDirectiveHandlers['h'](comp) ; break ; case 'I': ret += _durationDirectiveHandlers['I'](comp) ; break ; case 'i': ret += _durationDirectiveHandlers['i'](comp) ; break ; case 'J': ret += _durationDirectiveHandlers['J'](comp) ; break ;
-                            case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
-                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
-                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
-                            case '<': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubhoursPart) ; break ;
-                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
-                            default: ret += '%', ret += c ; break ;    
-                        }
-                    }   
-                    else if (!subday && elsePart) { ret += _durationFormatDefault(c) ; }
-                }
-                break ;
-            case State.SubhoursPart:
-                if (c === '%') { state = State.SubhoursPartEscape ; }
-                else if ((subhour && !elsePart) || (!subhour && elsePart)) { ret += c ; }
-                break ;
-            case State.SubhoursPartEscape:
-                if (c === '>') { [state, elsePart] = _durationFormatPop(stack) ; }
-                else {
-                    state = State.SubhoursPart ;
-                    if (c === 'c') { elsePart = !elsePart ; }
-                    else if (subhour && !elsePart) {
-                        switch (c) {
-                            case '%': ret += '%' ; break ;
-                            case 'M': ret += _durationDirectiveHandlers['M'](comp) ; break ; case 'm': ret += _durationDirectiveHandlers['m'](comp) ; break ;
-                            case 'S': ret += _durationDirectiveHandlers['S'](comp) ; break ; case 's': ret += _durationDirectiveHandlers['s'](comp) ; break ;
-                            case '(': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.DaysPart) ; break ;
-                            case '{': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SecondsPart) ; break ;
-                            case '[': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.SubdaysPart) ; break ;
-                            case '≤': [state, elsePart] = _durationFormatPush(stack, state, elsePart, State.HoursPart) ; break ;
-                            default: ret += '%', ret += c ; break ;    
-                        }
-                    }   
-                    else if (!subhour && elsePart) { ret += _durationFormatDefault(c) ; }
-                }
-                break ;                
-        }
-        if (debug) { $logterm(`state after:${state}, composed string = "${ret}"`) ; }
+        const c = fmt.charAt(i) ;
+        if (debug) $logterm(`stack.count = ${a.stack.length}, state = ${a.state}, elsePart = ${a.elsePart}, char[${i}] = '${c}'`) ;
+        _durationFormatStep(a, c) ;
+        if (debug) { $logterm(`state after:${a.state}, composed string = "${a.ret}"`) ; }
     }
 
-    switch (state) {
-        case State.Standard: 
-        case State.DaysPart:
-        case State.SecondsPart:
-        case State.SubdaysPart:
-        case State.SubhoursPart:
-        case State.HoursPart:
+    a.ret += _durationFormatTrailingPercent(a) ;
+
+    if (debug) { $logterm(`$durationNumber2StringFormat() returned string = "${a.ret}"`) ; }
+
+    return a.ret ;
+}
+
+function _durationFormatStep(a:DurationFormatAutomat, c:string) {
+    switch (a.state) {
+        case DurationFormatState.Standard:
+            a.elsePart = false ;
+            if (c === '%') { a.state = DurationFormatState.StandardEscape ; }
+            else { a.ret += c ; }
             break ;
-        case State.StandardEscape: 
-            ret += '%' ; 
+        case DurationFormatState.StandardEscape:
+            a.state = DurationFormatState.Standard ;
+            _durationFormatEscape(a, c, 'DdEHhIiJMmSs', '') ;
             break ;
-        case State.DaysPartEscape:
-            if ((comp.days > 0 && !elsePart) || (!comp.days && elsePart)) { ret += '%' ; } 
+        default:
+            if (a.state % 2 === 0) { _durationFormatPartChar(a, c) ; }
+            else { _durationFormatPartEscape(a, c) ; }
             break ;
-        case State.HoursPartEscape:
-            if ((comp.hours > 0 && !elsePart) || (!comp.hours && elsePart)) { ret += '%' ; } 
-            break ;
-        case State.SecondsPartEscape:
-            if ((comp.seconds > 0 && !elsePart) || (!comp.days && elsePart)) { ret += '%' ; } 
-            break ;
-        case State.SubdaysPartEscape:
-            if ((subday && !elsePart) || (!subday && elsePart)) { ret += '%' ; } 
-            break ;
-        case State.SubhoursPartEscape:
-            if ((subhour && !elsePart) || (!subhour && elsePart)) { ret += '%' ; }
-            break ; 
     }
+}
 
-    if (debug) { $logterm(`$durationNumber2StringFormat() returned string = "${ret}"`) ; }
+// interprets the escaped char c in the standard part or in a visible conditional part
+function _durationFormatEscape(a:DurationFormatAutomat, c:string, directives:string, ownOpener:string) {
+    const openedState = _durationFormatOpeners[c] ;
+    if (c === '%') { a.ret += '%' ; }
+    else if (directives.includes(c)) { a.ret += _durationDirectiveHandlers[c](a.comp) ; }
+    else if ($ok(openedState) && c !== ownOpener) {
+        a.stack.push({ state:a.state, elsePart:a.elsePart }) ;
+        a.state = openedState ;
+        a.elsePart = false ;
+    }
+    else { a.ret += '%' + c ; }
+}
 
-    return ret ;
+// non escaped char in a conditional part
+function _durationFormatPartChar(a:DurationFormatAutomat, c:string) {
+    if (c === '%') { a.state = (a.state + 1) as DurationFormatState ; }
+    else if (a.visibility[a.state] !== a.elsePart) { a.ret += c ; }
+}
+
+// escaped char in a conditional part
+function _durationFormatPartEscape(a:DurationFormatAutomat, c:string) {
+    const partState = (a.state - 1) as DurationFormatState ;
+    const part = _durationFormatParts[partState] ;
+    if (c === part.closing) {
+        const p = a.stack.pop()! ;
+        a.state = p.state ;
+        a.elsePart = p.elsePart ;
+        return ;
+    }
+    a.state = partState ;
+    const visible = a.visibility[partState] ;
+    if (c === part.elseChar) { a.elsePart = !a.elsePart ; }
+    else if (visible && !a.elsePart) { _durationFormatEscape(a, c, part.directives, part.opener) ; }
+    else if (a.elsePart && !visible) { a.ret += _durationFormatDefault(c) ; }
+}
+
+// the format ended on a non interpreted %
+function _durationFormatTrailingPercent(a:DurationFormatAutomat):string {
+    if (a.state === DurationFormatState.StandardEscape) { return '%' ; }
+    if (a.state % 2 === 0) { return '' ; }
+    const partState = (a.state - 1) as DurationFormatState ;
+    return a.visibility[partState] !== a.elsePart ? '%' : '' ;
 }
 
 //////////////////// private functions
@@ -1035,66 +938,82 @@ function _fillTime(c:TSTimeComp, hoursGroup:Nullable<string>, minutesGroup:Nulla
 	return true ;
 }
 
-function _parsedt(s:Nullable<string>, regexp:RegExp, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
+function _parsedt(s:Nullable<string>, withTime:boolean, form:TSDateForm=TSDateForm.Standard, opts:Iso8601ParseOptions={}) : TSDateComp|null {
 	if (form === TSDateForm.ISO8601 || form === TSDateForm.ISO8601C || form === TSDateForm.ISO8601L) { return $isostring2components(s, opts) ; }
 	if (!$length(s)) { return null ; }
-	const m = regexp.exec(<string>s) ;
-	if (!$ok(m)) { return null ; }
-	const res = m as RegExpMatchArray ;
-	// regex layout: res[1] first number, res[3] second number, res[5] third number,
-	//               res[7]/res[9]/res[11] hours/minutes/seconds (absent for $parsedate).
-	// A missing res[3] means the source was a single packed number with no separator.
-	const hasN2 = $length(res[3]) > 0 ;
-	const hasN3 = $length(res[5]) > 0 ;
+	const g = _standardDateGroups(s!.trim(), withTime) ;
+	if (!$ok(g)) { return null ; }
 	const c:TSDateComp = { year:UINT_MIN, month:UINT_MIN, day:UINT_MIN, hour:UINT_MIN, minute:UINT_MIN, second:UINT_MIN }
+	let done:boolean ;
 
 	switch (form) {
 		case TSDateForm.Standard:
-		case TSDateForm.English: {
-			const english = form === TSDateForm.English ;
-			const n1 = $unsigned(res[1]) ;
-			if (!hasN2) {
-				// one packed number, no separator: DDMMYYYY / DDMMYY / DDMM / DD
-				// (day & month positions are swapped for the English form)
-				let lo:number, hi:number ;   // lo -> month (Standard) / day (English) ; hi -> the other
-				if (n1 >= 1010001)    { c.year = <uint>(n1 % 10000) ;     lo = $div(n1 % 1000000, 10000) ; hi = $div(n1, 1000000) ; }
-				else if (n1 >= 10101) { c.year = _adjustYear(n1 % 100) ;  lo = $div(n1 % 10000, 100) ;     hi = $div(n1, 10000) ; }
-				else if (n1 >= 101)   { lo = n1 % 100 ; hi = $div(n1, 100) ; }
-				else                  { lo = 0 ; hi = n1 ; }   // just a day
-				c.month = <uint>(english ? hi : lo) ;
-				c.day   = <uint>(english ? lo : hi) ;
-				if (!c.year) { _completeWithToday(c) ; }
-			}
-			else {
-				if (english) { c.month = <uint>n1 ; c.day = $unsigned(res[3]) ; }
-				else         { c.day = <uint>n1 ; c.month = $unsigned(res[3]) ; }
-				if (hasN3) {
-					c.year = _yearFrom(res[5]) ;
-					if (!_fillTime(c, res[7], res[9], res[11])) { return null ; }
-				}
-				else { _completeWithToday(c) ; }
-			}
+		case TSDateForm.English:
+			done = _fillStandardDate(c, g!, form === TSDateForm.English) ;
 			break ;
-		}
-		case TSDateForm.Computer: {
-			const yc = $unsigned(res[1]) ;
-			if (!hasN2) {
-				if (res[1].length !== 8) { return null ; } // in computer form we need all the digits
-				c.year  = <uint>$div(yc, 10000) ;
-				c.month = <uint>($div(yc, 100) % 100) ;
-				c.day   = <uint>(yc % 100) ;
-			}
-			else if (hasN3) {
-				c.year  = <uint>yc ;
-				c.month = $unsigned(res[3]) ;
-				c.day   = $unsigned(res[5]) ;
-				if (!_fillTime(c, res[7], res[9], res[11])) { return null ; }
-			}
-			else { return null ; }
+		case TSDateForm.Computer:
+			done = _fillComputerDate(c, g!) ;
 			break ;
-		}
 		default:
 			return null ;
 	}
-	return $componentsarevalid(c) ? c : null ;
+	return done && $componentsarevalid(c) ? c : null ;
+}
+
+// groups: n1, n2 and n3 are the 3 numbers of the date, hours/minutes/seconds the
+//         time (absent for $parsedate). A missing n2 means the source was a single
+//         packed number with no separator.
+
+// a date without any space, then, if accepted and if the date has 3 numbers, spaces and a time
+function _standardDateGroups(s:string, withTime:boolean):Nullable<StringDictionary> {
+	const i = s.search(SPACE_REGEX) ;
+	if (i < 0) { return DATE_PARSE_REGEX.exec(s)?.groups ; }
+	if (!withTime) { return null ; }
+	const g = _dateTimeGroups(s.slice(0, i), s.slice(i).trim(), DATE_PARSE_REGEX, TIME_PARSE_REGEX) ;
+	return $length(g?.n3) ? g : null ; // a time needs a complete date
+}
+
+function _fillStandardDate(c:TSDateComp, g:StringDictionary, english:boolean):boolean {
+	const n1 = $unsigned(g.n1) ;
+	if (!$length(g.n2)) {
+		_fillPackedDayMonth(c, n1, english) ;
+		if (!c.year) { _completeWithToday(c) ; }
+		return true ;
+	}
+	if (english) { c.month = <uint>n1 ; c.day = $unsigned(g.n2) ; }
+	else         { c.day = <uint>n1 ; c.month = $unsigned(g.n2) ; }
+	if (!$length(g.n3)) { 
+		_completeWithToday(c) ;
+		return true ;
+	}
+	c.year = _yearFrom(g.n3) ;
+	return _fillTime(c, g.hours, g.minutes, g.seconds) ;
+}
+
+// one packed number, no separator: DDMMYYYY / DDMMYY / DDMM / DD
+// (day & month positions are swapped for the English form)
+function _fillPackedDayMonth(c:TSDateComp, n1:number, english:boolean) {
+	let lo:number, hi:number ;   // lo -> month (Standard) / day (English) ; hi -> the other
+	if (n1 >= 1010001)    { c.year = <uint>(n1 % 10000) ;     lo = $div(n1 % 1000000, 10000) ; hi = $div(n1, 1000000) ; }
+	else if (n1 >= 10101) { c.year = _adjustYear(n1 % 100) ;  lo = $div(n1 % 10000, 100) ;     hi = $div(n1, 10000) ; }
+	else if (n1 >= 101)   { lo = n1 % 100 ; hi = $div(n1, 100) ; }
+	else                  { lo = 0 ; hi = n1 ; }   // just a day
+	c.month = <uint>(english ? hi : lo) ;
+	c.day   = <uint>(english ? lo : hi) ;
+}
+
+function _fillComputerDate(c:TSDateComp, g:StringDictionary):boolean {
+	const yc = $unsigned(g.n1) ;
+	if (!$length(g.n2)) {
+		if (g.n1.length !== 8) { return false ; } // in computer form we need all the digits
+		c.year  = <uint>$div(yc, 10000) ;
+		c.month = <uint>($div(yc, 100) % 100) ;
+		c.day   = <uint>(yc % 100) ;
+		return true ;
+	}
+	if (!$length(g.n3)) { return false ; }
+	c.year  = <uint>yc ;
+	c.month = $unsigned(g.n2) ;
+	c.day   = $unsigned(g.n3) ;
+	return _fillTime(c, g.hours, g.minutes, g.seconds) ;
 }

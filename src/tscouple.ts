@@ -36,6 +36,4 @@ export class TSCouple<T,U> implements Iterable<T|U>, TSObject, TSClone<TSCouple<
     
 }
 
-export interface TSCoupleConstructor<T,U> {
-    new (first:T, second:U): TSCouple<T,U>;
-}
+export type TSCoupleConstructor<T,U> = new (first:T, second:U) => TSCouple<T,U>;

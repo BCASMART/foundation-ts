@@ -601,9 +601,42 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect7($isemail('"AB"@BA')).true() ;
         t.expect8($email('"AB"@BA')).is('"ab"@ba') ;
 
-        // still invalid : a single non-digit char satisfies neither domain-final
-        // alternative ({2,} needs 2 chars, [\d\.]+ needs a digit or dot)
+        // still invalid : the last label of a domain needs at least 2 characters
         t.expect9($isemail('abcdef@b')).false() ;
+
+        // quadratic backtracking regression guard : the old final [\d.]+ alternative
+        // overlapped the (label\.)* repetitions, so "a@" + "1.".repeat(n) + "!" had
+        // O(n^2) possible partitions (1.3 s for n = 20000). The domain is now either
+        // labels or a strict IPv4 address, and the email length is bounded to 254.
+        const trap = "a@" + "1.".repeat(25000) + "!" ; // 50003 characters
+        const t1 = Date.now() ;
+        const trapResult = $isemail(trap) ;
+        const trapElapsed = Date.now() - t1 ;
+        t.expectA(trapResult).false() ;
+        t.expectB(trapElapsed < 100).true() ;
+        const shortTrap = "a@" + "1.".repeat(120) + "!" ; // under the 254 limit, rejected by the regexes themselves
+        t.expectC($isemail(shortTrap)).false() ;
+
+        // an IPv4 address is a valid domain, other numeric domains are not
+        t.expectD($email('a@1.2.3.4')).is('a@1.2.3.4') ;
+        t.expectE($isemail('john.doe@192.168.0.1')).true() ;
+        t.expectF($isemail('a@1.2.3')).false() ;
+        t.expectG($isemail('a@1.2.3.4.')).false() ;
+        t.expectH($isemail('abcdef@b.1')).false() ;
+        t.expectI($isemail('abcdef@..1')).false() ;
+        t.expectJ($isemail('abcdef@b..cd')).false() ;
+        t.expectK($isemail('a@@b.cd')).false() ;
+        t.expectL($email('John.Doe@Sub.Example.COM')).is('john.doe@sub.example.com') ;
+        t.expectM($isemail('"a@b"@example.com')).true() ;
+
+        // RFC 5321 maximum length : 254 characters (after trimming)
+        const email254 = 'a'.repeat(248) + '@b.com' ;
+        const email255 = 'a'.repeat(249) + '@b.com' ;
+        t.expectN(email254.length).is(254) ;
+        t.expectO($email(email254)).is(email254) ;
+        t.expectP($email(email255)).null() ;
+        t.expectQ($isemail(email255)).false() ;
+        t.expectR($email('  ' + email254 + ' ')).is(email254) ;
     }) ;
 
     group.unary("$isuuid() and $UUID() functions", async(t) => {

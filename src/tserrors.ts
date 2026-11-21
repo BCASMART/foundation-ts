@@ -20,8 +20,19 @@ const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 // Object.values(Resp).includes(x) call re-walks and re-allocates that mixed
 // array every time. Filter down to the numeric half once and query a Set.
 let _respValues:Set<number>|undefined = undefined ;
+// the error code (3rd argument, or 2nd one) of a TSError construction is a Resp code
+function _isRespCodeError(args:IArguments):boolean {
+    const n = args.length ;
+    let candidateCode:number|undefined = undefined ;
+    if (n >= 3 && typeof args[2] === 'number') { candidateCode = args[2] ; }
+    else if (n >= 2 && typeof args[1] === 'number') { candidateCode = args[1] ; }
+    return typeof candidateCode === 'number' && _respValueSet().has(candidateCode) ;
+}
+
 function _respValueSet():Set<number> {
-    if (!_respValues) { _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ; }
+    if (!_respValues) { // NOSONAR: we find it more readable like that
+        _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ; 
+    }
     return _respValues ;
 }
 
@@ -108,10 +119,7 @@ export class TSError extends Error implements TSLeafInspect {
         // dominant cost of constructing an Error. Detect that family here,
         // before super() runs the capture, and skip it : same object, same
         // API, just an empty (unformatted) .stack.
-        let candidateCode:number|undefined = undefined ;
-        if (n >= 3 && typeof arguments[2] === 'number') { candidateCode = arguments[2] ; }
-        else if (n >= 2 && typeof arguments[1] === 'number') { candidateCode = arguments[1] ; }
-        const skipStack = typeof candidateCode === 'number' && _respValueSet().has(candidateCode) ;
+        const skipStack = _isRespCodeError(arguments) ;
         const stackHolder = Error as unknown as { stackTraceLimit?:number } ;
         const hasStackLimit = skipStack && typeof stackHolder.stackTraceLimit === 'number' ;
         const savedStackLimit = hasStackLimit ? stackHolder.stackTraceLimit : undefined ;
@@ -121,23 +129,12 @@ export class TSError extends Error implements TSLeafInspect {
 
         if (hasStackLimit) { stackHolder.stackTraceLimit = savedStackLimit! ; }
 
-        switch (n) {
-			case 1: break ;
-            case 2:
-                if (typeof arguments[1] === 'number') { this.errorCode = arguments[1] ; }
-                else if ($ok(arguments[1])) { this.info = arguments[1] as TSDictionary ; }
-                break ;
-
-            case 3:
-                if (typeof arguments[1] === 'number') { this.errorCode = arguments[1] ; }
-                else if ($ok(arguments[1])) { this.info = arguments[1] as TSDictionary ; }
-                if (typeof arguments[2] === 'number') { this.errorCode = arguments[2] ; }
-                else if ($ok(arguments[2])) { this.info = arguments[2] as TSDictionary ; }
-                break ;
-
-            default:
-                break ;
-        }
+        // the 2nd and 3rd arguments are an error code and an info dictionary, in any order 
+        // (they are set in this order, the errorCode setter ignores the non integer values)
+        const extra = n === 2 || n === 3 ? Array.from(arguments).slice(1) : [] ;
+        extra.forEach(v => { if (typeof v === 'number') { this.errorCode = v ; } }) ;
+        const info = extra.findLast(v => typeof v !== 'number' && $ok(v)) ;
+        if ($ok(info)) { this.info = info as TSDictionary ; }
     }
 
     public static assertIntParam(v:Nullable<number>, fn:string, param:string):void

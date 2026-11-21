@@ -12,6 +12,7 @@ import { $bufferFromHexaString, $decodeBase64 } from "../src/data";
 import { TSCharset } from "../src/tscharset";
 import { TSData } from "../src/tsdata";
 import { TSCountry } from "../src/tscountry";
+import { TSList } from "../src/tslist";
 
 const days:TSExtendedArrayNode = {
     _mandatory:false,
@@ -1145,7 +1146,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         // mandatory ones are still refused
         const errors:string[] = [] ;
         t.expect6(TSParser.define({ _mandatory:true, a:'int' })!.validate(null, { errors })).false() ;
-        t.expect7(errors).is(['value is mandatory']) ;
+        t.expect7(errors).is(['value is mandatory.']) ;
         t.expect8(TSParser.define({ a:{ _mandatory:true, b:'int' } })!.validate({ a:null })).false() ;
     }) ;
 
@@ -1225,22 +1226,22 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
             const opts:TSParserOptions = { errors:[], context:context } ;
             return [TSParser.define(node)!.validate(value, opts), opts.errors!] ;
         } ;
-        t.expect0(verrs({ a:'int' }, [1])).is([false, ['value is not an object']]) ;
-        t.expect1(verrs({ a:'int' }, 5)).is([false, ['value is not an object']]) ;
-        t.expect2(verrs(['int'], { a:1 })).is([false, ['value is not an array']]) ;
-        t.expect3(verrs(['int', 2, 3], [1])).is([false, ['value.size is too small (1 < 2)']]) ;
-        t.expect4(verrs(['int', 2, 3], [1, 2, 3, 4])).is([false, ['value.size is too large (4 > 3)']]) ;
-        t.expect5(verrs({ _itemsType:'int', _min:1, _max:2 }, [])).is([false, ['value.size is too small (0 < 1)']]) ;
-        t.expect6(verrs({ _type:'int', _enum:[1, 2] }, 3)).is([false, ['value has not a valid enum value 3']]) ;
-        t.expect7(verrs({ _type:'string', _enum:['a', 'b'] }, 'c')).is([false, ["value has not a valid enum value 'c'"]]) ;
-        t.expect8(verrs({ _type:'string', _enum:{ a:'A' } }, 'z')).is([false, ['value has not a valid enum tag z']]) ;
-        t.expect9(verrs({ a:'int' }, { a:1, b:2 })).is([false, ['value.b is unknown']]) ;
+        t.expect0(verrs({ a:'int' }, [1])).is([false, ['value is not an object.']]) ;
+        t.expect1(verrs({ a:'int' }, 5)).is([false, ['value is not an object.']]) ;
+        t.expect2(verrs(['int'], { a:1 })).is([false, ['value is not an array.']]) ;
+        t.expect3(verrs(['int', 2, 3], [1])).is([false, ['value.size is too small (1 < 2).']]) ;
+        t.expect4(verrs(['int', 2, 3], [1, 2, 3, 4])).is([false, ['value.size is too large (4 > 3).']]) ;
+        t.expect5(verrs({ _itemsType:'int', _min:1, _max:2 }, [])).is([false, ['value.size is too small (0 < 1).']]) ;
+        t.expect6(verrs({ _type:'int', _enum:[1, 2] }, 3)).is([false, ['value has not a valid enum value 3.']]) ;
+        t.expect7(verrs({ _type:'string', _enum:['a', 'b'] }, 'c')).is([false, ["value has not a valid enum value 'c'."]]) ;
+        t.expect8(verrs({ _type:'string', _enum:{ a:'A' } }, 'z')).is([false, ['value has not a valid enum tag z.']]) ;
+        t.expect9(verrs({ a:'int' }, { a:1, b:2 })).is([false, ['value.b is unknown.']]) ;
         t.expectA(verrs({ a:'int', _acceptsUncheckedItems:true }, { a:1, b:2 })).is([true, []]) ;
-        t.expectB(verrs({ a:'int!', b:'int!' }, {})).is([false, ['value.a is mandatory', 'value.b is mandatory']]) ;
+        t.expectB(verrs({ a:'int!', b:'int!' }, {})).is([false, ['value.a is mandatory.', 'value.b is mandatory.']]) ;
         // an invalid mandatory item used to be also reported as missing
-        t.expectC(verrs({ a:'int!', b:'string' }, { a:'x' })).is([false, ['object.a is not a valid int']]) ;
+        t.expectC(verrs({ a:'int!', b:'string' }, { a:'x' })).is([false, ['object.a is not a valid int.']]) ;
         // a duplicate key (through an alias) is reported, even when the first one was not valid
-        t.expectD(verrs({ a:'int', _aliases:new Map([['b', 'a']]) }, { a:'x', b:1 })).is([false, ['object.a is not a valid int', 'value.a is present several times']]) ;
+        t.expectD(verrs({ a:'int', _aliases:new Map([['b', 'a']]) }, { a:'x', b:1 })).is([false, ['object.a is not a valid int.', 'value.a is present several times.']]) ;
 
         // interpret(), encode(), stringify() and parse() on invalid values
         const p = TSParser.define({ a:'int' })! ;
@@ -1279,6 +1280,51 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expectX(pu.encode(new URL('https://a.com/x?y=1'))).is('https://a.com/x?y=1') ;
     }) ;
 
+    group.unary("TSParser — 'url' transformer, absent arrays and numeric countries", async (t) => {
+        const pu = TSParser.define('url')! ;
+        // rawInterpret() should never be used without validate(): the 'url' transformer throws on what validate() refuses
+        t.expect0(() => pu.rawInterpret(42)).throws('Impossible to convert any object to TSURL') ;
+        t.expect1(() => pu.rawInterpret(new URL('https://a.com/x?y=1'), { context:'url' })).throws('Impossible to convert URL to TSURL') ;
+        t.expect2(pu.rawInterpret(new URL('https://a.com/x'), { context:'url' })?.href).is('https://a.com/x') ;
+        t.expect3(() => TSParser.define('url!')!.rawInterpret(undefined)).throws('Impossible to convert any object to TSURL') ;
+        t.expect4(pu.interpret(42)).null() ;                                          // validate() first: no throw
+        t.expect5(pu.interpret(new URL('https://a.com/x?y=1'), { context:'url' })).null() ;
+
+        // a non mandatory array may be absent
+        const pa = TSParser.define({ _itemsType:'int' })! ;
+        const opts:TSParserOptions = { errors:[] } ;
+        t.expect6(pa.validate(undefined, opts)).true() ;
+        t.expect7(opts.errors).is([]) ;
+        t.expect8(pa.interpret(undefined)).undef() ;
+        t.expect9(pa.encode(null)).null() ;
+        // a defined _min makes the absent array mandatory
+        const pm = TSParser.define({ _itemsType:'int', _min:1 })! ;
+        const mopts:TSParserOptions = { errors:[] } ;
+        t.expectA(pm.validate(undefined, mopts)).false() ;
+        t.expectB(mopts.errors).is(['value is mandatory.']) ;
+        // an explicitly non mandatory array with _min may be absent (it used to be refused as too small)
+        const po = TSParser.define({ _itemsType:'int', _min:1, _max:2, _mandatory:false })! ;
+        const oopts:TSParserOptions = { errors:[] } ;
+        t.expect(po.validate(undefined, oopts), 'opt1').true() ;
+        t.expect(po.validate(null), 'opt2').true() ;
+        t.expect(oopts.errors, 'opt3').is([]) ;
+        t.expect(po.validate([]), 'opt4').false() ;               // a given array is still checked
+        t.expect(po.validate([1, 2, 3]), 'opt5').false() ;
+        t.expect(po.interpret({ length:0 } as any), 'opt6').null() ;
+        t.expect(TSParser.define({ a:{ _itemsType:'int', _min:1, _mandatory:false } })!.interpret({}), 'opt7').is({}) ;
+        const pcheck = TSParser.define({ _itemsType:'int', _mandatory:false, _checker:(a:any) => Array.isArray(a) && a.length > 0 } as any)! ;
+        t.expect(pcheck.validate(undefined), 'opt8').true() ;         // the checker only checks a given array
+        t.expect(pcheck.validate([]), 'opt9').false() ;
+
+        // countries given by their numeric ISO code
+        const pc = TSParser.define('country')! ;
+        t.expectC(pc.interpret(250)).is('FR') ;
+        t.expectD([pc.validate(250), pc.validate(0), pc.validate(9999)]).is([true, false, false]) ;
+        t.expectE(pc.interpret(9999)).null() ;
+        // rawEncode() without validation: a function cannot be encoded
+        t.expectF(TSParser.define('string')!.rawEncode(() => 1)).null() ;
+    }) ;
+
     group.unary("TSParser — 'native' rawEncode() without validation", async (t) => {
         // rawEncode() can be called directly, without validate() : the 'native' natifier must stay,
         // so that a non primitive value is encoded as null and never as '[object Object]'
@@ -1305,6 +1351,73 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expect6(TSParser.define('int')!.itemParserForKey('x')).undef() ;
     }) ;
 
+    group.unary('default values are checked and interpreted like given values', async (t) => {
+        const errors:string[] = [] ;
+        // checked at definition: type and enumeration (an enumeration tag is accepted)
+        t.expect0(TSParser.define({ a:{ _type:'string', _enum:['x', 'y'], _default:'z' } }, errors)).KO() ;
+        t.expect1(errors.some(e => e.includes('not in its enumeration'))).true() ;
+        t.expect2(TSParser.define({ a:{ _type:'uint8', _enum:{ red:1, blue:2 }, _default:'red' } })?.interpret({})).is({ a:1 }) ;
+        t.expect3(TSParser.define({ a:{ _type:'uint8', _default:'x' } })).KO() ;
+
+        // interpreted like given values (the raw default value used to be returned)
+        const p = TSParser.define({ a:{ _type:'uint8', _default:'12' } })! ;
+        t.expect4(p.interpret({})).is({ a:12 }) ;           // was { a:'12' }
+        t.expect5(p.interpret({ a:null })).is({ a:12 }) ;
+        t.expect6(p.interpret({ a:7 })).is({ a:7 }) ;
+
+        // the specific checker is applied on the used default value
+        const c = TSParser.define({ a:{ _type:'uint8', _checker:(v:any) => v > 10, _default:3 } })! ;
+        const cerrors:string[] = [] ;
+        t.expect7(c.interpret({}, { errors:cerrors })).null() ;  // was { a:3 }
+        t.expect8(cerrors).is(['object.a specific check did fail.']) ;
+        t.expect9(c.interpret({ a:20 })).is({ a:20 }) ;
+    }) ;
+
+    group.unary('array nodes accept arrays, sets and collections', async (t) => {
+        const p = TSParser.define(['uint8'])! ;
+        const set = new Set([1, 2, 3]) ;
+        const list = new TSList([4, 5]) ;
+        t.expect0(p.validate(set)).true() ;
+        t.expect1(p.interpret(set)).is([1, 2, 3]) ;     // an array node always gives an array
+        t.expect2(p.encode(set)).is([1, 2, 3]) ;        // was null
+        t.expect3(p.validate(list)).true() ;
+        t.expect4(p.interpret(list)).is([4, 5]) ;
+        t.expect5(p.encode(list)).is([4, 5]) ;
+        t.expect6(p.validate(new Set([1, 300]))).false() ;  // the items are still validated
+
+        const errors:string[] = [] ;
+        t.expect7(TSParser.define({ a:{ _itemsType:'int', _min:2 } })!.validate({ a:new Set([1]) }, { errors:errors })).false() ;
+        t.expect8(errors).is(['object.a.size is too small (1 < 2).']) ;
+
+        // the checker always receives an array
+        const c = TSParser.define({ _itemsType:'int', _checker:(v:any) => Array.isArray(v) && v.length === 2 })! ;
+        t.expect9(c.validate(new Set([1, 2]))).true() ;
+
+        // strings, maps and one-shot iterators are refused
+        t.expectA(p.validate('abc')).false() ;
+        t.expectB(TSParser.define(['string'])!.validate('abc')).false() ;
+        t.expectC(p.validate(new Map([[1, 2]]))).false() ;
+        t.expectD(p.validate([1, 2].values())).false() ;
+        t.expectE(p.validate(new Uint8Array([1, 2]))).false() ;
+    }) ;
+
+    group.unary('specific checkers of dictionaries, objects and arrays', async (t) => {
+        const verrs = (node:any, value:any):[boolean, string[]] => {
+            const errors:string[] = [] ;
+            return [TSParser.define(node)!.validate(value, { errors }), errors] ;
+        } ;
+        t.expect0(verrs({ _keysType:'string', _valueItemsType:'int', _checker:(d:any) => Object.keys(d).length < 2 }, { a:1, b:2 })).is([false, ['value specific check did fail.']]) ;
+        t.expect1(verrs({ _keysType:'string', _valueItemsType:'int', _checker:(d:any) => Object.keys(d).length < 2 }, { a:1 })).is([true, []]) ;
+        t.expect2(verrs({ _keysType:'string', _valueItemsType:'int', _mandatory:true }, undefined)).is([false, ['value is mandatory.']]) ;
+        t.expect3(verrs({ a:'int', _checker:(o:any) => o.a > 0 }, { a:-1 })).is([false, ['value specific check did fail.']]) ;
+        t.expect4(verrs({ a:'int', _checker:(o:any) => o.a > 0 }, { a:1 })).is([true, []]) ;
+        t.expect5(verrs({ _itemsType:'int', _checker:(a:any) => a.length === 1 }, [1, 2])).is([false, ['value specific check did fail.']]) ;
+        t.expect6(verrs({ a:{ _itemsType:'int', _checker:(a:any) => a.length === 1 } }, { a:[1, 2] })).is([false, ['object.a specific check did fail.']]) ;
+
+        const bad = TSParser.define({ _itemsType:'int', _mandatory:'yes' } as any)! ;
+        t.expect7(bad.isValid).false() ;
+        t.expect8(bad.errors).is(['_mandatory field should be a boolean']) ;
+    }) ;
 }) ;
 
 function _validateJSON(t:TSUnaryTest, def:TSNode, file:string, n:number = 0) {

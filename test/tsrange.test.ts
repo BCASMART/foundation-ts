@@ -1,5 +1,5 @@
 import { TSDate } from '../src/tsdate';
-import { TSRange } from '../src/tsrange' 
+import { TSBadRange, TSRange } from '../src/tsrange' 
 import { TSInterval } from '../src/tsinterval' 
 import { Ascending, Descending, Same } from '../src/types';
 import { TSTest } from '../src/tstester';
@@ -110,11 +110,24 @@ export const rangeGroups = [
         group.unary(`range.intersectionRange()`, async (t) => {
             t.expect0(TSRange.make(1,2).intersectionRange(TSRange.make(3,8)).isEmpty).true() ;
             t.expect1(TSRange.make(1,2).intersectionRange(TSRange.make(2,8))).is(TSRange.make(2,1)) ;
+            // disjoint ranges give a bad range (it used to be the valid empty range [0,0[)
+            const disjoint = TSRange.make(0,5).intersectionRange(TSRange.make(7,3)) ;
+            t.expect2(disjoint.isValid).false() ;
+            t.expect3(disjoint.isEmpty).true() ;
+            t.expect4(Number.isNaN(disjoint.location)).true() ;
+            t.expect5(TSRange.make(7,3).intersectionRange(TSRange.make(0,5)).isValid).false() ;
+            // touching ranges give an empty range at their common location
+            t.expect6(TSRange.make(0,5).intersectionRange(TSRange.make(5,5))).is(TSRange.make(5,0)) ;
+            t.expect7(TSRange.make(5,5).intersectionRange(TSRange.make(0,5))).is(TSRange.make(5,0)) ;
         }) ;
     
         group.unary(`range.unionRange()`, async (t) => {
             t.expect0(TSRange.make(1,2).unionRange(TSRange.make(3,8))).is(TSRange.make(1,10)) ;
             t.expect1(TSRange.make(1,2).unionRange(TSRange.make(2,8))).is(TSRange.make(1,9)) ;
+            // empty ranges keep their location (the union of two empty ranges used to be [0,0[)
+            t.expect2(TSRange.make(5,0).unionRange(TSRange.make(5,0))).is(TSRange.make(5,0)) ;
+            t.expect3(TSRange.make(5,0).unionRange(TSRange.make(8,0))).is(TSRange.make(5,3)) ;
+            t.expect4(TSRange.make(5,0).unionRange(TSRange.make(10,5))).is(TSRange.make(5,10)) ;
         }) ;
     
         group.unary(`range.continuousWith()`, async (t) => {
@@ -123,6 +136,15 @@ export const rangeGroups = [
             t.expect2(TSRange.make(1,2).continuousWith(TSRange.make(-2,3))).true() ;
             t.expect3(TSRange.make(1,2).continuousWith(TSRange.make(4,8))).false() ;
             t.expect4(TSRange.make(1,2).continuousWith(TSRange.make(-2,2))).false() ;
+            // an empty range (a location) inside the other one is continuous with it (it used to be false)
+            t.expect5(TSRange.make(0,10).continuousWith(TSRange.make(5,0))).true() ;
+            t.expect6(TSRange.make(5,0).continuousWith(TSRange.make(0,10))).true() ;
+            t.expect7(TSRange.make(0,10).continuousWith(TSRange.make(0,0))).true() ;     // at the start
+            t.expect8(TSRange.make(0,10).continuousWith(TSRange.make(10,0))).true() ;    // at the end
+            t.expect9(TSRange.make(0,10).continuousWith(TSRange.make(11,0))).false() ;
+            t.expectA(TSRange.make(5,0).continuousWith(TSRange.make(5,0))).true() ;
+            t.expectB(TSRange.make(5,0).continuousWith(TSRange.make(6,0))).false() ;
+            t.expectC(TSRange.make(0,10).continuousWith(TSBadRange())).false() ;
         }) ;
     }),
     TSTest.group("TSRange — constructor guards, setters & TSObject conformance", async (group) => {

@@ -5,7 +5,6 @@
   "include": ["tdist/src/**/*.js"],
   "exclude": [
     "tdist/test/**",
-    "tdist/tools/**",
     "**/SetupPackage.js",
     "tdist/src/index.js",
     "**/*.json"

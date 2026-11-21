@@ -1,11 +1,10 @@
 import { $isnumber, $isunsigned, $length, $ok, $toint, $tounsigned, $value } from "./commons";
 import { $ftrim } from "./strings";
 import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
-import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
 import { $components, $durationcomponents, $durationDescription, $durationDescriptionOptions, $durationNumber2StringFormat, TSDateComp, TSDurationComp } from "./tsdatecomp";
-import { $unitDefinition, Locales } from "./tsdefaults";
-import { country, int, INT32_MAX, language, Nullable, uint } from "./types";
+import { $unitDefinition, LocaleInfo } from "./tsdefaults";
+import { int, INT32_MAX, Nullable, uint } from "./types";
 import { $declareMethods } from "./object";
 
 export function $div(a: number, b: number) : number { return $icast(a/b) ; }
@@ -14,8 +13,8 @@ export function $div(a: number, b: number) : number { return $icast(a/b) ; }
 // int32 range, otherwise it would overflow (eg. 3_000_000_000 | 0 === -1294967296)
 export function $icast(v:number):number
 {
-    if (v >= 0) { return v <= INT32_MAX ? v | 0 : Math.floor(v) ; }
-    return v >= -INT32_MAX ? -((-v) | 0) : -Math.floor(-v) ;
+    if (v >= 0) { return v <= INT32_MAX ? Math.trunc(v) : Math.floor(v) ; }
+    return v >= -INT32_MAX ? -(Math.trunc(-v)) : -Math.floor(-v) ;
 }
 
 export function $round(v:number, decimalPlaces:number = 0):number {
@@ -58,10 +57,7 @@ export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
     const minU = $ok(opts?.minimalUnit) ? Math.min(0, Math.max(-8, opts!.minimalUnit!)) : -8 ;
     const maxU = $ok(opts?.maximalUnit) ? Math.min(8, Math.max(0, opts!.maximalUnit!)) : 8 ;
     let   dm = $isunsigned(opts?.decimalPlaces) ? opts.decimalPlaces : 2 ;
-    if (v === 0) {
-        if (dm === 0 || !!opts?.ignoreZeroDecimals || (minU === 0 && !!opts?.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
-        return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
-    }
+    if (v === 0) { return _zeroUnit(dm, minU, pluralUnitName, opts) ; }
     const unit = su.length ? su : unitName.charAt(0) ;
     const i = Math.max(minU, Math.min(maxU, Math.floor(Math.log(Math.abs(v)) / TSLog1000))) ;
     if (i === minU && !!opts?.ignoreMinimalUnitDecimals) { dm = 0 ;}
@@ -70,7 +66,12 @@ export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
     return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8] + suffix ;
 }
 
-export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:Nullable<language|country|TSCountry|Locales>) {
+function _zeroUnit(dm:number, minU:number, pluralUnitName:string, opts?:Nullable<$unitOptions>):string {
+    if (dm === 0 || !!opts?.ignoreZeroDecimals || (minU === 0 && !!opts?.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
+    return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
+}
+
+export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:LocaleInfo) {
     const unit = $value($unitDefinition('byte', locale), { singular:'byte', plural:'bytes', unit:'B'}) ;
     if (unit.unit.length === 0) { unit.unit = 'B' ; }
     return $unit(n, { 
@@ -78,21 +79,6 @@ export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:Nu
         unit:unit.unit, 
         unitName:unit.singular,
         pluralUnitName:unit.plural, 
-        minimalUnit:0, 
-        ignoreZeroDecimals:true,
-        ignoreMinimalUnitDecimals:true
-    }) ;
-}
-
-/**
- @deprecated use $bytes() instead
-*/
-export function $octets(n: Nullable<number>, decimalPlaces:number = 2) {
-    return $unit(n, { 
-        decimalPlaces:decimalPlaces, 
-        unit:'o', 
-        unitName:'octet',
-        pluralUnitName:'octets', 
         minimalUnit:0, 
         ignoreZeroDecimals:true,
         ignoreMinimalUnitDecimals:true
@@ -116,7 +102,7 @@ for (let i = 0 ; i < 256 ; i++) {
 
 declare global {
     export interface Number {
-        bytes:              (this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>) => string ;
+        bytes:              (this:number, decimalPlaces?:number, locale?:LocaleInfo) => string ;
         dateComponents:     (this:number) => TSDateComp ;
         durationComponents: (this:number) => TSDurationComp ;
         fpad:               (this:number, pad:number, failedChar?:string) => string ;
@@ -129,11 +115,6 @@ declare global {
         isWhiteSpace:       (this:number) => boolean ;
         isStrictWhiteSpace: (this:number) => boolean ;
         meters:             (this:number, decimalPlaces?:number) => string ;
-
-/**
-     @deprecated use bytes() instead
-*/
-        octets:             (this:number, decimalPlaces?:number) => string ;
         round:              (this:number, decimalPlaces?:number) => number ;
         singular:           (this:number) => boolean ;
         toDate:             (this:number) => Date|null ;
@@ -151,7 +132,7 @@ declare global {
 }
 
 $declareMethods(Number, {
-    bytes(this:number, decimalPlaces?:number, locale?:Nullable<language|country|TSCountry|Locales>):string { 
+    bytes(this:number, decimalPlaces?:number, locale?:LocaleInfo):string { 
         return $bytes(this, decimalPlaces, locale) ; 
     },
     dateComponents(this:number) { return $components(this) ; },
@@ -171,7 +152,6 @@ $declareMethods(Number, {
     isWhiteSpace(this:number):boolean { return FoundationWhiteSpacesNumberCodeSet.has(this) ; },
     isStrictWhiteSpace(this:number):boolean { return FoundationStricWhiteSpacesNumberCodeSet.has(this) ; },
     meters(this:number, decimalPlaces?:number):string { return $meters(this, decimalPlaces) ; },
-    octets(this:number, decimalPlaces?:number):string { return $octets(this, decimalPlaces) ; },
     round(this:number, decimalPlaces?:number):number { return $round(this, decimalPlaces) ; },
     singular(this:number):boolean { return this === 1 ; },
     toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; },
@@ -180,19 +160,19 @@ $declareMethods(Number, {
 // toHexN() : the receiver is coerced to uint32 with `>>> 0` (fast, and gives the
 // two's-complement representation for negatives) instead of the full $tounsigned() check
     toHex1(this:number, toLowerCase?:Nullable<boolean>):string {
-        return (!!toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars)[(this >>> 0) & 0x0F] ;
+        return (toLowerCase ? FoundationHexaLowerChars : FoundationHexaChars)[(this >>> 0) & 0x0F] ;
     },
     toHex2(this:number, toLowerCase?:Nullable<boolean>):string {
-        return (!!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper)[(this >>> 0) & 0xFF] ;
+        return (toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper)[(this >>> 0) & 0xFF] ;
     },
     toHex4(this:number, toLowerCase?:Nullable<boolean>):string {
         const n = this >>> 0 ;
-        const t = !!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
+        const t = toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
         return t[(n >>> 8) & 0xFF] + t[n & 0xFF] ;
     },
     toHex8(this:number, toLowerCase?:Nullable<boolean>):string {
         const n = this >>> 0 ;
-        const t = !!toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
+        const t = toLowerCase ? FoundationHexaBytesLower : FoundationHexaBytesUpper ;
         return t[(n >>> 24) & 0xFF] + t[(n >>> 16) & 0xFF] + t[(n >>> 8) & 0xFF] + t[n & 0xFF] ;
     },
     toInt(this:number, defaultValue?:int):int { return $toint(this, defaultValue) ; },

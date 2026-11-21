@@ -320,6 +320,83 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expect7(/unord\S* did PASS/.test(output)).true() ;
     }) ;
 
+    // every assertion must fail when it is false: each failing case below must count for exactly one failure
+    group.unary("TSExpectAgent assertions fail when they are false", async (t) => {
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        let output = '' ;
+        console.log = ((...args:any[]) => { output += args.join(' ') + '\n' ; }) as any ;
+        (process.stdout as any).write = ((c:any) => { output += String(c) ; return true ; }) as any ;
+        const failing:((tt:any) => any)[] = [
+            tt => tt.expect(0).true(),            tt => tt.expect(1).false(),
+            tt => tt.expect(1).undef(),           tt => tt.expect(undefined).def(),
+            tt => tt.expect(1).null(),            tt => tt.expect(null).notnull(),
+            tt => tt.expect(null).OK(),           tt => tt.expect(1).KO(),
+            tt => tt.expect(3).toBeNaN(),         tt => tt.expect('x').isnumber(),
+            tt => tt.expect(1.5).isint(),         tt => tt.expect(-1).isuint(),
+            tt => tt.expect(1).isstring(),        tt => tt.expect(1).isbool(),
+            tt => tt.expect('x').isemail(),       tt => tt.expect('x').isurl(),
+            tt => tt.expect('x').isuuid(),        tt => tt.expect(1).isobject(),
+            tt => tt.expect(1).isarray(),         tt => tt.expect('x').isdate(),
+            tt => tt.expect(1).isiterable(),      tt => tt.expect(1).isfunction(),
+            tt => tt.expect('/nonexistent/file').isfile(), tt => tt.expect('/nonexistent/dir').isdir(),
+            tt => tt.expect('x').isphone(),       tt => tt.expect(1).isdata(),
+            tt => tt.expect([1]).empty(),         tt => tt.expect(5).empty(),          // not a container
+            tt => tt.expect([]).filled(),         tt => tt.expect(5).filled(),         tt => tt.expect(null).filled(),
+            tt => tt.expect([1, 2]).toBeUnordered([1, 3]), tt => tt.expect(null).toBeUnordered([1]),
+            tt => tt.expect(1).toThrow(),         tt => tt.expect(() => 1).toThrow(),  // not a function / does not throw
+            tt => tt.expect(() => { throw new Error('a') ; }).toThrow(/b/),           // does not match
+            tt => tt.expect(() => { throw 42 ; }).toThrow('43'),                       // a thrown non-error value
+            tt => tt.expect(1).notToThrow(),      tt => tt.expect(() => { throw new Error('a') ; }).notToThrow(),
+            tt => tt.expect(Promise.resolve(1)).toReject(),                            // async ones
+            tt => tt.expect(() => Promise.reject(new Error('a'))).toReject(/b/),
+            tt => tt.expect(1).gt(2),             tt => tt.expect(1).gte(2),
+            tt => tt.expect(2).lt(1),             tt => tt.expect(2).lte(1),
+            tt => tt.expect(1).is(2),             tt => tt.expect(1).isnot(1),
+            tt => tt.expect('a').gt(1),                                                 // not comparable
+        ] ;
+        const passing:((tt:any) => any)[] = [
+            tt => tt.expect(null).empty(),        tt => tt.expect(2).gt(1),
+            tt => tt.expect(2).gte(2),            tt => tt.expect(1).lt(2),
+            tt => tt.expect(1).lte(1),            tt => tt.expect(() => { throw 42 ; }).toThrow('42'),
+            tt => tt.expect(() => { throw { message:'custom' } ; }).toThrow(/custom/),
+            tt => tt.expect(() => Promise.reject(new Error('a'))).toReject(/a/),
+            tt => tt.expect(new Set()).empty(),   tt => tt.expect(new TSList()).empty(),
+            tt => tt.expect(TSEmptyRange()).empty(),
+        ] ;
+        let res:any, silentRes:any, rethrown:any = undefined ;
+        try {
+            const sub = new TSTester("failing assertions") ;
+            sub.addGroup("all assertions", async (g) => {
+                g.unary("failing ones", async (tt) => { for (const f of failing) { await f(tt) ; } }) ;
+                g.unary("passing ones", async (tt) => { for (const f of passing) { await f(tt) ; } }) ;
+            }) ;
+            res = await sub.run() ;
+            // a failing unary of a silent group still logs that it did fail
+            const silentSub = new TSTester("silent") ;
+            silentSub.addGroup("silent group", async (g) => { g.unary("silent failure", async (tt) => { tt.expect0(1).is(2) ; }) ; }, null, { silent:true }) ;
+            silentRes = await silentSub.run() ;
+            // an exception without catch function is thrown back by run()
+            const throwing = new TSTester("throwing") ;
+            throwing.addGroup("throwing group", async (g) => { g.unary("throws", async () => { throw new Error('boom') ; }) ; }) ;
+            try { await throwing.run() ; } catch (e) { rethrown = e ; }
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+        // eslint-disable-next-line no-control-regex
+        output = output.replace(/\x1b\[[0-9;]*m/g, '') ;
+        t.expect0(res.expectations).is(failing.length + passing.length) ;
+        t.expect1(res.failures).is(failing.length) ;          // each failing case failed exactly once
+        t.expect2(res.failed).is(1) ;
+        t.expect3(silentRes.failures).is(1) ;
+        t.expect4(output.includes('did execute test  silent failure ')).true() ;
+        t.expect5((rethrown as Error)?.message).is('boom') ;
+        t.expect6(output.includes('to be > to value')).true() ;
+        t.expect7(output.includes("'<not a container>'")).true() ;
+    }) ;
+
     group.unary("TSTester runner internals (fresh sub-tester)", async (t) => {
         // Exercise the runner + failure-reporting code paths (_compfail / _elogfail /
         // _nelogfail / _writeMessage / printRegistrations / fail / dumpGroupInfo /

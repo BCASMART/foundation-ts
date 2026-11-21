@@ -26,7 +26,8 @@
 
 import { $decodeBase64 } from "./data";
 
-/* eslint-disable */ //NOSONAR
+/* eslint-disable */ // NOSONAR: generated data table (682 KB), 
+                     // every ESLint rule is disabled on purpose for this file
 // prettier-ignore
 function __buildTransliterationData() {
 

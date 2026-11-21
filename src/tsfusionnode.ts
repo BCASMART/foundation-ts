@@ -3,7 +3,7 @@ import { $array, $count, $email, $int, $intornull, $isarray, $isbool, $isdate, $
 import { $bytescompare, $bytesequal, $compare, $datecompare, $equal, $numcompare, $setequal, $unorderedEqual } from "./compare";
 import { $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromDataLike, $arrayBufferFromBytes, $decodeBase64, $encodeBase64 } from "./data"
 import { $timeBetweenDates } from "./date"
-import { $div, $fpad, $fpad2, $fpad3, $fpad4, $icast, $meters, $octets, $round } from "./number";
+import { $bytes, $div, $fpad, $fpad2, $fpad3, $fpad4, $icast, $meters, $round } from "./number";
 import { $ascii, $capitalize, $firstcap, $HTML, $left, $lines, $ltrim, $normspaces, $right, $rtrim, $trim } from "./strings";
 import { $dayisvalid, $dayOfWeekFromTimestamp, $dayOfYear, $hourFromTimestamp, $insettimestamp, $isleap, $minuteFromTimestamp, $secondFromTimestamp, $timeisvalid, $timestamp, $timestampWithoutTime, $weekOfYear, TSDate } from "./tsdate";
 import { TSDefaults, $tmp, $locales, $country, $language, $currency, $default } from "./tsdefaults";
@@ -37,11 +37,11 @@ export interface TSFusionEnumeration {
     fusionEnumeration():any[] ;
 }
 export interface TSFusionOptions {
-    globalContext?:Nullable<TSDictionary> ; // NOSONAR: field is optional
-    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ; // NOSONAR: field is optional
-    globalFunctions?:Nullable<TSDictionary<Function>> ; // NOSONAR: field is optional
-    errors?:Nullable<string[]> ; // NOSONAR: field is optional
-    addStandardGlobalFunctions?:Nullable<boolean> ; // NOSONAR: field is optional
+    globalContext?:Nullable<TSDictionary> ; // NOSONAR: optional
+    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ; // NOSONAR: optional
+    globalFunctions?:Nullable<TSDictionary<Function>> ; // NOSONAR: optional
+    errors?:Nullable<string[]> ; // NOSONAR: optional
+    addStandardGlobalFunctions?:Nullable<boolean> ; // NOSONAR: optional
 }
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
@@ -133,7 +133,7 @@ export class TSFusionTreeNode {
                     $numcompare, $datecompare, $bytescompare, $compare, $bytesequal, $equal, $setequal, $unorderedEqual,
                     $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromDataLike, $arrayBufferFromBytes, $decodeBase64, $encodeBase64,
                     $timeBetweenDates,
-                    $div, $icast, $round, $fpad, $fpad2, $fpad3, $fpad4, $octets, $meters,
+                    $div, $icast, $round, $fpad, $fpad2, $fpad3, $fpad4, $bytes, $meters,
                     $ascii, $trim, $rtrim, $ltrim, $left, $right, $lines, $firstcap, $capitalize, $normspaces, $HTML,
                     $isleap, $dayisvalid, $timeisvalid, $timestamp, $secondFromTimestamp, $minuteFromTimestamp, $hourFromTimestamp, $timestampWithoutTime, $dayOfYear, $dayOfWeekFromTimestamp, $weekOfYear, $insettimestamp,
                     $tmp, $locales, $country, $language, $currency, $default,
@@ -158,7 +158,7 @@ export class TSFusionTreeNode {
             }
 
             const defaults =  TSDefaults.defaults() ;
-            const run:_TSFusionRun = {
+            const run:FusionRun = {
                 template:template,
                 globalContext:globalContext,
                 procedures:$value(options.procedures, {}),
@@ -194,7 +194,7 @@ export class TSFusionTreeNode {
     
 
     // merges all the sub-nodes of this node in the template
-    private _fusion(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+    private _fusion(run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
         for (const node of this.nodes ?? []) {
             if (node.type === TSFusionNodeType.Data) {
                 run.template.pushFusionData(node.value! as Bytes) ;
@@ -210,7 +210,7 @@ export class TSFusionTreeNode {
 
     // value returned by the procedure named by this node (eg. {{*name}}). The procedure receives
     // the local context of the current level of the template (the one used to search the keys)
-    private _procedureValue(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
+    private _procedureValue(run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
         if (this._pathCache?.length !== 1 || !$length(this.value as string)) {
             run.errors?.push(`!ERROR!: Malformed procedure name ${this.value}() (undefined, empty or with '.' character in it)`) ;
             return undefined ;
@@ -221,7 +221,9 @@ export class TSFusionTreeNode {
             return undefined ;
         }
         try {
-            return proc(stack.last(), stack.first(), localStack[localStack.length-1], run.globalContext, {...systemContext}) ;
+            return proc(stack.last(), stack.first(), localStack[localStack.length-1], run.globalContext, {...systemContext}) ; // NOSONAR: localStack is never empty (it starts with [{}]) 
+                                                                                                                               // and indexing keeps the TSDictionary type, 
+                                                                                                                               //  whereas .at(-1) and .last() return T|undefined
         }
         catch {
             run.errors?.push(`!ERROR!: Procedure ${this.value}() execution did fail`) ;
@@ -230,7 +232,7 @@ export class TSFusionTreeNode {
     }
 
     // value found following the key path of this node in its context (local, root, global...)
-    private _keyPathValue(run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
+    private _keyPathValue(run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
         const hasRedefinedLocalItems = $objectcount(localStack.last()) > 0 ;
         const [target, dataType] = _contextTarget(this.contextType, stack, localStack, hasRedefinedLocalItems, run.globalContext, systemContext) ;
         const parameters = $count(this.parameters) ? $map(this.parameters, p => p === run.template ? stack.last() : p) : undefined ;
@@ -254,7 +256,7 @@ export class TSFusionTreeNode {
     }
 
     // uses the value v of this variable node according to its type
-    private _fusionValue(v:any, run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+    private _fusionValue(v:any, run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
         switch (this.type) {
             case TSFusionNodeType.Variable:
                 if ($ok(v)) { run.template.pushFusionValue(v) ; }
@@ -276,7 +278,7 @@ export class TSFusionTreeNode {
 
     // merges the sub-nodes of this enumeration node once for each enumerated item,
     // each iteration having its own new local context
-    private _fusionEnumeration(v:any, run:_TSFusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
+    private _fusionEnumeration(v:any, run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary) {
         const items = _enumeratedItems(v) ;
         const count = $length(items) ;
         for (let j = 0 ; j < count ; j++) {
@@ -287,7 +289,7 @@ export class TSFusionTreeNode {
 }
 
 // parameters of a fusion which are the same for all the nodes
-interface _TSFusionRun { // NOSONAR. private interface name is intended to begin with an underscore
+interface FusionRun {
     template:TSFusionTemplate ;
     globalContext:TSDictionary ;
     procedures:TSDictionary<TSFusionProcedure> ;
@@ -311,8 +313,9 @@ function _enumeratedItems(v:any):any {
     return $ismethod(v, 'fusionEnumeration') ? v.fusionEnumeration() : [v] ;
 }
 
-function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, unknownAsError:boolean, parameters:any[]|undefined, errors?:string[]):any 
+function _valueForKeyPath(stack:any[], keyPath:string[]|undefined, dataType:string, unknownAsError:boolean, parameters:any[]|undefined, errors?:string[]):any 
 {
+    if (!$ok(keyPath)) { keyPath = [] ; }
     const kcount = keyPath.length ;
     if (!kcount) {
         errors?.push('ERROR: empty key path') ;
@@ -327,7 +330,7 @@ function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, u
         return undefined ; 
     }
 
-    const walk:_KeyPathWalk = { keyPath:keyPath, dataType:dataType, unknownAsError:unknownAsError, parameters:parameters, parametersCount:$count(parameters), errors:errors } ;
+    const walk:KeyPathWalk = { keyPath:keyPath, dataType:dataType, unknownAsError:unknownAsError, parameters:parameters, parametersCount:$count(parameters), errors:errors } ;
     let v = stack[stack.length-i-1] ;
     for ( ; i < kcount && $ok(v) ; i++) {
         const step = _keyPathStep(v, i, walk) ;
@@ -338,7 +341,7 @@ function _valueForKeyPath(stack:any[], keyPath:string[] = [], dataType:string, u
 }
 
 // what is common to all the steps of a key path walk
-interface _KeyPathWalk { // NOSONAR. private interface name is intended to begin with an underscore
+interface KeyPathWalk {
     keyPath:string[] ;
     dataType:string ;           // description of the walked object for error messages
     unknownAsError:boolean ;    // unknown members are reported as errors instead of warnings
@@ -348,13 +351,13 @@ interface _KeyPathWalk { // NOSONAR. private interface name is intended to begin
 }
 
 // result of one step of a key path walk: the next value, or the final value if stop is true
-interface _KeyPathStep { // NOSONAR. private interface name is intended to begin with an underscore
+interface KeyPathStep {
     value:any ;
     stop?:boolean ;
 }
 
 // follows the i-th component of the key path from the value v
-function _keyPathStep(v:any, i:number, w:_KeyPathWalk):_KeyPathStep {
+function _keyPathStep(v:any, i:number, w:KeyPathWalk):KeyPathStep {
     const m = w.keyPath[i] ;
     const level = w.unknownAsError ? '!ERROR!' : 'WARNING' ;
     // parameters are given to the method named by the last component of the key path
@@ -377,7 +380,7 @@ function _keyPathStep(v:any, i:number, w:_KeyPathWalk):_KeyPathStep {
 }
 
 // a NaN value stops the walk and is transformed to null
-function _keyPathValue(v:any, w:_KeyPathWalk):_KeyPathStep {
+function _keyPathValue(v:any, w:KeyPathWalk):KeyPathStep {
     if (typeof v === 'number' && Number.isNaN(v)) {
         w.errors?.push(`WARNING: key path '${w.keyPath.join('.')}' would return NaN which was transformed to null.`) ;
         return { value:null, stop:true } ;
@@ -386,7 +389,7 @@ function _keyPathValue(v:any, w:_KeyPathWalk):_KeyPathStep {
 }
 
 // stops the walk with an undefined value after having reported the error
-function _keyPathStop(w:_KeyPathWalk, error:string):_KeyPathStep {
+function _keyPathStop(w:KeyPathWalk, error:string):KeyPathStep {
     w.errors?.push(error) ;
     return { value:undefined, stop:true } ;
 }

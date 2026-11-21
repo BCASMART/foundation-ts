@@ -1,5 +1,5 @@
 import { $isstring, $isunsigned, $length, $ok, $value } from "./commons";
-import { join, resolve, sep } from 'path'; // NOSONAR: we want to keep this without node prefix because of webpack 5 usage
+import { join, resolve, sep } from 'path'; // NOSONAR: no 'node:' prefix for webpack 5
 import { $ext, $isdirectory, $readBuffer } from "./fs";
 import { $conditionalClearMap } from "./mapset";
 import { TSError } from "./tserrors";
@@ -14,16 +14,16 @@ export class TSStaticWebsite {
 
     private readonly _root:string ;       // the absolute folder path, ending with a separator
 
-    private _maxCacheSize:uint32 ;
-    private _maxCachedFileSize:uint32 ;
-    private _maxCachedFiles:uint32 ;
-    private _maxBlacklistedFiles:uint32 ;
+    private readonly _maxCacheSize:uint32 ;
+    private readonly _maxCachedFileSize:uint32 ;
+    private readonly _maxCachedFiles:uint32 ;
+    private readonly _maxBlacklistedFiles:uint32 ;
 
-    private _cache:Map<string, TSResourceCache> ;
+    private readonly _cache:Map<string, TSResourceCache> ;
     private _cacheMemory:number ;
-    private _blacklisted:Set<string> ;
+    private readonly _blacklisted:Set<string> ;
 
-    private _mimeChecker:TSResourceMimeChecker ;
+    private readonly _mimeChecker:TSResourceMimeChecker ;
 
     constructor(uri:string, definition:TSWebSiteDefinition|string) {
         const def = $isstring(definition) ? { folder:definition } : definition ;

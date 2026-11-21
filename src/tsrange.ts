@@ -29,70 +29,77 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 	public constructor() {
 		const n = arguments.length ;
 		switch (n) {
-			case 0:
+			case 0: // NOSONAR: TSError throws
 				TSError.throw('TSRange.constructor(): no arguments provided') ;
 			case 1:
-				if ($isnumber(arguments[0])) {
-                    TSError.throw('TSRange.constructor(): only location is provided', { arguments:Array.from(arguments)}) ;
-				}
-				let v:TSRange|undefined = undefined ;
-				if (arguments[0] instanceof TSRange) {
-					v = arguments[0] as TSRange ;
-				}
-                else if ($isarray(arguments[0])) {
-                    const a = arguments[0] ;
-                    if (!$israngearray(a)) {
-                        TSError.throw('TSRange.constructor(): bad provided range array', { arguments:Array.from(arguments)}) ;
-                    }
-                    this._location = a[0] ;
-                    this._length = a[1] ;
-                    break ;
-                }
-				else if ($comformsToInterval(arguments[0])) {
-					const a = arguments[0] as Interval ;
-					if (!a.hasSignificantRange) { 
-						this._location = Number.NaN ;
-						this._length = 0 ;
-						break ;
-					}
-					v = a.range ;
-				}
-                if (!$ok(v) || !$isint(v!.location) || !$isunsigned(v!.length) || !$isint(v!.location + v!.length)) {
-                    TSError.throw('TSRange.constructor(): range or interval provided is too large', { arguments:Array.from(arguments)}) ;
-                }
-				this._location = v!.location ;
-				this._length = v!.length ;
+				this._initWithOneArgument(arguments[0], Array.from(arguments)) ;
 				break ;
 			case 2:
-				if ((arguments[0] instanceof TSDate) && (arguments[1] instanceof TSDate)) {
-					// our TSDate range is always in minutes
-					let s = (arguments[0] as TSDate).timestamp ;
-					let e = (arguments[1] as TSDate).timestamp ;
-                    if ($isint(s) && $isint(e) && e >= s) {
-						this._location = s ;
-						this._length = e - s ; 
-					}
-					else {
-                        TSError.throw('TSRange.constructor(): second provided date is anterior to the first one', { arguments:Array.from(arguments)}) ;
-					}
-				}
-                else if (Number.isNaN(Number(arguments[0])) || Number.isNaN(Number(arguments[1]))) {
-                    this._location = Number.NaN ;
-                    this._length = 0 ;
-                }
-				else if ($isint(arguments[0]) && $isunsigned(arguments[1]) && $isint(arguments[0]+arguments[1])) {
-                    this._location = $toint(arguments[0]) ;
-					this._length = $tounsigned(arguments[1]) ;		
-				}
-				else {
-                    TSError.throw('TSRange.constructor(): Bad parameters', { arguments:Array.from(arguments)}) ;
-				}
+				this._initWithTwoArguments(arguments[0], arguments[1], Array.from(arguments)) ;
 				break ;
 			default:
                 TSError.throw('TSRange.constructor(): more than two arguments were provided', { arguments:Array.from(arguments)}) ;
 		}
 	}
-    
+
+    // a TSRange, a [location, length] array or an Interval
+    private _initWithOneArgument(arg:any, args:any[]) {
+        if ($isnumber(arg)) {
+            TSError.throw('TSRange.constructor(): only location is provided', { arguments:args }) ;
+        }
+        let v:TSRange|undefined = undefined ;
+        if (arg instanceof TSRange) {
+            v = arg as TSRange ;
+        }
+        else if ($isarray(arg)) {
+            if (!$israngearray(arg)) {
+                TSError.throw('TSRange.constructor(): bad provided range array', { arguments:args }) ;
+            }
+            this._location = arg[0] ;
+            this._length = arg[1] ;
+            return ;
+        }
+        else if ($comformsToInterval(arg)) {
+            const a = arg as Interval ;
+            if (!a.hasSignificantRange) {
+                this._location = Number.NaN ;
+                this._length = 0 ;
+                return ;
+            }
+            v = a.range ;
+        }
+        if (!$ok(v) || !$isint(v!.location) || !$isunsigned(v!.length) || !$isint(v!.location + v!.length)) {
+            TSError.throw('TSRange.constructor(): range or interval provided is too large', { arguments:args }) ;
+        }
+        this._location = v!.location ;
+        this._length = v!.length ;
+    }
+
+    // 2 dates or a location and a length
+    private _initWithTwoArguments(a0:any, a1:any, args:any[]) {
+        if ((a0 instanceof TSDate) && (a1 instanceof TSDate)) {
+            // our TSDate range is always in minutes
+            const s = a0.timestamp ;
+            const e = a1.timestamp ;
+            if (!$isint(s) || !$isint(e) || e < s) {
+                TSError.throw('TSRange.constructor(): second provided date is anterior to the first one', { arguments:args }) ;
+            }
+            this._location = s ;
+            this._length = e - s ;
+        }
+        else if (Number.isNaN(Number(a0)) || Number.isNaN(Number(a1))) {
+            this._location = Number.NaN ;
+            this._length = 0 ;
+        }
+        else if ($isint(a0) && $isunsigned(a1) && $isint(a0+a1)) {
+            this._location = $toint(a0) ;
+            this._length = $tounsigned(a1) ;
+        }
+        else {
+            TSError.throw('TSRange.constructor(): Bad parameters', { arguments:args }) ;
+        }
+    }
+
     public static make(loc:number, len:number):TSRange { return new TSRange(loc, len) ; }
     public static fromArray(a:Nullable<number[]>):TSRange | null {
         return $israngearray(a) ? new TSRange(a![0], a![1]) : null ;
@@ -133,7 +140,7 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 	public get maxRange():number { return Number.isNaN(this._location) ? Number.NaN : this._location + this._length ; }
 
 	// Interval meta conformance
-	public get range():TSRange { return this }
+	public get range():this { return this }
 	public get hasSignificantRange():boolean { return this.isValid && !this.isEmpty ; }
 
 	public contains(other:TSRange|number):boolean {
@@ -153,14 +160,16 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 
 	public unionRange(other:TSRange):TSRange {
 		if (!this.isValid || !other.isValid) { return TSBadRange() ; }
-		if (this.isEmpty && other.isEmpty) { return TSEmptyRange() ; }
+		// empty ranges take part with their location, even when both are empty (it used to give [0, 0[)
 		const loc = Math.min(this.location, other.location) ;
 		return new TSRange(loc, Math.max(this.maxRange, other.maxRange) - loc) ;
 	}
 
 	public intersectionRange(other:TSRange):TSRange {
 		if (!this.isValid || !other.isValid) { return TSBadRange() ; }
-		if (this.maxRange < other.location || other.maxRange < this.location) { return TSEmptyRange() ; }
+		// disjoint ranges have no intersection location: a bad range (it used to be the empty range [0,0[).
+		// Touching ranges give an empty range at their common location ([0,5[ ∩ [5,10[ = [5,5[)
+		if (this.maxRange < other.location || other.maxRange < this.location) { return TSBadRange() ; }
 		const loc = Math.max(this.location, other.location) ;
 		return new TSRange(loc, Math.min(this.maxRange, other.maxRange) - loc) ;
 	}
@@ -170,9 +179,11 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 		return loc >= this._location && loc < this.maxRange ;
 	}
 
+	// the ranges intersect or touch, or one of them is an empty range (a location) inside the other one:
+	// their intersection is not a bad range and their union has no gap
+	// (an empty range strictly inside the other one used to be not continuous with it)
 	public continuousWith(other:TSRange) : boolean {
-		return this.isValid && other.isValid && 
-			   (this.intersects(other) || this.maxRange === other.location || other.maxRange === this.location) ;
+		return this.isValid && other.isValid && !(this.maxRange < other.location || other.maxRange < this.location) ;
 	}
 
     // ============ TSLeafInspect conformance =============== 

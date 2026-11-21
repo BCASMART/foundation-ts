@@ -6,11 +6,11 @@ import { Bytes, Nullable, StringEncoding, TSDataLike, uint32, uint8 } from "./ty
 import { $declareMethods } from "./object";
 
 export interface DataInterval {
-    start?:Nullable<number>,
-    end?:Nullable<number>
+    start?:Nullable<number>, // NOSONAR: optional
+    end?:Nullable<number> // NOSONAR: optional
 }
 export interface DataConversionOptions extends DataInterval {
-    forceCopy?:Nullable<boolean>
+    forceCopy?:Nullable<boolean> // NOSONAR: optional
 }
 
 // ===================== conversions to Buffer ==============================
@@ -175,7 +175,7 @@ export function $uint32ArrayFromUint8Array(source:Uint8Array, isLittleEndian?:Nu
     const littleEndian = !!isLittleEndian ;
     const remainder = source.length % 4 ;
     const compl = !!complete && remainder > 0 ? 1 : 0 ;
-    const len = (source.length / 4) | 0 ;
+    const len = Math.trunc(source.length / 4) ;
     const dv = new DataView(source.buffer, source.byteOffset, source.byteLength);
     const ret = new Array<number>(len+compl) ;
 
@@ -359,7 +359,7 @@ export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
 }
 
 // ===================== Data description ==============================
-interface $bufferAspectOptions {
+interface $bufferAspectOptions { // NOSONAR: interface matches the function naming
     prefix?: string;
     suffix?: string;
     name?: string;
@@ -368,23 +368,31 @@ interface $bufferAspectOptions {
     transformFn?: (n: number) => string;
 }
 
+const __dataAspectDefaultOptions: $bufferAspectOptions = {
+    prefix: '[',
+    suffix: ']',
+    separator: ',',
+    showLength: true
+};
 
-export function $dataAspect(
-    source: Bytes | Uint16Array | Uint32Array,
-    opts: $bufferAspectOptions = { prefix: '[', suffix: ']', separator: ',', showLength: true }
-) {
+
+export function $dataAspect(source: Bytes | Uint16Array | Uint32Array, opts: $bufferAspectOptions = __dataAspectDefaultOptions) {
     const fn = $isfunction(opts.transformFn) ? opts.transformFn! : (n: number) => n.toString();
-    const n = source.length;
-    let s = $ok(opts.name) ? opts.name! : source.constructor.name;
-    if (opts.showLength) { s += `(${n})`; }
-    if (s.length > 0) { s += ' '; }
-    if (opts.prefix?.length) { s += opts.prefix! };
-    if (n > 0) {
-        if (opts.prefix?.length) { s += ' ' };
-        s += fn(source[0]);
-        for (let i = 1; i < n; i++) { s += opts.separator + ' ' + fn(source[i]); }
+    const hasPrefix = !!opts.prefix?.length ;
+    let s = _dataAspectHeader(source, opts) ;
+    if (hasPrefix) { s += opts.prefix! ; }
+    if (source.length > 0) {
+        if (hasPrefix) { s += ' ' ; }
+        s += Array.from(source, v => fn(v)).join(opts.separator + ' ') ;
     }
     return opts.suffix?.length ? s + ` ${opts.suffix}` : s;
+}
+
+// the name and the length of the data, followed by a space if not empty
+function _dataAspectHeader(source: Bytes | Uint16Array | Uint32Array, opts: $bufferAspectOptions):string {
+    let s = $ok(opts.name) ? opts.name! : source.constructor.name;
+    if (opts.showLength) { s += `(${source.length})`; }
+    return s.length > 0 ? s + ' ' : s ;
 }
 
 declare global {

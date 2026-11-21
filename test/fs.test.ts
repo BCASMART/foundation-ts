@@ -414,6 +414,33 @@ function constructOptionalFSGroups(groups:TSTestGroup[]) {
                 $removeFile($path(folder, 'mv-b.txt')) ;
             }) ;
 
+            group.unary('$createDirectory() — modes and errors', async (t) => {
+                const folder = $absolute($path('tdist', 'output')) ;
+                const mdir = $path(folder, 'mode-dir') ;
+                const mfile = $path(folder, 'mode-file.txt') ;
+                $removeDirectory(mdir) ;
+                t.expect0($createDirectory(mdir, 0o755)).true() ;
+                $chmod(mdir, 0o755) ;  // the creation mode depends on the umask
+                const errors:string[] = [] ;
+                t.expect1($createDirectory(mdir, 0o755, errors)).true() ;   // existing folder with the same mode (always failed before)
+                t.expect2(errors).is([]) ;
+                t.expect3($createDirectory(mdir, 0o700, errors)).false() ;  // existing folder with another mode
+                t.expect4(errors[0]).is(`Path exists and is a directory but mode does not match: "${mdir}"`) ;
+                t.expect5($createDirectory(mdir)).true() ;                  // no specific mode asked
+
+                $writeString(mfile, 'A') ;
+                const ferrors:string[] = [] ;
+                t.expect6($createDirectory(mfile, null, ferrors)).false() ;
+                t.expect7(ferrors).is([`Path exists and is a file: "${mfile}"`]) ;
+                const perrors:string[] = [] ;
+                t.expect8($createDirectory('', null, perrors)).false() ;
+                t.expect9($createDirectory(mdir, 0o1000, perrors)).false() ;
+                t.expectA($createDirectory(mdir, 0, perrors)).false() ;
+                t.expectB(perrors).is(['Invalid directory path', 'Invalid mode 0o1000', 'Invalid mode 0o0']) ;
+                $removeFile(mfile) ;
+                $removeDirectory(mdir) ;
+            }) ;
+
             group.unary('$removeDirectory()', async (t) => {
                 const folder = $absolute($path('tdist', 'output')) ;
                 const rdir = $path(folder, 'rm-dir') ;

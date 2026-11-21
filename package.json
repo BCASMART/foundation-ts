@@ -1,10 +1,10 @@
 {
   "name": "foundation-ts",
-  "version": "1.8.8",
+  "version": "1.8.9",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist tdist exe",
+    "clean": "rm -rf dist tdist",
     "fsbase": "npm run clean && tsc --project tsconfig.test.json && node tdist/test/build_standard_paths.js",
     "pack": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack",
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
@@ -17,9 +17,6 @@
     "test:browsers": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node test/browser-build.mjs && node test/browser-driver.mjs chromium && node test/browser-driver.mjs firefox && node test/browser-driver.mjs webkit",
     "test:all": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node --async-stack-traces --experimental-modules --no-warnings tdist/test/index.test.js && node -r ./test/jsdom-register.cjs --async-stack-traces --no-warnings tdist/test/jsdom.test.js && node test/browser-build.mjs && node test/browser-driver.mjs chromium && node test/browser-driver.mjs firefox && node test/browser-driver.mjs webkit",
     "playwright:install": "playwright-core install firefox webkit",
-    "tools": "npm run clean && tsc --project tsconfig.tools.json",
-    "echo": "node --async-stack-traces --experimental-modules exe/tools/echo.js",
-    "ping": "node --async-stack-traces --experimental-modules exe/tools/ping.js",
     "ts-version": "tsc -v"
   },
   "main": "index.js",

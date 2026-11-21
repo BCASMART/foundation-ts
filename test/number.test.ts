@@ -165,7 +165,7 @@ export const numberGroups = TSTest.group("Commons number functions", async (grou
     }) ;
 
     group.unary("Number prototype conversions", async(t) => {
-        t.expect0((1536).octets()).is('1.54 ko') ;
+        t.expect0((1536).bytes()).is('1.54 ko') ;
         t.expect1(typeof (5000).dateComponents()).is('object') ;
         t.expect2(typeof (90061000).durationComponents()).is('object') ;
         t.expect3((0).toDate() instanceof Date).true() ;

@@ -91,7 +91,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
         }
         return null ;
     }
-    private _isMobile:boolean|undefined = undefined ;
+    private readonly _isMobile:boolean|undefined = undefined ;
     public constructor(public readonly number:string, public readonly country:TSCountry, isMobile?:boolean|undefined) {
         this._isMobile = isMobile ;
     }
@@ -107,7 +107,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
     public get isLandLineNumber():boolean { return $defined(this._isMobile) ? !this._isMobile : false ; } 
     public get isUndeterminedNumber():boolean { return !$defined(this._isMobile) ; }
 
-    public clone():TSPhoneNumber { return this ; } // no clone for immutable objects
+    public clone():this { return this ; } // no clone for immutable objects
 
     // ============ TSLeafInspect conformance =============== 
     public leafInspect():string { return this._standardNumber(true) ; }
@@ -168,72 +168,54 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
 
     public toString(format?:Nullable<string>, translation?:Nullable<language|'default'|'native'>):string {
         if (!$defined(format)) { return this._standardNumber() ; }
-        let fmtlen = $length(format) ;
-        if (!fmtlen) { 
-            format = this.country.phonePlan.format ;
-            fmtlen = format!.length ;
-        }
-        let escape:boolean = false ;
-        let ret = "" ;
-        let pos = 0 ;
-        let trunk = this.country.phonePlan.trunkCode ;
-        let number = $length(trunk) > 0 && this.number.startsWith(trunk) ? 
-                     this.number.slice(1) : 
-                     this.number ;
-        const nlen = number.length ;
-
+        if (!$length(format)) { format = this.country.phonePlan.format ; }
+        const fmt = format! ;
+        const fmtlen = fmt.length ;
+        const trunk = this.country.phonePlan.trunkCode ;
+        const state:PhoneFormatState = {
+            number:$length(trunk) > 0 && this.number.startsWith(trunk) ? this.number.slice(1) : this.number,
+            pos:0,
+            ret:''
+        } ;
         const lang = _phoneLanguage(this.country, translation) ;
+        let escape:boolean = false ;
 
-        
         for (let i = 0 ; i < fmtlen ; i++) {
-            const c = format!.charAt(i) ;
-            if (c == '%') {
-                if (escape) { ret += '%' ; escape = false ; }
-                else { escape = true ;}
-            }
-            else if (escape) {
-                switch (c) {
-                    case '0': if (pos >= nlen) { return ret ; } break ; // conditionaly stops the format
-                    case 'C': ret += $value(this.country.translatedName(lang), this.country.nativeName) ; break ;
-                    case 'N': ret += this.number ; break ;
-                    case 'c': ret += this.country.label ; break ;
-                    case 'd': ret += this.dialCode ; break ;
-                    case 'n': ret += number ; break ;
-                    case 'l': ret += this.country.label ; break ;
-                    case 't': ret += this.country.phonePlan.trunkCode ; break ;
-                    case 'r':
-                        if (pos < nlen) {
-                            ret += number.slice(pos) ;
-                            pos = nlen ;
-                        }
-                        break ;
-                    case 'x': ret += this.country.alpha2Code ; break ;
-                    case 'X': ret += this.country.alpha3Code ; break ;
-                    default:
-                        if (c >= '1' && c <= '9') {
-                            if (pos < nlen) {
-                                const nl = c.charCodeAt(0) - 0x30 ; // NOSONAR: c is an ASCII digit
-                                if (pos + nl >= nlen) {
-                                    ret += number.slice(pos) ;
-                                    pos = nlen ;
-                                }
-                                else {
-                                    ret += number.slice(pos, pos+nl) ;
-                                    pos += nl ;
-                                }
-                            }
-                        }
-                        else { ret += c ; }
-                        break ;
-                }
+            const c = fmt.charAt(i) ;
+            if (escape) {
+                // %% is handled by _formatDirective() as an unknown directive outputing its char
+                if (!this._formatDirective(c, state, lang)) { return state.ret ; } // %0 conditionaly stops the format
                 escape = false ;
             }
-            else { ret += c ; }
+            else if (c === '%') { escape = true ; }
+            else { state.ret += c ; }
         }
-        return ret ;
+        return state.ret ;
     }
 
 	// ============ private methods =============== 
+    // appends the result of the %c directive to state.ret. returns false if the format must stop here
+    private _formatDirective(c:string, state:PhoneFormatState, lang:Nullable<language>):boolean {
+        switch (c) {
+            case '0': return state.pos < state.number.length ;
+            case 'C': state.ret += $value(this.country.translatedName(lang), this.country.nativeName) ; break ;
+            case 'N': state.ret += this.number ; break ;
+            case 'c': state.ret += this.country.label ; break ;
+            case 'd': state.ret += this.dialCode ; break ;
+            case 'n': state.ret += state.number ; break ;
+            case 'l': state.ret += this.country.label ; break ;
+            case 't': state.ret += this.country.phonePlan.trunkCode ; break ;
+            case 'r': _appendPhoneDigits(state, state.number.length) ; break ;
+            case 'x': state.ret += this.country.alpha2Code ; break ;
+            case 'X': state.ret += this.country.alpha3Code ; break ;
+            default:
+                if (c >= '1' && c <= '9') { _appendPhoneDigits(state, c.charCodeAt(0) - 0x30) ; } // NOSONAR: c is an ASCII digit
+                else { state.ret += c ; }
+                break ;
+        }
+        return true ;
+    }
+
     private _standardNumber(compact?:boolean):string {
         const p = this.country.phonePlan ;
         const t = p.trunkCode ;
@@ -244,93 +226,96 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
 }
 
 // private  functions
+interface PhoneFormatState {
+    number:string ; // the phone number without its trunk code
+    pos:number ;    // the position of the next digit to be output
+    ret:string ;    // the formatted string
+}
+
+// appends the n next digits of the phone number (or all the remaining ones)
+function _appendPhoneDigits(state:PhoneFormatState, n:number) {
+    const nlen = state.number.length ;
+    if (state.pos < nlen) {
+        if (state.pos + n >= nlen) {
+            state.ret += state.number.slice(state.pos) ;
+            state.pos = nlen ;
+        }
+        else {
+            state.ret += state.number.slice(state.pos, state.pos + n) ;
+            state.pos += n ;
+        }
+    }
+}
+
+type PhoneParsingResult = [string|null, TSCountry|null, PhoneValidity, boolean|undefined, number|undefined] ;
+
+interface PhoneOrigin {
+    s:string ;                  // the number without its international prefix and dial code
+    countries:TSCountry[] ;     // the possible countries
+    localNumber:boolean ;       // true if there was no international prefix
+}
+
+interface PhoneCountryCandidate {
+    country:TSCountry ;
+    isMobile:boolean|undefined ;
+}
+
 export function $phoneFromString(source:Nullable<string>, telcountry?:Nullable<TSCountry>):[string|null, TSCountry|null, PhoneValidity, boolean|undefined, number|undefined] {
     const ascii =  $ascii($normspaces(source, { replacer:"", strict:true })) ; // remove all spaces (except new lines) and make the string ASCII
     if (!$ok(ascii)) { return [ascii, null, PhoneValidity.MalformedNumber, false, 0] ; }
-    let s = ascii ;
-    let len = s.length ;
-    let min = 5 ;
 
-    if (s.startsWith('(')) {
-        // here if we have something like :
-        // (+XXX)nnnn or (00XXX)nnnn or (00<separator>XXX)nnnn 
-        // we transform the string in
-        // +(XXX)nnnn 
-        if (s.slice(1,2) === '+') { s = '+('+s.slice(2) ; }
-        else if (s.slice(1,3) === '00') {
-            s = s.slice(3) ;
-            if (s.length < 2) { return [s, null, PhoneValidity.MalformedNumber, undefined, 1] } ;
-            s = '+('+ (_isPhoneSeparator(s[0]) ? s.slice(1) : s) ;
-        }
-        len = s.length ;
-        min += 2 ; // me must have the room for 2 parentheses
-    }
-    if (len < min) { return [s, null, PhoneValidity.WrongLength, undefined, 2] ; }
+    const prefixed = _phoneWithNormalizedParenthesis(ascii) ;
+    if (Array.isArray(prefixed)) { return prefixed ; }
+    if (prefixed.s.length < prefixed.min) { return [prefixed.s, null, PhoneValidity.WrongLength, undefined, 2] ; }
 
     // enougth room to have +Xnnnn or +XXXnn or +(X)nnnn or +(XXX)nn
-    let start = 0 ;
-    let dialCode:string = '' ;
-    let countries:TSCountry[] = [] ;
-    let localNumber = false ;
+    const origin = _phoneOrigin(prefixed.s, telcountry) ;
+    return Array.isArray(origin) ? origin : _phoneFromNationalNumber(origin, telcountry) ;
+}
 
-    if (s[0] === '+' || s.startsWith('00')) {
+// here if we have something like :
+// (+XXX)nnnn or (00XXX)nnnn or (00<separator>XXX)nnnn 
+// we transform the string in
+// +(XXX)nnnn 
+function _phoneWithNormalizedParenthesis(s:string):{s:string, min:number}|PhoneParsingResult {
+    if (!s.startsWith('(')) { return { s:s, min:5 } ; }
+    if (s.slice(1,2) === '+') { s = '+('+s.slice(2) ; }
+    else if (s.slice(1,3) === '00') {
+        s = s.slice(3) ;
+        if (s.length < 2) { return [s, null, PhoneValidity.MalformedNumber, undefined, 1] } ;
+        s = '+('+ (_isPhoneSeparator(s[0]) ? s.slice(1) : s) ;
+    }
+    return { s:s, min:7 } ; // me must have the room for 2 parentheses
+}
+
+function _phoneOrigin(s:string, telcountry?:Nullable<TSCountry>):PhoneOrigin|PhoneParsingResult {
+    if (s.startsWith('+') || s.startsWith('00')) {
         // search for dialcode
-        start = s[0] === '+' ? 1 : 2 ;
-        const ds = _removeSeparators(s.slice(start)) ;
+        const ds = _removeSeparators(s.slice(s.startsWith('+') ? 1 : 2)) ;
         if (!$ok(ds)) { return [s, null, PhoneValidity.MalformedNumber, undefined, 3] ; }
-        s = ds ;
-        len = s.length ;
-        if (len < 5) { return [s, null, PhoneValidity.WrongLength, undefined, 4] ; } // enougth to have XXXnn or Xnnnn
-        [dialCode, countries] = _findDialCode(s) ;
-        start = dialCode.length ;
+        s = ds! ;
+        if (s.length < 5) { return [s, null, PhoneValidity.WrongLength, undefined, 4] ; } // enougth to have XXXnn or Xnnnn
+        let [dialCode, countries] = _findDialCode(s) ;
+        const start = dialCode.length ;
         if (!start || !countries.length) { return [s, null, PhoneValidity.CountryNotFound, undefined, 5] ; }
         if ($ok(telcountry)) {
-            if (!countries.includes(telcountry)) { return [s, null, PhoneValidity.BadCountryNumber, undefined, 6] ; }
-            countries = [telcountry] ;
+            if (!countries.includes(telcountry!)) { return [s, null, PhoneValidity.BadCountryNumber, undefined, 6] ; }
+            countries = [telcountry!] ;
         }
+        return { s:s.slice(start), countries:countries, localNumber:false } ;
     }
-    else {
-        const defaultCountry = $value(telcountry, TSDefaults.defaults().defaultCountry) ;
-        const t = defaultCountry.phonePlan.trunkCode ;
-        dialCode = defaultCountry.phonePlan.dialCode ;
-        countries = [defaultCountry] ;
-        localNumber = true ;
-        if (!s.startsWith(t)) {
-            return [s, defaultCountry, PhoneValidity.MissingTrunkCode, undefined, 7] ;
-        }
+    const defaultCountry = $value(telcountry, TSDefaults.defaults().defaultCountry) ;
+    if (!s.startsWith(defaultCountry.phonePlan.trunkCode)) {
+        return [s, defaultCountry, PhoneValidity.MissingTrunkCode, undefined, 7] ;
     }
-    s = s.slice(start) ;
-    len = s.length ;
+    return { s:s, countries:[defaultCountry], localNumber:true } ;
+}
+
+function _phoneFromNationalNumber(origin:PhoneOrigin, telcountry?:Nullable<TSCountry>):PhoneParsingResult {
+    let s = origin.s ;
+    const countries = origin.countries ;
     const presumedCountry = $count(countries) === 1 ? countries[0] : null ;
-    //const pci = $ok(presumedCountry) ? presumedCountry.alpha2Code : '<unknown>' ;
-    let acceptableCountries = $map(countries, c => {
-        const p = c.phonePlan ;
-        const t = p.trunkCode ;
-        const tlen = $length(t) ;
-        let str = tlen > 0 && s.startsWith(t) ? s.slice(tlen) : s ;
-        let strlen = str.length ;
-        if (strlen >= p.minDigits && strlen <= p.maxDigits) {
-            const mobile = $ok(p.mobileRegex) && p.mobileRegex.test(str) ;
-            const landline = $ok(p.fixedLineRegex) && p.fixedLineRegex.test(str) ;
-            if (!mobile && !landline) {
-                if ($ok(p.regex) && p.regex.test(str)) { return { country:c, isMobile:undefined } ; }            
-            }
-            else if (mobile && landline) {
-                return { country:c, isMobile:undefined } ;
-            }
-            else if (mobile) {
-                return { country:c, isMobile:true } ;
-            }
-            else if (landline) {
-                return { country:c, isMobile:false } ;
-            }
-            //$logterm(`\n ${pci} ${localNumber?'local ':''}number ${str} length = ${strlen}, did not match any regex`) ;
-        }
-        else {
-            //$logterm(`\n ${pci} ${localNumber?'local ':''}number ${str} length = ${strlen}, min = ${p.minDigits}, max = ${p.maxDigits}`)
-        }
-        return null ;
-    }) ;
+    let acceptableCountries = $map(countries, c => _phoneCountryCandidate(c, s)) ;
     if (!acceptableCountries.length) { return [s, presumedCountry, PhoneValidity.CountryNotFound, undefined, 8] ; }
 
     const countriesWithValidAreaCodes = acceptableCountries.filter(n => _numberInAreaCodes(s, n.country)) ;
@@ -340,13 +325,30 @@ export function $phoneFromString(source:Nullable<string>, telcountry?:Nullable<T
     const c = acceptableCountries[0].country ;
     const isMobile = acceptableCountries[0].isMobile ;
     const t = c.phonePlan.trunkCode ; 
-    if (!localNumber && t.length > 0 && !s.startsWith(t)) { s = t + s ;}
+    if (!origin.localNumber && t.length > 0 && !s.startsWith(t)) { s = t + s ;}
 
     if (acceptableCountries.length > 1) { return [s, null, PhoneValidity.MixedCountries, isMobile, 10] ; }
 
     if ($ok(telcountry) && c !== telcountry) { return [s, c, PhoneValidity.BadCountryNumber, isMobile, 11] ; }
 
     return [s, c, PhoneValidity.OK, isMobile, undefined] ;
+}
+
+// returns the country with its mobile status if s is a valid number for this country, null otherwise
+function _phoneCountryCandidate(c:TSCountry, s:string):PhoneCountryCandidate|null {
+    const p = c.phonePlan ;
+    const t = p.trunkCode ;
+    const tlen = $length(t) ;
+    const str = tlen > 0 && s.startsWith(t) ? s.slice(tlen) : s ;
+    const strlen = str.length ;
+    if (strlen < p.minDigits || strlen > p.maxDigits) { return null ; }
+
+    const mobile = $ok(p.mobileRegex) && p.mobileRegex!.test(str) ;
+    const landline = $ok(p.fixedLineRegex) && p.fixedLineRegex!.test(str) ;
+    if (mobile && landline) { return { country:c, isMobile:undefined } ; }
+    if (mobile) { return { country:c, isMobile:true } ; }
+    if (landline) { return { country:c, isMobile:false } ; }
+    return $ok(p.regex) && p.regex!.test(str) ? { country:c, isMobile:undefined } : null ;
 }
 
 function _numberInAreaCodes(s:string, c:TSCountry):boolean {
@@ -357,41 +359,49 @@ function _numberInAreaCodes(s:string, c:TSCountry):boolean {
     return false ;
 }
 
+enum SepState { Start, None, Last } ; 
+
+interface SeparatorsParsing {
+    ret:string ;
+    foundOpenParenthesis:boolean ;
+    foundClosedParenthesis:boolean ;
+    sepstate:SepState ;
+}
+
 function _removeSeparators(s:string):string|null {
-    let ret = '' ;
-    let foundOpenParenthesis = false ;
-    let foundClosedParenthesis = false ;
-
-    enum SepState { Start, None, Last } ; 
-    let sepstate = SepState.Start ;
-
+    const p:SeparatorsParsing = { ret:'', foundOpenParenthesis:false, foundClosedParenthesis:false, sepstate:SepState.Start } ;
     for (let c of s ) {
-        if (c === '(') { 
-            if (sepstate === SepState.Last || foundOpenParenthesis) { return null ; }
-            foundOpenParenthesis = true ;
-            sepstate = SepState.Last ;
-        }
-        else if (c === ')') {
-            if (sepstate !== SepState.None || !foundOpenParenthesis || foundClosedParenthesis) { return null ; }
-            foundClosedParenthesis = true ;
-            sepstate = SepState.None ;
-        }
-        else if (c >= '0' && c <= '9') { 
-            ret += c ; 
-            sepstate = SepState.None ;
-        }
-        else if (_isPhoneSeparator(c)) {
-            if (sepstate !== SepState.None) { return null ; } // never have a separator at first or two following separator
-            sepstate = SepState.Last ;
-        }
-        else {
-            // unauthorized character (warning new lines chars are not valid here)
-            return null ;
-        }
-    }    
-
+        if (!_parseSeparatorChar(p, c)) { return null ; }
+    }
     // never have an open parenthesis without a closed one and never finish on a separator
-    return sepstate === SepState.None && (!foundOpenParenthesis || foundClosedParenthesis) ? ret : null ;
+    return p.sepstate === SepState.None && (!p.foundOpenParenthesis || p.foundClosedParenthesis) ? p.ret : null ;
+}
+
+// returns false if c is not acceptable at this place
+function _parseSeparatorChar(p:SeparatorsParsing, c:string):boolean {
+    if (c === '(') { 
+        if (p.sepstate === SepState.Last || p.foundOpenParenthesis) { return false ; }
+        p.foundOpenParenthesis = true ;
+        p.sepstate = SepState.Last ;
+    }
+    else if (c === ')') {
+        if (p.sepstate !== SepState.None || !p.foundOpenParenthesis || p.foundClosedParenthesis) { return false ; }
+        p.foundClosedParenthesis = true ;
+        p.sepstate = SepState.None ;
+    }
+    else if (c >= '0' && c <= '9') { 
+        p.ret += c ; 
+        p.sepstate = SepState.None ;
+    }
+    else if (_isPhoneSeparator(c)) {
+        if (p.sepstate !== SepState.None) { return false ; } // never have a separator at first or two following separator
+        p.sepstate = SepState.Last ;
+    }
+    else {
+        // unauthorized character (warning new lines chars are not valid here)
+        return false ;
+    }
+    return true ;
 }
 
 function _isPhoneSeparator(c:string):boolean { return c === '.' || c === '-' || c === '~' || c === '/' ; } 

@@ -1,4 +1,5 @@
 import { TSDate } from "../src/tsdate";
+import { TSError } from "../src/tserrors";
 import { TSDictionary } from "../src/types";
 import { $barerauth, $basicauth, $generateMultiPartBody, $generateMultiPartBodyString, $query, Resp, RespType, TSMultipartEntry, TSRequest, Verb } from "../src/tsrequest";
 
@@ -7,6 +8,8 @@ import { $password } from "../src/crypto";
 import { $length } from "../src/commons";
 import { TSData } from "../src/tsdata";
 import { $inbrowser } from "../src/utils";
+import { TSServer, TSServerLogLevel } from "../src/tsserver";
+import { uint16 } from "../src/types";
 
 export const requestGroups = [
 
@@ -221,6 +224,40 @@ requestGroups.push(TSTest.group("TSRequest.req() — body encoding & error mappi
         const r2 = dead() ;
         r2.setAuth({ login:'u', password:'p' }) ;
         t.expect1((await r2.req('/', Verb.Get, RespType.String)).status).is(Resp.Misdirected) ;
+    }) ;
+})) ;
+}
+
+// Node-only too : a local TSServer and fetch() errors which differ in a browser
+if (!$inbrowser()) {
+requestGroups.push(TSTest.group("TSRequest.req() — composition, response type, timeout & unknown errors", async (group) => {
+    group.unary('impossible URL composition and unknown network errors throw', async (t) => {
+        await t.expect0(new TSRequest('not a url').req('/x')).rejects(/impossible to compose base URL and relativeURL/) ;
+        // an error without any known code is rethrown as it is
+        const r = new TSRequest('http://127.0.0.1:59999/') ;
+        await t.expect1(r.req('/x', 'BAD METHOD' as any)).rejects((e:any) => e instanceof TypeError && /not a valid HTTP method/.test(e.message)) ;
+        await t.expect2(r.req('/x', Verb.Get, RespType.String, null, { 'X-Bad':'a\nb' })).rejects((e:any) => e instanceof TypeError) ;
+        // a GET or HEAD request with a body is refused before using the network (fetch() used to throw a TypeError)
+        await t.expect3(r.req('/x', Verb.Get, RespType.String, 'body')).rejects((e:any) => e instanceof TSError && e.message === 'TSRequest.req(): a GET request cannot have a body') ;
+        await t.expect4(r.req('/x', 'head' as any, RespType.String, { a:1 })).rejects(/a HEAD request cannot have a body/) ;
+        await t.expect5(r.req('/x', Verb.Get, RespType.String, 12)).rejects(/a GET request cannot have a body/) ;
+    }) ;
+
+    group.unary('timeout and unknown response type with a local server', async (t) => {
+        const port = 8431 as uint16 ;
+        const slow = async (_r:any, resp:any) => { await new Promise(res => setTimeout(res, 300)) ; resp.returnObject({ a:1 }) ; } ;
+        const fast = async (_r:any, resp:any) => { resp.returnObject({ a:1 }) ; } ;
+        t.expect0(await TSServer.start({ '/slow':{ GET:slow }, '/fast':{ GET:fast } } as any, { port, log:{ level:TSServerLogLevel.None } })).OK() ;
+        try {
+            const r = new TSRequest(`http://localhost:${port}/`) ;
+            const a = await r.req('/slow', Verb.Get, RespType.Json, null, {}, 50) ;
+            t.expect1([a.status, a.response]).is([Resp.TimeOut, null]) ;
+            const b = await r.req('/fast', Verb.Get, 99 as any) ;        // not a response type : no content
+            t.expect2([b.status, b.response]).is([Resp.OK, null]) ;
+            const c = await r.req('/fast', Verb.Get, RespType.Json) ;
+            t.expect3([c.status, c.response]).is([Resp.OK, { a:1 }]) ;
+        }
+        finally { await TSServer.stop() ; }
     }) ;
 })) ;
 }

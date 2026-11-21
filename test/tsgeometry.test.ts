@@ -283,4 +283,44 @@ export const geometryGroups = TSTest.group("Geometry functions and classes", asy
         t.expectK(TSAssertFormat({w:Infinity,h:10})).is(mini) ;
     }) ;
 
+
+    group.unary('TSRect constructor with an unknown document format', async (t) => {
+        t.expect0(() => new TSRect(1, 2, 'unknown' as any)).throws(/bad \[number, number, size or format\] parameters/) ;
+        t.expect1(() => new TSRect({ x:1, y:2 }, 'unknown' as any)).throws(/is not a TSSize/) ;
+        t.expect2(() => new TSRect('unknown' as any)).throws(/bad document format/) ;
+        t.expect3(new TSRect(1, 2, 'a4').width).is(TSDocumentFormats.a4.w) ;
+    }) ;
+
+    group.unary('TSRect constructor and inset() parameter errors', async (t) => {
+        const R = TSRect as any ;
+        t.expect0(() => new R(1, 2, 3, 4, 5)).toThrow('TSRect.constructor() : too much arguments') ;
+        t.expect1(() => new R(1, 2, 3, -4)).toThrow('TSRect.constructor() : one or more bad number parameter') ;   // negative height
+        t.expect2(() => new R(42)).toThrow('TSRect.constructor() : should have a TSRect, a TSFrame or a document format parameter') ;
+        t.expect3(() => new R([1, 2, 3])).toThrow('TSRect.constructor() : bad rect definition array parameter') ;
+        t.expect4(() => new R(42, { w:1, h:1 })).toThrow('TSRect.constructor() : 1st parameter is not a TSPoint') ;
+        t.expect5(() => new R({ x:0, y:0 }, 'unknown')).toThrow(/^TSRect\.constructor\(\) : 2nd/) ;
+        t.expect6(() => new R('a', 'b', 'c')).toThrow('TSRect.constructor() : bad TSPoint, TSSize or number parameter') ;
+        t.expect7(() => new R({ x:0, y:0 }, 1, -1)).toThrow('TSRect.constructor() : bad [point, number, number] parameters') ;
+        const r = new TSRect(10, 10, 20, 20) ;
+        t.expect8(() => r.inset('1' as any, 1)).toThrow('TSRect.inset() : invalid inset parameter') ;
+        t.expect9(r.inset(2, 3)).is(new TSRect(8, 7, 24, 26)) ;
+    }) ;
+
+    group.unary('TSAssertFormat() errors', async (t) => {
+        t.expect0(() => TSAssertFormat('unknown' as any, { invalidSizeRaise:true })).toThrow('TSAssertFormat() : invalid size format') ;
+        t.expect1(TSAssertFormat('unknown' as any)).is(TSDocumentFormats.a4) ;                      // default size
+        t.expect2(TSAssertFormat(null, { defaultSize:TSDocumentFormats.a5 })).is(TSDocumentFormats.a5) ;
+        t.expect3(() => TSAssertFormat({ w:2, h:105 }, { oversizeRaise:true })).toThrow('TSAssertFormat() : size format too small') ;
+        t.expect4(() => TSAssertFormat({ w:1e9, h:105 }, { oversizeRaise:true })).toThrow('TSAssertFormat() : size format too large') ;
+        t.expect5(TSAssertFormat({ w:1e9, h:1e9 })).is(TSDocumentFormats.max) ;
+    }) ;
+
+    group.unary('TSRect.intersects() with bad parameters', async (t) => {
+        const r = new TSRect(0, 0, 10, 10) ;
+        t.expect0(r.intersects(null)).false() ;
+        t.expect1(r.intersects(undefined)).false() ;
+        t.expect2(r.intersects([1, 2])).false() ;              // not a rect definition
+        t.expect3(r.intersects(['a', 'b', 'c', 'd'] as any)).false() ;
+        t.expect4(r.intersects([1, 2, 3, 4])).true() ;
+    }) ;
 }) ;

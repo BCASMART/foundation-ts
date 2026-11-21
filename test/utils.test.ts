@@ -1,5 +1,3 @@
-/* NOSONAR : there are tests in here. SonarQube does not detect them correctly */ 
-
 import { inspect } from "util";  
 import { $hexadump, $inbrowser, $insp, $jsonparse, $jsonstrip, $logterm, $mark, $noop, $sleep, $stack, $term, $termclean, $writeterm } from "../src/utils";
 import { TSTest } from '../src/tstester';

@@ -1,4 +1,4 @@
-import { ServerResponse } from "http" ; // NOSONAR due to webpack5 usage
+import { ServerResponse } from "http" ; // NOSONAR: no 'node:' prefix for webpack 5
 
 import { $defined, $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
@@ -214,9 +214,14 @@ class TSServerEndPointManager {
         const options:TSParserOptions = { errors:[] } ;
         await this._debug(logme, req, 'request body', buffer) ;
 
-        if (!$ok(buffer) && parser.mandatory) {
-            await this._debug(logme, req, 'missing body content') ;
-            this._throwBadRequest(req, `No body content for ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.MissingBody) ;
+        // an empty body is an absent body (it used to be decoded, so that a missing JSON body gave a bad JSON error)
+        if (!$length(buffer)) {
+            if (parser.mandatory) {
+                await this._debug(logme, req, 'missing body content') ;
+                this._throwBadRequest(req, `No body content for ${this._method} request on url '${req.url.pathname}'`, TSServerErrorCodes.MissingBody) ;
+            }
+            req.body = undefined ;
+            return ;
         }
             
         const mtype = $ftrim(req.message.headers['content-type']).toLowerCase() ;
@@ -236,7 +241,7 @@ class TSServerEndPointManager {
     }
 
     // text bodies are decoded as UTF8 strings and JSON bodies are parsed (which sets the parser context to json)
-    private async _decodedBody(buffer:any, mtype:string, options:TSParserOptions, req: TSServerRequest, logme?:boolean):Promise<any> { // NOSONAR: private method, all parameters are needed
+    private async _decodedBody(buffer:any, mtype:string, options:TSParserOptions, req: TSServerRequest, logme:boolean = false):Promise<any> { 
         if (!mtype.startsWith('text/') && !TSServerEndPointManager.__textMimes.includes(mtype)) { return buffer ; }
 
         // we have a string. we consider only UTF8 charsets
@@ -328,7 +333,7 @@ class TSPathParser {
                 break ;
             case '}': // NOSONAR: this case ends with a throw
                 TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${this._path}'.`, { position:i, ...this._errorOptions}) ; 
-            case '/': // NOSONAR: the case above ends with a throw
+            case '/':
                 this._append(c, String.raw`\/`) ;
                 this.depth++ ;
                 break ;
@@ -337,7 +342,7 @@ class TSPathParser {
                 break ;
             case '^': case '\\': case '[': case ']': case '`': case '|': // NOSONAR: this case ends with a throw
                 this._throwForbidden(String.raw`found forbidden character '\u${_hex(c)}' in path '${this._path}'.`, c, i) ;
-            default: // NOSONAR: the case above ends with a throw
+            default:
                 this._append(c.toLowerCase(), c) ;
                 break ;                                
         }
@@ -414,7 +419,7 @@ function _queryParameters(searchParams:URLSearchParams, parser:TSParser, errors:
         const values = searchParams.getAll(key) ;
         const itemParser = parser.itemParserForKey(key) ;
         if (itemParser?.nodeType() === 'array' || (values.length > 1 && !$ok(itemParser))) { ret[key] = values ; }
-        else if (values.length > 1) { errors.push(`value.${key} is present several times`) ; }
+        else if (values.length > 1) { errors.push(`value.${key} is present several times.`) ; }
         else { ret[key] = values[0] ; }
         total++ ;
     }
@@ -444,10 +449,10 @@ function _defineParser(node:Nullable<TSNode>, instanceVar:string, errorOptions:T
     if ($ok(node)) {
         const errors:string[] = []
         const parser = TSParser.define(node, errors) ;
-        if (!$ok(parser)) {
+        // a root leaf node with an unknown type gives an invalid parser (it used to be accepted)
+        if (!parser?.isValid) {
             TSError.throw(`TSServerEndPointManager.constructor() : end points path '${errorOptions.path}' has invalid ${instanceVar} definition.`, 
-                              { parserErrors:errors, ...errorOptions}) ; 
-
+                              { parserErrors:[...errors, ...(parser?.errors ?? [])], ...errorOptions}) ; 
         }
         return parser ;
     }

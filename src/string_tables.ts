@@ -59,7 +59,7 @@ export const FoundationEncodingsAliases:Array<{ name:NormativeStringEncoding, al
         '819', 'cp819', 'CP819', 'IBM819',
         'l1',
         'csISOLatin1',
-        'ansicpg819', '\\ansicpg819'        
+        'ansicpg819', '\\ansicpg819'    // NOSONAR: String.raw not assignable to type StringEncoding
     ]},
     { name: 'utf8', aliases:[ 'UTF8', 'utf-8', 'UTF-8', 'utf_8', 'UTF_8']},
     { name: 'utf16le', aliases:[

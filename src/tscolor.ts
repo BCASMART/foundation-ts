@@ -1,4 +1,4 @@
-import { $defined, $isnumber, $isstring, $isunsigned, $ok, $string, $keys, $length, $tounsigned } from "./commons";
+import { $defined, $isnumber, $isstring, $isunsigned, $ok, $string, $keys, $length } from "./commons";
 import { $equal, $numcompare } from "./compare";
 import { $round } from "./number";
 import { $ftrim } from "./strings";
@@ -16,11 +16,11 @@ import { $logheader, $logterm } from "./utils";
  * cmykComponents()
  */
 export interface TSColorToStringOptions {
-    removeAlpha?:Nullable<boolean> ;
-    uppercase?:Nullable<boolean>;
-    shortestCSS?:Nullable<boolean> ;
-    rgbaCSSLike?:Nullable<boolean> ;
-    colorSpace?:Nullable<TSColorSpace> ;
+    removeAlpha?:Nullable<boolean> ;        // NOSONAR: optional
+    uppercase?:Nullable<boolean>;           // NOSONAR: optional
+    shortestCSS?:Nullable<boolean> ;        // NOSONAR: optional
+    rgbaCSSLike?:Nullable<boolean> ;        // NOSONAR: optional
+    colorSpace?:Nullable<TSColorSpace> ;    // NOSONAR: optional
 }
 
 /**
@@ -43,14 +43,12 @@ export enum TSToGrayScaleMode {
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;
 
-// TODO: assert a better conversion between [0 .. 255] to [0 .. 1.0] components
-//       and same thing for opacity
 export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public readonly colorSpace:TSColorSpace ;
-    private _channels:number[] ;
-	private _alpha: number;
-    private _name?: string ;
-    // TSColor is immutable (private constructor, _channels/_alpha never
+    private readonly _channels:number[] ;
+	private readonly _opacity: number;    // [0 .. 1] in all color spaces
+    private readonly _name?: string ;
+    // TSColor is immutable (private constructor, _channels/_opacity never
     // reassigned after it), so these derived tuples are computed at most once
     // per instance and reused forever after. Typed `readonly` (compile-time
     // only, zero runtime cost) rather than Object.freeze()'d : freezing a
@@ -88,7 +86,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if ($defined(color)) { return color ;}
         const [channels, alpha] = TSColor._parseHexColorString(s) ;
         if ($ok(channels)) {
-            color = new TSColor(TSColorSpace.RGB, channels, alpha) ;
+            color = new TSColor(TSColorSpace.RGB, channels, _toUnit(alpha)) ;
             TSColor._cacheColor(color) ;
             return color ;
         }
@@ -99,35 +97,37 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 	public static rgb(colorDefinition: number):TSColor;
 	public static rgb(R: number, G: number, B: number, A?: number):TSColor;
     public static rgb():TSColor {
-        if (arguments.length === 1) {
-            if ($isstring(arguments[0])) {
-                const fsc = TSColor.fromString(arguments[0]) ;
-                if ($ok(fsc)) { return fsc ;}
-            }
-            else if ($isunsigned(arguments[0], UINT32_MAX)) {
-                const v = arguments[0] ;
-                // by calling the static methods, the color will be cached.
-                return TSColor.rgb((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 0xff - ((v >> 24) & 0xff)) ;
-            }
-            return TSColor.rgb(0,0,0) ; // bad single parameter => we return a black color               
-        }
-        else if (arguments.length === 3 || arguments.length === 4) {
-            const R = arguments[0] ;
-            const G = arguments[1] ;
-            const B = arguments[2] ;
-            const A = arguments.length === 4 ? arguments[3] : 0xFF ;
-            if ($isunsigned(R, 0xff) && $isunsigned(G, 0xff) && $isunsigned(B, 0xff) && $isunsigned(A, 0xff)) {
-                const s = _colorToStandardCSS(R as uint8,G as uint8,B as uint8, A as uint8) ;
-                let color = TSColor._cachedColor(s) ;
-                if ($defined(color)) { return color ;}
-                color = new TSColor(TSColorSpace.RGB, [R,G,B], A) ;
-                TSColor._cacheColor(color) ;
-                return color ;
-            }
-            return TSColor.rgb(0,0,0) ; // bad 3/4 parameters => we return a black color               
+        if (arguments.length === 1) { return TSColor._rgbFromValue(arguments[0]) ; }
+        if (arguments.length === 3 || arguments.length === 4) {
+            return TSColor._rgbFromChannels(arguments[0], arguments[1], arguments[2], arguments.length === 4 ? arguments[3] : 0xFF) ;
         }
         // only throws on arguments wrong count
         TSError.throw('TSColor.rgb() : Bad parameters', { arguments:Array.from(arguments)}) ;
+    }
+
+    // a string color or an unsigned color definition (ARGB with an inverted alpha)
+    private static _rgbFromValue(value:any):TSColor {
+        if ($isstring(value)) {
+            const fsc = TSColor.fromString(value) ;
+            if ($ok(fsc)) { return fsc ;}
+        }
+        else if ($isunsigned(value, UINT32_MAX)) {
+            // by calling the static methods, the color will be cached.
+            return TSColor.rgb((value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff, 0xff - ((value >> 24) & 0xff)) ;
+        }
+        return TSColor.rgb(0,0,0) ; // bad single parameter => we return a black color               
+    }
+
+    private static _rgbFromChannels(R:any, G:any, B:any, A:any):TSColor {
+        if (!$isunsigned(R, 0xff) || !$isunsigned(G, 0xff) || !$isunsigned(B, 0xff) || !$isunsigned(A, 0xff)) {
+            return TSColor.rgb(0,0,0) ; // bad 3/4 parameters => we return a black color               
+        }
+        const s = _colorToStandardCSS(R as uint8,G as uint8,B as uint8, A as uint8) ;
+        let color = TSColor._cachedColor(s) ;
+        if ($defined(color)) { return color ;}
+        color = new TSColor(TSColorSpace.RGB, [R,G,B], _toUnit(A)) ;
+        TSColor._cacheColor(color) ;
+        return color ;
     }
 
     public static rgbcomponents(r:number, g:number, b:number, opacity?:number) {
@@ -137,7 +137,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             g = _component(g) ;
             b = _component(b) ;
             opacity = _component(opacity) ;
-            return TSColor.rgb((r*255) | 0, (g*255) | 0, (b*255) | 0, (opacity*255) | 0) ;
+            return TSColor.rgb(_toByte(r), _toByte(g), _toByte(b), _toByte(opacity)) ;
         }
         TSError.throw('TSColor.rgbcomponents() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
@@ -150,12 +150,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             Y = _component(Y) ;
             K = _component(K) ;
             opacity = _component(opacity) ;
-            const key = _cmykCacheKey(TSColorSpace.CMYK, C, M, Y, K, opacity) ;
-            let color = TSColor._cachedCMYKColor(key) ;
-            if ($defined(color)) { return color! ; }
-            color = new TSColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
-            TSColor._cacheCMYKColor(color, key) ;
-            return color ;
+            return TSColor._cmykColor(TSColorSpace.CMYK, [C,M,Y,K], opacity) ;
         }
         TSError.throw('TSColor.cmyk() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
@@ -163,23 +158,13 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public static grayscale(whiteIntensity:number, opacity?:number) {
         opacity = $ok(opacity) ? opacity! : 1 ;
         if ($isnumber(whiteIntensity) && $isnumber(opacity)) {
-            whiteIntensity = _component(whiteIntensity) ;
-            const K = 1 - whiteIntensity ;
-            // NOTE: unlike cmyk(), opacity is deliberately left un-normalized here,
-            // matching the pre-existing (uncached) behavior of this method exactly ;
-            // not the caching change's concern to fix.
-            const key = _cmykCacheKey(TSColorSpace.Grayscale, 0, 0, 0, K, opacity) ;
-            let color = TSColor._cachedCMYKColor(key) ;
-            if ($defined(color)) { return color! ; }
-            color = new TSColor(TSColorSpace.Grayscale, [0,0,0,K], opacity) ;
-            TSColor._cacheCMYKColor(color, key) ;
-            return color ;
+            return TSColor._cmykColor(TSColorSpace.Grayscale, [0, 0, 0, 1 - _component(whiteIntensity)], _component(opacity)) ;
         }
         TSError.throw('TSColor.grayscale() : Bad parameters', { arguments:Array.from(arguments)}) ;
     }
 
     public static logColorCache() {
-        void TSColor._cachedColor('yellow') ;
+        TSColor._cachedColor('yellow') ;
         $logheader('TSColor cache:') ;
         for (let [name, color] of TSColor.__colorsCache!) {
             $logterm(`${name}: ${color.toString()}`) ;
@@ -187,14 +172,14 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     }
 
     /*
-        TSColor constructor is now private.
+        TSColor constructor is private.
         Use rgb() grayscale() and cmyk() static methods
         to create new colors.
     */
-    private constructor(colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string) {
+    private constructor(colorSpace:TSColorSpace, channels:number[], opacity:number, name?:string) {
         this.colorSpace = colorSpace ;
         this._channels = channels ;
-        this._alpha = alpha ;
+        this._opacity = opacity ;
         if ($length(name)) { this._name = name! }
     } 
 
@@ -206,10 +191,8 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             return [(this._channels[0] & 0xFF) as uint8, (this._channels[1] & 0xFF) as uint8, (this._channels[2] & 0xFF) as uint8] ;
         }
         if ($ok(this._rgbCache)) { return this._rgbCache! ; }
-        const [C,M,Y,K] = this.cmykComponents() ;
-        const light = 255.0 * (1 - K) ;
-        const _rc = (x:number):uint8 => ((light*(1-x)) & 0xFF) as uint8 ;
-        const ret:[uint8, uint8, uint8] = [_rc(C), _rc(M), _rc(Y)] ;
+        const [r,g,b] = this.rgbComponents() ;
+        const ret:[uint8, uint8, uint8] = [_toByte(r), _toByte(g), _toByte(b)] ;
         this._rgbCache = ret ;
         return ret ;
     }
@@ -217,7 +200,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public rgbComponents():[number, number, number]  {
         if (this.colorSpace === TSColorSpace.RGB) {
             const [R,G,B] = this.rgb() ; 
-            return [R/255, G/255, B/255] ;
+            return [_toUnit(R), _toUnit(G), _toUnit(B)] ;
         }
         const [C,M,Y,K] = this.cmykComponents() ;
         return [(1-K)*(1-C), (1-K)*(1-M), (1-K)*(1-Y)] ;
@@ -243,30 +226,26 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         return ret ;
     }
 
+    // the brightness (the B of HSB) without its rounding to a percentage
     public grayComponent(): number {
-        if (this.colorSpace === TSColorSpace.RGB) {
-            const [,,L] = this.hsb() ;
-            return L / 100 ;
+        if (this.colorSpace !== TSColorSpace.RGB) {
+            const [C,M,Y,K] = this.cmykComponents() ; 
+            if (K >= 1) { return 0 ; }
+            if (C === 0 && M === 0 && Y === 0) { return 1-K ; }
         }
-        let [C,M,Y,K] = this.cmykComponents() ; 
-        if (K >= 1) { K = 1 ; }
-        else if (C !== 0 || M !== 0 || Y !== 0) {
-            const [,,L] = this.hsb() ;
-            return L / 100 ;
-        }
-        return 1-K ; 
+        return Math.max(...this.rgbComponents()) ;
     }
 
     // ================== accessors ===============================
     public get name():string { return $string(this._name) ; }
-	public clone():TSColor { return this ; } // no clone on immutable objects
+	public clone():this { return this ; } // no clone on immutable objects
 
     // RGB color space : direct channel read when already in RGB space (no
     // tuple involved at all) ; falls back to the now-memoized rgb() otherwise.
     public get red():uint8   { return (this.colorSpace === TSColorSpace.RGB ? this._channels[0] & 0xFF : this.rgb()[0]) as uint8 ;}
     public get green():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._channels[1] & 0xFF : this.rgb()[1]) as uint8 ;}
     public get blue():uint8  { return (this.colorSpace === TSColorSpace.RGB ? this._channels[2] & 0xFF : this.rgb()[2]) as uint8 ;}
-    public get alpha():uint8 { return (this.colorSpace === TSColorSpace.RGB ? this._alpha : $tounsigned(_component(this._alpha) * 255)) as uint8 ;}
+    public get alpha():uint8 { return _toByte(this._opacity) ;}
     public get transparency():uint8 { return 255 - this.alpha as uint8 ; }
 
     // CYMK color space : same direct-read idea, mirroring the branch already
@@ -276,7 +255,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     public get magenta():number { return this.colorSpace !== TSColorSpace.RGB ? this._channels[1] : this.cmykComponents()[1] ; }
     public get yellow():number  { return this.colorSpace !== TSColorSpace.RGB ? this._channels[2] : this.cmykComponents()[2] ; }
     public get black():number   { return this.colorSpace !== TSColorSpace.RGB ? this._channels[3] : this.cmykComponents()[3] ; }
-    public get opacity():number { return this.colorSpace !== TSColorSpace.RGB ? this._alpha : _component(this._alpha / 255) ; }
+    public get opacity():number { return this._opacity ; }
 
     // GRAY color space
     public get gray():number    { return this.grayComponent() ; }
@@ -331,15 +310,15 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             TSError.throw(`TSColor.toAlpha() : Bad alpha parameter ${newAlpha}`, { newAlpha:newAlpha }) ;
         }
         if (this.colorSpace !== TSColorSpace.RGB) { return this.toOpacity(newAlpha / 255.0) ; }
-        if (newAlpha === this._alpha) { return this ; } 
+        if (newAlpha === this.alpha) { return this ; } 
         const [R,G,B] = this.rgb() ;
         return TSColor.rgb(R,G,B, newAlpha) ;
     }
 
     public toOpacity(newOpacity:number):TSColor {
         newOpacity = _component(newOpacity) ;
-        if (this.colorSpace === TSColorSpace.RGB) { return this.toAlpha(((newOpacity * 255.0) | 0) as uint8) ; }
-        if (newOpacity === this._alpha) { return this ; } 
+        if (this.colorSpace === TSColorSpace.RGB) { return this.toAlpha(_toByte(newOpacity)) ; }
+        if (newOpacity === this._opacity) { return this ; } 
         const [C,M,Y,K] = this.cmykComponents() ; 
         return this.colorSpace === TSColorSpace.Grayscale ? TSColor.grayscale(1-K, newOpacity) : TSColor.cmyk(C,M,Y,K, newOpacity) ;
     }
@@ -363,7 +342,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         if (mode === TSToGrayScaleMode.Brightess) { gray = this.grayComponent() ; }
         else if (mode === TSToGrayScaleMode.Luminosity) { gray = this.luminosity ; }
         else { gray = this.luminance ; }
-        return TSColor.grayscale(gray) ;
+        return TSColor.grayscale(gray, this._opacity) ;
     }
 
     public lighterColor(): TSColor { return this._modifiedColorsColor(1, _cmykLighter, _rgbLighter) ; }
@@ -387,30 +366,30 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         return ((0xff - this.alpha) << 24) | (R << 16) | (G << 8) | B ;
     }
 
+    // similar colors have the same RGB bytes and the same alpha, whatever their color spaces are
+    // (isEqual() is the exact equality)
     public isSimilar(other:TSColor):boolean {
         if (this === other) { return true ; }
-        if (other instanceof TSColor) {
-            if (this.colorSpace === other.colorSpace) { return this._alpha === other.alpha && $equal(this._channels, other._channels) ; }
-            if (this.alpha === other.alpha) {
-                const [R1, G1, B1] = this.rgb() ;
-                const [R2, G2, B2] = other.rgb() ;
-                return R1 === R2 && G1 === G2 && B1 === B2 ;    
-            } 
-        }
-        return false ;
+        if (!(other instanceof TSColor) || this.alpha !== other.alpha) { return false ; }
+        const [R1, G1, B1] = this.rgb() ;
+        const [R2, G2, B2] = other.rgb() ;
+        return R1 === R2 && G1 === G2 && B1 === B2 ;    
     }
     // ============ TSLeafInspect conformance =============== 
     public leafInspect(): string {
         switch (this.colorSpace) {
-            case TSColorSpace.RGB:
+            case TSColorSpace.RGB:{
                 const [R,G,B] = this.rgb() ;
-                return `<RGB ${R} ${G} ${B}/${this._alpha}>`
-            case TSColorSpace.CMYK:
+                return `<RGB ${R} ${G} ${B}/${this.alpha}>` ;
+            }
+            case TSColorSpace.CMYK:{
                 const [C,M,Y,K] = this.cmykComponents() ;
-                return `<CMYK ${C} ${M}, ${Y} ${K}/${this.opacity}>`
-            case TSColorSpace.Grayscale:
+                return `<CMYK ${C} ${M}, ${Y} ${K}/${this.opacity}>` ;
+            }
+            case TSColorSpace.Grayscale:{
                 const [,,,KS] = this.cmykComponents() ;
                 return `<GRAY ${1-KS}/${this.opacity}>` ;
+            }
         }
     }
 
@@ -424,7 +403,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         return this === other || (
             other instanceof TSColor && 
             this.colorSpace === other.colorSpace && 
-            this._alpha === other._alpha &&
+            this._opacity === other._opacity &&
             $equal(this._channels, other._channels)
         )
 	}
@@ -448,7 +427,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
                 }
                 return _colorToStandardCSS(R, G, B, undefined, opts.uppercase) ;
             }
-            if (!!opts.rgbaCSSLike) {
+            if (opts.rgbaCSSLike) {
                 return _colorToStandardCSS(R, G, B, alpha, opts.uppercase)
             }
             return `rgba(${R},${G},${B},${this.opacity})` ;
@@ -463,28 +442,31 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
 	public toJSON(): any {
         switch (this.colorSpace) {
-            case TSColorSpace.CMYK:
+            case TSColorSpace.CMYK:{
                 const [C,M,Y,K] = this.cmykComponents() ;
-                return {cyan: C, magenta: M, yellow: Y, black:K, opacity:this._alpha}
-            case TSColorSpace.Grayscale:
+                return {cyan: C, magenta: M, yellow: Y, black:K, opacity:this._opacity} ;
+            }
+            case TSColorSpace.Grayscale:{
                 const [,,,KS] = this.cmykComponents() ;
-                return {grayscale: 1-KS, opacity:this._alpha}
-            case TSColorSpace.RGB:
+                return {grayscale: 1-KS, opacity:this._opacity} ;
+            }
+            case TSColorSpace.RGB:{
                 const [R,G,B] = this.rgb() ;
-                return this.alpha === 255 ? _colorToStandardCSS(R,G,B) : { red:R, green:G, blue:B, alpha:this._alpha } ;
+                return this.alpha === 255 ? _colorToStandardCSS(R,G,B) : { red:R, green:G, blue:B, alpha:this.alpha } ;
+            }
          }        
 	}
 
-	public toArray(): number[] { return [...this._channels, this._alpha]; }
+	public toArray(): number[] { return [...this._channels, this.colorSpace === TSColorSpace.RGB ? this.alpha : this._opacity]; }
 
     // =============== private methods =========================
     private _modifiedColorsColor(times:number, cmykFunction:(x:number)=>number, rgbFunction:(x:number)=>uint8): TSColor {
         if (this.colorSpace === TSColorSpace.RGB) {
             let [R,G,B] = this.rgb() ;
             for (let i = 0 ; i < times ;i++) { 
-                R = rgbFunction(R) ; G = rgbFunction(G), B = rgbFunction(B) ;
+                R = rgbFunction(R) ; G = rgbFunction(G) ; B = rgbFunction(B) ;
             }
-            return TSColor.rgb(R, G, B, this._alpha) ;
+            return TSColor.rgb(R, G, B, this.alpha) ;
         }
         let [C,M,Y,K] = this.cmykComponents() ;
         for (let i = 0 ; i < times ;i++) { 
@@ -492,8 +474,8 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             Y = cmykFunction(Y) ; K = cmykFunction(K) ;
         }
         return this.colorSpace === TSColorSpace.Grayscale ? 
-            TSColor.grayscale(1-K, this._alpha) :
-            TSColor.cmyk(C, M, Y, K, this._alpha) ;
+            TSColor.grayscale(1-K, this._opacity) :
+            TSColor.cmyk(C, M, Y, K, this._opacity) ;
 	}
 
 
@@ -697,7 +679,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
         yellowgreen: "#9acd32",
     };
     
-    private static readonly __WebColorsHexParsers:Array<_StringColorRegex|null> = [
+    private static readonly __WebColorsHexParsers:Array<StringColorRegex|null> = [
         null, null, null,
         {
             rx: /^([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
@@ -732,25 +714,23 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     // down : they have no equivalent standard string form, so they're keyed
     // by a single packed integer instead (see _cmykCacheKey()).
     private static _cacheColor(c:TSColor) {
-        if ($ok(c) && $defined(TSColor.__colorsCache) && c.colorSpace === TSColorSpace.RGB && TSColor.__colorsCache.size + 7 < TSColor.__colorCacheMaxSize) {
-            const [R, G, B] = c.rgb() ;
-            const s = _colorToStandardCSS(R,G,B, c.alpha) ;
-            const l = $length(c.name) ;
-            if ((l > 0 && !TSColor.__colorsCache.has(c.name)) || (l === 0 && !TSColor.__colorsCache.has(s))) {
-                if (l > 0) { TSColor.__colorsCache.set(c.name, c) ; }
-                TSColor.__colorsCache.set(s, c) ;
-                TSColor.__colorsCache.set(s.slice(1), c) ;
-                if (c.alpha === 0xff) {
-                    TSColor.__colorsCache.set(s.slice(0,7), c) ;
-                    TSColor.__colorsCache.set(s.slice(1,7), c) ;
-                    if (_isShortRGB(R,G,B)) {
-                        const short = _colorToShortCSS(R,G,B) ;
-                        TSColor.__colorsCache.set(short, c) ;
-                        TSColor.__colorsCache.set(short.slice(1), c) ;
-                    }
-                }
+        const cache = TSColor.__colorsCache ;
+        if (!$ok(c) || !$defined(cache) || c.colorSpace !== TSColorSpace.RGB || cache.size + 7 >= TSColor.__colorCacheMaxSize) { return ; }
+        const [R, G, B] = c.rgb() ;
+        const s = _colorToStandardCSS(R,G,B, c.alpha) ;
+        const l = $length(c.name) ;
+        if ((l > 0 && cache.has(c.name)) || (l === 0 && cache.has(s))) { return ; }
+
+        const keys = [s, s.slice(1)] ;
+        if (l > 0) { keys.unshift(c.name) ; }
+        if (c.alpha === 0xff) {
+            keys.push(s.slice(0,7), s.slice(1,7)) ;
+            if (_isShortRGB(R,G,B)) {
+                const short = _colorToShortCSS(R,G,B) ;
+                keys.push(short, short.slice(1)) ;
             }
         }
+        keys.forEach(k => cache.set(k, c)) ;
     }
 
     // colorSpace is folded into the low bit of the key (rather than kept
@@ -759,6 +739,18 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
     // C=M=Y=0) while still being observably different objects (colorSpace
     // affects compare()/isEqual()'s fast path and toString()'s output format)
     // — see _cmykCacheKey().
+    // the cache key is quantized: a cached color is only returned if its components are the asked ones,
+    // computation jitters apart (eg. 1-0.7 and 0.3), so the cache never changes the asked color
+    private static _cmykColor(colorSpace:TSColorSpace, channels:number[], opacity:number):TSColor {
+        const [C,M,Y,K] = channels ;
+        const key = _cmykCacheKey(colorSpace, C, M, Y, K, opacity) ;
+        const cached = TSColor._cachedCMYKColor(key) ;
+        if ($defined(cached) && _sameComponents([...cached!._channels, cached!._opacity], [...channels, opacity])) { return cached! ; }
+        const color = new TSColor(colorSpace, channels, opacity) ;
+        if (!$defined(cached)) { TSColor._cacheCMYKColor(color, key) ; }
+        return color ;
+    }
+
     private static _cacheCMYKColor(c:TSColor, key:number) {
         if (!$ok(c)) { return ; }
         if (!$defined(TSColor.__cmykColorsCache)) { TSColor.__cmykColorsCache = new Map<number,TSColor>() ; }
@@ -777,7 +769,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             for (let name of $keys(TSColor.__TSWebColorNames)) {
                 const [channels, alpha] = TSColor._parseHexColorString(TSColor.__TSWebColorNames[name]) ;
                 if ($ok(channels)) {
-                    const c = new TSColor(TSColorSpace.RGB, channels, alpha, name as string) ;
+                    const c = new TSColor(TSColorSpace.RGB, channels, _toUnit(alpha), name as string) ;
                     TSColor._cacheColor(c) ;
                 }
             } ;
@@ -788,26 +780,21 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
 
     private static _parseHexColorString(s:string):[uint8[]|null, uint8] {
         const len = $length(s) ;
-        if (len < 10) {
-            let parser = TSColor.__WebColorsHexParsers[len];
-            if ($ok(parser)) {
-                const m = parser.rx.exec(s) ;
-                if ($ok(m)) {
-                    let channels:uint8[] = [] ;
-                    for (let i = 0 ; i < 3 ; i++) { 
-                        const v = Number.parseInt(m[i+1], 16) ;
-                        if (!$isunsigned(v,0xFF)) { return [null, UINT8_MIN] ; }
-                        channels[i] = <uint8>v ; 
-                    }
-                    if (parser.short) {
-                        channels = channels.map(v => ((v<<4) | v) as uint8)
-                    }
-                    let alpha = m.length === 5 ? <uint8>Number.parseInt(m[4], 16) : UINT8_MAX ;
-                    return [channels, alpha] ;
-                }
-            }
+        const parser = len < 10 ? TSColor.__WebColorsHexParsers[len] : undefined ;
+        const m = $ok(parser) ? parser.rx.exec(s) : null ;
+        if (!$ok(m)) { return [null, UINT8_MIN] ; }
+
+        let channels:uint8[] = [] ;
+        for (let i = 0 ; i < 3 ; i++) { 
+            const v = Number.parseInt(m[i+1], 16) ;
+            if (!$isunsigned(v,0xFF)) { return [null, UINT8_MIN] ; }
+            channels[i] = <uint8>v ; 
         }
-        return [null, UINT8_MIN] ;
+        if (parser!.short) {
+            channels = channels.map(v => ((v<<4) | v) as uint8)
+        }
+        const alpha = m.length === 5 ? <uint8>Number.parseInt(m[4], 16) : UINT8_MAX ;
+        return [channels, alpha] ;
     }
 }
 
@@ -845,9 +832,7 @@ function _colorToShortCSS(R:uint8, G:uint8, B:uint8, uppercase?:Nullable<boolean
     const lc = !uppercase ;
     return `#${R.toHex1(lc)}${G.toHex1(lc)}${B.toHex1(lc)}` ;
 }
-export interface TSColorConstructor {
-    new (colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string): TSColor;
-}
+export type TSColorConstructor = new (colorSpace:TSColorSpace, channels:number[], alpha:number, name?:string) => TSColor;
 
 function _colorToStandardCSS(R:uint8, G:uint8, B:uint8, A?:Nullable<uint8>, uppercase?:Nullable<boolean>):string {
     const lc = !uppercase ;
@@ -855,7 +840,7 @@ function _colorToStandardCSS(R:uint8, G:uint8, B:uint8, A?:Nullable<uint8>, uppe
                   : `#${R.toHex2(lc)}${G.toHex2(lc)}${B.toHex2(lc)}`
 }
 
-interface _StringColorRegex {
+interface StringColorRegex {
     rx: RegExp ;
     short:boolean ;
 }
@@ -873,5 +858,11 @@ function _hue(r:number, g:number, b:number, max:number, delta:number):number {
 function _cmykLighter(X:number):number { X = _component(X) ; return -(X*X)/3.0+5.0*(X)/6.0 ; }
 function _cmykDarker(X:number):number  { X = _component(X) ; return 2*(X*X)/3.0+X/2.0+0.25 ; }
 
-function _rgbLighter(X:number):uint8   { return ((_cmykDarker(X/255.0) * 255) | 0) as uint8}
-function _rgbDarker(X:number):uint8   { return ((_cmykLighter(X/255.0) * 255) | 0) as uint8}
+function _rgbLighter(X:number):uint8   { return _toByte(_cmykDarker(_toUnit(X))) ; }
+function _rgbDarker(X:number):uint8    { return _toByte(_cmykLighter(_toUnit(X))) ; }
+
+function _sameComponents(a:number[], b:number[]):boolean { return a.every((v, i) => Math.abs(v - b[i]) < 1e-9) ; }
+
+// [0 .. 1] component (or opacity) to [0 .. 255] byte, and back
+function _toByte(x:number):uint8 { return Math.round(_component(x) * 255) as uint8 ; }
+function _toUnit(v:number):number { return v / 255 ; }

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs'; // NOSONAR due to webpack5 usage
+import { writeFileSync } from 'fs'; // NOSONAR: no 'node:' prefix for webpack 5
 import {
 	basename, 
 	dirname,
@@ -6,7 +6,7 @@ import {
 	join,
     isAbsolute,
     normalize 
-} from 'path' ; // NOSONAR due to webpack5 usage
+} from 'path' ; // NOSONAR: no 'node:' prefix for webpack 5
 
 const paths = [
     "",
