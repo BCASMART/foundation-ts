@@ -28,9 +28,8 @@ export class TSRange implements TSObject, TSLeafInspect, TSClone<TSRange>, Inter
 	public constructor(startingDate:TSDate, endingDate:TSDate)
 	public constructor() {
 		const n = arguments.length ;
+		if (n === 0) { TSError.throw('TSRange.constructor(): no arguments provided') ; }
 		switch (n) {
-			case 0: // NOSONAR: TSError throws
-				TSError.throw('TSRange.constructor(): no arguments provided') ;
 			case 1:
 				this._initWithOneArgument(arguments[0], Array.from(arguments)) ;
 				break ;

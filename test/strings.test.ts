@@ -328,6 +328,15 @@ export const stringGroups = [
             t.expect6($strictascii("<wxcvbn,;:=>WXCVBN?./+≤‹≈©◊ß~∞…÷≠≥›⁄¢√ı¿•\\𐜮\\±")).null() ;
         }) ;
 
+        // the scanning functions read the strings by code points: astral characters (surrogate pairs) are kept whole
+        group.unary("trims and lines with astral characters", async t => {
+            t.expect0($ftrim(' \u00a0😀\u2003 ')).is('😀') ;
+            t.expect1($ftrim('😀 a 😀')).is('😀 a 😀') ;
+            t.expect2($ltrim('  𐘀x')).is('𐘀x') ;
+            t.expect3($rtrim('x𐘀  ')).is('x𐘀') ;
+            t.expect4($lines('a😀\r\nb😀\n😀')).is(['a😀', 'b😀', '😀']) ;
+        }) ;
+
     })
 ] ;
 

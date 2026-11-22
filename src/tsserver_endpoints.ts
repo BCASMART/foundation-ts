@@ -331,8 +331,8 @@ class TSPathParser {
                 this._state = TSPathParserState.Bracket ; 
                 this._constructUri = false ; 
                 break ;
-            case '}': // NOSONAR: this case ends with a throw
-                TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${this._path}'.`, { position:i, ...this._errorOptions}) ; 
+            case '}':
+                return TSError.throw(`TSServerEndPoint.constructor(): Misplaced '}' character in path '${this._path}'.`, { position:i, ...this._errorOptions}) ; 
             case '/':
                 this._append(c, String.raw`\/`) ;
                 this.depth++ ;
@@ -340,8 +340,8 @@ class TSPathParser {
             case '-': case '$': case '+': case '*': case '?': case '.': case '(':  case ')':
                 this._append(c, '\\'+c) ;
                 break ;
-            case '^': case '\\': case '[': case ']': case '`': case '|': // NOSONAR: this case ends with a throw
-                this._throwForbidden(String.raw`found forbidden character '\u${_hex(c)}' in path '${this._path}'.`, c, i) ;
+            case '^': case '\\': case '[': case ']': case '`': case '|':
+                return this._throwForbidden(String.raw`found forbidden character '\u${_hex(c)}' in path '${this._path}'.`, c, i) ;
             default:
                 this._append(c.toLowerCase(), c) ;
                 break ;                                
@@ -433,7 +433,7 @@ function _startsWithUri(path:string, uri:string):boolean
 { return path.length >= uri.length && path.slice(0, uri.length).toLowerCase() === uri ; }
 
 function _isLetter(c:string):boolean { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ; }
-function _hex(c:string):string { return c.charCodeAt(0).toHex4() ; } // NOSONAR: c comes from charAt(), so it is already a single UTF-16 code unit
+function _hex(c:string):string { return c.codePointAt(0)!.toHex4() ; }
 
 interface TSPathToken {
     name:string ;

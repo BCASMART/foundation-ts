@@ -1,5 +1,5 @@
-import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok } from "./commons";
-import { $arrayequal, $arraycompare, $compare, $equal, $visualequal } from "./compare";
+import { $count, $defined, $isarray, $isfunction, $ismethod, $isnumber, $isstring, $ok, $string } from "./commons";
+import { $arrayequal, $arraycompare, $compare, $equal, $visualequal, $visualkey, $visualorder } from "./compare";
 import { $declareMethods } from "./object";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
@@ -17,15 +17,17 @@ import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types"
  */
 
 export type $mapCallback<T,R> = (value: T, index: number) => Nullable<R> ;  
-export interface $mapOptions<T, R> { // NOSONAR: name accepted for matchnig the function
+export interface TSMapOptions<T, R> {
     callback?: $mapCallback<T,R>,
     unicity?:Nullable<TSUnicity> ; // NOSONAR: optional
 }
+/** @deprecated use TSMapOptions */
+export type $mapOptions<T, R> = TSMapOptions<T,R> ;
 
-export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] {
-    let opts:$mapOptions<T,R> = {} ;
+export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<$mapCallback<T,R> | TSMapOptions<T,R>>): R[] {
+    let opts:TSMapOptions<T,R> = {} ;
     if ($isfunction(options)) { opts = { callback: options as $mapCallback<T,R> } ; }
-    else if ($ok(options)) { opts = options as $mapOptions<T,R> ; }
+    else if ($ok(options)) { opts = options as TSMapOptions<T,R> ; }
     if (!$ok(opts.callback)) { opts.callback = v => v as any as R ; }
     if (!$ok(opts.unicity)) { opts.unicity = TSUnicity.None ; }
 
@@ -44,15 +46,15 @@ export function $map<T, R = T>(values: Nullable<Iterable<T>>, options?:Nullable<
                 break ;
             }
             case TSUnicity.Objects:
-                _mapEquality(ret, values, fn, (_:R[]) => false)
+                _mapObjects(ret, values, fn) ;
                 break ;
 
             case TSUnicity.Equality:
-                _mapEquality(ret, values, fn, (src:R[], o?:Nullable<R>) => $includesequal(src, o))
+                _mapEquality(ret, values, fn) ;
                 break ;
 
             case TSUnicity.Visual:
-                _mapEquality(ret, values, fn, (src:R[], o?:Nullable<R>) => $includesvisual(src, o))
+                _mapVisual(ret, values, fn) ;
                 break ;
         }
     }
@@ -90,6 +92,35 @@ export function $includesvisual<T = any>(values: Nullable<Iterable<T>>, object:a
 }
 
 
+/*
+    Returns a new array with the given values in the order of $visualorder(), which is the result of
+    [...values].sort($visualorder), but the visual key of each value is computed once (instead of twice
+    by comparison). As with Array.sort(), undefined values are put at the end (null values come first).
+ */
+export function $visualsort<T = any>(values: Nullable<Iterable<T>>): T[] {
+    if (!$ok(values)) { return [] ; }
+    const all = Array.from(values!) ;
+    // $visualcompare() compares two URLs with their href and an URL with something else with $string().
+    // If these differ (an URL subclass), a key per value is impossible, so we sort as before
+    if (all.some((v:any) => v instanceof URL && $string(v) !== v.href)) { return all.sort($visualorder) ; }
+    const defined = all.filter(v => v !== undefined) ;
+    const keys = defined.map((v:any) => {
+        const vk = v instanceof URL ? v.href : v ;
+        return $ok(v) ? $visualkey(vk) : undefined ;
+    }) ;
+    const indexes = defined.map((_, i) => i) ;
+    indexes.sort((i, j) => {
+        const a = keys[i], b = keys[j] ;
+        if (a === undefined) { return b === undefined ? 0 : -1 ; } // null values first, like $visualorder()
+        if (b === undefined) { return 1 ; }
+        if (a === b) { return 0 ; }
+        return a < b ? -1 : 1 ;
+    }) ;
+    const ret:T[] = indexes.map(i => defined[i]) ;
+    for (let n = all.length - defined.length ; n > 0 ; n--) { ret.push(undefined as T) ; }
+    return ret ;
+}
+
 export function $first<T = any>(values: Nullable<ArrayLike<T>>): T | undefined {
     const n = $count(values); return n > 0 ? values![0] : undefined;
 }
@@ -113,11 +144,13 @@ export function $max<T=any>(values:Nullable<Iterable<T>>):T|undefined
 { return _minmax(values, Ascending) ;}
 
 
-export interface $averageOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSAverageOptions {
     countsOnlyOKItems?: boolean; // this one superseeds countsOnlyDefinedItems
     countsOnlyDefinedItems?: boolean;
 }
-export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageOptions = {}): number | undefined {
+/** @deprecated use TSAverageOptions */
+export type $averageOptions = TSAverageOptions ;
+export function $average<T = any>(values: Nullable<Iterable<T>>, opts: TSAverageOptions = {}): number | undefined {
     let [count, definedCount, okCount, sum] = _countsAndSum<T>(values);
 
     if (opts.countsOnlyOKItems) { count = okCount; }
@@ -128,8 +161,8 @@ export function $average<T = any>(values: Nullable<Iterable<T>>, opts: $averageO
 
 declare global {
     export interface Array<T> extends TSObject, TSFusionEnumeration {
-        average:        (this:T[], opts?: $averageOptions) => number | undefined ;
-        filteredMap:    <R = T>(this:T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>) => R[];
+        average:        (this:T[], opts?: TSAverageOptions) => number | undefined ;
+        filteredMap:    <R = T>(this:T[], options?:Nullable<$mapCallback<T,R> | TSMapOptions<T,R>>) => R[];
         filteredSet:    <R = T>(this:T[], callback?:Nullable<$mapCallback<T,R>>) => Set<R>;
         includesequal:  (this:T[], object:any) => boolean ;
         includesvisual: (this:T[], object:any) => boolean ;
@@ -139,6 +172,8 @@ declare global {
         min:            (this:T[]) => T | undefined ;
         singular:       (this:T[]) => boolean ;
         sum:            (this:T[]) => number | undefined ;
+        visualSort:     (this:T[]) => T[] ;
+        toVisualSorted: (this:T[]) => T[] ;
     }
 }
 
@@ -148,9 +183,9 @@ declare global {
  */
 
 $declareMethods(Array, {
-    average<T>(this: T[], opts?: $averageOptions): number | undefined { return $average(this, opts); },
+    average<T>(this: T[], opts?: TSAverageOptions): number | undefined { return $average(this, opts); },
     compare<T>(this:T[], other:any):Comparison { return $isarray(other) ? $arraycompare(this, other) : undefined ; },
-    filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | $mapOptions<T,R>>): R[] { return $map(this, options); },
+    filteredMap<T, R>(this: T[], options?:Nullable<$mapCallback<T,R> | TSMapOptions<T,R>>): R[] { return $map(this, options); },
     filteredSet<T, R>(this: T[], callback?:Nullable<$mapCallback<T,R>>): Set<R> { return $arrayset(this, callback); },
     includesequal<T>(this:T[], object:any):boolean { return $includesequal(this, object) ; },
     includesvisual<T>(this:T[], object:any):boolean { return $includesvisual(this, object) ; },
@@ -163,18 +198,77 @@ $declareMethods(Array, {
     sum<T>(this: T[]): number | undefined { return $sum(this); },
     singular<T>(this: T[]): boolean { return this.length === 1 ; },
     toArray<T>(this:T[]): T[] { return this ; }, // QUESTION: should we take a copy here
+    // sorts the array in place and returns it, like this.sort($visualorder) (but faster, see $visualsort()).
+    // As with sort(), the undefined values are put at the end, followed by the empty slots of a sparse array
+    visualSort<T>(this:T[]): T[] {
+        const n = this.length ;
+        const present:T[] = [] ;
+        for (let i = 0 ; i < n ; i++) { if (i in this) { present.push(this[i]) ; } }
+        const sorted = $visualsort(present) ;
+        for (let i = 0 ; i < sorted.length ; i++) { this[i] = sorted[i] ; }
+        // the empty slots at the end: truncating the array removes its last elements, restoring its length leaves them empty
+        this.length = sorted.length ;
+        this.length = n ;
+        return this ;
+    },
+    // returns a sorted copy of the array, like this.toSorted($visualorder) (but faster, see $visualsort())
+    toVisualSorted<T>(this:T[]): T[] { return $visualsort(this) ; },
 }) ;
 
 // ================================== private functions ==============================
 
-function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>, includesFn:(source:R[], v?:Nullable<R>)=>boolean) {
+function _mapObjects<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>) {
     const set = new Set<R>() ;
     let index = 0;
-    for (let v of values!) {
+    for (let v of values) {
         const mv = fn(v, index++);
-        if ($ok(mv) && !set.has(mv) && !includesFn(target, mv)) { 
+        if ($ok(mv) && !set.has(mv)) { 
             target.push(mv) ; 
             set.add(mv) ;
+        }
+    }
+}
+
+// $equal() is === on two primitive values (NaN apart), so the primitive values already kept are
+// found in a Set. An object (or NaN) is still compared with $equal() to all the kept values, and a
+// primitive value to the kept objects (since an object isEqual() method may accept it)
+function _mapEquality<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>) {
+    const primitives = new Set<R>() ;
+    const objects:R[] = [] ;
+    let index = 0;
+    for (let v of values) {
+        const mv = fn(v, index++);
+        if (!$ok(mv)) { continue ; }
+        if (_isprimitive(mv)) {
+            if (primitives.has(mv) || $includesequal(objects, mv)) { continue ; }
+            primitives.add(mv) ;
+        }
+        else {
+            // the identity check comes first, as before (so a second NaN is not kept)
+            if (objects.includes(mv) || $includesequal(target, mv)) { continue ; }
+            objects.push(mv) ;
+        }
+        target.push(mv) ;
+    }
+}
+
+function _isprimitive(v:any):boolean {
+    const t = typeof v ;
+    return t === 'string' || t === 'boolean' || t === 'bigint' || (t === 'number' && !Number.isNaN(v)) ;
+}
+
+// two values are visually equal if and only if their visual keys are equal
+function _mapVisual<T, R>(target:R[], values:Iterable<T>, fn:$mapCallback<T,R>) {
+    const keys = new Set<string>() ;
+    let index = 0;
+    for (let v of values) {
+        const mv = fn(v, index++);
+        if ($ok(mv)) {
+            const key = $visualkey(mv) ;
+            if (!keys.has(key)) { 
+                target.push(mv) ; 
+                keys.add(key) ;
+            }
         }
     }
 }

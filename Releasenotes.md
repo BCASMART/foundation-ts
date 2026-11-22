@@ -2,6 +2,36 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.10
+
+This version removes ends the SonarQube analysis with new bug corrections and algorithms improvements.
+
+**<u>Warning</u>**: foundation-ts now requires Node.js 24.22.1 or later (`engines` in `package.json`), because of the security flaws of all previous versions.
+
+#### Corrections
+
+- `TSList`: `toArray()`, `forEach()`, `search()`, `searchNode()` and `toString()` (and therefore `getItems()`, `toJSON()`, `JSON.stringify()`, and the `TSRangeSet` methods using them) were recursive and overflowed the stack on long lists (from about 8000 nodes). They now use loops.
+- `$setequal()` (and therefore `$unorderedEqual()`) used `Set.prototype.toArray()`, which is only defined when `mapset.ts` is loaded: it threw a `TypeError` when only `compare.ts` was imported.
+- `$unorderedEqual()` now checks that each element is present the same number of times: the duplicates used to be ignored (`[1, 1, 2]` and `[1, 2, 2]` were equal). As before, the elements are compared like `Set.has()` does (objects by reference).
+
+#### What's new ?
+
+- The options interfaces are renamed with a `TS` prefix: `TSMapOptions`, `TSAverageOptions`, `TSNormSpacesOptions`, `TSStringOptions`, `TSPartialOptions`, `TSObjectFusionOptions` (was `$fusionOptions`), `TSEncryptOptions`, `TSDecryptOptions`, `TSHashOptions`, `TSPasswordOptions`, `TSUnitOptions`, `TSWriteStringOptions`, `TSWriteBufferOptions`, `TSStringWithOffsetOptions` (was `$c2StrWOffsetOpts`), `TSDurationDescriptionOptions`, `TSEnvOptions` and `TSParsedEnvOptions`. The former `$...Options` names are still available as deprecated type aliases.
+- `$visualsort(values)` returns a new array with the given values sorted like `[...values].sort($visualorder)`, about 10 times faster since the visual key of each value is computed once instead of twice by comparison. As with `Array.sort()`, `undefined` values are put at the end. The new `Array` methods `visualSort()` and `toVisualSorted()` follow the standard `sort()` and `toSorted()` conventions: `arr.visualSort()` sorts the array in place and returns it (like `arr.sort($visualorder)`), `arr.toVisualSorted()` returns a sorted copy (like `arr.toSorted($visualorder)`).
+- The new `Array` method `toShuffled(max?)` returns a new array with the elements in a random order, like `$shuffle()`.
+- `$visualkey(v)` returns the key compared by `$visualequal()`: two non null values are visually equal if and only if their visual keys are equal.
+- `TSRangeSet`: `union()`, `substraction()` and `contains()` with a `TSRangeSet` argument, and the constructor with an array of ranges, now work in one pass on the sorted ranges: `substraction()` is about 300 times faster, `union()`, `contains()` and the constructor 15 to 25 times faster. The methods modifying the set itself (`unionWidth()`, `substractFrom()`) are unchanged.
+- `$map()`: the `TSUnicity.Visual` unicity now uses a `Set` of visual keys, and the `TSUnicity.Equality` unicity a `Set` of the primitive values (strings, numbers, booleans, bigints), instead of comparing each value to all the kept ones. The result is several hundred times faster. The objects are still compared one by one with `$equal()`.
+- `TSQualifier.LIKE()`: the regular expression is built once per qualifier instead of once per tested value.
+- `TSQualifier.IN()` and `TSQualifier.NIN()` with `filterValues()` (and `filterWithQualifier()`): during each call, the primitive values (strings, numbers, booleans, bigints) of the IN and NIN qualifiers are put in a `Set` instead of being compared one by one to each tested value (more than several hundred times faster. The other values are still compared with `$equal()`, `validateValue()` is unchanged and the `validateValue()` method of a subclass is always called.
+- `$random()` (and therefore `$shuffle()`): is way faster. When the random bytes come from node crypto or `globalThis.crypto`, they are taken from a 4096 bytes pool (as node `crypto.randomInt()` does) instead of asking 7 bytes for each draw. With a provider set by `$setCryptoProvider()`, the bytes are asked as before.
+- `TSList` (and `TSRangeSet`) iteration: the generator is replaced by an iterator object which behaves the same way. It inherits the global `Iterator` class when it exists, so that the iterator helpers (`map()`, `filter()`, `take()`, `toArray()`...) are still available. The result is 1.5 to 3 times faster, except on very short lists.
+- **<u>Deprecated</u>**: 
+  - the `Array` method `shuffle()` (use `toShuffled()`, which follows the standard naming scheme for this kind of methods. 
+  - former options type names `$mapOptions`, `$averageOptions`, `$normspacesOptions`, `$stringOptions`, `$partialOptions`, `$fusionOptions`, `$encryptOptions`, `$decryptOptions`, `$hashOptions`, `$passwordOptions`, `$unitOptions`, `$writeStringOptions`, `$writeBufferOptions`, `$c2StrWOffsetOpts`, `$durationDescriptionOptions`, `$envOptions` and `$parsedEnvOptions` (use the `TS...Options` interfaces above).
+
+<hr/>
+
 ## version 1.8.9
 
 This version does not trigger any SonarQube warnings or errors from SonarQube for IDE VSCode extension. Il also remove the `tools` directory and all its configuration files.

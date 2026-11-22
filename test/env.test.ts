@@ -83,6 +83,13 @@ TSTest.group("Environment manipulation functions", async (group) => {
 
 
 
+    group.unary("$env() with astral characters", async (t) => {
+        // the parser moves one UTF-16 code unit at a time: an escaped astral character must not be duplicated
+        t.expect0($env('A=\\😀x')).is({ A:'😀x' }) ;
+        t.expect1($env('B="a😀b"')).is({ B:'a😀b' }) ;
+        t.expect2($env('C=\\u00e9😀')).is({ C:'é😀' }) ;
+    }) ;
+
     group.unary("$env() function", async (t) => {
         const debug = { debug:true } ;
         const b = "\n \t   # empty line with commentaries\n# a last line as commentaries" ;

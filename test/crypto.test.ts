@@ -396,7 +396,7 @@ export const cryptoGroups = [
 
             N = 16 ;
             const base2 = base.slice(0, N) ;
-            const res2 = base2.shuffle(N*2) ;
+            const res2 = base2.toShuffled(N*2) ;
             
             t.expectC(res2.length).is(N) ;
 
@@ -423,6 +423,17 @@ export const cryptoGroups = [
             t.expectK(performance.now() - start).lt(3000) ;
             t.expectL(new Set(shuffled).size).is(200_000) ;
 
+            // toShuffled() returns a copy, the deprecated shuffle() does the same
+            const src = [1, 2, 3, 4, 5, 6, 7, 8] ;
+            const copy = src.toShuffled() ;
+            t.expectM(copy === src).false() ;
+            t.expectN(src).is([1, 2, 3, 4, 5, 6, 7, 8]) ;
+            t.expectO([...copy].sort()).is(src) ;
+            t.expectP(src.toShuffled(3).length).is(3) ;
+            const old = src.shuffle() ; // deprecated, still available
+            t.expectQ(old === src).false() ;
+            t.expectR([...old].sort()).is(src) ;
+            t.expectS(Object.keys(Array.prototype).includes('toShuffled')).false() ; // not enumerable
         }) ;
 
     }),
@@ -588,6 +599,37 @@ export const cryptoGroups = [
                 $setCryptoProvider(null) ;
             }
             t.expect1(logged).is(0) ;   // the error used to be written in the console
+        }) ;
+    }),
+    TSTest.group("$random() bytes pool", async (group) => {
+        group.unary("draws from the pool are uniform and in range", async (t) => {
+            $setCryptoProvider(null) ;
+            const counts = new Array(10).fill(0) ;
+            let outside = 0 ;
+            for (let i = 0 ; i < 50000 ; i++) { const r = $random(10) ; if (r < 0 || r >= 10 || !Number.isInteger(r)) { outside++ ; } else { counts[r]++ ; } }
+            t.expect0(outside).is(0) ;
+            t.expect1(counts.every(c => c > 4500 && c < 5500)).true() ; // 5000 expected, the pool is refilled many times
+            t.expect2($shuffle([1, 2, 3, 4, 5, 6]).sort()).is([1, 2, 3, 4, 5, 6]) ;
+            t.expect3($random(1)).is(0) ;
+        }) ;
+        group.unary("a provider is used at once, 7 bytes by draw, even after pool draws", async (t) => {
+            $setCryptoProvider(null) ;
+            $random(100) ; // fills the pool
+            const asked:number[] = [] ;
+            $setCryptoProvider({ randomBytes:(n) => { asked.push(n) ; return new Uint8Array(n).fill(1) ; } }) ;
+            try {
+                const v = $random(1000) ;
+                t.expect0(asked).is([7]) ;
+                t.expect1(v).is((1 + 0x100 + 0x10000 + 0x1000000 + 0x100000000 + 0x10000000000 + 0x1000000000000) % 1000) ;
+                $random(1000) ;
+                t.expect2(asked).is([7, 7]) ;
+            }
+            finally { $setCryptoProvider(null) ; }
+            let grv = 0 ;
+            $setCryptoProvider({ getRandomValues:(a:any) => { grv += a.length ; return a ; } }) ;
+            try { $random(1000) ; t.expect3(grv).is(7) ; }
+            finally { $setCryptoProvider(null) ; }
+            t.expect4($random(1000) < 1000).true() ;
         }) ;
     })
 ] ;

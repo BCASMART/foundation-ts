@@ -209,7 +209,7 @@ export class TSPhoneNumber implements TSObject, TSLeafInspect, TSClone<TSPhoneNu
             case 'x': state.ret += this.country.alpha2Code ; break ;
             case 'X': state.ret += this.country.alpha3Code ; break ;
             default:
-                if (c >= '1' && c <= '9') { _appendPhoneDigits(state, c.charCodeAt(0) - 0x30) ; } // NOSONAR: c is an ASCII digit
+                if (c >= '1' && c <= '9') { _appendPhoneDigits(state, c.codePointAt(0)! - 0x30) ; }
                 else { state.ret += c ; }
                 break ;
         }

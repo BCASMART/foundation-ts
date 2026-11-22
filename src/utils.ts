@@ -144,7 +144,7 @@ const FoundationTermAnsiSequences: (string | undefined)[] = (() => {
         'y': "\x1b[33m", 'Y': "\x1b[43m",                            // yellow
     } ;
     const a: (string | undefined)[] = new Array(128) ;
-    for (const k in m) { a[k.charCodeAt(0)] = m[k] ; } // NOSONAR: ASCII terminal escape sequences, UTF-16 code units are what we need
+    for (const k in m) { a[k.codePointAt(0)!] = m[k] ; }
     return a ;
 })() ;
 
@@ -171,7 +171,7 @@ export function $term(s: string, escapeChar: string = '&'): string {
 // ANSI sequence for the character following the escape char at position i in s
 function _termSequence(s: string, i: number, escapeChar: string): string {
     if (s[i] === escapeChar) { return escapeChar ; }                   // doubled -> single
-    const next = s.charCodeAt(i) ; // NOSONAR: ASCII terminal escape sequences, UTF-16 code units are what we need
+    const next = s.codePointAt(i)! ;
     return (next < 128 ? FoundationTermAnsiSequences[next] : undefined) ?? escapeChar + s[i] ; // unknown -> kept verbatim
 }
 
@@ -250,7 +250,7 @@ export function $jsonstrip(source: Nullable<string>): string {
     let segmentStart = 0;
     let i = 0;
     while (i < len) {
-        const c = s.charCodeAt(i); // NOSONAR: ASCII JSON syntax characters, UTF-16 code units are what we need
+        const c = s.codePointAt(i)!;
         if (c === 34 /* " */) { i = _jsonStringEnd(s, i + 1) ; continue ; }
         const commentEnd = c === 47 /* / */ ? _jsonCommentEnd(s, i) : -1 ;
         if (commentEnd < 0) { i++ ; continue ; }
@@ -265,7 +265,7 @@ export function $jsonstrip(source: Nullable<string>): string {
 // position following the end of the JSON string whose content starts at position i in s
 function _jsonStringEnd(s: string, i: number): number {
     while (i < s.length) {
-        const c = s.charCodeAt(i) ; // NOSONAR: ASCII JSON syntax characters, UTF-16 code units are what we need
+        const c = s.codePointAt(i)! ;
         if (c === 92 /* \ */) { i += 2 ; continue ; }   // escaped character
         i++ ;
         if (c === 34 /* " */) { break ; }

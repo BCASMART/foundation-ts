@@ -1,4 +1,4 @@
-import { $count, $defined, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
+import { $defined, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
 import { TSDate } from "./tsdate";
 import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
 import { $normspaces, $ascii } from "./strings";
@@ -120,9 +120,7 @@ export function $visualcompare(a:any, b:any):Comparison {
     if (!$isstring(b)) { b = $string(b) ; }
 	if (a === b) { return Same ; }
 
-    a = $ascii($normspaces(a)).toUpperCase() ;
-    b = $ascii($normspaces(b)).toUpperCase() ;
-    return _strcompare(a, b) ;
+    return _strcompare(_visualStringKey(a), _visualStringKey(b)) ;
 }
 
 export function $visualorder(a:any, b:any):NonNullable<Comparison>
@@ -198,25 +196,36 @@ export function $mapequal(a:Nullable<Map<any,any>>, b:Nullable<Map<any,any>>): b
 
 export function $setequal(sa:Nullable<Set<any>>, sb:Nullable<Set<any>>):boolean {
     if (sa === sb) { return true ; }
-    return $ok(sa) && $ok(sb) && sa!.size === sb!.size && sa!.toArray().every(e => sb!.has(e)) ;
+    if (!$ok(sa) || !$ok(sb) || sa!.size !== sb!.size) { return false ; }
+    // no Set.prototype.toArray() here: it is only defined when mapset.ts is loaded
+    for (const e of sa!) { if (!sb!.has(e)) { return false ; } }
+    return true ;
 }
 
 
+// the same elements, in any order, each one the same number of times (a Set has each element once).
+// Like the Set.has() method, the elements are compared with the SameValueZero equality (objects by reference).
+// (the duplicates used to be ignored: [1, 1, 2] and [1, 2, 2] were equal)
 export function $unorderedEqual(sa:Nullable<any[]|Set<any>>, sb:Nullable<any[]|Set<any>>):boolean {
     if (sa === sb) { return true ; }
-	if (!$ok(sa) || !$ok(sb)) { return false ; }
+	if (!$ok(sa) || !$ok(sb)) { return false ; }
+    const a = _unorderedItems(sa!), b = _unorderedItems(sb!) ;
+    if (!$ok(a) || !$ok(b)) { return false ; }
+    if (sa instanceof Set && sb instanceof Set) { return $setequal(sa, sb) ; }
+    if (a!.length !== b!.length) { return false ; }
+    const counts = new Map<any, number>() ;
+    for (const e of a!) { counts.set(e, (counts.get(e) ?? 0) + 1) ; }
+    for (const e of b!) {
+        const n = counts.get(e) ;
+        if (!n) { return false ; }
+        counts.set(e, n - 1) ;
+    }
+    return true ;
+}
 
-    let a:Set<any>|undefined = undefined ;
-    let b:Set<any>|undefined = undefined ;
-    let na = -1 ;
-    let nb = -2 ;
-
-    if ($isarray(sa)) { na = $count(sa as any[]) ; a = new Set<any>(sa as any[]) ; }
-    else if (sa instanceof Set) { na = sa.size ; a = sa ; }
-    if ($isarray(sb)) { nb = $count(sb as any[]) ; b = new Set(sb as any[]) ; }
-    else if (sb instanceof Set) { nb = sb.size ; b = sb ; }
-    
-    return na === nb && $setequal(a, b) ;
+function _unorderedItems(v:any):any[]|undefined {
+    if ($isarray(v)) { return v ; }
+    return v instanceof Set ? [...v] : undefined ;
 }
 
 export function $visualequal(a:any, b:any):boolean {
@@ -225,8 +234,14 @@ export function $visualequal(a:any, b:any):boolean {
     if (!$isstring(a)) { a = $string(a) ; }
     if (!$isstring(b)) { b = $string(b) ; }
     if (a === b) { return true ; }
-	return $ascii($normspaces(a)).toUpperCase() === $ascii($normspaces(b)).toUpperCase() ;
+	return _visualStringKey(a) === _visualStringKey(b) ;
 }
+
+// the key compared by $visualequal(): two non null and non undefined values are visually equal
+// if and only if their visual keys are equal (so a Set of keys can replace a list of visualequal() calls)
+export function $visualkey(v:any):string { return _visualStringKey($isstring(v) ? v : $string(v)) ; }
+
+function _visualStringKey(s:string):string { return $ascii($normspaces(s)).toUpperCase() ; }
 
 // Why not implementing an epsilon equal or a near equal function
 

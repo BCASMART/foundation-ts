@@ -313,14 +313,16 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 	}
 }
 
-export interface $c2StrWOffsetOpts { // NOSONAR: name accepted for matchnig the function
+export interface TSStringWithOffsetOptions {
     form?:TSIsoDateForm ;
     minutesOffset?:int ;
     milliseconds?:uint ;
     forceZ?:boolean ;
 } ;
+/** @deprecated use TSStringWithOffsetOptions */
+export type $c2StrWOffsetOpts = TSStringWithOffsetOptions ;
 
-export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpts = {}) {
+export function $components2StringWithOffset(c:TSDateComp, opts:TSStringWithOffsetOptions = {}) {
 
     if (!$ok(opts.form)) { opts.form = TSDateForm.ISO8601 ; }
     if (!$ok(opts.minutesOffset)) { opts.minutesOffset = 0 as int ; }
@@ -342,7 +344,7 @@ export function $components2StringWithOffset(c:TSDateComp, opts:$c2StrWOffsetOpt
     return `${s}${m<0?'-':'+'}${$fpad2($div(a, 60) as int)}:${$fpad2((a % 60) as int)}` ;
 }
 
-function _checkStringWithOffsetOptions(opts:$c2StrWOffsetOpts) {
+function _checkStringWithOffsetOptions(opts:TSStringWithOffsetOptions) {
     if (!$isint(opts.minutesOffset)) { 
         TSError.throw('$components2StringWithOffset() : output time zone offset must be an integer', { timeZoneOffset:opts.minutesOffset}) ;
     }
@@ -561,11 +563,13 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
 
 
 
-export interface $durationDescriptionOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSDurationDescriptionOptions {
     depth?:Nullable<TSDurationDescriptionDepth> ; // NOSONAR: optional
     locale?:LocaleInfo ;  // NOSONAR: optional
     noDays?:Nullable<boolean> ;  // NOSONAR: optional
 }
+/** @deprecated use TSDurationDescriptionOptions */
+export type $durationDescriptionOptions = TSDurationDescriptionOptions ;
 
 // hoisted to module scope for the same reason as the directive handlers above :
 // avoids redefining a closure over `a`/`locale` on every $durationDescription() call.
@@ -574,7 +578,7 @@ function _durationRepString(key:string, value:number, defaultDefinition:UnitDefi
     return `${value} ${value===1?def?.singular:def.plural}` ;
 }
 
-export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<$durationDescriptionOptions>) {
+export function $durationDescription(comps:TSDurationComp|number, opts?:Nullable<TSDurationDescriptionOptions>) {
     // we reexport in number before constructing the string in order
     // to normalize the number of days, hours, minutes and seconds
     let duration = typeof comps === 'number' ? comps : $duration(comps) ;

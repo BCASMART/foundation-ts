@@ -482,4 +482,71 @@ export const qualifierGroups = [
             t.expect6(TSQualifier.AND<any>().continuous('s', 'e', 3, 6).overlaps('s', 'e', [0, 10]).contains('s', 'e', 4, 5).containedIn('s', 'e', 0, 10).conditions().length).is(8) ;
         }) ;
     }),
- ] ;
+     TSTest.group("TSQualifier — LIKE regular expression built once", async (group) => {
+        group.unary("LIKE() gives the same results as $sqllike()", async(t) => {
+            const patterns = ['%che_in%', 'a%', '%.%', '_', '%', '', '(a)%', '[b]', 'x+y%', '100%'] ;
+            const values:any[] = ['chemin', 'Chemins', 'abc', 'A', 'a.b', '', '(a)z', '[b]', 'x+yz', '100', '1000', 12, 100, true, null, undefined, {}] ;
+            let bad = 0 ;
+            for (const p of patterns) {
+                const q = TSQualifier.LIKE<any>('v', p) ;
+                for (let pass = 0 ; pass < 2 ; pass++) { // the second pass uses the cached regular expression
+                    for (const v of values) { if (q.validateValue({ v:v }) !== $sqllike(v, p)) { bad++ ; } }
+                }
+                if (q.validateValue({ v:['zzz', 'abc', 'chemin'] }) !== ['zzz', 'abc', 'chemin'].some(v => $sqllike(v, p))) { bad++ ; }
+            }
+            t.expect0(bad).is(0) ;
+            t.expect1(TSQualifier.LIKE<any>('v', null as any).validateValue({ v:'a' })).false() ;
+            t.expect2(TSQualifier.LIKE<any>('v', 'a%').validateValue({})).false() ;
+            t.expect3('Chemin'.sqlLike('%HEM%')).true() ;
+            t.expect4('Chemin'.sqlLike(null as any)).false() ;
+            const q = TSQualifier.LIKE<any>('n', 'nom 1%') ;
+            const items = Array.from({ length:1000 }, (_, i) => ({ n:'Nom ' + i })) ;
+            t.expect5(q.filterValues(items).length).is(111) ;
+            t.expect6(JSON.stringify(q)).is(JSON.stringify(TSQualifier.LIKE<any>('n', 'nom 1%'))) ; // the cache is not visible
+        }) ;
+    }),
+    TSTest.group("TSQualifier — IN / NIN values in Sets during filterValues()", async (group) => {
+        group.unary("filterValues() gives the same results as validateValue()", async(t) => {
+            const d0 = new Date(0) ;
+            const pool:any[] = ['a', 'A', '1', 1, 1n, 0, -0, '0', NaN, true, 'true', false, null, undefined, d0, new Date(0), new Date(1), {x:1}, [1], 10n] ;
+            const items:any[] = pool.map(v => ({ v:v })) ;
+            items.push({ v:['zz', 1] }, { v:[] }, {}, { w:1 }) ;
+            let bad = 0 ;
+            for (let c = 0 ; c < 200 ; c++) {
+                const values = Array.from({ length:2 + Math.floor(Math.random() * 6) }, () => pool[Math.floor(Math.random() * pool.length)]) ;
+                const quals = [
+                    TSQualifier.IN<any>('v', values), TSQualifier.NIN<any>('v', values),
+                    TSQualifier.AND<any>([TSQualifier.IN<any>('v', values), TSQualifier.OK<any>('v')]),
+                    TSQualifier.OR<any>([TSQualifier.NOT<any>(TSQualifier.IN<any>('v', values)), TSQualifier.NIN<any>('v', values.slice(1))]),
+                    TSQualifier.IN<any>('v', new Set(values) as any),
+                ] ;
+                for (const q of quals) {
+                    const expected = items.filter(i => q.validateValue(i)) ;
+                    const got = q.filterValues(items) ;
+                    if (got.length !== expected.length || got.some((v, i) => v !== expected[i])) { bad++ ; }
+                }
+            }
+            t.expect0(bad).is(0) ;
+            t.expect1(TSQualifier.IN<any>('v', [new Date(0), 'x']).filterValues(items).map(i => i.v)).is([d0, new Date(0)]) ;
+            t.expect2(TSQualifier.IN<any>('v', [NaN, 'x']).filterValues(items).length).is(0) ; // NaN equals nothing
+            t.expect3(TSQualifier.IN<any>('v', [0, 'x']).filterValues(items).map(i => Object.is(i.v, -0))).is([false, true]) ;
+        }) ;
+        group.unary("a subclass validateValue() and a one shot iterable are kept", async(t) => {
+            let calls = 0 ;
+            class MyQualifier<T> extends TSQualifier<T> {
+                public override validateValue(value:T, f?:any):boolean { calls++ ; return super.validateValue(value, f) ; }
+            }
+            const q = MyQualifier.IN<any>('v', [1, 2]) ;
+            t.expect0(q.filterValues([{ v:1 }, { v:3 }]).length).is(1) ;
+            t.expect1(calls).is(2) ;
+            calls = 0 ;
+            const and = TSQualifier.AND<any>([MyQualifier.IN<any>('v', [1, 2]), MyQualifier.OK<any>('v')]) ;
+            t.expect2(and.filterValues([{ v:1 }, { v:2 }, { v:3 }]).length).is(2) ;
+            t.expect3(calls).is(5) ; // 3 IN tests, then 2 OK tests (AND stops at the first false condition)
+            // a one shot iterable is only iterated by the first tested item, as before
+            function *gen() { yield 1 ; yield 2 ; }
+            const g = (TSQualifier as any).IN('v', gen()) ;
+            t.expect4(g.filterValues([{ v:2 }, { v:1 }]).length).is(1) ;
+        }) ;
+    }),
+] ;

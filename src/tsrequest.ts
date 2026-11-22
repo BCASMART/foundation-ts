@@ -467,7 +467,7 @@ function _capitalizeHeaderName(s:string):string {
     let lastCharWasNotLetter = true ;
     for (let i = 0, n = s.length ; i < n ; i++) {
         const c = s[i] ;
-        const code = s.charCodeAt(i) ; // NOSONAR: ASCII letters of HTTP header names, UTF-16 code units are what we need
+        const code = s.codePointAt(i)! ;
         const isLetter = (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a) ; // A-Z or a-z
         ret += (isLetter && lastCharWasNotLetter) ? c.toUpperCase() : c ;
         lastCharWasNotLetter = !isLetter ;

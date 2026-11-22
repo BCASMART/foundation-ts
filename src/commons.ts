@@ -207,15 +207,17 @@ export function $tounsigned(v:Nullable<string|number>, defaultValue:uint=<uint>0
     else if (typeof v === 'string') { v = Number.parseInt(v, 10) ; }
     return Number.isNaN(v) ? defaultValue : Math.max(UINT_MIN, $icast(Math.min(v, UINT_MAX))) as uint ;
 }
-export interface $stringOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSStringOptions {
     objectToStringConversion: (v:any) => string ;
     nullRepresentation:string ;
     undefinedRepresentation:string ;
     trueValue: string ;
     falseValue: string ;
 }
+/** @deprecated use TSStringOptions */
+export type $stringOptions = TSStringOptions ;
 
-const __default$stringOptions: $stringOptions = {
+const __default$stringOptions: TSStringOptions = {
     // mirrors what `${v}` / String(v) actually do — ToPrimitive with hint
     // "string" — but never throws, and is stricter than the real algorithm
     // about what counts as a usable answer at each step, since none of these
@@ -235,7 +237,7 @@ const __default$stringOptions: $stringOptions = {
     //      object itself — is trashed.
     // A method that throws is treated exactly like one that returned nothing
     // usable : move on to the next. None of the three accepted result types
-    // (string/symbol/number) ever depend on $stringOptions to format, so the
+    // (string/symbol/number) ever depend on TSStringOptions to format, so the
     // bare recursive $string(p) below needs no options forwarded.
     objectToStringConversion: (v:any):string => {
         const p = _safecall(v, Symbol.toPrimitive, 'string') ;
@@ -255,7 +257,7 @@ const __default$stringOptions: $stringOptions = {
     falseValue: 'false'
 } ;
 
-export function $string(v:any, options?:$stringOptions) : string {
+export function $string(v:any, options?:TSStringOptions) : string {
     const opts = options ?? __default$stringOptions ;
     const t = typeof(v) ;
     switch (t) {
@@ -356,14 +358,16 @@ export function $jsonobj(v:any): any
 // own properties, e.g. an Array's own "length" — $objectcount([1,2,3]) must stay 3.
 export function $keys<T>(o:Nullable<T>):Array<keyof T> { return $ok(o) ? Object.keys(o!) as (keyof T)[] : [] ; }
 
-export interface $partialOptions<T,U> { // NOSONAR: name accepted for matchnig the function
+export interface TSPartialOptions<T,U> {
     properties?:Array<keyof T | keyof U>,
     filter?: (v:T[keyof T]) => T[keyof T]|U[keyof U]|undefined;
 }
+/** @deprecated use TSPartialOptions */
+export type $partialOptions<T,U> = TSPartialOptions<T,U> ;
 
 // default filter supress undefined, null values and functions (methods for real class instances)
 // if properties is not set, we use all the object keys to apply the filter
-export function $partial<T,U>(a:Nullable<T>, opts:$partialOptions<T,U>={}):[U, number]
+export function $partial<T,U>(a:Nullable<T>, opts:TSPartialOptions<T,U>={}):[U, number]
 {
     let ret:any = {} ;
     let n = 0 ;
@@ -428,14 +432,16 @@ export function $includesdict(source:Nullable<object>, dict:TSDictionary, keys?:
 // only the given properties of a and b are fusionned
 // by default there is no fusion of array or sub-object properties.
 // you can turn that on by providing a fusionArray and a fusionObject method
-export interface $fusionOptions<T,U> { // NOSONAR: name accepted for matchnig the function
-    A?:$partialOptions<T,U>,
-    B?:$partialOptions<T,U>
+export interface TSObjectFusionOptions<T,U> {
+    A?:TSPartialOptions<T,U>,
+    B?:TSPartialOptions<T,U>
     fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
     fusionObjects?:(a:object, b:object) => object
 }
+/** @deprecated use TSObjectFusionOptions */
+export type $fusionOptions<T,U> = TSObjectFusionOptions<T,U> ;
 
-export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:$fusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
+export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:TSObjectFusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
 {
     if (!$ok(a)) { return $ok(b) ? $partial(b, opts.B as any) : [{}, 0] }
     else if (!$ok(b)) { return $partial(a, opts.A as any) ; }
@@ -510,7 +516,7 @@ function _regexvalidatedstring<T>(regex:RegExp, s:Nullable<string>, minLength?:N
 	return <T><unknown>v ;
 }
 
-interface FillObjectOptions<T,U> extends $partialOptions<T,U> {
+interface FillObjectOptions<T,U> extends TSPartialOptions<T,U> {
     fusionArrays?:(a:Array<any>, b:Array<any>) => Array<any>
     fusionObjects?:(a:object, b:object) => object
 }

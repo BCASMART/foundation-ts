@@ -608,7 +608,8 @@ function _isValidPreflight(response:TSPreflightResponse, now:number):boolean {
 }
 
 let __logIndex:number = 0 ;
-const _internalLogger = async (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage) => { // NOSONAR: default implementation of the asynchronous TSServerLogger contract
+// the TSServerLogger contract is asynchronous: a resolved promise is returned
+const _internalLogger = (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage):Promise<void> => {
     if (!__logIndex) { $logterm('') ; }
 
     let serverLog = '';
@@ -617,6 +618,7 @@ const _internalLogger = async (type:TSServerLogType, message:string, server?: TS
         serverLog = `&w${httpLog} server&x:${server.port}`;
     }
     $logterm(`&0&xfoundation-ts[${serverLog}]-${__TSServerlogHeaders[type]}&0 &w${message} &d(${++__logIndex})&0`) ;
+    return Promise.resolve() ;
 } ;
 
 const __TSServerlogHeaders:StringDictionary = {
@@ -655,11 +657,12 @@ function _normalizePreflightResponse(r:TSPreflightResponse, verbSet:Set<string>)
 
 }
 
-async function _permisivePreflightController(_url:TSURL, _headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> { // NOSONAR: asynchronous TSPreflightController contract
-    return { allowedOrigin:undefined, allowedHeaders:undefined, allowedMethods:undefined } ;
+// the TSPreflightController contract is asynchronous: resolved promises are returned
+function _permisivePreflightController(_url:TSURL, _headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> {
+    return Promise.resolve({ allowedOrigin:undefined, allowedHeaders:undefined, allowedMethods:undefined }) ;
 }
 
-async function _defaultPreflightController(_url:TSURL, headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> { // NOSONAR: asynchronous TSPreflightController contract
+function _defaultPreflightController(_url:TSURL, headers:http.IncomingHttpHeaders, _res:http.ServerResponse):Promise<TSPreflightResponse> {
     // the preflight request gives the headers the actual request wants to send in Access-Control-Request-Headers
     const acceptedHeaders = $value(headers["access-control-request-headers"]?.split(',').map(s=>$ftrim(s).toLowerCase()), []) ;
     //if (!acceptedHeaders.includes('accept')) { acceptedHeaders.push('accept') ; }
@@ -668,6 +671,6 @@ async function _defaultPreflightController(_url:TSURL, headers:http.IncomingHttp
     const acceptedMethods = headers["access-control-request-method"]?.split(',').map(s=>$ftrim(s).toUpperCase()) ;
 
 
-    return { allowedOrigin:headers["origin"], allowedHeaders:acceptedHeaders, allowedMethods:acceptedMethods }
+    return Promise.resolve({ allowedOrigin:headers["origin"], allowedHeaders:acceptedHeaders, allowedMethods:acceptedMethods }) ;
 }
 

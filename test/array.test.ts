@@ -1,4 +1,5 @@
-import { $average, $first, $includesequal, $includesvisual, $last, $map, $arrayset, $max, $min, $sum } from "../src/array";
+import { $average, $first, $includesequal, $includesvisual, $last, $map, $arrayset, $max, $min, $sum, $visualsort } from "../src/array";
+import { $equal, $visualequal, $visualkey, $visualorder } from "../src/compare";
 import { $count, $defined, $ok } from "../src/commons";
 import { TSTest } from "../src/tstester";
 import { Ascending, Descending, Same, TSUnicity } from "../src/types";
@@ -34,6 +35,88 @@ export const arrayGroups = TSTest.group("Commons array functions", async (group)
         t.expectW($includesvisual(source, "5")).true();
 
         t.expectZ($arrayset(source)).is(new Set([1, 5, 6, 'A', "1"])) ;
+    }) ;
+
+    group.unary("$map() unicities with Sets and $visualkey()", async(t) => {
+        const d0 = new Date(0) ;
+        const values:any[] = ['a', 'A', ' a ', 'à', 1, 1.0, '1', NaN, NaN, -0, 0, '0', 0n, 10n, 10n, true, 'true', false, null, undefined,
+                              d0, new Date(0), {x:1}, {x:1}, [1], [1], new URL('http://a/'), 'http://a/', 'e\u0301', 'é', 'Zoë', 'ZOE'] ;
+        // references: the previous quadratic algorithms
+        const refEquality = (vs:any[]) => { const r:any[] = [] ; for (const v of vs) { if (v !== null && v !== undefined && !r.includes(v) && !r.some(o => $equal(v, o))) { r.push(v) ; } } return r ; } ;
+        const refVisual = (vs:any[]) => { const r:any[] = [] ; for (const v of vs) { if (v !== null && v !== undefined && !r.includes(v) && !r.some(o => $visualequal(v, o))) { r.push(v) ; } } return r ; } ;
+        const eq = $map(values, { unicity:TSUnicity.Equality }), refEq = refEquality(values) ;
+        t.expect0(eq.length).is(refEq.length) ;
+        t.expect1(eq.every((v, i) => Object.is(v, refEq[i]))).true() ;
+        t.expect2(eq.filter(v => Number.isNaN(v)).length).is(1) ; // NaN is kept once, the same value being found
+        const vis = $map(values, { unicity:TSUnicity.Visual }), refVis = refVisual(values) ;
+        t.expect3(vis.length === refVis.length && vis.every((v, i) => Object.is(v, refVis[i]))).true() ; // .is() would fail on NaN
+        const words = Array.from({ length:3000 }, (_, i) => (i % 3 ? 'Word ' : 'wörd  ') + (i % 1000)) ;
+        t.expect4($map(words, { unicity:TSUnicity.Visual })).is(refVisual(words)) ;
+        t.expect5($map(words, { unicity:TSUnicity.Equality })).is(refEquality(words)) ;
+        t.expect6($map(words, { callback:w => w.length > 9 ? null : w, unicity:TSUnicity.Visual })).is(refVisual(words.map(w => w.length > 9 ? null : w))) ;
+        let badKey = 0 ;
+        for (const a of values) { for (const b of values) {
+            if ($ok(a) && $ok(b) && ($visualkey(a) === $visualkey(b)) !== $visualequal(a, b)) { badKey++ ; }
+        }}
+        t.expect7(badKey).is(0) ;
+        t.expect8($visualkey(' Élève  à ')).is('ELEVE A') ;
+    }) ;
+
+    group.unary("function $visualsort()", async(t) => {
+        const values:any[] = ['b', 'a', 'B', null, undefined, 'à', 1, '1', 10, NaN, true, new Date(0), {x:1}, [1],
+                              new URL('http://b/'), new URL('http://a/'), 'http://a/', 'Zoë', 'zoe', ' ZOE ', undefined, null] ;
+        const same = (a:any[], b:any[]) => a.length === b.length && a.every((v, i) => Object.is(v, b[i])) ;
+        t.expect0(same($visualsort(values), [...values].sort($visualorder))).true() ;
+        t.expect1($visualsort(['b', 'à', 'A', 'c'])).is(['à', 'A', 'b', 'c']) ;
+        t.expect2($visualsort(null)).is([]) ;
+        t.expect3($visualsort(new Set(['b', 'a']))).is(['a', 'b']) ;
+        t.expect4(same($visualsort([undefined, 'a', null]), [null, 'a', undefined])).true() ;
+        let bad = 0 ;
+        const pool = ['a', 'A', 'é', 'e', ' ', '  ', 'b', 'Ö', '1', 'œ'] ;
+        for (let c = 0 ; c < 300 ; c++) {
+            const a = Array.from({ length:Math.floor(Math.random() * 30) }, () => Array.from({ length:3 }, () => pool[Math.floor(Math.random() * pool.length)]).join('')) ;
+            if (!same($visualsort(a), [...a].sort($visualorder))) { bad++ ; }
+        }
+        t.expect5(bad).is(0) ;
+        // an URL subclass whose $string() is not its href is sorted as before
+        class MyURL extends URL { public override toString() { return 'zzz' ; } }
+        const u = [new MyURL('http://a/'), 'yyy', new URL('http://b/')] ;
+        t.expect6(same($visualsort(u), [...u].sort($visualorder))).true() ;
+    }) ;
+
+    group.unary("method Array.visualSort()", async(t) => {
+        const values:any[] = ['b', 'a', 'B', null, undefined, 'à', 1, '1', 10, NaN, true, new Date(0), {x:1}, [1],
+                              new URL('http://b/'), new URL('http://a/'), 'http://a/', 'Zoë', 'zoe', ' ZOE ', undefined, null] ;
+        const same = (a:any[], b:any[]) => a.length === b.length && a.every((v, i) => Object.is(v, b[i]) && (i in a) === (i in b)) ;
+        const a = [...values], b = [...values] ;
+        t.expect0(a.visualSort()).is(a) ; // sorted in place, the array itself is returned
+        t.expect1(same(a, b.sort($visualorder))).true() ;
+        const sparse:any[] = ['b', , 'a', undefined, , 'A'] ; // eslint-disable-line no-sparse-arrays
+        const sparse2 = [...sparse] ; sparse2.length = sparse.length ;
+        for (let i = 0 ; i < sparse.length ; i++) { if (!(i in sparse)) { delete sparse2[i] ; } }
+        sparse.visualSort() ; sparse2.sort($visualorder) ;
+        t.expect2(same(sparse, sparse2)).true() ;
+        t.expect3(sparse.length).is(6) ;
+        t.expect4([3 in sparse, 4 in sparse, 5 in sparse]).is([true, false, false]) ;
+        t.expect5([].visualSort()).is([]) ;
+        t.expect6(['b', 'à', 'A', 'c'].visualSort()).is(['à', 'A', 'b', 'c']) ;
+        t.expect7(() => (Object.freeze(['b', 'a']) as any[]).visualSort()).toThrow() ;
+        t.expect8(Object.keys(Array.prototype).includes('visualSort')).false() ; // not enumerable
+    }) ;
+
+    group.unary("method Array.toVisualSorted()", async(t) => {
+        const values:any[] = ['b', 'a', 'B', null, undefined, 'à', 1, '1', 10, NaN, true, new Date(0), {x:1}, [1],
+                              new URL('http://b/'), new URL('http://a/'), 'http://a/', 'Zoë', 'zoe', ' ZOE ', undefined, null] ;
+        const same = (a:any[], b:any[]) => a.length === b.length && a.every((v, i) => Object.is(v, b[i])) ;
+        const src = [...values] ;
+        const sorted = src.toVisualSorted() ;
+        t.expect0(sorted === src).false() ; // a new array
+        t.expect1(same(src, values)).true() ; // the source is unchanged
+        t.expect2(same(sorted, values.toSorted($visualorder))).true() ;
+        t.expect3(same(sorted, [...values].visualSort())).true() ;
+        t.expect4(['b', 'à', 'A', 'c'].toVisualSorted()).is(['à', 'A', 'b', 'c']) ;
+        t.expect5((Object.freeze(['b', 'a']) as any[]).toVisualSorted()).is(['a', 'b']) ; // works on a frozen array
+        t.expect6(Object.keys(Array.prototype).includes('toVisualSorted')).false() ; // not enumerable
     }) ;
 
     group.unary("functions $count(), $min(), $max(), $sum(), $average(), $first() and $last()", async(t) => {

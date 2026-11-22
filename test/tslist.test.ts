@@ -161,4 +161,66 @@ export const listGroups = TSTest.group("TSList doubly-linked list", async (group
         // default options
         t.expect6(l.toString()).is('(1,2,3)') ;
     }) ;
+
+    // these methods used to be recursive and overflowed the stack from about 8000 nodes
+    group.unary("long lists (100 000 nodes)", async(t) => {
+        const n = 100000 ;
+        const l = new TSList(Array.from({ length:n }, (_, i) => i)) ;
+        t.expect0(l.toArray().length).is(n) ;
+        let sum = 0 ; l.forEach(x => { sum += x ; }) ;
+        t.expect1(sum).is(n * (n - 1) / 2) ;
+        t.expect2(l.search(x => x === n - 1)?.data).is(n - 1) ;
+        t.expect3(l.searchNode(node => node.data === -1)).null() ;
+        t.expect4(l.toString().length).is(l.toArray().join(',').length + 2) ;
+        t.expect5(JSON.stringify(l).length).is(JSON.stringify(l.toArray()).length) ;
+        t.expect6(l.getItems().length).is(n) ;
+        t.expect7(l.toArray(x => x % 2 ? x : null).length).is(n / 2) ;
+        t.expect8(l.clone().isEqual(l)).true() ;
+    }) ;
+
+    group.unary("the iterator behaves like the generator it replaces", async(t) => {
+        // the former implementation, as a reference
+        function *reference<T>(l:TSList<T>) { for (let n = l.first ; n ; n = n!.next) { yield n!.data ; } }
+        type Iter = (l:TSList<number>) => Iterator<number> ;
+        const ours:Iter = l => l[Symbol.iterator]() ;
+        const ref:Iter = l => reference(l) ;
+        const iterable = (f:Iter, l:TSList<number>) => ({ [Symbol.iterator]:() => f(l) }) ;
+        const scenarios = (f:Iter) => {
+            const r:any = {} ;
+            const l = new TSList([1, 2, 3, 4]) ;
+            r.forOf = [] ; for (const x of iterable(f, l)) { r.forOf.push(x) ; }
+            r.spread = [...iterable(f, l)] ;
+            const [a, b] = iterable(f, l) ; r.destructuring = [a, b] ;
+            r.set = [...new Set(iterable(f, l))] ;
+            r.empty = [...iterable(f, new TSList<number>())] ;
+            let o:number[] = [], l2 = new TSList([1, 2, 3, 4]) ;
+            for (const x of iterable(f, l2)) { o.push(x) ; if (x === 2) { l2.removeNode(l2.search(v => v === 2)!) ; } } r.removeCurrent = o ;
+            o = [] ; l2 = new TSList([1, 2, 3, 4]) ;
+            for (const x of iterable(f, l2)) { o.push(x) ; if (x === 3) { l2.removeNode(l2.search(v => v === 4)!) ; } } r.removeNext = o ;
+            o = [] ; l2 = new TSList([1, 2, 3, 4]) ;
+            for (const x of iterable(f, l2)) { o.push(x) ; if (x === 2) { l2.insert(9, l2.search(v => v === 3)!) ; } } r.insertAfterCurrent = o ;
+            o = [] ; l2 = new TSList([1, 2, 3]) ;
+            for (const x of iterable(f, l2)) { o.push(x) ; if (x === 1) { l2.add(7) ; } } r.addAtEnd = o ;
+            const i1 = f(l) ; for (const x of { [Symbol.iterator]:() => i1 }) { if (x === 2) { break ; } } r.nextAfterBreak = i1.next() ;
+            const i2 = f(l) ; i2.next() ; r.returnValue = i2.return!(5 as any) ; r.nextAfterReturn = i2.next() ;
+            const i3 = f(l) ; i3.next() ; try { i3.throw!(new Error('x')) ; } catch (e:any) { r.throwRethrows = e.message ; } r.nextAfterThrow = i3.next() ;
+            const i4 = f(l) ; try { i4.throw!(new Error('y')) ; } catch (e:any) { r.throwBeforeStart = e.message ; } r.nextAfterThrowBeforeStart = i4.next() ;
+            const h:any = f(l) ;
+            r.helpers = typeof h.map === 'function' ? h.map((x:number) => x * 10).filter((x:number) => x > 10).toArray() : 'none' ;
+            const h2:any = f(l) ; r.take = typeof h2.take === 'function' ? h2.take(2).toArray() : 'none' ;
+            r.dispose = typeof (f(l) as any)[Symbol.dispose] ;
+            r.isIterator = typeof Iterator === 'function' ? f(l) instanceof Iterator : 'no Iterator class' ;
+            return r ;
+        } ;
+        const got = scenarios(ours), expected = scenarios(ref) ;
+        t.expect0(Object.keys(got).filter(k => JSON.stringify(got[k]) !== JSON.stringify(expected[k]))).is([]) ;
+        t.expect1(got.removeCurrent).is([1, 2]) ;
+        t.expect2(got.insertAfterCurrent).is([1, 2, 9, 3, 4]) ;
+        t.expect3(got.returnValue).is({ value:5, done:true }) ;
+        const l = new TSList([3, 1, 2]) ;
+        t.expect4(Array.from(l)).is([3, 1, 2]) ;
+        t.expect5([...l.clone()]).is([3, 1, 2]) ;
+        const it = l[Symbol.iterator]() ;
+        t.expect6(it[Symbol.iterator]()).is(it) ;
+    }) ;
 }) ;

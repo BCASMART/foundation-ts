@@ -8,40 +8,44 @@ import { TSExtendedLeafNode, TSLeafNode, TSObjectNode, TSParser, TSParserActionC
 import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
-export interface $envOptions extends DefaultsConfigurationOptions  { // NOSONAR: name accepted for matchnig the function
+export interface TSEnvOptions extends DefaultsConfigurationOptions  {
     merge?:Nullable<StringDictionary> ;     // NOSONAR: optional
                                             // environment to be merged with interpreted variables.
                                             // if merge is process.env, new values are overwriting process.env
     reference?:Nullable<StringDictionary> ; // NOSONAR: optional. reference can be process.env
 } ;
+/** @deprecated use TSEnvOptions */
+export type $envOptions = TSEnvOptions ;
 
 /**
  * This method does not accepts multiline comments but accepts substitution paterns like ${aVariableName} in
  * any value NOT surrounded by simple quotes ('').
 */
-export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<$envOptions>):StringDictionary|null {
+export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<TSEnvOptions>):StringDictionary|null {
     return _parsenv('$env', source, null, true, $value(opts, {})) as StringDictionary|null ;
 }
-export interface $parsedEnvOptions extends DefaultsConfigurationOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSParsedEnvOptions extends DefaultsConfigurationOptions {
     parser:Nullable<TSDictionary<TSLeafNode>>
     merge?:Nullable<TSDictionary> ; // NOSONAR: optional
     reference?:Nullable<TSDictionary> ; // NOSONAR: optional
     acceptsUnparsed?:Nullable<boolean> ; // NOSONAR: optional
 }
+/** @deprecated use TSParsedEnvOptions */
+export type $parsedEnvOptions = TSParsedEnvOptions ;
 
 /* WARNING: dont pass process.env in merge here, 
             because it's not a real Dictionary 
             and all values will turn as strings
             even parsed onces 
 */
-export function $parsedenv(source:Nullable<string|TSDataLike>, opts:$parsedEnvOptions):TSDictionary|null {
+export function $parsedenv(source:Nullable<string|TSDataLike>, opts:TSParsedEnvOptions):TSDictionary|null {
     const tmp = {...opts} ;
     delete tmp['parser'] ;
     delete tmp['acceptsUnparsed'] ;
     return _parsenv('$parsedenv', source, opts.parser, !!opts.acceptsUnparsed, {...tmp}) ;
 }
 
-function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinition:Nullable<TSDictionary<TSLeafNode>>, acceptsUncheckedItems:boolean, opts:$envOptions):TSDictionary|null {
+function _parsenv(fn:string, source:Nullable<string|TSDataLike>, parserDefinition:Nullable<TSDictionary<TSLeafNode>>, acceptsUncheckedItems:boolean, opts:TSEnvOptions):TSDictionary|null {
     const parser = $ok(parserDefinition) ? _envParser(fn, parserDefinition!, acceptsUncheckedItems) : undefined ;
     const ret:TSDictionary = $ok(opts?.merge) ? opts!.merge! : {} ;
     const backup = $ok(opts?.merge) ? new EnvMergeBackup(ret) : undefined ;
@@ -69,7 +73,7 @@ interface EnvParsingContext {
     debug:boolean ;
 }
 
-function _envParsingContext(opts:$envOptions):EnvParsingContext {
+function _envParsingContext(opts:TSEnvOptions):EnvParsingContext {
     const variableMax = Math.min(Math.max(1, $unsigned(opts?.variableMax, 64 as uint)), 256) as uint ;
     return {
         reference:$ok(opts?.reference) ? opts!.reference! : {},
@@ -501,7 +505,7 @@ class EnvLineParser {
         return [this.line.slice(keyStart, afterKey), this.v] ;
     }
 
-    private _code(pos:number):number { return this.line.charCodeAt(pos) ; } // NOSONAR: ASCII parsing of .env lines, UTF-16 code units are what we need
+    private _code(pos:number):number { return this.line.charCodeAt(pos) ; } // NOSONAR: the parser moves one UTF-16 code unit at a time (a code point would duplicate the low surrogate of an escaped astral character)
 
     // returns the number of skipped spaces
     private _skipSpaces():number {

@@ -2,7 +2,7 @@ import { $isnumber, $isunsigned, $length, $ok, $toint, $tounsigned, $value } fro
 import { $ftrim } from "./strings";
 import { FoundationNewLineNumberCodeSet, FoundationStricWhiteSpacesNumberCodeSet, FoundationWhiteSpacesNumberCodeSet } from "./string_tables";
 import { TSDate } from "./tsdate";
-import { $components, $durationcomponents, $durationDescription, $durationDescriptionOptions, $durationNumber2StringFormat, TSDateComp, TSDurationComp } from "./tsdatecomp";
+import { $components, $durationcomponents, $durationDescription, TSDurationDescriptionOptions, $durationNumber2StringFormat, TSDateComp, TSDurationComp } from "./tsdatecomp";
 import { $unitDefinition, LocaleInfo } from "./tsdefaults";
 import { int, INT32_MAX, Nullable, uint } from "./types";
 import { $declareMethods } from "./object";
@@ -30,7 +30,7 @@ export function $fpad(v: number, pad:number, failedChar?:string) : string {
     return ''.padStart(pad, $length(failedChar) === 1 ? failedChar! : 'X') ;
 }
 
-export interface $unitOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSUnitOptions {
     unitName?:string ;
     pluralUnitName?:string ;
     unit?:string ;
@@ -40,12 +40,14 @@ export interface $unitOptions { // NOSONAR: name accepted for matchnig the funct
     ignoreZeroDecimals?:boolean ;
     ignoreMinimalUnitDecimals?:boolean ;
 }
+/** @deprecated use TSUnitOptions */
+export type $unitOptions = TSUnitOptions ;
 
 const TSUnitMultiples = ['y', 'z', 'a', 'f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'] ;
 const TSLog1000 = Math.log(1000) ;
 
 // default unit is m (for meters)
-export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
+export function $unit(n: Nullable<number>, opts?:Nullable<TSUnitOptions>) {
     const v = $ok(n) ? n! : 0 ;
     const sn = $ftrim(opts?.unitName) ;
     const su = $ftrim(opts?.unit) ;
@@ -66,7 +68,7 @@ export function $unit(n: Nullable<number>, opts?:Nullable<$unitOptions>) {
     return ((0.0+v) / (0.0+Math.pow(1000, i))).toFixed(dm) + ' ' + TSUnitMultiples[i+8] + suffix ;
 }
 
-function _zeroUnit(dm:number, minU:number, pluralUnitName:string, opts?:Nullable<$unitOptions>):string {
+function _zeroUnit(dm:number, minU:number, pluralUnitName:string, opts?:Nullable<TSUnitOptions>):string {
     if (dm === 0 || !!opts?.ignoreZeroDecimals || (minU === 0 && !!opts?.ignoreMinimalUnitDecimals)) { return '0 ' + pluralUnitName ; }
     return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
 }
@@ -119,7 +121,7 @@ declare global {
         singular:           (this:number) => boolean ;
         toDate:             (this:number) => Date|null ;
         toDurationString:   (this:number, format?:Nullable<string>) => string ;
-        toDurationDescription: (this:number, opts?:Nullable<$durationDescriptionOptions>) => string ;
+        toDurationDescription: (this:number, opts?:Nullable<TSDurationDescriptionOptions>) => string ;
         toHex1:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
         toHex2:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
         toHex4:             (this:number, toLowerCase?:Nullable<boolean>) => string ;
@@ -127,7 +129,7 @@ declare global {
         toInt:              (this:number, defaultValue?:int) => int ;
         toTSDate:           (this:number) => TSDate|null ;
         toUnsigned:         (this:number, defaultValue?:uint) => uint ;
-        unit:               (this:number, opts?:Nullable<$unitOptions>) => string ;
+        unit:               (this:number, opts?:Nullable<TSUnitOptions>) => string ;
     }
 }
 
@@ -156,7 +158,7 @@ $declareMethods(Number, {
     singular(this:number):boolean { return this === 1 ; },
     toDate(this:number):Date|null { return $isnumber(this) ? new Date(this) : null ; },
     toDurationString(this:number, format?:Nullable<string>) { return $durationNumber2StringFormat(this, format) ; },
-    toDurationDescription(this:number, opts?:Nullable<$durationDescriptionOptions>) { return $durationDescription(this, opts) ; },
+    toDurationDescription(this:number, opts?:Nullable<TSDurationDescriptionOptions>) { return $durationDescription(this, opts) ; },
 // toHexN() : the receiver is coerced to uint32 with `>>> 0` (fast, and gives the
 // two's-complement representation for negatives) instead of the full $tounsigned() check
     toHex1(this:number, toLowerCase?:Nullable<boolean>):string {
@@ -178,6 +180,6 @@ $declareMethods(Number, {
     toInt(this:number, defaultValue?:int):int { return $toint(this, defaultValue) ; },
     toTSDate(this:number):TSDate|null { return TSDate.fromTimeStamp(this) ; },
     toUnsigned(this:number, defaultValue?:uint):uint { return $tounsigned(this, defaultValue) ; },
-    unit(this:number, opts?:Nullable<$unitOptions>):string { return $unit(this, opts) ; },
+    unit(this:number, opts?:Nullable<TSUnitOptions>):string { return $unit(this, opts) ; },
 }) ;
 

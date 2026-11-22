@@ -1,7 +1,7 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
-import { $crc16, $crc32, $hash, $hashOptions, $slowhash, HashMethod } from "./crypto";
+import { $crc16, $crc32, $hash, TSHashOptions, $slowhash, HashMethod } from "./crypto";
 import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa, $encodeBase64URL, $bufferFromHexaString, $decodeBase64, $decodeBase64URL } from "./data";
-import { $fullWriteBuffer, $readBuffer, $writeBuffer, $writeBufferOptions } from "./fs";
+import { $fullWriteBuffer, $readBuffer, $writeBuffer, TSWriteBufferOptions } from "./fs";
 import { $charset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
@@ -355,13 +355,13 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return 0 ;
     }
     
-    public writeToFile(path:string, opts?:$writeBufferOptions):boolean { 
+    public writeToFile(path:string, opts?:TSWriteBufferOptions):boolean { 
         TSError.assertNotInBrowser('TSData.writeToFile') ;
         return $writeBuffer(path, this, opts) ; 
     }
 
     // second part of the return tupple may contains the path of the precedent version of the data
-    public fullWriteToFile(path:string, opts:$writeBufferOptions):[boolean, string|null] { 
+    public fullWriteToFile(path:string, opts:TSWriteBufferOptions):[boolean, string|null] { 
         TSError.assertNotInBrowser('TSData.fullWriteToFile') ;
         return $fullWriteBuffer(path, this, opts) ; 
     }
@@ -436,7 +436,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public XOR(other:TSDataLike):Buffer { return $dataXOR(this, other) ; }
     
     public hash(method?: Nullable<HashMethod>):string|null { return $hash(this, method) ; }
-    public slowhash(options?: $hashOptions):string|Uint8Array { return $slowhash(this, options) ; }
+    public slowhash(options?: TSHashOptions):string|Uint8Array { return $slowhash(this, options) ; }
 
     public [Symbol.toPrimitive](hint: "number" | "string" | "default") {
         return hint === 'number' ? Number.NaN : TSCharset.binaryCharset().stringFromData(this) ;

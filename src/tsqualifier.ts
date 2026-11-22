@@ -353,13 +353,27 @@ export class TSQualifier<T> {
     public inverse():this { return (this.constructor as any).NOT(this) as this ; }
 
     public validateValue(value:T, validateValueForCondition?:(v:T, cond:TSDictionary) => boolean):boolean {
+        return this._validate(value, validateValueForCondition, undefined) ;
+    }
+
+    public filterValues(values:Nullable<Iterable<T>>):Array<T> {
+        if (!$ok(values)) { return [] ; }
+        // a subclass validateValue() is always called
+        if (this.validateValue !== TSQualifier.prototype.validateValue) { return _filter(values!, v => this.validateValue(v)) ; }
+        // otherwise the IN and NIN values are put in Sets which are only kept during this call
+        const matchers:TSInMatchers = new Map() ;
+        return _filter(values!, v => this._validate(v, undefined, matchers)) ;
+    }
+
+    // matchers is only given by filterValues(): validateValue() always tests the IN and NIN values one by one
+    private _validate(value:T, validateValueForCondition:((v:T, cond:TSDictionary) => boolean)|undefined, matchers:TSInMatchers|undefined):boolean {
         switch (this.operator) {
             case 'AND':
-                return this._operands.every(cond => this._validateCondition('AND', value, cond, validateValueForCondition)) ;
+                return this._operands.every(cond => this._validateCondition('AND', value, cond, validateValueForCondition, matchers)) ;
             case 'OR': 
-                return this._operands.some(cond => this._validateCondition('OR', value, cond, validateValueForCondition)) ;
+                return this._operands.some(cond => this._validateCondition('OR', value, cond, validateValueForCondition, matchers)) ;
             case 'NOT':
-                return !this._validateCondition('NOT', value, this._operands[0], validateValueForCondition) ;
+                return !this._validateCondition('NOT', value, this._operands[0], validateValueForCondition, matchers) ;
             case 'OK':
                 return _valuesForKeyPath(value, this._operands[0]).length > 0 ;
             case 'KO':
@@ -372,16 +386,19 @@ export class TSQualifier<T> {
             case 'LTE':  return this._someValueMatches(value, (v, op) => { const comp = $compare(v, op) ; return comp === Same || comp === Ascending ; }) ;
             case 'GT':   return this._someValueMatches(value, (v, op) => $compare(v, op) === Descending) ;
             case 'GTE':  return this._someValueMatches(value, (v, op) => { const comp = $compare(v, op) ; return comp === Same || comp === Descending ; }) ;
-            case 'LIKE': return this._someValueMatches(value, (v, op) => $sqllike(v, op)) ;
-            case 'IN':   return this._someValueMatches(value, (v, op) => _containsEqualValue(op, v)) ;
-            case 'NIN':  return !this._someValueMatches(value, (v, op) => _containsEqualValue(op, v)) ;
+            // same result as $sqllike(v, op), but the regular expression is built once per qualifier
+            case 'LIKE': return this._someValueMatches(value, (v, op) => $ok(v) && $ok(op) && _likeRegExp(this, op as string).test($isstring(v) ? v : `${v}`)) ;
+            case 'IN':   return this._someValueMatches(value, (v, op) => this._containsEqualValue(op, v, matchers)) ;
+            case 'NIN':  return !this._someValueMatches(value, (v, op) => this._containsEqualValue(op, v, matchers)) ;
         }       
     }
 
-    public filterValues(values:Nullable<Iterable<T>>):Array<T> {
-        const ret:Array<T> = []
-        if ($ok(values)) { for (let v of values) { if (this.validateValue(v)) { ret.push(v) ; }}}
-        return ret ;
+    private _containsEqualValue(values:Iterable<any>, v:any, matchers:TSInMatchers|undefined):boolean {
+        // only arrays and sets are sure to give the same values each time they are iterated
+        if (!matchers || !($isarray(values) || values instanceof Set)) { return _containsEqualValue(values, v) ; }
+        let matcher = matchers.get(this) ;
+        if (!matcher) { matcher = _equalValueMatcher(values) ; matchers.set(this, matcher) ; }
+        return matcher(v) ;
     }
 
     private _add(method:string,qualifier:TSQualifier<T>):this { 
@@ -394,8 +411,11 @@ export class TSQualifier<T> {
     }
 
     // validates a condition of a composite (AND, OR, NOT) qualifier
-    private _validateCondition(operator:string, value:T, cond:QualifierCondition<T>, validateValueForCondition?:(v:T, cond:TSDictionary) => boolean):boolean {
-        if (cond instanceof TSQualifier) { return cond.validateValue(value, validateValueForCondition) ; }
+    private _validateCondition(operator:string, value:T, cond:QualifierCondition<T>, validateValueForCondition:((v:T, cond:TSDictionary) => boolean)|undefined, matchers:TSInMatchers|undefined):boolean {
+        if (cond instanceof TSQualifier) {
+            // a subclass validateValue() is always called
+            return matchers && cond.validateValue === TSQualifier.prototype.validateValue ? cond._validate(value, validateValueForCondition, matchers) : cond.validateValue(value, validateValueForCondition) ;
+        }
         if ($ok(validateValueForCondition)) { return validateValueForCondition!(value, cond) ; }
         TSError.throw(`need a validateValueForCondition() callback to interpret a specific ${operator} condition`, { value:value, condition:cond }) ;
     }
@@ -464,9 +484,56 @@ function _qualifierBoundsAndOption(fn:string, a:any, b:any, c:any, hullOfSets:bo
     return isInterval ? [_qualifierBounds(fn, a, undefined, 1, hullOfSets), !!b] : [_qualifierBounds(fn, a, b, 2), !!c] ;
 }
 
+// the regular expression of each LIKE qualifier, built at its first use (a WeakMap does not retain the qualifiers)
+const __likeRegExps = new WeakMap<TSQualifier<any>, RegExp>() ;
+function _likeRegExp(qualifier:TSQualifier<any>, like:string):RegExp {
+    let re = __likeRegExps.get(qualifier) ;
+    if (!re) { re = _sqlLikeRegExp(like) ; __likeRegExps.set(qualifier, re) ; }
+    return re ;
+}
+
+// regex special characters are escaped, then % matches any string and _ any character.
+// Since the regular expression has no g or y flag, test() keeps no state and can be reused
+function _sqlLikeRegExp(like:string):RegExp {
+    const pattern = like.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`).replaceAll('%', '.*').replaceAll('_', '.') ;
+    return new RegExp(`^${pattern}$`, 'i') ;
+}
+
 function _containsEqualValue(values:Iterable<any>, v:any):boolean {
     for (let e of values) { if ($equal(e,v)) { return true ; } }
     return false ;
+}
+
+function _filter<T>(values:Iterable<T>, test:(v:T) => boolean):T[] {
+    const ret:T[] = [] ;
+    for (let v of values) { if (test(v)) { ret.push(v) ; } }
+    return ret ;
+}
+
+type TSInMatchers = Map<TSQualifier<any>, (v:any) => boolean> ;
+
+// same result as _containsEqualValue(values, v). $equal() is === on two primitive values (NaN apart,
+// which equals nothing), so these are found in a Set. The other values are still compared with $equal()
+// (to v if v is a primitive value, since an object isEqual() method may accept it, and to all the values
+// if v is an object), always as $equal(e, v)
+function _equalValueMatcher(values:Iterable<any>):(v:any) => boolean {
+    const primitives = new Set<any>() ;
+    const primitivesList:any[] = [] ;
+    const others:any[] = [] ;
+    for (let e of values) {
+        if (_isprimitive(e)) { primitives.add(e) ; primitivesList.push(e) ; }
+        else { others.push(e) ; }
+    }
+    return (v:any) => {
+        if (_isprimitive(v) && primitives.has(v)) { return true ; }
+        if (others.some(e => $equal(e, v))) { return true ; }
+        return !_isprimitive(v) && primitivesList.some(e => $equal(e, v)) ;
+    } ;
+}
+
+function _isprimitive(v:any):boolean {
+    const t = typeof v ;
+    return t === 'string' || t === 'boolean' || t === 'bigint' || (t === 'number' && !Number.isNaN(v)) ;
 }
 
 function _valuesForKeyPath(v:any, keyPath:string[]):any[] {
@@ -508,9 +575,7 @@ declare global {
 $declareMethods(String, {
     sqlLike(this:string, like:string) { 
         if (!$ok(like)) { return false ; }
-        // regex special characters are escaped, then % matches any string and _ any character
-        const pattern = like!.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`).replaceAll('%', '.*').replaceAll('_', '.') ;
-        return new RegExp(`^${pattern}$`, 'i').test(this) ;
+        return _sqlLikeRegExp(like).test(this) ;
     },
 }) ;
 

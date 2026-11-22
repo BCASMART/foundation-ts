@@ -214,7 +214,7 @@ const _nativeBuffer = typeof Buffer !== 'undefined'
 // everything else (whitespace, '=' padding, junk) maps to -1 and is skipped.
 const _base64Sextets: Int8Array = (() => {
     const t = new Int8Array(256).fill(-1) ;
-    for (let i = 0 ; i < 64 ; i++) { t[base64KeyStr.charCodeAt(i)] = i ; } // NOSONAR: the base64 alphabet is ASCII, UTF-16 code units are what we need
+    for (let i = 0 ; i < 64 ; i++) { t[base64KeyStr.codePointAt(i)!] = i ; }
     t[0x2D /* - */] = 62 ; t[0x5F /* _ */] = 63 ;
     return t ;
 })() ;
@@ -239,7 +239,7 @@ export function __pureDecodeBase64(input: string): Uint8Array {
     const out = new Uint8Array((n * 3) >> 2) ; // upper bound on the byte count
     let acc = 0, bits = 0, size = 0 ;
     for (let i = 0 ; i < n ; i++) {
-        const cc = input.charCodeAt(i) ; // NOSONAR: the base64 alphabet is ASCII, UTF-16 code units are what we need
+        const cc = input.codePointAt(i)! ;
         const v = cc < 256 ? _base64Sextets[cc] : -1 ;
         if (v < 0) { continue ; } // whitespace / '=' / invalid
         acc = (acc << 6) | v ;
@@ -359,7 +359,7 @@ export function $dataXOR(a:TSDataLike, b:TSDataLike):Buffer {
 }
 
 // ===================== Data description ==============================
-interface $bufferAspectOptions { // NOSONAR: interface matches the function naming
+interface BufferAspectOptions {
     prefix?: string;
     suffix?: string;
     name?: string;
@@ -368,7 +368,7 @@ interface $bufferAspectOptions { // NOSONAR: interface matches the function nami
     transformFn?: (n: number) => string;
 }
 
-const __dataAspectDefaultOptions: $bufferAspectOptions = {
+const __dataAspectDefaultOptions: BufferAspectOptions = {
     prefix: '[',
     suffix: ']',
     separator: ',',
@@ -376,7 +376,7 @@ const __dataAspectDefaultOptions: $bufferAspectOptions = {
 };
 
 
-export function $dataAspect(source: Bytes | Uint16Array | Uint32Array, opts: $bufferAspectOptions = __dataAspectDefaultOptions) {
+export function $dataAspect(source: Bytes | Uint16Array | Uint32Array, opts: BufferAspectOptions = __dataAspectDefaultOptions) {
     const fn = $isfunction(opts.transformFn) ? opts.transformFn! : (n: number) => n.toString();
     const hasPrefix = !!opts.prefix?.length ;
     let s = _dataAspectHeader(source, opts) ;
@@ -389,7 +389,7 @@ export function $dataAspect(source: Bytes | Uint16Array | Uint32Array, opts: $bu
 }
 
 // the name and the length of the data, followed by a space if not empty
-function _dataAspectHeader(source: Bytes | Uint16Array | Uint32Array, opts: $bufferAspectOptions):string {
+function _dataAspectHeader(source: Bytes | Uint16Array | Uint32Array, opts: BufferAspectOptions):string {
     let s = $ok(opts.name) ? opts.name! : source.constructor.name;
     if (opts.showLength) { s += `(${source.length})`; }
     return s.length > 0 ? s + ' ' : s ;

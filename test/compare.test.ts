@@ -185,6 +185,16 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expect3($unorderedEqual(new Set(['a', 'b', 'c']), ['c', 'b', 'a'])).true() ;
         t.expect4($unorderedEqual(['a', 'b'], new Set(['b', 'a']))).true() ;
         t.expect5($unorderedEqual(new Set(['a', 'b']), new Set(['a', 'b', 'c']))).false() ;
+        // each element must be present the same number of times (the duplicates used to be ignored)
+        t.expect6($unorderedEqual([1, 1, 2], [1, 2, 2])).false() ;
+        t.expect7($unorderedEqual([1, 1, 2], [2, 1, 1])).true() ;
+        t.expect8($unorderedEqual([1, 1, 2], new Set([1, 2]))).false() ;       // a Set has each element once
+        t.expect9($unorderedEqual([Number.NaN, 0], [-0, Number.NaN])).true() ;  // SameValueZero, like Set.has()
+        const o = { a:1 } ;
+        t.expectA($unorderedEqual([o, 2], [2, o])).true() ;
+        t.expectB($unorderedEqual([{ a:1 }], [{ a:1 }])).false() ;              // objects are compared by reference
+        t.expectC($unorderedEqual([], new Set())).true() ;
+        t.expectD($unorderedEqual('ab' as any, ['a', 'b'])).false() ;
     }) ;
 
     group.unary("$datecompare() — number vs string and non-dateable operands", async(t) => {

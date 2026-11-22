@@ -20,8 +20,9 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 				v.forEach(r => super.add(r.clone())) ; // super here is just like this. This is JS at its best OOD.
 				return ;
 			}
-            // all ranges are validated before the first one is added
-            for (let r of _rangesFromArray(_rangeSetArgumentsArray(v!))) { this._addRange(r) ; }
+            // all ranges are validated before the first one is added. Then they are sorted
+            // and merged in one pass (adding them one by one was quadratic)
+            this._appendRanges(_sortedRangesMerge(_rangesFromArray(_rangeSetArgumentsArray(v!)).sort((a, b) => a.location - b.location))) ;
 		}
 	}
 
@@ -60,6 +61,11 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	public get maxRange():number { return $ok(this.first) ? this.last!.data.maxRange : Number.NaN ; }
 
 	public clone():TSRangeSet { return new TSRangeSet(this) ; }
+
+	// appends to the set new TSRange instances, already sorted, disjoint and not touching
+	private _appendRanges(ranges:TSRange[]):void {
+		for (const r of ranges) { super.add(r) ; } // super here is just like this. This is JS at its best OOD.
+	}
 
 	// here r must be a valid range
 	private _addRange(r:TSRange):void {
@@ -153,7 +159,7 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 		if (!this.hasSignificantRange) { return false ; }
 		if (typeof op === 'number') { return this.containsLocation(op) ; }
 		if (op instanceof TSRangeSet) {
-			return op.hasSignificantRange && this.range.contains(op.range) && !$ok(op.search(r => !this.contains(r))) ;
+			return op.hasSignificantRange && this.range.contains(op.range) && _sortedRangesContain([...this], [...op]) ;
 		}
 		if (!op.isValid) { return false ; }
 		if (op.isEmpty) { return this.containsLocation(op.location) ; } // an empty range is contained if its location is
@@ -205,8 +211,15 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	}
 	
 	public union(v:RangesLike):TSRangeSet {
+		const op = _operand(v, 'unionWidth') ; // same checks and errors as unionWidth()
+		if (op instanceof TSRangeSet) {
+			// linear merge of the two sorted lists (adding the ranges one by one was quadratic)
+			const ret = new TSRangeSet() ;
+			ret._appendRanges(_sortedRangesUnion([...this], [...op])) ;
+			return ret ;
+		}
 		let ret = new TSRangeSet(this) ;
-		ret.unionWidth(v) ;
+		ret.unionWidth(op) ;
 		return ret ;
 	}
 
@@ -217,8 +230,15 @@ export class TSRangeSet extends TSList<TSRange> implements Interval {
 	}
 
 	public substraction(v:RangesLike):TSRangeSet {
+		const op = _operand(v, 'substractFrom') ; // same checks and errors as substractFrom()
+		if (op instanceof TSRangeSet) {
+			// linear sweep of the two sorted lists (removing the ranges one by one was quadratic)
+			const ret = new TSRangeSet() ;
+			ret._appendRanges(_sortedRangesDifference([...this], [...op])) ;
+			return ret ;
+		}
 		let ret = new TSRangeSet(this) ;
-		ret.substractFrom(v) ;
+		ret.substractFrom(op) ;
 		return ret ;
 	}
 
@@ -310,6 +330,65 @@ function _operandRanges(op:number|TSRange|TSRangeSet):TSRange[] {
     if (typeof op === 'number') { return [new TSRange(op, 1)] ; }
     if (op instanceof TSRangeSet) { return [...op] ; }
     return op.hasSignificantRange ? [op] : [] ;
+}
+
+// ranges is a list of valid non empty ranges sorted by location. Returns new TSRange instances
+// (never the given ones) where the intersecting or touching ranges are merged
+function _sortedRangesMerge(ranges:TSRange[]):TSRange[] {
+    const ret:TSRange[] = [] ;
+    for (const r of ranges) {
+        const n = ret.length ;
+        if (n > 0 && r.location <= ret[n-1].maxRange) {
+            const last = ret[n-1] ;
+            if (r.maxRange > last.maxRange) { ret[n-1] = new TSRange(last.location, r.maxRange - last.location) ; }
+        }
+        else { ret.push(r.clone()) ; }
+    }
+    return ret ;
+}
+
+// a and b are sorted lists of disjoint and not touching ranges. Returns their union as new TSRange instances
+function _sortedRangesUnion(a:TSRange[], b:TSRange[]):TSRange[] {
+    const all:TSRange[] = [] ;
+    let i = 0, j = 0 ;
+    while (i < a.length || j < b.length) {
+        if (j >= b.length || (i < a.length && a[i].location <= b[j].location)) { all.push(a[i++]) ; }
+        else { all.push(b[j++]) ; }
+    }
+    return _sortedRangesMerge(all) ;
+}
+
+// a and b are sorted lists of disjoint and not touching ranges. Returns the parts of the ranges of a
+// which are in no range of b, as new TSRange instances
+function _sortedRangesDifference(a:TSRange[], b:TSRange[]):TSRange[] {
+    const ret:TSRange[] = [] ;
+    let j = 0 ;
+    for (const r of a) {
+        let current = r.location ;
+        const end = r.maxRange ;
+        while (j < b.length && b[j].maxRange <= current) { j++ ; }  // the ranges of b before r
+        let k = j ;
+        while (k < b.length && b[k].location < end) {
+            if (b[k].location > current) { ret.push(new TSRange(current, b[k].location - current)) ; }
+            current = Math.max(current, b[k].maxRange) ;
+            if (current >= end) { break ; } // b[k] may also cut the next ranges of a
+            k++ ;
+        }
+        if (current < end) { ret.push(new TSRange(current, end - current)) ; }
+        j = k ;
+    }
+    return ret ;
+}
+
+// a and b are sorted lists of disjoint and not touching ranges. Returns true if each range of b is
+// contained in a range of a
+function _sortedRangesContain(a:TSRange[], b:TSRange[]):boolean {
+    let i = 0 ;
+    for (const r of b) {
+        while (i < a.length && a[i].maxRange < r.maxRange) { i++ ; } // the first range of a which may contain r
+        if (i >= a.length || a[i].location > r.location) { return false ; }
+    }
+    return true ;
 }
 
 // a and b are sorted lists of disjoint and not touching ranges.

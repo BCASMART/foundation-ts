@@ -6,6 +6,43 @@ import { TSClone, TSCollection, TSObject } from "./tsobject";
 import { Ascending, Comparison, Descending, Nullable, Same } from "./types";
 
 
+// The list iterator inherits the global Iterator class where it exists (Node 22+, Chrome 122+, Firefox 131+,
+// Safari 18.4+), so that the iterator helpers (map(), filter(), take(), toArray()...) are available as with a
+// generator. Elsewhere, it inherits Object: there, generators have no iterator helpers either.
+const TSListIteratorBase = (typeof Iterator === 'function' ? Iterator : Object) as unknown as new () => object ;
+
+// Iterates the data of a list from its first node. It replaces a generator, being 1.5 to 3 times faster
+// (except on very short lists with Safari). Like the generator, it reads the next node only when next() is
+// called (so the list may be modified during the iteration with the same results), and return() and throw()
+// close it.
+class TSListIterator<T> extends TSListIteratorBase {
+    private _node:TSListNode<T> | null = null ;
+    private _started = false ;
+    private _done = false ;
+
+    public constructor(private readonly _first:TSListNode<T> | null) { super() ; }
+
+    public next():IteratorResult<T, void> {
+        if (this._done) { return { value:undefined, done:true } ; }
+        this._node = this._started ? (this._node?.next ?? null) : this._first ;
+        this._started = true ;
+        if (!this._node) { return this._close(undefined) ; }
+        return { value:this._node.data, done:false } ;
+    }
+
+    public return(value?:any):IteratorResult<T, any> { return this._close(value) ; }
+
+    public throw(e?:any):IteratorResult<T, void> { this._close(undefined) ; throw e ; }
+
+    public [Symbol.iterator]():this { return this ; }
+
+    private _close(value:any):IteratorResult<T, any> {
+        this._done = true ;
+        this._node = null ;
+        return { value:value, done:true } ;
+    }
+}
+
 export class TSListNode<T> implements TSObject {
 	public next: TSListNode<T> | null = null;
 	public prev: TSListNode<T> | null = null;
@@ -124,27 +161,17 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 		}
 	}
 
+	// the list methods use loops: they used to be recursive, so that long lists (about 8000 nodes) overflowed the stack
 	public forEach(callback: (data: T) => void) {
-		if (this._f) {
-			const traverseMe = (node:TSListNode<T>) => {
-				callback(node.data) ;
-				if (node.next) traverseMe(node.next) ;
-			} ;
-			traverseMe(this._f) ;
-		}	
+		for (let node = this._f ; node ; node = node.next) { callback(node.data) ; }
 	}
 
-    public *[Symbol.iterator]() 
-    { for (let n = this._f ; n ; n = n!.next) { yield n!.data ; } }
+    // returns a TSListIterator, which behaves like the generator used before (and is still declared as one)
+    public [Symbol.iterator]():Generator<T, void, unknown>
+    { return new TSListIterator<T>(this._f) as unknown as Generator<T, void, unknown> ; }
 
 	public searchNode(callback: (node: TSListNode<T>) => boolean): TSListNode<T> | null {
-		if (this._f) {
-			const findMe = (node: TSListNode<T>): TSListNode<T> | null => {
-				if (callback(node)) { return node ; }
-				return node.next ? findMe(node.next) : null ;
-			} ;
-			return findMe(this._f) ;
-		}
+		for (let node = this._f ; node ; node = node.next) { if (callback(node)) { return node ; } }
 		return null ;
 	}
 
@@ -192,17 +219,11 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 		let s = $ok(opts.prefix) ? opts.prefix : '' ;
 		if (!$ok(opts.printer)) opts.printer = d => (d as any).toString() ;
 
-		if (this._f) {
-			const sepa = $length(opts.separator) > 0 ? opts.separator : undefined ;
-			const printMe = (node:TSListNode<T>) => {
-				const element = opts.printer!(node.data) ;
-				if ($ok(element)) { s = s + element ; }
-				if (node.next !== null) {
-					if (sepa) { s = s + sepa ; }
-					printMe(node.next) ;
-				}
-			} ;
-			printMe(this._f) ;
+		const sepa = $length(opts.separator) > 0 ? opts.separator : undefined ;
+		for (let node = this._f ; node ; node = node.next) {
+			const element = opts.printer!(node.data) ;
+			if ($ok(element)) { s = s + element ; }
+			if (node.next !== null && sepa) { s = s + sepa ; }
 		}
 		if ($length(opts.suffix)) { s = s + opts.suffix ; }
 		return s ;
@@ -212,16 +233,12 @@ export class TSList<T> implements TSObject, TSCollection<T>, TSFusionEnumeration
 
 	public toArray(map?:(data:T) => Nullable<any>):T[] {
 		let array:T[] = [] ;
-		if (this._f) {
-			const addMe = (node:TSListNode<T>) => {
-				if (map) {
-					const v = map(node.data) ;
-					if ($ok(v)) array.push(v) ;
-				}
-				else array.push(node.data) ;
-				if (node.next) addMe(node.next) ;
-			} ;
-			addMe(this._f) ;
+		for (let node = this._f ; node ; node = node.next) {
+			if (map) {
+				const v = map(node.data) ;
+				if ($ok(v)) { array.push(v) ; }
+			}
+			else { array.push(node.data) ; }
 		}
 		return array ;
 	}

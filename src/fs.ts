@@ -401,20 +401,22 @@ export interface BasicWriteOptions {
     errors?: Nullable<string[]>; // NOSONAR: optional. when set, every error encountered (not warnings) is pushed here
 }
 
-export interface $writeStringOptions extends BasicWriteOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSWriteStringOptions extends BasicWriteOptions {
     encoding?: Nullable<StringEncoding | TSCharset>, // NOSONAR: optional
     stringStart?: Nullable<number>, // NOSONAR: optional
     stringEnd?: Nullable<number> // NOSONAR: optional
 }
+/** @deprecated use TSWriteStringOptions */
+export type $writeStringOptions = TSWriteStringOptions ;
 
-export function $writeString(src: Nullable<string>, str: string, opts: $writeStringOptions = {}): boolean {
+export function $writeString(src: Nullable<string>, str: string, opts: TSWriteStringOptions = {}): boolean {
     TSError.assertNotInBrowser('$writeString');
     const [res,] = $fullWriteString(src, str, opts);
     return res;
 }
 
 // returns [OK/KO and the name of the precedent version if it exists
-export function $fullWriteString(src: Nullable<string>, str: string, opts: $writeStringOptions): [boolean, string | null] {
+export function $fullWriteString(src: Nullable<string>, str: string, opts: TSWriteStringOptions): [boolean, string | null] {
     TSError.assertNotInBrowser('$fullWriteString');
     return $fullWriteBuffer(src, $charset(opts.encoding).dataFromString(str, opts.stringStart, opts.stringEnd), opts as BasicWriteOptions)
 }
@@ -436,19 +438,21 @@ export function $readData(src: Nullable<string>): TSData | null {
     return $ok(buf) ? new TSData(buf, { dontCopySourceBuffer: true }) : null;
 }
 
-export interface $writeBufferOptions extends BasicWriteOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSWriteBufferOptions extends BasicWriteOptions {
     byteStart?: number,
     byteEnd?: number
 }
+/** @deprecated use TSWriteBufferOptions */
+export type $writeBufferOptions = TSWriteBufferOptions ;
 
-export function $writeBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBufferView, opts: $writeBufferOptions = {}): boolean {
+export function $writeBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBufferView, opts: TSWriteBufferOptions = {}): boolean {
     TSError.assertNotInBrowser('$writeBuffer');
     const [res,] = $fullWriteBuffer(src, buf, opts);
     return res;
 }
 
 // returns [OK/KO and the name of the precedent version if it exists
-export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBufferView, opts: $writeBufferOptions): [boolean, string | null] {
+export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.ArrayBufferView, opts: TSWriteBufferOptions): [boolean, string | null] {
     TSError.assertNotInBrowser('$fullWriteBuffer');
     let start = $ok(opts.byteStart) ? opts.byteStart! : 0;
     let end = $ok(opts.byteEnd) ? opts.byteEnd! : buf.byteLength;
@@ -480,10 +484,10 @@ export function $fullWriteBuffer(src: Nullable<string>, buf: TSData | NodeJS.Arr
     return $ok(stats) ? _atomicReplaceFile(src!, pathToWrite, opts) : [_atomicRenameFile(src!, pathToWrite, opts), null];
 }
 
-function _writeFailure(opts: $writeBufferOptions, message: string) { if (opts.errors) { opts.errors.push(message); } }
+function _writeFailure(opts: TSWriteBufferOptions, message: string) { if (opts.errors) { opts.errors.push(message); } }
 
 // writes data[start..end[ in pathToWrite. returns false on failure
-function _writeFileRange(src: string, pathToWrite: string, data: NodeJS.ArrayBufferView, start: number, end: number, mode: number, opts: $writeBufferOptions): boolean {
+function _writeFileRange(src: string, pathToWrite: string, data: NodeJS.ArrayBufferView, start: number, end: number, mode: number, opts: TSWriteBufferOptions): boolean {
     try {
         const fd = openSync(pathToWrite, 'w', mode);
         try { _writeAll(fd, src, data, start, end, opts) ; }
@@ -496,7 +500,7 @@ function _writeFileRange(src: string, pathToWrite: string, data: NodeJS.ArrayBuf
     }
 }
 
-function _writeAll(fd: number, src: string, data: NodeJS.ArrayBufferView, start: number, end: number, opts: $writeBufferOptions) {
+function _writeAll(fd: number, src: string, data: NodeJS.ArrayBufferView, start: number, end: number, opts: TSWriteBufferOptions) {
     const MAX_TRY = 3;
     let retries = 0;
     while (start < end) {
@@ -516,7 +520,7 @@ function _writeAll(fd: number, src: string, data: NodeJS.ArrayBufferView, start:
 }
 
 // src exists: it is renamed, then replaced by the written file
-function _atomicReplaceFile(src: string, pathToWrite: string, opts: $writeBufferOptions): [boolean, string | null] {
+function _atomicReplaceFile(src: string, pathToWrite: string, opts: TSWriteBufferOptions): [boolean, string | null] {
     const renamedExistingFile = $uniquefile(src);
     let done = _safeRename(src, renamedExistingFile, opts.errors);
     if (!done) {
@@ -551,14 +555,14 @@ function _atomicReplaceFile(src: string, pathToWrite: string, opts: $writeBuffer
 }
 
 // src does not exist: the written file is simply renamed
-function _atomicRenameFile(src: string, pathToWrite: string, opts: $writeBufferOptions): boolean {
+function _atomicRenameFile(src: string, pathToWrite: string, opts: TSWriteBufferOptions): boolean {
     if (_safeRename(pathToWrite, src, opts.errors)) { return true ; }
     _writeFailure(opts, `$fullWriteBuffer(): unable to rename temporary file '${pathToWrite}' to '${src}'.`) ;
     _removeTemporaryFile(pathToWrite, opts) ;
     return false ;
 }
 
-function _removeTemporaryFile(pathToWrite: string, opts: $writeBufferOptions) {
+function _removeTemporaryFile(pathToWrite: string, opts: TSWriteBufferOptions) {
     // we may let a newly created temporary file here if unlink does not succeed
     if (!_safeUnlink(pathToWrite, opts.errors)) { _writeFailure(opts, `$fullWriteBuffer(): temporary file '${pathToWrite}' could not be removed after a failed atomic write.`) ; }
 }

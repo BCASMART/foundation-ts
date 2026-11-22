@@ -36,7 +36,7 @@ export function $ltrim(s: Nullable<string>): string {
     if (!$length(s)) { return ''; }
     const str = s! ; const n = str.length ;
     let i = 0 ;
-    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(i))) { i++ ; } // NOSONAR: white spaces are all in the BMP, UTF-16 code units are what we need
+    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.codePointAt(i)!)) { i++ ; }
     return i === 0 ? str : str.slice(i) ;
 }
 
@@ -45,7 +45,7 @@ export function $rtrim(s: Nullable<string>): string {
     if (!$length(s)) { return ''; }
     const str = s! ; const n = str.length ;
     let j = n ;
-    while (j > 0 && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(j - 1))) { j-- ; } // NOSONAR: white spaces are all in the BMP, UTF-16 code units are what we need
+    while (j > 0 && FoundationWhiteSpacesNumberCodeSet.has(str.codePointAt(j - 1)!)) { j-- ; }
     return j === n ? str : str.slice(0, j) ;
 }
 
@@ -54,10 +54,10 @@ export function $ftrim(s: Nullable<string>): string {
     if (!$length(s)) { return ''; }
     const str = s! ; const n = str.length ;
     let i = 0 ;
-    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(i))) { i++ ; } // NOSONAR: white spaces are all in the BMP, UTF-16 code units are what we need
+    while (i < n && FoundationWhiteSpacesNumberCodeSet.has(str.codePointAt(i)!)) { i++ ; }
     if (i === n) { return '' ; }
     let j = n ;
-    while (FoundationWhiteSpacesNumberCodeSet.has(str.charCodeAt(j - 1))) { j-- ; } // NOSONAR: white spaces are all in the BMP, UTF-16 code units are what we need
+    while (FoundationWhiteSpacesNumberCodeSet.has(str.codePointAt(j - 1)!)) { j-- ; }
     return i === 0 && j === n ? str : str.slice(i, j) ;
 }
 
@@ -98,22 +98,24 @@ export function $lines(s: Nullable<string>, useOnlyASCIISeparators: boolean = fa
     const ret: string[] = [] ;
     let lastPosition = 0, pos = 0 ;
     while (pos < len) {
-        const c = s!.charCodeAt(pos); // NOSONAR: line separators are all in the BMP, UTF-16 code units are what we need
+        const c = s!.codePointAt(pos)!;
         if (!isSeparator(c)) { pos++ ; continue ; }
         ret.push(s!.slice(lastPosition, pos)) ;
         // CR LF is a single separator
-        pos += c === 0x0D && s!.charCodeAt(pos + 1) === 0x0A ? 2 : 1 ; // NOSONAR: CR and LF are BMP code units
+        pos += c === 0x0D && s!.codePointAt(pos + 1) === 0x0A ? 2 : 1 ;
         lastPosition = pos ;
     }
     ret.push(s!.slice(lastPosition)) ; // the last line is empty when the string ends with a separator
     return ret;
 }
-export interface $normspacesOptions { // NOSONAR: name accepted for matchnig the function
+export interface TSNormSpacesOptions {
     replacer?: string,
     strict?: boolean
 }
+/** @deprecated use TSNormSpacesOptions */
+export type $normspacesOptions = TSNormSpacesOptions ;
 
-export function $normspaces(s: Nullable<string>, opts: $normspacesOptions = {}): string {
+export function $normspaces(s: Nullable<string>, opts: TSNormSpacesOptions = {}): string {
     return $ftrim(s).replace(
         opts.strict ? FoundationFindStrictWhitespacesRegex : FoundationFindAllWhitespacesRegex,
         $value(opts.replacer, " ")
@@ -166,7 +168,7 @@ declare global {
         isWhiteSpace: (this: string) => boolean;
         lines: (this: string, useOnlyASCIISeparators?: boolean) => string[];
         ltrim: (this: string) => string;
-        normalizeSpaces: (this: string, opts?: $normspacesOptions) => string;
+        normalizeSpaces: (this: string, opts?: TSNormSpacesOptions) => string;
         right: (this: string, rightPart?: Nullable<number>) => string;
         rtrim: (this: string) => string;
         singular: (this: string) => boolean;
@@ -205,7 +207,7 @@ $declareMethods(String, {
     left(this: string, leftPart?: Nullable<number>): string { return $left(this, leftPart); },
     lines(this: string, useOnlyASCIISeparators?: boolean): string[] { return $lines(this, useOnlyASCIISeparators); },
     ltrim(this: string): string { return $ltrim(this); },
-    normalizeSpaces(this: string, opts?: $normspacesOptions): string { return $normspaces(this, opts); },
+    normalizeSpaces(this: string, opts?: TSNormSpacesOptions): string { return $normspaces(this, opts); },
     right(this: string, rightPart?: Nullable<number>): string { return $right(this, rightPart); },
     rtrim(this: string): string { return $rtrim(this); },
     singular(this: string) { return this.toUnsigned() === 1; },

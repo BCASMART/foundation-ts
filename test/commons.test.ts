@@ -1,5 +1,5 @@
 
-import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isipv4, $isipv6, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $partial, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $stringOptions, $symbol2string } from "../src/commons";
+import { $address, $array, $count, $defined, $dict, $email, $fusion, $hasproperties, $includesdict, $int, $intornull, $isdate, $isemail, $isipaddress, $isipv4, $isipv6, $isiterable, $iswhitespace, $isurl, $isuuid, $jsonobj, $keys, $lengthin, $objectcount, $objectMap, $ok, $partial, $string, $strings, $toint, $totype, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, TSStringOptions, $symbol2string } from "../src/commons";
 import { TSDate } from "../src/tsdate";
 import { INT_MAX, INT_MIN, UINT_MAX, UUIDv1, UUIDv4 } from "../src/types";
 import { TSTest } from '../src/tstester';
@@ -676,7 +676,7 @@ TSTest.group("Commons interpretation functions", async (group) => {
     }) ;
 
     group.unary("$string() function", async(t) => {
-        const conversionOptions:$stringOptions = {
+        const conversionOptions:TSStringOptions = {
             trueValue: "YES",
             falseValue: "NO",
             nullRepresentation: "<null>",

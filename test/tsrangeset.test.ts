@@ -392,4 +392,70 @@ TSTest.group("TSRangeSet.intersection(rangeSet) with several ranges", async (gro
     }) ;
 }),
 
+TSTest.group("TSRangeSet linear union(), substraction(), contains() and constructor", async (group) => {
+    // naive references computed on integer locations
+    const members = (s:TSRangeSet, n:number) => { const m:boolean[] = [] ; for (let i = 0 ; i < n ; i++) { m.push(s.containsLocation(i)) ; } return m ; } ;
+    const rnd = (n:number) => Math.floor(Math.random() * n) ;
+    const randomRanges = () => { const ret:TSRange[] = [] ; for (let i = rnd(12) ; i > 0 ; i--) { ret.push(new TSRange(rnd(70), 1 + rnd(9))) ; } return ret ; } ;
+    // a set is valid when its ranges are sorted, not empty, disjoint and not touching
+    const isNormalized = (s:TSRangeSet) => { const a = [...s] ; return a.every((r, i) => r.length > 0 && (i === 0 || a[i-1].maxRange < r.location)) ; } ;
+
+    group.unary("random sets compared with location membership", async(t) => {
+        let badUnion = 0, badSub = 0, badContains = 0, badCtor = 0, badNorm = 0, badSources = 0, badShared = 0 ;
+        for (let c = 0 ; c < 500 ; c++) {
+            const ra = randomRanges(), rb = randomRanges() ;
+            const a = new TSRangeSet(ra), b = new TSRangeSet(rb) ;
+            const a0 = a.clone(), b0 = b.clone() ;
+            const ma = members(a, 90), mb = members(b, 90) ;
+            // constructor: a location is in the set if and only if it is in one of the given ranges
+            if (ma.some((v, i) => v !== ra.some(r => r.containsLocation(i)))) { badCtor++ ; }
+            const u = a.union(b), d = a.substraction(b) ;
+            const mu = members(u, 90), md = members(d, 90) ;
+            if (mu.some((v, i) => v !== (ma[i] || mb[i]))) { badUnion++ ; }
+            if (md.some((v, i) => v !== (ma[i] && !mb[i]))) { badSub++ ; }
+            if (![a, b, u, d].every(isNormalized)) { badNorm++ ; }
+            if (!a.isEqual(a0) || !b.isEqual(b0)) { badSources++ ; }
+            // the results never share their TSRange instances with the sources
+            const src = new Set<TSRange>([...a, ...b, ...ra, ...rb]) ;
+            if ([...u, ...d].some(r => src.has(r))) { badShared++ ; }
+            // contains(set): b is in a if and only if all its locations are in a
+            const expected = b.hasSignificantRange && mb.every((v, i) => !v || ma[i]) ;
+            if (a.contains(b) !== expected) { badContains++ ; }
+            if (b.hasSignificantRange && !a.union(b).contains(b)) { badContains++ ; }
+        }
+        t.expect0(badCtor).is(0) ;
+        t.expect1(badUnion).is(0) ;
+        t.expect2(badSub).is(0) ;
+        t.expect3(badContains).is(0) ;
+        t.expect4(badNorm).is(0) ;
+        t.expect5(badSources).is(0) ;
+        t.expect6(badShared).is(0) ;
+    }) ;
+
+    group.unary("limit cases", async(t) => {
+        const R = (l:number, n:number) => new TSRange(l, n) ;
+        const s = new TSRangeSet([R(10, 5), R(0, 5), R(5, 2), R(30, 10), R(32, 2)]) ;
+        t.expect0([...s].map(r => [r.location, r.length])).is([[0, 7], [10, 5], [30, 10]]) ;
+        t.expect1([...s.union(new TSRangeSet([R(7, 3), R(50, 1)]))].map(r => [r.location, r.length])).is([[0, 15], [30, 10], [50, 1]]) ;
+        t.expect2([...s.substraction(new TSRangeSet([R(2, 1), R(6, 6), R(29, 2), R(39, 20)]))].map(r => [r.location, r.length])).is([[0, 2], [3, 3], [12, 3], [31, 8]]) ;
+        t.expect3(s.union(s).isEqual(s)).true() ;
+        t.expect4(s.substraction(s).count).is(0) ;
+        t.expect5(s.substraction(new TSRangeSet()).isEqual(s)).true() ;
+        t.expect6(new TSRangeSet().union(s).isEqual(s)).true() ;
+        t.expect7(new TSRangeSet().substraction(s).count).is(0) ;
+        t.expect8(s.contains(new TSRangeSet())).false() ;
+        t.expect9(s.contains(s)).true() ;
+        t.expectA(s.contains(new TSRangeSet([R(0, 7), R(31, 9)]))).true() ;
+        t.expectB(s.contains(new TSRangeSet([R(0, 8)]))).false() ;
+        t.expectC(s.contains(new TSRangeSet([R(11, 2), R(40, 1)]))).false() ;
+        // a substraction range spanning several ranges of the set
+        t.expectD([...s.substraction(new TSRangeSet([R(3, 30)]))].map(r => [r.location, r.length])).is([[0, 3], [33, 7]]) ;
+        // the other operands still follow the previous code
+        t.expectE([...s.union(R(7, 3))].map(r => [r.location, r.length])).is([[0, 15], [30, 10]]) ;
+        t.expectF([...s.substraction(31)].map(r => [r.location, r.length])).is([[0, 7], [10, 5], [30, 1], [32, 8]]) ;
+        t.expectG(s.union(R(3, 0)).isEqual(s)).true() ;
+        t.expectH(() => new TSRangeSet([R(0, 5), R(3, 0)])).toThrow() ;
+    }) ;
+}),
+
 ] ;
