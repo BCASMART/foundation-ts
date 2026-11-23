@@ -1237,11 +1237,23 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expect8(verrs({ _type:'string', _enum:{ a:'A' } }, 'z')).is([false, ['value has not a valid enum tag z.']]) ;
         t.expect9(verrs({ a:'int' }, { a:1, b:2 })).is([false, ['value.b is unknown.']]) ;
         t.expectA(verrs({ a:'int', _acceptsUncheckedItems:true }, { a:1, b:2 })).is([true, []]) ;
+        // the acceptsUncheckedItems option of validate(), interpret() and encode(), for all the objects (it used to be ignored)
+        const up = TSParser.define({ a:'int', o:{ b:'string' } })! ;
+        const uvalue = { a:1, x:2, o:{ b:'s', y:3 } } ;
+        const opts:TSParserOptions = { errors:[], acceptsUncheckedItems:true } ;
+        t.expect(up.validate(uvalue, opts), 'unchk-0').true() ;
+        t.expect(opts.errors, 'unchk-1').is([]) ;
+        t.expect(up.interpret(uvalue, { acceptsUncheckedItems:true }), 'unchk-2').is(uvalue) ;
+        t.expect(up.encode(uvalue, { acceptsUncheckedItems:true }), 'unchk-3').is(uvalue) ;
+        const opts2:TSParserOptions = { errors:[], acceptsUncheckedItems:false } ;
+        t.expect(up.validate(uvalue, opts2), 'unchk-4').false() ;
+        t.expect(opts2.errors, 'unchk-5').is(['value.x is unknown.', 'value.o.y is unknown.']) ;
+        t.expect(up.interpret(uvalue), 'unchk-6').null() ;
         t.expectB(verrs({ a:'int!', b:'int!' }, {})).is([false, ['value.a is mandatory.', 'value.b is mandatory.']]) ;
         // an invalid mandatory item used to be also reported as missing
-        t.expectC(verrs({ a:'int!', b:'string' }, { a:'x' })).is([false, ['object.a is not a valid int.']]) ;
+        t.expectC(verrs({ a:'int!', b:'string' }, { a:'x' })).is([false, ['value.a is not a valid int.']]) ;
         // a duplicate key (through an alias) is reported, even when the first one was not valid
-        t.expectD(verrs({ a:'int', _aliases:new Map([['b', 'a']]) }, { a:'x', b:1 })).is([false, ['object.a is not a valid int.', 'value.a is present several times.']]) ;
+        t.expectD(verrs({ a:'int', _aliases:new Map([['b', 'a']]) }, { a:'x', b:1 })).is([false, ['value.a is not a valid int.', 'value.a is present several times.']]) ;
 
         // interpret(), encode(), stringify() and parse() on invalid values
         const p = TSParser.define({ a:'int' })! ;
@@ -1369,7 +1381,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const c = TSParser.define({ a:{ _type:'uint8', _checker:(v:any) => v > 10, _default:3 } })! ;
         const cerrors:string[] = [] ;
         t.expect7(c.interpret({}, { errors:cerrors })).null() ;  // was { a:3 }
-        t.expect8(cerrors).is(['object.a specific check did fail.']) ;
+        t.expect8(cerrors).is(['value.a specific check did fail.']) ;
         t.expect9(c.interpret({ a:20 })).is({ a:20 }) ;
     }) ;
 
@@ -1387,7 +1399,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
 
         const errors:string[] = [] ;
         t.expect7(TSParser.define({ a:{ _itemsType:'int', _min:2 } })!.validate({ a:new Set([1]) }, { errors:errors })).false() ;
-        t.expect8(errors).is(['object.a.size is too small (1 < 2).']) ;
+        t.expect8(errors).is(['value.a.size is too small (1 < 2).']) ;
 
         // the checker always receives an array
         const c = TSParser.define({ _itemsType:'int', _checker:(v:any) => Array.isArray(v) && v.length === 2 })! ;
@@ -1412,11 +1424,87 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expect3(verrs({ a:'int', _checker:(o:any) => o.a > 0 }, { a:-1 })).is([false, ['value specific check did fail.']]) ;
         t.expect4(verrs({ a:'int', _checker:(o:any) => o.a > 0 }, { a:1 })).is([true, []]) ;
         t.expect5(verrs({ _itemsType:'int', _checker:(a:any) => a.length === 1 }, [1, 2])).is([false, ['value specific check did fail.']]) ;
-        t.expect6(verrs({ a:{ _itemsType:'int', _checker:(a:any) => a.length === 1 } }, { a:[1, 2] })).is([false, ['object.a specific check did fail.']]) ;
+        t.expect6(verrs({ a:{ _itemsType:'int', _checker:(a:any) => a.length === 1 } }, { a:[1, 2] })).is([false, ['value.a specific check did fail.']]) ;
 
         const bad = TSParser.define({ _itemsType:'int', _mandatory:'yes' } as any)! ;
         t.expect7(bad.isValid).false() ;
         t.expect8(bad.errors).is(['_mandatory field should be a boolean']) ;
+    }) ;
+
+    group.unary('TSParser — integer strings, absent optional values, checker options and enumeration tags', async (t) => {
+        const I = (node:any, v:any, o:TSParserOptions = {}):[any, string[]] => { const e:string[] = [] ; return [TSParser.define(node)!.interpret(v, { errors:e, ...o }), e] ; } ;
+        const V = (node:any, v:any):[boolean, string[]] => { const e:string[] = [] ; return [TSParser.define(node)!.validate(v, { errors:e }), e] ; } ;
+        // integer strings are converted like they are validated, with Number() (they used to give 0 or 1)
+        t.expect0(I({ a:'int' }, { a:'0x10' })[0]).is({ a:16 }) ;
+        t.expect1(I({ a:'int' }, { a:'1e3' })[0]).is({ a:1000 }) ;
+        t.expect2(I({ a:'uint8' }, { a:'0b11' })[0]).is({ a:3 }) ;
+        t.expect3(I({ a:'int' }, { a:' 12 ' })[0]).is({ a:12 }) ;
+        t.expect4(I({ a:'int' }, { a:'' })[0]).is({ a:0 }) ;   // unchanged: an empty string gives 0
+        t.expect5(Object.is(I({ a:'unsigned' }, { a:'-0' })[0].a, 0)).true() ;
+        t.expect6(I({ a:'int' }, { a:'1.5' })).is([null, ['value.a is not a valid int.']]) ;
+        // an absent optional value is valid: no enumeration test, no specific check (it used to be refused or checked)
+        t.expect7(V({ a:{ _type:'string', _enum:['x', 'y'] } }, { a:null })).is([true, []]) ;
+        t.expect8(V({ _type:'string', _enum:['x', 'y'] }, undefined)).is([true, []]) ;
+        t.expect9(V({ a:{ _type:'string', _checker:(v:any) => v.length > 0 } }, { a:null })).is([true, []]) ;
+        t.expectA(V({ a:{ _type:'string', _enum:['x', 'y'] } }, { a:'z' })).is([false, ["value.a has not a valid enum value 'z'."]]) ;
+        t.expectB(V({ a:{ _type:'string', _mandatory:true, _enum:['x', 'y'] } }, { a:null })).is([false, ['value.a is mandatory.']]) ;
+        // the specific checker receives the node options (it used to receive only the call options)
+        const max3 = { a:{ _type:'string', _options:{ max:3 }, _checker:(v:any, o:any) => v.length <= o?.options?.max } } ;
+        t.expectC(V(max3, { a:'abc' })).is([true, []]) ;
+        t.expectD(V(max3, { a:'abcd' })).is([false, ['value.a specific check did fail.']]) ;
+        // only the own keys of an enumeration dictionary are tags
+        t.expectE(V({ a:{ _type:'string', _enum:{ t:'T' } } }, { a:'toString' })).is([false, ['value.a has not a valid enum tag toString.']]) ;
+        t.expectF(V({ a:{ _type:'string', _enum:{ t:'T' } } }, { a:'__proto__' })).is([false, ['value.a has not a valid enum tag __proto__.']]) ;
+        t.expectG(I({ a:{ _type:'string', _enum:{ t:'T' } } }, { a:'t' })[0]).is({ a:'T' }) ;
+        // no double space in the empty dictionary message
+        t.expectH(V({ _keysType:'string', _valueItemsType:'int', _mandatory:true }, {})).is([false, ['value is empty.']]) ;
+    }) ;
+
+    group.unary("TSParser — 'jsdate' strings", async (t) => {
+        const p = TSParser.define({ a:'jsdate' })! ;
+        const iso = (v:any) => { const r = p.interpret({ a:v }) ; return r ? (r.a as Date).toISOString() : null ; } ;
+        // without timezone, a UTC date (Date.parse() used local times for some forms)
+        t.expect0(iso('2024-05-01')).is('2024-05-01T00:00:00.000Z') ;
+        t.expect1(iso('2024-05-01T10:20')).is('2024-05-01T10:20:00.000Z') ;
+        t.expect2(iso('2024-05-01T10:20:30.123')).is('2024-05-01T10:20:30.123Z') ;
+        t.expect3(iso('2024-05-01T10:20:30+02:00')).is('2024-05-01T08:20:30.000Z') ;
+        t.expect4(iso('2024-05-01T10:20:30Z')).is('2024-05-01T10:20:30.000Z') ;
+        t.expect5(iso('2024-02-29')).is('2024-02-29T00:00:00.000Z') ;
+        // the year, the month and the day must exist
+        for (const [i, s] of ['2023-02-29', '2024-02-30', '2024-07-32', '2024-13-01', '2024-00-10', '2024', '2024-05'].entries()) { t.expect(iso(s), `bad-${i}`).null() ; }
+        // a number alone is refused (Date.parse() gives strange dates for it), and so are numbers
+        for (const [i, s] of ['5', '20240501', '-1', '1.5', '', '10:20:30', 0, 1700000000000].entries()) { t.expect(iso(s), `num-${i}`).null() ; }
+        t.expect6(iso(new Date(Number.NaN))).null() ; // an invalid Date object
+        t.expect7(iso(new Date(0))).is('1970-01-01T00:00:00.000Z') ;
+        if (!$inbrowser()) { // the other forms of Date.parse() depend on the JavaScript engine
+            t.expect8(iso('May 1, 2024')).is('2024-05-01T00:00:00.000Z') ;
+            t.expect9(iso('1 May 2024 10:20')).is('2024-05-01T10:20:00.000Z') ;
+            t.expectA(iso('Wed, 01 May 2024 10:20:30 GMT')).is('2024-05-01T10:20:30.000Z') ;
+            t.expectB(iso('Tue May 01 2001 00:00:00 GMT+0200')).is('2001-04-30T22:00:00.000Z') ;
+            t.expectC(iso('5/1/2024 10:20')).is('2024-05-01T10:20:00.000Z') ;
+            t.expectD(iso('2024/05/01')).is('2024-05-01T00:00:00.000Z') ;
+            for (const [i, s] of ['February 30, 2024', '29 February 2023', '2/30/2024', 'May 2024', 'May', '1/5/24'].entries()) { t.expect(iso(s), `form-${i}`).null() ; }
+            t.expectE(iso('29 February 2024')).is('2024-02-29T00:00:00.000Z') ;
+        }
+    }) ;
+
+    group.unary('TSParser — dictionaries with _normalizesKeys', async (t) => {
+        const I = (node:any, v:any):[any, string[]] => { const e:string[] = [] ; return [TSParser.define(node)!.interpret(v, { errors:e }), e] ; } ;
+        const ints = { _keysType:'int', _valueItemsType:'string', _normalizesKeys:true } ;
+        t.expect0(I(ints, { '02':'a', ' 7':'b', '0x10':'c' })).is([{ '2':'a', '7':'b', '16':'c' }, []]) ;
+        // two keys with the same interpreted form are refused
+        t.expect1(I(ints, { '02':'a', '2':'b' })).is([null, ['value.2 is present several times.']]) ;
+        t.expect2(I({ _keysType:'country', _valueItemsType:'int', _normalizesKeys:true }, { fr:1, DEU:2 })).is([{ FR:1, DE:2 }, []]) ;
+        t.expect3(I({ _keysType:'email', _valueItemsType:'int', _normalizesKeys:true }, { ' Bob@Example.COM ':1 })).is([{ 'bob@example.com':1 }, []]) ;
+        const countries = TSParser.define({ _keysType:'country', _valueItemsType:'int', _normalizesKeys:true })! ;
+        t.expect4(countries.encode({ fr:1 })).is({ FR:1 }) ;
+        // without the option, nothing changes: the keys are kept as they were given
+        t.expect5(I({ _keysType:'int', _valueItemsType:'string' }, { '02':'a', '2':'b' })).is([{ '2':'b', '02':'a' }, []]) ;
+        t.expect6(I({ _keysType:'country', _valueItemsType:'int' }, { fr:1 })).is([{ fr:1 }, []]) ;
+        // definition errors
+        const derrs = (node:any) => { const e:string[] = [] ; TSParser.define(node, e) ; return e ; } ;
+        t.expect7(derrs({ a:'int', _normalizesKeys:true })).is(['_normalizesKeys field can only be set for a dictionary node definition']) ;
+        t.expect8(TSParser.define({ _keysType:'int', _valueItemsType:'string', _normalizesKeys:'yes' } as any)!.errors).is(['_normalizesKeys field should be a boolean']) ;
     }) ;
 }) ;
 

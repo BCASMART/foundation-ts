@@ -331,8 +331,10 @@ function _interpretVarArgs(parser:TSParser, args:Nullable<string[]>, ref:Map<str
     dict = $valueornull(parser.interpret(dict, { errors:interpretErrors, context:TSParserActionContext.vargs })) as TSDictionary | null ; 
     if (!$ok(dict) && $ok(errors)) {
         interpretErrors.forEach(e => {
-            const m = /^object\.(\S+)\s+(\S.*)$/.exec(e) ; // \s+ and \S are disjoint: no backtracking
-            if ($ok(m)) { errors?.push(`Argument '-${m[1]}' ${m[2]}`) ; }
+            // the root value is named value in the parser error messages (the errors detected by the root
+            // object, like a missing mandatory argument, used to be named value and were lost here)
+            const m = /^value\.(\S+)\s+(\S.*)$/.exec(e) ; // \s+ and \S are disjoint: no backtracking
+            errors?.push($ok(m) ? `Argument '-${m![1]}' ${m![2]}` : e) ;
         }) ;
     }
     return [dict, remains] ;

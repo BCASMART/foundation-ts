@@ -173,6 +173,7 @@ export interface TSRequestOptions {
     timeout?:Nullable<number> ;             // NOSONAR: optional
     managesCredentials?:Nullable<boolean> ; // NOSONAR: optional
     auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // NOSONAR: optional. if TSDataLike, we need to convert it to base64
+    keepsTrailingSlash?:Nullable<boolean> ; // NOSONAR: optional. false by default: the final '/' of the request URLs is removed
 }
 
 export class TSRequest {
@@ -181,6 +182,9 @@ export class TSRequest {
 	public basicAuth:string = '' ;
 	public defaultTimeOut = 1000 ;
     public commonHeaders:TSRequestHeaders={} ;
+    // false by default: the final '/' of the request URLs is removed. If true, the URL path is the one given
+    // by the caller: only the '/' added by TSURL.compose() to an empty relative URL is removed
+    public keepsTrailingSlash = false ;
 
     private _baseURL:string = TSRequest.DefaultURL ;
     private _managesCredential:boolean = false ;
@@ -211,6 +215,7 @@ export class TSRequest {
 		const commonTimeout = $tounsigned(opts.timeout) ;
 		if (commonTimeout > 0) { this.defaultTimeOut = commonTimeout ; }
         this._managesCredential = !!opts.managesCredentials ;
+        this.keepsTrailingSlash = !!opts.keepsTrailingSlash ;
         this._baseURL = baseURL.length > 0 ? baseURL : TSRequest.DefaultURL ;
         // this._resetChannel() ;
 	} 
@@ -300,7 +305,7 @@ export class TSRequest {
         if (!$ok(finalURL)) {
             TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', errorInfo) ; 
         }
-        if ($length(finalURL) > 1 && finalURL?.endsWith('/')) { finalURL = finalURL.slice(0, -1) ; }
+        if ($length(finalURL) > 1 && finalURL?.endsWith('/') && !this._keepsTrailingSlashOf($string(relativeURL))) { finalURL = finalURL.slice(0, -1) ; }
 
         _setRequestBody(config, requestHeaders, body, errorInfo) ;
         // checked before the network is used, like the other parameters (fetch() used to throw a TypeError)
@@ -340,6 +345,13 @@ export class TSRequest {
 	}
 
     // ============== private methods ======================
+    // with keepsTrailingSlash, a final '/' is kept if the caller wrote it: at the end of the relative URL,
+    // or at the end of the base URL when the relative URL is empty
+    private _keepsTrailingSlashOf(relativeURL:string):boolean {
+        if (!this.keepsTrailingSlash) { return false ; }
+        return relativeURL.length ? relativeURL.endsWith('/') : this.baseURL.endsWith('/') ;
+    }
+
     /* private _resetChannel() {
         this._channel = axios.create({baseURL:this._baseURL, withCredentials:!!this._managesCredential}) ;
     } */
@@ -394,7 +406,9 @@ async function _responseContent(response:Response, responseType:RespType):Promis
             return text.length ? $jsonparse(text) : null ;
         }
         case RespType.Json:
-            return await response.json() ;
+            // a response which is not JSON (eg. an HTML error page) gives a null content with its HTTP status
+            // (response.json() used to throw a SyntaxError, so that the status was lost)
+            return $jsonparse(await response.text()) ?? null ;
         case RespType.Stream:
             return response.body ;
         case RespType.String:

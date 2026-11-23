@@ -2,6 +2,30 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.11
+
+This version corrects bugs found in `TSRequest` and `TSParser`.
+
+#### Corrections
+
+- `TSRequest.req()` with `RespType.Json` threw a `SyntaxError` on a response which is not JSON (eg. an HTML error page), so that its HTTP status was lost. It now returns the status with a `null` response (an empty response also gives a `null` response).
+- The `acceptsUncheckedItems` option of `TSParser.validate()`, `interpret()` and `encode()` was ignored: only the `_acceptsUncheckedItems` field of each object node was used. The option now accepts the non described items of all the objects.
+- `TSParser` error messages always name the root value `value`: the errors found in the items of the root object, dictionary or array used to name it `object`, `dict` or `array` (eg. `object.a is not a valid int.` is now `value.a is not a valid int.`, like `value.b is unknown.` or `value.c is mandatory.`).
+- `TSParser` integer types (`int`, `int8`... `uint32`, `unsigned`): a string is now converted like it is validated, with `Number()`. Valid integer strings like `'0x10'`, `'1e3'` or `'0b11'` used to be converted to `0`, `1` and `0` instead of `16`, `1000` and `3`. As before, an empty string gives `0`.
+- `TSParser` leaf nodes: an absent optional value without default value is valid. It is no longer tested against the enumeration (`{ a:{ _type:'string', _enum:['x', 'y'] } }` refused `{ a:null }`) and no longer given to the specific checker (which could throw on `null` or `undefined`).
+- `TSParser` leaf nodes: the specific checker now receives the node `_options`, like the other node functions (`_transformer`, `_natifier`...). It only received the call options.
+- `TSParser` enumerations defined with a dictionary: only the own keys of the dictionary are tags (a value like `'toString'` or `'__proto__'` was looked for in `Object.prototype`, giving a wrong error message).
+- `TSParser` `jsdate` type: a string is still read with `Date.parse()`, but it must contain a year, a month and a day which exist. Without any timezone indication, the date is now a UTC date (`Date.parse()` used UTC for `2024-05-01`, but local time for `2024-05-01T10:20` or `May 1, 2024`). An invalid `Date` object is refused. The forms which are not ISO 8601 still depend on the JavaScript engine.
+- `TSTester`: an exception thrown by a unary test without `catchFunction` (or by its `catchFunction`) was thrown again, which stopped the whole run without any report. It is now a failed expectation, logged with the first lines of its stack, and the run goes on (`stopOnFirstFail` still stops it). In the same way, an exception thrown by a group function is a failure of the group: the unary tests declared before it are run, and so are the other groups. As before, a `catchFunction` can manage the exceptions of its unary test.
+- `$args()`: the errors found by the parser on the whole set of arguments, like a missing mandatory argument, were lost (`$args()` returned `null` without any error message). They are now reported (eg. `Argument '-count' is mandatory.`).
+
+#### What's new ?
+
+- `TSRequest` option `keepsTrailingSlash` (also a `keepsTrailingSlash` property). By default (`false`), `req()` still removes the final `/` of the request URLs, as before. Some servers give different answers for `/path` and `/path/` (eg. an HTML page instead of JSON), so with `keepsTrailingSlash:true` the URL path is the one given by the caller: a final `/` is kept if it ends the relative URL, or the base URL when the relative URL is empty (only the `/` added to an empty relative URL is removed). The default value will become `true` in the next major version.
+- `TSParser` dictionary nodes option `_normalizesKeys` (`false` by default, which keeps the keys as they are given). With `_normalizesKeys:true`, the keys of the interpreted or encoded dictionary are given in their interpreted form, like the values: eg. `'02'` gives `'2'` for `int` keys, `'fr'` and `'FRA'` give `'FR'` for `country` keys, `' Bob@Example.COM '` gives `'bob@example.com'` for `email` keys. Two keys with the same interpreted form (eg. `'02'` and `'2'`) are then refused by the validation (`value.2 is present several times.`). This option cannot be set on an object node.
+
+<hr/>
+
 ## version 1.8.10
 
 This version removes ends the SonarQube analysis with new bug corrections and algorithms improvements.

@@ -10,6 +10,7 @@ import { TSData } from "../src/tsdata";
 import { $inbrowser } from "../src/utils";
 import { TSServer, TSServerLogLevel } from "../src/tsserver";
 import { uint16 } from "../src/types";
+import * as http from "http";
 
 export const requestGroups = [
 
@@ -258,6 +259,48 @@ requestGroups.push(TSTest.group("TSRequest.req() — composition, response type,
             t.expect3([c.status, c.response]).is([Resp.OK, { a:1 }]) ;
         }
         finally { await TSServer.stop() ; }
+    }) ;
+})) ;
+}
+
+// Node-only : a raw local HTTP server, to see the exact received paths
+if (!$inbrowser()) {
+requestGroups.push(TSTest.group("TSRequest.req() — trailing slash and non JSON responses", async (group) => {
+    group.unary('keepsTrailingSlash option and RespType.Json on a non JSON response', async (t) => {
+        const paths:string[] = [] ;
+        const server = http.createServer((req, res) => {
+            paths.push(req.url!) ;
+            if (req.url!.startsWith('/html')) { res.writeHead(404, { 'content-type':'text/html' }) ; res.end('<html>not found</html>') ; }
+            else if (req.url!.startsWith('/empty')) { res.writeHead(204) ; res.end() ; }
+            else { res.writeHead(200, { 'content-type':'application/json' }) ; res.end('{"ok":true}') ; }
+        }) ;
+        await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve())) ;
+        try {
+            const port = (server.address() as any).port ;
+            const sent = async (r:TSRequest, rel:string) => { paths.length = 0 ; await r.req(rel) ; return paths[0] ; } ;
+            const byDefault = new TSRequest(`http://127.0.0.1:${port}/api`) ;
+            t.expect0(byDefault.keepsTrailingSlash).false() ;
+            t.expect1(await sent(byDefault, '/alerts/')).is('/api/alerts') ; // as before, the final '/' is removed
+            t.expect2(await sent(byDefault, '')).is('/api') ;
+            const keeping = new TSRequest(`http://127.0.0.1:${port}/api`, { keepsTrailingSlash:true }) ;
+            t.expect3(await sent(keeping, '/alerts/')).is('/api/alerts/') ;
+            t.expect4(await sent(keeping, '/alerts')).is('/api/alerts') ;
+            t.expect5(await sent(keeping, '')).is('/api') ; // the '/' added by TSURL.compose() is removed
+            t.expect6(await sent(keeping, '/alerts/?a=1')).is('/api/alerts/?a=1') ;
+            t.expect7(await sent(new TSRequest(`http://127.0.0.1:${port}/api/`, { keepsTrailingSlash:true }), '')).is('/api/') ;
+            keeping.keepsTrailingSlash = false ;
+            t.expect8(await sent(keeping, '/alerts/')).is('/api/alerts') ;
+
+            // RespType.Json on a non JSON response gives the HTTP status and a null response (it used to throw)
+            const r = new TSRequest(`http://127.0.0.1:${port}/`) ;
+            const html = await r.req('/html', Verb.Get, RespType.Json) ;
+            t.expect9([html.status, html.response]).is([404, null]) ;
+            const empty = await r.req('/empty', Verb.Get, RespType.Json) ;
+            t.expectA([empty.status, empty.response]).is([204, null]) ;
+            const json = await r.req('/json', Verb.Get, RespType.Json) ;
+            t.expectB([json.status, json.response]).is([200, { ok:true }]) ;
+        }
+        finally { await new Promise(resolve => server.close(resolve)) ; }
     }) ;
 })) ;
 }

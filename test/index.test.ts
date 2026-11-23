@@ -278,6 +278,64 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expectD(defaultRes.stopReason).is("By user command.") ;
     }) ;
 
+    group.unary("unexpected exceptions are failures and the run goes on", async (t) => {
+        const origLog = console.log ;
+        const origWrite = process.stdout.write ;
+        let output = '' ;
+        console.log = ((...args:any[]) => { output += args.join(' ') + '\n' ; }) as any ;
+        (process.stdout as any).write = ((c:any) => { output += String(c) ; return true ; }) as any ;
+        let res:any, stopRes:any ;
+        const ran:string[] = [] ;
+        try {
+            const sub = new TSTester("exceptions sub-tester") ;
+            sub.addGroup("throwing unaries", async (g) => {
+                g.unary("throws", async (tt) => { tt.expect0(1).is(1) ; throw new TypeError("unexpected one") ; }) ;
+                g.unary("throws a string", async () => { throw "a thrown string" ; }) ; // NOSONAR: a non Error value is tested
+                g.unary("catchFunction throws", async (tt) => {
+                    tt.catchFunction = async () => { throw new Error("from the catch function") ; } ;
+                    throw new Error("first") ;
+                }) ;
+                g.unary("catchFunction manages", async (tt) => {
+                    tt.catchFunction = async (ut) => { ut.expect0(ut.catched).true() ; } ;
+                    throw new Error("managed") ;
+                }) ;
+                g.unary("runs after", async (tt) => { ran.push('after') ; tt.expect0(2).is(2) ; }) ;
+            }) ;
+            sub.addGroup("throwing group", async (g) => {
+                g.unary("declared before", async (tt) => { ran.push('before') ; tt.expect0(3).is(3) ; }) ;
+                throw new Error("group function failure") ;
+            }) ;
+            sub.addGroup("next group", async (g) => { g.unary("runs", async (tt) => { ran.push('next') ; tt.expect0(4).is(4) ; }) ; }) ;
+            res = await sub.run() ;
+
+            const sub2 = new TSTester("stopOnFirstFail exceptions sub-tester") ;
+            sub2.addGroup("stopping group", async (g) => {
+                g.unary("throws", async () => { throw new Error("stop here") ; }) ;
+                g.unary("never run", async () => { ran.push('never') ; }) ;
+            }, null, { stopOnFirstFail:true }) ;
+            stopRes = await sub2.run() ;
+        }
+        finally {
+            console.log = origLog ;
+            (process.stdout as any).write = origWrite ;
+        }
+        output = output.replace(/\x1b\[[0-9;]*m/g, '') ; // NOSONAR: removing terminal codes
+        t.expect0(ran).is(['after', 'before', 'next']) ;
+        // throws (1 failure), string (1), catchFunction throwing (1), group function (1)
+        t.expect1(res.failures).is(4) ;
+        t.expect2(res.failed).is(2) ;
+        t.expect3(res.passed).is(1) ;
+        t.expect4(res.stopped).false() ;
+        t.expect5(output.includes('TypeError: unexpected one')).true() ;
+        t.expect6(output.includes("'a thrown string'")).true() ;
+        t.expect7(output.includes('Error: from the catch function')).true() ;
+        t.expect8(output.includes('Error: group function failure')).true() ;
+        t.expect9(output.includes('Error: managed')).false() ;
+        t.expectA(stopRes.stopped).true() ;
+        t.expectB(stopRes.failures).is(1) ;
+        t.expectC(ran.includes('never')).false() ;
+    }) ;
+
     group.unary("TSTester failure messages and logAllTests", async (t) => {
         // the sub-run output is captured (and stripped of its terminal codes) instead of being printed
         const origLog = console.log ;
@@ -364,7 +422,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
             tt => tt.expect(new Set()).empty(),   tt => tt.expect(new TSList()).empty(),
             tt => tt.expect(TSEmptyRange()).empty(),
         ] ;
-        let res:any, silentRes:any, rethrown:any = undefined ;
+        let res:any, silentRes:any, throwingRes:any, rethrown:any = undefined ;
         try {
             const sub = new TSTester("failing assertions") ;
             sub.addGroup("all assertions", async (g) => {
@@ -376,10 +434,10 @@ tester.addGroup("Testing tester system itself", async (group) => {
             const silentSub = new TSTester("silent") ;
             silentSub.addGroup("silent group", async (g) => { g.unary("silent failure", async (tt) => { tt.expect0(1).is(2) ; }) ; }, null, { silent:true }) ;
             silentRes = await silentSub.run() ;
-            // an exception without catch function is thrown back by run()
+            // an exception without catch function is a failure, it is no longer thrown back by run()
             const throwing = new TSTester("throwing") ;
             throwing.addGroup("throwing group", async (g) => { g.unary("throws", async () => { throw new Error('boom') ; }) ; }) ;
-            try { await throwing.run() ; } catch (e) { rethrown = e ; }
+            try { throwingRes = await throwing.run() ; } catch (e) { rethrown = e ; }
         }
         finally {
             console.log = origLog ;
@@ -392,7 +450,7 @@ tester.addGroup("Testing tester system itself", async (group) => {
         t.expect2(res.failed).is(1) ;
         t.expect3(silentRes.failures).is(1) ;
         t.expect4(output.includes('did execute test  silent failure ')).true() ;
-        t.expect5((rethrown as Error)?.message).is('boom') ;
+        t.expect5([rethrown, throwingRes?.failures]).is([undefined, 1]) ;
         t.expect6(output.includes('to be > to value')).true() ;
         t.expect7(output.includes("'<not a container>'")).true() ;
     }) ;

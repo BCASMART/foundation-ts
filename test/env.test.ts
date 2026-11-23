@@ -244,6 +244,11 @@ TSTest.group("$parsedenv() / $argCheck() / $args() edge cases", async (group) =>
         const [d3] = $args(def, { arguments:['-l', 'notanumber'], errors:errs }) ;
         t.expect3(d3).null() ;
         t.expect4(errs.length).gt(0) ;
+        // a missing mandatory argument is reported (the error used to be lost)
+        const errs2:string[] = [] ;
+        const [d4] = $args({ count:{ struct:'number!', short:'c' } }, { arguments:[], errors:errs2 }) ;
+        t.expect5(d4).null() ;
+        t.expect6(errs2).is(["Argument '-count' is mandatory."]) ;
     }) ;
 
     group.unary('$args() — arguments taken from a URL query', async (t) => {

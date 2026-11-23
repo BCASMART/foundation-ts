@@ -135,6 +135,7 @@ export enum TSCase {
 export type TSObjectNode = { [key: string]: TSNode } | {
     _keysType?:TSLeafOptionalNode ;
     _valueItemsType?:TSNode ; 
+    _normalizesKeys?:boolean ;  // dictionaries only: the keys are given in their interpreted form (eg. 'FR' for a 'fr' country key)
     _acceptsUncheckedItems?:boolean ;
     _checker?:TSParserChecker ;
     _transformer?:TSParserTransformer ; 
@@ -224,6 +225,7 @@ export abstract class TSParser {
 class TSDictionaryParser extends TSParser {
     private readonly _keysParser:TSLeafParser ;
     private readonly _valuesParser:TSParser ;
+    private readonly _normalizesKeys:boolean ;
 
     public constructor(node:TSObjectNode, keysParser:TSParser, valuesParser:TSParser) {
         const m = node._mandatory ;
@@ -238,6 +240,8 @@ class TSDictionaryParser extends TSParser {
         }
         if ($defined(m) && !$isbool(m)) { this.errors.push(`_mandatory field should be a boolean`) ; }
         if ($ok(node._keysCase)) { this.errors.push(`_keysCase field should not be set for a dictionary`) ; }
+        if ($defined(node._normalizesKeys) && !$isbool(node._normalizesKeys)) { this.errors.push(`_normalizesKeys field should be a boolean`) ; }
+        this._normalizesKeys = !!node._normalizesKeys ;
         
         this._keysParser = keysParser as TSLeafParser ;
         this._valuesParser = valuesParser! ;
@@ -252,6 +256,7 @@ class TSDictionaryParser extends TSParser {
         _check: this._check,
         _transform: this._transform,
         _natify: this._natify,
+        _normalizesKeys: this._normalizesKeys,
         _keysStruct: this._keysParser.toJSON(),
         _valuesStruct: this._valuesParser.toJSON()
     } ; }
@@ -263,18 +268,42 @@ class TSDictionaryParser extends TSParser {
         }
         if (!$ok(value)) { return true ; } // a non mandatory absent value is valid (it used to throw)
         const entries = Object.entries(value) ;
-        if (!entries?.length && this.mandatory) { return _serror(opts, path, ` is empty`) ; }
+        if (!entries?.length && this.mandatory) { return _serror(opts, path, 'is empty') ; }
         let doomed = false ;
 
-        const p = path.length ? path : 'dict' ;
+        const p = path.length ? path : 'value' ; // the root value is always named value in the error messages
+        // with _normalizesKeys, two keys with the same interpreted form (eg. '02' and '2' for int keys) are refused
+        const normalizedKeys = this._normalizesKeys ? new Set<string>() : undefined ;
         for (let [k, v] of entries) {
-            // @ts-ignore
-            if (!this._keysParser._validate(k, `${p}.${k}[key]`, opts)) { doomed = true ; } 
-            // @ts-ignore
-            if (!this._valuesParser._validate(v, `${p}.${k}`, opts)) { doomed = true ; }  
+            if (!this._validateEntry(k, v, p, normalizedKeys, opts)) { doomed = true ; }
         }
         if (doomed) { return false ; }
         return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
+    }
+
+    // the key and the value are both validated, so that all the errors are reported
+    private _validateEntry(k:string, v:any, path:string, normalizedKeys:Set<string>|undefined, opts?:Nullable<TSParserOptions>):boolean {
+        // @ts-ignore
+        let ok = this._keysParser._validate(k, `${path}.${k}[key]`, opts) ;
+        if (ok && normalizedKeys) { ok = this._addNormalizedKey(normalizedKeys, k, path, opts) ; }
+        // @ts-ignore
+        return this._valuesParser._validate(v, `${path}.${k}`, opts) && ok ;
+    }
+
+    private _addNormalizedKey(keys:Set<string>, k:string, path:string, opts?:Nullable<TSParserOptions>):boolean {
+        const nk = this._normalizedKey(k, opts) ;
+        if (keys.has(nk)) { return _serror(opts, path, `.${nk} is present several times`) ; }
+        keys.add(nk) ;
+        return true ;
+    }
+
+    // the interpreted form of a key, encoded as a native value (eg. 2 for an int '02' key, 'FR' for a 'fr' country key)
+    private _normalizedKey(k:string, opts?:Nullable<TSParserOptions>):string {
+        return `${this._keysParser.rawEncode(this._keysParser.rawInterpret(k, opts), opts)}` ;
+    }
+
+    private _outputKey(k:string, opts?:Nullable<TSParserOptions>):any {
+        return this._normalizesKeys ? this._normalizedKey(k, opts) : this._keysParser.rawEncode(k, opts) ;
     }
 
     public rawInterpret(value:any, opts?:Nullable<TSParserOptions>):any {
@@ -282,7 +311,7 @@ class TSDictionaryParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
-            const ki = this._keysParser.rawEncode(k, opts) ; 
+            const ki = this._outputKey(k, opts) ; 
             const vi = this._valuesParser.rawInterpret(v, opts) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
         }
@@ -294,7 +323,7 @@ class TSDictionaryParser extends TSParser {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
-            const ki = this._keysParser.rawEncode(k, opts) ; 
+            const ki = this._outputKey(k, opts) ; 
             const vi = this._valuesParser.rawEncode(v, opts) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
         }
@@ -394,7 +423,7 @@ class TSObjectParser extends TSParser {
         }
         if (!$ok(value)) { return true ; } // a non mandatory absent value is valid (it used to throw) 
 
-        const p = path.length ? path : 'object' ;
+        const p = path.length ? path : 'value' ; // the root value is always named value in the error messages
         const founds = new Set<string>() ;
         let doomed = false ;
         for (let [key, v] of Object.entries(value)) {
@@ -413,7 +442,8 @@ class TSObjectParser extends TSParser {
     private _validateItem(k:string, v:any, founds:Set<string>, path:string, itemsPath:string, opts?:Nullable<TSParserOptions>):boolean { 
         if (founds.has(k)) { return _serror(opts, path, `.${k} is present several times`) ; }
         const struct = this._itemsParsers[k] ;
-        if (!$ok(struct)) { return this._acceptsUncheckedItems || _serror(opts, path, `.${k} is unknown`) ; }
+        // the acceptsUncheckedItems option is used for all the objects (it used to be ignored)
+        if (!$ok(struct)) { return this._acceptsUncheckedItems || !!opts?.acceptsUncheckedItems || _serror(opts, path, `.${k} is unknown`) ; }
         founds.add(k) ;
         // @ts-ignore
         return struct._validate(v, `${itemsPath}.${k}`, opts) ;
@@ -541,7 +571,7 @@ class TSArrayParser extends TSParser {
         if (n > this._max) { 
             return _serror(opts, path, `.size is too large (${n} > ${this._max})`) ;
         }
-        const p = path.length ? path : 'array' ;
+        const p = path.length ? path : 'value' ; // the root value is always named value in the error messages
         let doomed = false ;
         for (let i = 0 ; i < n ; i++) { 
             // @ts-ignore
@@ -600,7 +630,7 @@ export function isLeafParserType(s:Nullable<string>) {
         'int8':      { valid:(v:any) => _isInt(v, INT8_MIN,  INT8_MAX),  str2v:_int, enum:(v) => _isInt(v, INT8_MIN, INT8_MAX), iskey:true },
         'int16':     { valid:(v:any) => _isInt(v, INT16_MIN, INT16_MAX), str2v:_int, enum:(v) => _isInt(v, INT16_MIN, INT16_MAX), iskey:true },
         'int32':     { valid:(v:any) => _isInt(v, INT32_MIN, INT32_MAX), str2v:_int, enum:(v) => _isInt(v, INT32_MIN, INT32_MAX), iskey:true },
-        'jsdate':    { valid:_isJsDate, str2v:(s:string) => new Date(s), v2nat:(v:any) => v.toISOString()},
+        'jsdate':    { valid:_isJsDate, str2v:(s:string) => _jsDateFromString(s), v2nat:(v:any) => v.toISOString()},
         'language':  { valid:_isLanguage, str2v:(s:string) => $ftrim(s).toLowerCase(), enum:_isLanguage, iskey:true},
         'native' :   { valid:_isNativeValue, str2v:(s:string) => s, v2nat:_nativeValue2nat},
         'number' :   { valid:_isNumber, str2v:Number, enum:(v) => $isnumber(v)},
@@ -695,7 +725,7 @@ class TSLeafParser extends TSParser {
     // when the default value is used
     private _setDefaultValue(node:TSExtendedLeafNode, manager:TSLeafNodeManager|undefined) {
         const d = node._default ;
-        const v = this._conversion && $isstring(d) ? this._conversion[d] : d ;
+        const v = this._conversion && $isstring(d) ? this._tagValue(d) : d ;
         const lopts = this._localOptions(undefined) ;
         if (!$ok(v) || !manager?.valid(v, lopts)) {
             this.errors.push(`Parser type '${node._type}' cannot have ${d} as default value`) ;
@@ -706,6 +736,12 @@ class TSLeafParser extends TSParser {
         else {
             this._defaultValue = d ;
         }
+    }
+
+    // only the own keys of the enumeration dictionary are tags (a tag like 'toString' or '__proto__' used to be
+    // found in Object.prototype)
+    private _tagValue(tag:string):string|number|undefined {
+        return Object.hasOwn(this._conversion!, tag) ? this._conversion![tag] : undefined ;
     }
 
     public get isKey() { return !!this._manager.iskey ; }
@@ -734,15 +770,18 @@ class TSLeafParser extends TSParser {
     protected _validate(value:any, path:string, opts?:Nullable<TSParserOptions>):boolean {
         if (!$ok(value)) { value = this._defaultValue ; }
         if (!super._validate(value, path, opts)) { return false ; }
+        // an absent value without default value is valid here (it is not mandatory): it has not to be in
+        // the enumeration and is not given to the specific checker (it used to be refused or checked)
+        if (!$ok(value)) { return true ; }
         if (this._conversion && $isstring(value)) { 
             const tag = value ;
-            value = this._conversion![tag] ; 
+            value = this._tagValue(tag) ; 
             if (!$ok(value)) {
                 return _serror(opts, path, `has not a valid enum tag ${tag}`) ;
             }
         }
         let lopts = this._localOptions(opts) ;
-        if ($ok(value) && !this._manager.valid(value, lopts)) {
+        if (!this._manager.valid(value, lopts)) {
             return _serror(opts, path, `is not a valid ${this._type}`) ;
         }
         if (this._enumeration) {
@@ -751,7 +790,8 @@ class TSLeafParser extends TSParser {
                 return _serror(opts, path, `has not a valid enum value ${s}`) ;
             }
         }
-        return this._check(value, opts) ? true : _serror(opts, path, 'specific check did fail') ;
+        // the specific checker receives the node options like the other node functions (it used to receive opts)
+        return this._check(value, lopts) ? true : _serror(opts, path, 'specific check did fail') ;
     }
 
     private _convertIfString(value:any, opts?:Nullable<TSParserActionOptions>):any
@@ -762,7 +802,7 @@ class TSLeafParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
 
         if (this._conversion && $isstring(value)) {
-            value = this._conversion![value] ; 
+            value = this._tagValue(value) ; 
         } 
         const r = this._convertIfString(value, this._localOptions(opts)) ;
         return r ;
@@ -770,7 +810,7 @@ class TSLeafParser extends TSParser {
 
     public rawEncode(value:any, opts?:Nullable<TSParserOptions>):any {
         if (this._conversion && $isstring(value)) {
-            value = $value(this._conversion![value], value) ; 
+            value = $value(this._tagValue(value), value) ; 
         }
         if (this._exportAsEnum && $ok(this._reverse)) {
             value = $value(this._reverse!.get(value), value) ;
@@ -920,13 +960,66 @@ function _decodeHexa(s:string):Buffer { return $bufferFromHexaString(s)! ; } // 
 function _isHexaData(v:any):boolean  
 { return $isdataobject(v) || ($isstring(v) && $ok($bufferFromHexaString(v))) ;}
 
-function _int(v:any)  { return $int(v) ; }
-function _uint(v:any) { return $unsigned(v) ; }
+// a string is converted like it is validated, with Number() (eg. '0x10' and '1e3', valid integers, used to
+// be converted to 0 and 1). As before, an empty string gives 0, and -0 is converted to 0
+function _int(v:any)  { return $isstring(v) ? _number0(v) : $int(v) ; }
+function _uint(v:any) { return $isstring(v) ? _number0(v) : $unsigned(v) ; }
+function _number0(s:string):number { const n = Number(s) ; return n === 0 ? 0 : n ; }
 function _isInt(v:any, min:number = INT_MIN, max:number = INT_MAX):boolean
 { return $isint(v, min, max) || ($isstring(v) && $isint(Number(v), min, max)) }
 
 function _isJsDate(v:any):boolean 
-{ return v instanceof Date || ($isstring(v) && v !== '0' && $isnumber(Date.parse(v))) ; }
+{ return (v instanceof Date && !Number.isNaN(v.getTime())) || ($isstring(v) && $ok(_jsDateFromString(v))) ; }
+
+// A 'jsdate' string is a string which Date.parse() understands, with a year, a month and a day which exist
+// (no 30 February or 32 July), written:
+//   - year first: 2024-05-01, 2024/5/1, 2024.05.01, with or without time (2024-05-01T10:20:30.123+02:00)
+//   - month first, American way: 5/1/2024 (the year has 4 digits)
+//   - with an English month name: May 1, 2024, 1 May 2024, Wed, 01 May 2024 10:20:30 GMT...
+// A number alone (eg. '5' or '20240501') is refused: Date.parse() gives strange dates for it. Without any
+// timezone indication, the date is a UTC date (Date.parse() used a UTC or a local time, depending on the form).
+const __JSDATE_TIME = /\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?/ ;
+const __JSDATE_TIME_ZONE = /\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{2}(?::?\d{2})?)(?![\d:])/i ;
+const __JSDATE_ZONE_NAME = /\b(?:UTC|GMT|UT|[ECMP][SD]T)\b/i ;
+const __JSDATE_ISO_DATE = /^[+-]?\d{4,6}-\d{2}-\d{2}$/ ;
+const __JSDATE_YEAR_FIRST = /^([+-]?\d{4,6})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)/ ;
+const __JSDATE_MONTH_FIRST = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?!\d)/ ;
+const __JSDATE_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] ;
+
+function _jsDateFromString(source:string):Date|null {
+    const s = $ftrim(source) ;
+    if (!s.length || /^[+-]?\d+(?:[.,]\d+)?$/.test(s)) { return null ; }
+    const ymd = _jsDateYearMonthDay(s) ;
+    if (!ymd) { return null ; }
+    const [year, month, day] = ymd ;
+    // the day must exist in this month (Date.parse() turns 30 February into 1 or 2 March)
+    if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) { return null ; }
+    const t = Date.parse(_jsDateUTCString(s)) ;
+    return Number.isNaN(t) ? null : new Date(t) ;
+}
+
+// the string with a UTC timezone if it has none
+function _jsDateUTCString(s:string):string {
+    if (__JSDATE_TIME_ZONE.test(s) || __JSDATE_ZONE_NAME.test(s) || __JSDATE_ISO_DATE.test(s)) { return s ; } // an ISO date alone is a UTC date
+    return /^[+-]?\d{4,6}-\d{2}-\d{2}T/i.test(s) ? s + 'Z' : s + ' UTC' ; // Date.parse() refuses an ISO date-time with ' UTC'
+}
+
+// the year, month and day written in the string, or null if they are not found
+function _jsDateYearMonthDay(s:string):[number, number, number]|null {
+    let m = __JSDATE_YEAR_FIRST.exec(s) ;
+    if (m) { return [Number(m[1]), Number(m[2]), Number(m[3])] ; }
+    m = __JSDATE_MONTH_FIRST.exec(s) ;
+    if (m) { return [Number(m[3]), Number(m[1]), Number(m[2])] ; }
+    // an English month name, a day and a 4 digits year (the times and timezones are not numbers of the date)
+    const words = s.replace(new RegExp(__JSDATE_TIME.source, 'g'), ' ').replace(/[+-]\d{2}:?\d{2}\b/g, ' ').toLowerCase().split(/[^a-z0-9]+/) ;
+    const numbers = words.filter(w => /^\d+$/.test(w)) ;
+    const months = words.filter(w => w.length >= 3 && __JSDATE_MONTHS.includes(w.slice(0, 3))) ;
+    if (months.length !== 1 || numbers.length !== 2) { return null ; } // one month name, a day and a year
+    const month = __JSDATE_MONTHS.indexOf(months[0].slice(0, 3)) + 1 ;
+    const year = numbers.find(n => n.length === 4) ;
+    const day = numbers.find(n => n.length <= 2) ;
+    return year && day ? [Number(year), month, Number(day)] : null ;
+}
 
 function _isTsDate(v:any):boolean
 { return v instanceof TSDate || ($isstring(v) && $ok($isodate(v)))}
@@ -946,7 +1039,7 @@ function _serror(opts:Nullable<TSParserOptions>, path:string, error:string):fals
 // into a tree of structures
 // no 'g' flag: with it, test() would keep its lastIndex from one key to the next one
 const IsFieldOrEnumRegex = /^[a-zA-Z][\w-]*$/ ; // \w is [A-Za-z0-9_]
-const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases', '_aliasUnsensitive']) ;
+const InternalFieldsSet = new Set(['_mandatory', '_default', '_keysCase', '_checker', '_transformer', '_natifier', '_acceptsUncheckedItems', '_aliases', '_outputAliases', '_aliasUnsensitive', '_normalizesKeys']) ;
 const InternalCasingMap:{[key in TSCase]:(s:string)=>string} = {
     'standard':(s:string)=> s,
     'lowercase':(s:string)=> s.toLowerCase(),
@@ -1018,6 +1111,7 @@ function _dictionaryConstruction(node:TSObjectNode, errors:Nullable<string[]>):T
 
 // a structured object: its items are all the fields which are not internal fields
 function _objectConstruction(node:TSObjectNode, errors:Nullable<string[]>):TSParser|null {
+    if ($ok(node._normalizesKeys)) { errors?.push('_normalizesKeys field can only be set for a dictionary node definition') ; }
     const itemsParsers:TSDictionary<TSParser> = {} ;
     const keyscase = $value(
         InternalCasingMap[$value(node._keysCase as Nullable<TSCase>, TSCase.standard)],

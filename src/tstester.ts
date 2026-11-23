@@ -202,6 +202,8 @@ export abstract class TSGenericTest {
 export class TSTestGroup extends TSGenericTest {
     private readonly _unaries:TSGenericTest[] = [] ; 
     private _stopReason:string|undefined = undefined ;
+    private _prepareError:unknown = undefined ;
+    private _prepareFailed = false ;
     public constructor(s:string, f:groupFN, opts?:TSGenericTestOptions) {
         super(s, f as testFN, opts) ;
         if (opts?.focusGroup) { this.focused = true ; }
@@ -217,8 +219,17 @@ export class TSTestGroup extends TSGenericTest {
     public description(str:string)
     { if ($length(str) && !this.silent) { this._unaries.push(new TSTestDescriptor(str)) ; }}
 
-    public async prepare():Promise<void>
-    { await this.fn(this) ; }
+    // an exception thrown by the group function is a failure of the group, reported when it is run
+    // (it used to stop the whole run). The unary tests declared before the exception are run.
+    public async prepare():Promise<void> {
+        this._prepareFailed = false ;
+        this._prepareError = undefined ;
+        try { await this.fn(this) ; }
+        catch (e) {
+            this._prepareFailed = true ;
+            this._prepareError = e ;
+        }
+    }
 
     public override log(format:string, ...args:any[])
     { super.log('  '+format, args) ; }
@@ -244,6 +255,18 @@ export class TSTestGroup extends TSGenericTest {
         if (!this.silent) { this.log(`&u- Running ${this.silent?"silent ":""}group tests &U&k ${this.desc} &0`) ; }
         let unaries = this._unaries.filter(u => u.focused) ;
         if (unaries.length === 0) { unaries = this._unaries ; }
+
+        if (this._prepareFailed) {
+            $logterm(`&x     ➤ &lpreparing group &B&w ${this.desc} &0`) ;
+            _logUnexpectedException(this._prepareError) ;
+            $logterm('&R&w 1 KO &0') ;
+            expectations++ ;
+            expectationFailed++ ;
+            if (this.stopOnFirstFail) {
+                stopit = true ;
+                unaries = [] ;
+            }
+        }
 
         for (let u of unaries) {
             let unaryExpected, unaryFailed ;
@@ -321,8 +344,7 @@ export class TSUnaryTest extends TSGenericTest {
         try { await this.fn(this) ; }
         catch (e) {
             this._catched = true ;
-            if ($ok(this._catchFunction)) { await this._catchFunction(this, e as Error) ; }
-            else { throw e ; }
+            await this._manageException(e) ;
         }
 
         if (!this.silent) {
@@ -342,6 +364,18 @@ export class TSUnaryTest extends TSGenericTest {
         return [this._expected, this._failed, this.stopped || (this.stopOnFirstFail && this._failed > 0)] ;
     }
     
+    // an exception which is not managed by a catchFunction (or thrown by it) is a failed expectation
+    // (it used to be thrown again, which stopped the whole run without any report)
+    private async _manageException(e:unknown):Promise<void> {
+        if ($ok(this._catchFunction)) {
+            try { await this._catchFunction!(this, e as Error) ; return ; }
+            catch (e2) { e = e2 ; }
+        }
+        this._expected ++ ;
+        _logUnexpectedException(e) ;
+        this.fail() ;
+    }
+
     public register(name:string, value:any)
     { if ($defined(value) && $length(name)) { this._registrations[name] = value ; }}
 
@@ -596,6 +630,17 @@ export class TSExpectAgent {
         $writeterm(`\n&y${this._message}&0 `) ;
         return l > 0 ? "".padStart(l+1, " ") : "" ;
     }
+}
+
+// logs an unexpected exception with the first lines of its stack
+function _logUnexpectedException(e:unknown) {
+    let s:string ;
+    if (e instanceof Error) {
+        const stack = $length(e.stack) ? e.stack!.split('\n') : [`${e.name}: ${e.message}`] ;
+        s = stack.slice(0, 6).join('\n') ;
+    }
+    else { s = $inspect(e) ; }
+    $logterm(`\n&yexcept&0 &edid throw an unexpected exception:&0\n&O&w${s.replaceAll('&', '&&')}&0`) ;
 }
 
 // returns the kind of container and if it is empty, or undefined if v is not a container
