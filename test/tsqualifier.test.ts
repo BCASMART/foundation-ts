@@ -317,6 +317,33 @@ export const qualifierGroups = [
             t.expect3(() => TSQualifier.NOT<People>(eq).is('a', 1)).throws(/on NOT qualifier/) ;
         }) ;
 
+        group.unary('condition() with simple conditions, and() on an OR, or() on an AND', async (t) => {
+            // a simple (dictionary) condition is interpreted by the validateValue() callback
+            const maxB = (v:Slot, c:TSDictionary) => v.b <= c.maxB ;
+            const or = TSQualifier.OR<Slot>([TSQualifier.EQ<Slot>('a', 20)]) ;
+            t.expect0(or.condition({ maxB:10 })).is(or) ;
+            t.expect1(or.conditions().length).is(2) ;
+            t.expect2(slots.filter(s => or.validateValue(s, maxB)).map(s => slots.indexOf(s))).is([0, 2]) ;
+            const and = TSQualifier.AND<Slot>([TSQualifier.GTE<Slot>('a', 5)]) ;
+            t.expect3(and.condition({ maxB:15 })).is(and) ;
+            t.expect4(slots.filter(s => and.validateValue(s, maxB)).map(s => slots.indexOf(s))).is([1]) ;
+
+            // and() on an OR qualifier returns the new AND sub-qualifier
+            const or2 = TSQualifier.OR<Slot>([TSQualifier.EQ<Slot>('a', 20)]) ;
+            const sub = or2.and([TSQualifier.GTE<Slot>('a', 5), TSQualifier.LTE<Slot>('b', 15)]) ;
+            t.expect5(sub.operator).is('AND') ;
+            t.expect6(sub === or2).false() ;
+            t.expect7(or2.conditions().includes(sub)).true() ;
+            t.expect8(sidx(or2)).is([1, 2]) ;     // a in [5..] and b <= 15, or a = 20
+            // the same for or() on an AND qualifier
+            const and2 = TSQualifier.AND<Slot>([TSQualifier.GTE<Slot>('a', 5)]) ;
+            const sub2 = and2.or([TSQualifier.EQ<Slot>('b', 15), TSQualifier.EQ<Slot>('b', 30)]) ;
+            t.expect9(sub2.operator).is('OR') ;
+            t.expectA(sidx(and2)).is([1, 2]) ;
+            sub2.condition(TSQualifier.EQ<Slot>('b', 100)) ; // the sub-qualifier stays a part of its parent
+            t.expectB(sidx(and2)).is([1, 2]) ;     // slot 3 has a = 0
+        }) ;
+
         group.unary('instance includes() / included() / intersects()', async (t) => {
             t.expect0(TSQualifier.AND<Slot>().includes('a', 'b', 7).conditions().length).is(2) ; // AND flattened
             t.expect1(TSQualifier.AND<Slot>().included('a', 5, 25).conditions().length).gt(0) ;

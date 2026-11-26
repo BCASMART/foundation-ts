@@ -1,8 +1,8 @@
-import { TSServer, TSServerLogLevel, TSServerOptions } from "../src/tsserver";
+import { TSServer, TSServerLogLevel, TSServerLogType, TSServerOptions } from "../src/tsserver";
 import { $UUID, $keys, $length, $string, $value } from "../src/commons";
 
 import { TSTest } from '../src/tstester';
-import { $absolute, $path, $readBuffer } from "../src/fs";
+import { $absolute, $filename, $path, $readBuffer } from "../src/fs";
 import { Languages, TSDictionary, uint16 } from "../src/types";
 import { $inbrowser, $jsonparse, $readStreamBuffer } from "../src/utils";
 import { Resp, RespType, TSRequest, Verb } from "../src/tsrequest";
@@ -11,7 +11,7 @@ import { TSEndPoint, TSEndpointsDefinition, TSEndPointsDefinitionDictionary, TSS
 import { TSEndPointRouter, TSServerEndPoint } from "../src/tsserver_endpoints";
 import { TSStaticWebsite } from "../src/tsserver_websites";
 import { PassThrough } from "stream";
-import { createServer as createNetServer } from "net";
+import { connect as netConnect, createServer as createNetServer } from "net";
 import { get as httpGet, request as httpRequest } from "http";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
@@ -231,6 +231,11 @@ export const serverGroups = [
             }
             t.expect0(checks).is(720) ;
         }) ;
+
+        group.unary('isStatic', async (t) => {
+            t.expect0(new TSServerEndPoint('/a/b', sameCallFunction).isStatic).true() ;
+            t.expect1(new TSServerEndPoint('/a/{id:int}', sameCallFunction).isStatic).false() ;
+        }) ;
     })
 ];
 
@@ -365,6 +370,61 @@ if (!$inbrowser()) {
             }
             finally { rmSync(dir, { recursive:true, force:true }) ; }
         }) ;
+
+        group.unary('files cache and missing files blacklist', async (t) => {
+            const dir = mkdtempSync($path(tmpdir(), 'tsws-')) ;
+            // the blacklisted paths expire in a millisecond (blacklistDuration is in seconds)
+            const expire = async (ws:any) => {
+                for (const [k, v] of ws._blacklisted) { ws._blacklisted.set(k, v, { expires:new Date(Date.now() + 1) }) ; }
+                await new Promise(resolve => setTimeout(resolve, 5)) ;
+            } ;
+            const content = (ws:TSStaticWebsite, path:string) => $string(ws.getStaticResource(path)[0]) ;
+            try {
+                const site = $path(dir, 'site') ;
+                mkdirSync(site, { recursive:true }) ;
+                for (const n of ['a', 'b', 'c']) { writeFileSync($path(site, `${n}.html`), n) ; }
+                writeFileSync($path(site, 'big.html'), 'x'.repeat(100)) ;
+
+                // a missing file is blacklisted, then looked for again once its blacklisting expired
+                const ws = new TSStaticWebsite('/', { folder:site, maxCachedFiles:2, maxCachedFileSize:50 }) ;
+                t.expect0(ws.getStaticResource('/new.html')[0]).undef() ;
+                writeFileSync($path(site, 'new.html'), 'new') ;
+                t.expect1(ws.getStaticResource('/new.html')[0]).undef() ; // still blacklisted
+                await expire(ws) ;
+                ws.clearCaches() ;
+                t.expect2((ws as any)._blacklisted.size).is(0) ;
+                t.expect3(content(ws, '/new.html')).is('new') ;          // it used to be blacklisted until the server stopped
+
+                // the least recently used file is evicted when the cache is full (a new file used to be not cached)
+                (ws as any)._cache.clear() ;
+                content(ws, '/a.html') ; content(ws, '/b.html') ; content(ws, '/a.html') ;
+                content(ws, '/c.html') ;
+                t.expect4([...(ws as any)._cache.keys()].map((p:string) => $filename(p))).is(['a.html', 'c.html']) ;
+                writeFileSync($path(site, 'a.html'), 'A') ;
+                writeFileSync($path(site, 'b.html'), 'B') ;
+                t.expect5(content(ws, '/a.html')).is('a') ;              // served from the cache
+                t.expect6(content(ws, '/b.html')).is('B') ;              // evicted, read again
+                t.expect7(content(ws, '/big.html').length).is(100) ;     // too big to be cached
+                t.expect8([...(ws as any)._cache.keys()].map((p:string) => $filename(p))).is(['a.html', 'b.html']) ;
+
+                // maxCacheSize limits the total size of the cached files
+                const small = new TSStaticWebsite('/', { folder:site, maxCacheSize:5 }) ;
+                content(small, '/new.html') ; content(small, '/a.html') ; content(small, '/b.html') ;
+                t.expect9((small as any)._cache.totalSize).is(5) ;
+                t.expectA([...(small as any)._cache.keys()].map((p:string) => $filename(p))).is(['new.html', 'a.html', 'b.html']) ;
+                content(small, '/c.html') ;
+                t.expectB([...(small as any)._cache.keys()].map((p:string) => $filename(p))).is(['a.html', 'b.html', 'c.html']) ;
+
+                // a 0 limit disables the cache or the blacklist
+                const none = new TSStaticWebsite('/', { folder:site, maxCachedFiles:0, maxBlacklistedFiles:0 }) ;
+                t.expectC(none.getStaticResource('/later.html')[0]).undef() ;
+                writeFileSync($path(site, 'later.html'), 'later') ;
+                t.expectD(content(none, '/later.html')).is('later') ;
+                t.expectE((none as any)._cache).undef() ;
+                t.expectF((none as any)._blacklisted).undef() ;
+            }
+            finally { rmSync(dir, { recursive:true, force:true }) ; }
+        }) ;
     })) ;
 
     serverGroups.push(TSTest.group("TSServerResponse status and content type arguments", async (group) => {
@@ -435,6 +495,58 @@ if (!$inbrowser()) {
             finally {
                 if (blocked) { blocker.close() ; }
                 if (TSServer.isRunning()) { await TSServer.stop() ; }
+            }
+        }) ;
+
+        group.unary('start() and stop() errors are given to the logger', async (t) => {
+            const logs:{ type:string, message:string }[] = [] ;
+            const logger = async (type:TSServerLogType, message:string) => { logs.push({ type, message }) ; } ;
+            const blocker = createNetServer() ;
+            await new Promise<void>(resolve => blocker.listen(port, () => resolve())) ;
+            try {
+                const st = await TSServer.start(endpoints, { port, log:{ level:TSServerLogLevel.Errors, logger } }) ;
+                t.expect0((st as any)?.code).is('EADDRINUSE') ;
+                t.expect1(logs.length).is(1) ;
+                t.expect2(logs[0]?.type).is(TSServerLogType.Error) ;
+                t.expect3($string(logs[0]?.message).startsWith('cannot start for reason Error:')).true() ;
+            }
+            finally { await new Promise<void>(resolve => blocker.close(() => resolve())) ; }
+
+            logs.length = 0 ;
+            t.expect4(await TSServer.start(endpoints, { port, log:{ level:TSServerLogLevel.Errors, logger } })).is(TSServerStartStatus.HTTP) ;
+            const internal = (TSServer as any).__server ;
+            await new Promise<void>(resolve => internal._httpServer.close(() => resolve())) ;   // closed behind TSServer's back
+            const e:any = await TSServer.stop() ;
+            t.expect5(e?.code).is('ERR_SERVER_NOT_RUNNING') ;
+            t.expect6(logs.length).is(1) ;
+            t.expect7(logs[0]?.type).is(TSServerLogType.Error) ;
+            t.expect8($string(logs[0]?.message).startsWith('cannot stop for reason Error:')).true() ;
+            // cleaning for the next tests
+            TSServer.stopClearCachesInterval() ;
+            delete (TSServer as any).__server ;
+            t.expect9(TSServer.isRunning()).false() ;
+        }) ;
+
+        group.unary('each log level logs its own messages and the ones of the lower levels', async (t) => {
+            // the levels used to be shifted: Errors logged nothing, Warnings only the errors, Infos no info
+            const expected:[TSServerLogLevel, string[]][] = [
+                [TSServerLogLevel.None,      []],
+                [TSServerLogLevel.Errors,    []], // no error here (see the previous test)
+                [TSServerLogLevel.Warnings,  [TSServerLogType.Warning]],
+                [TSServerLogLevel.Infos,     [TSServerLogType.Log, TSServerLogType.Warning]],
+                [TSServerLogLevel.Developer, [TSServerLogType.Developer, TSServerLogType.Log, TSServerLogType.Warning]],
+            ] ;
+            const client = new TSRequest(`http://localhost:${port}/`) ;
+            for (const [level, types] of expected) {
+                const logged = new Set<string>() ;
+                const logger = async (type:TSServerLogType) => { logged.add(type) ; } ;
+                t.expect(await TSServer.start(endpoints, { port, log:{ level, logger } }), `start ${level}`).is(TSServerStartStatus.HTTP) ;
+                try {
+                    await client.req('ok', Verb.Get, RespType.String) ;                  // an info
+                    await client.req('nope', Verb.Get, RespType.OptionalJson) ;          // a 404 is a warning
+                }
+                finally { await TSServer.stop() ; }
+                t.expect([...logged].sort(), `level ${level}`).is([...types].sort()) ;
             }
         }) ;
 
@@ -817,17 +929,41 @@ if (!$inbrowser()) {
                 t.expect5(r3.headers.get('access-control-allow-origin')).null() ;
 
                 // a valid preflight is kept by the caches cleaning, an expired one is removed and no longer used
-                const cache:Map<string, any> = (TSServer as any).__server._preflightResponseCache ;
+                const cache:any = (TSServer as any).__server._preflightResponseCache ; // a TSCache
+                // the preflights expire in a millisecond (their Access-Control-Max-Age is at least 10 s)
+                const expire = async () => {
+                    for (const [k, v] of cache) { cache.set(k, v, { expires:new Date(Date.now() + 1) }) ; }
+                    await new Promise(resolve => setTimeout(resolve, 5)) ;
+                } ;
                 TSServer.clearCaches() ;
                 t.expect6(cache.size).is(1) ;
-                cache.forEach(v => { v.timeout = 0 ; }) ;        // the preflight is now expired
+                await expire() ;                                  // the preflight is now expired
                 const r4 = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':origin }) ;
                 t.expect7(r4.headers.get('access-control-allow-origin')).null() ;
                 t.expect8(cache.size).is(0) ;
                 await client.req('obj', 'OPTIONS' as Verb, RespType.String, null, { 'origin':origin, 'access-control-request-method':'GET' }) ;
-                cache.forEach(v => { v.timeout = 0 ; }) ;
+                await expire() ;
                 TSServer.clearCaches() ;
                 t.expect9(cache.size).is(0) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('CORS: the number of kept preflight responses is limited', async (t) => {
+            const st = await TSServer.start(endpoints as any, { ...opts, maxPreflightResponses:2 }) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(base) ;
+                for (const o of ['https://a.example', 'https://b.example', 'https://c.example']) {
+                    await client.req('obj', 'OPTIONS' as Verb, RespType.String, null, { 'origin':o, 'access-control-request-method':'GET' }) ;
+                }
+                const cache:any = (TSServer as any).__server._preflightResponseCache ;
+                t.expect1(cache.size).is(2) ;
+                // the oldest one was evicted: its next request has no CORS header
+                const ra = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':'https://a.example' }) ;
+                t.expect2(ra.headers.get('access-control-allow-origin')).null() ;
+                const rc = await client.req('obj', Verb.Get, RespType.Json, null, { 'origin':'https://c.example' }) ;
+                t.expect3($length(rc.headers.get('access-control-allow-origin'))).gt(0) ;
             }
             finally { await TSServer.stop() ; }
         }) ;
@@ -974,6 +1110,29 @@ if (!$inbrowser()) {
             '/string4': async (_r:TSServerRequest, resp:TSServerResponse) => { (resp as any).returnString('a', 'text/plain', 201, 'b') ; },
             '/error1': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnError(Resp.Conflict) ; },
         } ;
+        group.unary('returnError() without argument or with an object only, setHeader() chaining', async (t) => {
+            const forms:any = {
+                '/error0': async (_r:TSServerRequest, resp:TSServerResponse) => { (resp as any).returnError() ; }, // not allowed by the typings
+                '/errorObject': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnError({ why:'because' }) ; },
+                '/header': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.setHeader('X-Test', 'yes').returnString('h', Resp.Created) ; },
+            } ;
+            t.expect0(await TSServer.start(forms, { port, log: { level: TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            try {
+                const client = new TSRequest(`http://localhost:${port}/`) ;
+                const r0 = await client.req('error0', Verb.Get, RespType.String) ;
+                t.expect1(r0.status).is(Resp.InternalError) ;      // no argument: an empty internal error
+                t.expect2(r0.response).is('') ;
+                const r1 = await client.req('errorObject', Verb.Get, RespType.Json) ;
+                t.expect3(r1.status).is(Resp.InternalError) ;      // an object only: the default status
+                t.expect4(r1.response).is({ why:'because' }) ;
+                const r2 = await client.req('header', Verb.Get, RespType.String) ;
+                t.expect5(r2.status).is(Resp.Created) ;
+                t.expect6(r2.headers.get('x-test')).is('yes') ;
+                t.expect7(r2.response).is('h') ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
         group.unary('returnObject() with data, too many arguments', async (t) => {
             t.expect0(await TSServer.start(endpoints, { port, log: { level: TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
             try {
@@ -1023,6 +1182,150 @@ if (!$inbrowser()) {
             }
             finally { await TSServer.stop() ; }
         }) ;
+
+        group.unary('custom logger: sensitive headers are masked, root path, static resource, refused preflight', async (t) => {
+            const port = 8416 as uint16 ;
+            const logs:{ type:string, message:string }[] = [] ;
+            // a custom logger keeps the messages instead of printing them (the developer level logs everything)
+            const logger = async (type:TSServerLogType, message:string) => { logs.push({ type, message }) ; } ;
+            const st = await TSServer.start(
+                { 
+                    '/home': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ home:true }) ; },
+                    '/x': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; },
+                } as any,
+                { 
+                    port, rootPath:'/home', webSites:{ '/':$absolute('test/main') },
+                    preflightController: async () => null as any,
+                    log: { level:TSServerLogLevel.Developer, logger, sensitiveHeaders:['authorization', 'cookie', 'set-cookie'] } 
+                },
+            ) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                // the root path is redirected to the rootPath end point
+                const [s1, r1] = await rawRequest(port, 'GET', '/', {
+                    'authorization':'Bearer secret-token',
+                    'cookie':'sid=secret-cookie',
+                    'set-cookie':['a=secret-one', 'b=secret-two'] as any, // an array header value
+                    'x-custom':'visible-value'
+                }) ;
+                t.expect1(s1).is(Resp.OK) ;
+                t.expect2(r1).is({ home:true }) ;
+                const headersLogs = logs.filter(l => l.message.includes('request headers')) ;
+                t.expect3(headersLogs.length).is(1) ;
+                const hl = $string(headersLogs[0]?.message) ;
+                t.expect4(headersLogs[0]?.type).is(TSServerLogType.Developer) ;
+                t.expect5(/secret/.test(hl)).false() ;                     // no sensitive value is logged...
+                t.expect6(hl.split('xxxx').length - 1).is(4) ;              // ...the 2 single values and the 2 array items are replaced
+                t.expect7(hl.includes('visible-value')).true() ;            // other headers are kept
+
+                // a static resource is served and logged
+                const [s2, r2, type2] = await rawTextRequest(port, 'GET', '/index.html') ;
+                t.expect8(s2).is(Resp.OK) ;
+                t.expect9(type2).is('text/html') ;
+                t.expectA(r2.includes('VSCode-Test Page')).true() ;
+                t.expectB(logs.some(l => l.type === TSServerLogType.Log && l.message === "did handle static resource '/index.html'.")).true() ;
+
+                // the refused preflight request is logged as a warning
+                const [s3] = await rawTextRequest(port, 'OPTIONS', '/x', { 'origin':'https://y.example', 'access-control-request-method':'GET' }) ;
+                t.expectC(s3).is(Resp.NotAllowed) ;
+                t.expectD(logs.some(l => l.type === TSServerLogType.Warning && l.message === "did refuse preflight request for resource '/x'.")).true() ;
+                t.expectE(logs.some(l => l.type === TSServerLogType.Log && l.message.startsWith(`running on port ${port}`))).true() ;
+            }
+            finally { await TSServer.stop() ; }
+            t.expectF(logs[logs.length-1]).is({ type:TSServerLogType.Log, message:'server is exiting...' }) ;
+        }) ;
+
+        group.unary('a relative root path is ignored, a throwing logger gives an internal error', async (t) => {
+            const port = 8416 as uint16 ;
+            // the warning logger throws while sending the error response: the request still gets a response
+            const logger = async (type:TSServerLogType, _message:string) => { if (type === TSServerLogType.Warning) { throw new Error('logger failure') ; } } ;
+            const st = await TSServer.start(
+                { '/home': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnObject({ home:true }) ; } } as any,
+                { port, rootPath:'home', log: { level:TSServerLogLevel.Infos, logger } },
+            ) ;
+            t.expect0(st).is(TSServerStartStatus.HTTP) ;
+            try {
+                t.expect1((TSServer as any).__server.rootPath).is('') ;   // not absolute: not used
+                const [s1, body1] = await rawTextRequest(port, 'GET', '/') ;
+                t.expect2(s1).is(Resp.InternalError) ;                    // instead of the forbidden root json response
+                t.expect3(body1).is('') ;
+                const [s2] = await rawTextRequest(port, 'GET', '/home') ;
+                t.expect4(s2).is(Resp.OK) ;
+            }
+            finally { await TSServer.stop() ; }
+            // without a server, clearCaches() does nothing
+            TSServer.clearCaches() ;
+            t.expect5(TSServer.isRunning()).false() ;
+        }) ;
+
+        group.unary('TLS options for mTLS', async (t) => {
+            const port = 8417 as uint16 ;
+            const cert = $readBuffer($absolute('test/cert/cert.pem')) ;
+            const key = $readBuffer($absolute('test/cert/key.pem')) ;
+            const st = await TSServer.start(
+                { '/x': async (_r:TSServerRequest, resp:TSServerResponse) => { resp.returnEmpty() ; } } as any,
+                { 
+                    port, key, certificate:cert, certificateAuthority:cert, mtls:true, 
+                    tlsSecTimeout:60, handshakeMsTimeout:5000, maxHeaderSize:16384, 
+                    log: { level:TSServerLogLevel.None } 
+                },
+            ) ;
+            t.expect0(st).is(TSServerStartStatus.HTTPS) ;
+            try {
+                const o = (TSServer as any).__server._serverOptions ;
+                t.expect1(o.requestCert).true() ;
+                t.expect2(o.rejectUnauthorized).true() ;
+                t.expect3(o.sessionTimeout).is(60) ;
+                t.expect4(o.handshakeTimeout).is(5000) ;
+                t.expect5(o.maxHeaderSize).is(16384) ;
+                t.expect6(Buffer.compare(o.ca, cert!)).is(0) ;
+            }
+            finally { await TSServer.stop() ; }
+        }) ;
+
+        group.unary('stop() with an open connection: Connection: close on a new request, then the socket is ended', async (t) => {
+            const port = 8418 as uint16 ;
+            const slow = _waitingEndPoints() ;
+            t.expect0(await TSServer.start(slow.endpoints, { port, log:{ level:TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            const socket = netConnect(port, 'localhost') ;
+            let received = '' ;
+            socket.on('data', d => { received += d.toString('utf8') ; }) ;
+            const closed = new Promise<void>(resolve => socket.on('close', () => resolve())) ;
+            socket.write('GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n') ;
+            await slow.arrival ;
+            const stopping = TSServer.stop() ;
+            // a new request on the same connection after stop() was called
+            socket.write('GET /fast HTTP/1.1\r\nHost: localhost\r\n\r\n') ;
+            await slow.fastArrival ;
+            slow.release() ;
+            await closed ; // the server did end the connection once both responses were sent
+            const responses = received.split('HTTP/1.1 200').length - 1 ;
+            t.expect1(responses).is(2) ;
+            t.expect2(received.includes('slow-answer')).true() ;
+            t.expect3(received.includes('fast-answer')).true() ;
+            t.expect4(/connection: close/i.test(received.slice(received.indexOf('fast-answer') - 200))).true() ;
+            t.expect5(await stopping).undef() ;
+            t.expect6(TSServer.isRunning()).false() ;
+        }) ;
+
+        group.unary('stop() destroys a busy connection after the force close timeout', async (t) => {
+            const port = 8418 as uint16 ;
+            const slow = _waitingEndPoints() ;
+            t.expect0(await TSServer.start(slow.endpoints, { port, forceCloseMsTimeout:20, log:{ level:TSServerLogLevel.None } })).is(TSServerStartStatus.HTTP) ;
+            const socket = netConnect(port, 'localhost') ;
+            let received = '' ;
+            socket.on('data', d => { received += d.toString('utf8') ; }) ;
+            socket.on('error', () => {}) ; // a reset connection must not be an uncaught error
+            const closed = new Promise<void>(resolve => socket.on('close', () => resolve())) ;
+            socket.write('GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n') ;
+            await slow.arrival ;
+            const stopping = TSServer.stop() ;
+            await closed ;             // the request is still running, but its connection was destroyed
+            t.expect1(received).is('') ;
+            t.expect2(await stopping).undef() ;
+            slow.release() ;           // the end point ends without any socket
+            t.expect3(TSServer.isRunning()).false() ;
+        }) ;
     })) ;
 
     serverGroups.push(TSTest.group("TSStaticWebsite — cache / blacklist / clearCaches", async (group) => {
@@ -1066,6 +1369,38 @@ if (!$inbrowser()) {
             t.expectA(true).true() ;
         }) ;
     })) ;
+}
+
+// a raw request with a JSON response on a given port, to send what TSRequest never sends
+function rawRequest(port:number, method:string, path:string, headers:TSDictionary<string> = {}):Promise<[number, any]> {
+    return rawTextRequest(port, method, path, headers).then(([s, b]) => [s, $jsonparse(b)]) ;
+}
+
+function rawTextRequest(port:number, method:string, path:string, headers:TSDictionary<string> = {}):Promise<[number, string, string]> {
+    return new Promise((resolve, reject) => {
+        const req = httpRequest({ host:'localhost', port, method, path, headers, agent:false }, res => {
+            const chunks:Buffer[] = [] ;
+            res.on('data', c => chunks.push(c)) ;
+            res.on('end', () => resolve([res.statusCode!, Buffer.concat(chunks).toString('utf8'), $string(res.headers['content-type'])])) ;
+        }) ;
+        req.on('error', reject) ;
+        req.end() ;
+    }) ;
+}
+
+// a '/slow' end point which waits to be released and a '/fast' one, with their arrival promises
+function _waitingEndPoints() {
+    let arrived:() => void = () => {} ;
+    let fastArrived:() => void = () => {} ;
+    let release:() => void = () => {} ;
+    const arrival = new Promise<void>(resolve => { arrived = resolve ; }) ;
+    const fastArrival = new Promise<void>(resolve => { fastArrived = resolve ; }) ;
+    const released = new Promise<void>(resolve => { release = resolve ; }) ;
+    const endpoints:any = {
+        '/slow': async (_r:TSServerRequest, resp:TSServerResponse) => { arrived() ; await released ; resp.returnString('slow-answer') ; },
+        '/fast': async (_r:TSServerRequest, resp:TSServerResponse) => { fastArrived() ; resp.returnString('fast-answer') ; },
+    } ;
+    return { endpoints, arrival, fastArrival, release:() => release() } ;
 }
 
 // @ts-ignore

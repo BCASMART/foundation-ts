@@ -4,8 +4,8 @@ import * as https from "https";  // NOSONAR: no 'node:' prefix for webpack 5
 import { $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
 import { $bufferFromDataLike } from "./data";
 import { $isabsolutepath } from "./fs";
-import { $conditionalClearMap } from "./mapset";
 import { $ftrim } from "./strings";
+import { TSCache } from "./tscache";
 import { $isRespCode, TSError } from "./tserrors";
 import { Resp, Verb } from "./tsrequest";
 import Socket = NodeJS.Socket;
@@ -14,7 +14,7 @@ import { TSEndPointRouter, TSServerEndPoint } from "./tsserver_endpoints";
 import { TSStaticWebsite } from "./tsserver_websites";
 import { TSURL } from "./tsurl";
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, uint16, UINT16_MAX } from "./types";
-import { $inbrowser, $insp, $logterm, $mark } from "./utils";
+import { $inbrowser, $insp, $logterm } from "./utils";
 
 /**
  * This is a minimal singleton HTTP server class provided for testing
@@ -58,6 +58,7 @@ export interface TSServerOptions {
     forceCloseMsTimeout?:Nullable<number> ; // NOSONAR: optional. timeout to force remaining connection after server stop. Default is 15000
     preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ; // NOSONAR: optional
     clearCacheInterval?:Nullable<number> ; // NOSONAR: optional. default is 900s (15 mn)
+    maxPreflightResponses?:Nullable<number> ; // NOSONAR: optional. Maximum number of kept preflight responses. default is 10000
     log?: {
         logger?: TSServerLogger;
         level?: TSServerLogLevel;
@@ -128,6 +129,7 @@ export class TSServer {
     private static __server:TSServer|undefined = undefined ;
     private static readonly SENSITIVE_HEADER_REPLACED_VALUE = "xxxx";
     private static readonly DEFAULT_CLOSE_TIMEOUT = 15000 ;
+    private static readonly DEFAULT_MAX_PREFLIGHT_RESPONSES = 10000 ;
     private static readonly __methodColors:{[key in Verb]:string} = { GET:'&j', POST:'&u', PUT:'&v', DELETE:'&r', PATCH:'&o' }
     private static _internalClearTimer:any = undefined ;
     private static _lastClearTimerInterval:number = 900 ;
@@ -149,7 +151,9 @@ export class TSServer {
     private readonly _forceCloseTimeout:number ;
     private readonly _preflightControler:TSPreflightController ;
     private readonly _allowedMethodsSet:Set<string> = new Set(Object.values(Verb) as string[]) ;
-    private readonly _preflightResponseCache = new Map<string, TSPreflightResponse>() ; // origin => response
+    // path and origin => preflight response, until its Access-Control-Max-Age. The keys come from the clients:
+    // the number of kept responses is limited
+    private readonly _preflightResponseCache:TSCache<string, TSPreflightResponse> ;
     private readonly _sensitiveHeaders: TSHeaderName[];
     private _terminating:boolean = false ;
     private _httpServer:http.Server|https.Server|undefined ;
@@ -224,9 +228,9 @@ export class TSServer {
     private constructor(endPoints:TSDictionary<TSEndpointsDefinition>, opts:TSServerOptions = {}) {
         const ll = $value(opts.log?.level, TSServerLogLevel.Warnings) ;
         this._logger = $ok(opts.log?.logger) ? opts.log.logger : _internalLogger ;
-        this._logErrors = ll > TSServerLogLevel.Errors ;
-        this._logWarnings = ll > TSServerLogLevel.Warnings ;
-        this._logInfo = ll > TSServerLogLevel.Infos ;
+        this._logErrors = ll >= TSServerLogLevel.Errors ;
+        this._logWarnings = ll >= TSServerLogLevel.Warnings ;
+        this._logInfo = ll >= TSServerLogLevel.Infos ;
         this._developerMode = ll === TSServerLogLevel.Developer ;
         this._sensitiveHeaders = $value(opts.log?.sensitiveHeaders, []);
         this.isHTTPs = $length(opts.key) > 0 && $length(opts.certificate) > 0 ;
@@ -247,6 +251,8 @@ export class TSServer {
         this.host = $ftrim(opts.host) ;
         if (!this.host.length) { this.host = `${this.isHTTPs?'https':'http'}://localhost/` ; }
         this._preflightControler = _preflightController(opts) ;
+        const mp = $unsigned(opts.maxPreflightResponses) ;
+        this._preflightResponseCache = new TSCache<string, TSPreflightResponse>({ maxCount:mp > 0 ? mp : TSServer.DEFAULT_MAX_PREFLIGHT_RESPONSES }) ;
         TSServer.setClearCachesInterval(opts?.clearCacheInterval) ;
     }
 
@@ -348,8 +354,7 @@ export class TSServer {
         res.setHeader("Access-Control-Max-Age", $string(npfr.timeout!)) ;                    
         res.writeHead(Resp.NoContent) ;
         res.end() ;
-        npfr.timeout = npfr.timeout! + $mark() ; // we change the duration in a moment in time
-        this._preflightResponseCache.set(originKey, npfr) ;
+        this._preflightResponseCache.set(originKey, npfr, { ttl:npfr.timeout }) ; // the timeout is between 10 s and 1 day
         if (this._logInfo) { await this._logger(TSServerLogType.Log, `did accept preflight request for resource '${url.pathname}'.`, this, req) ; }
     }
 
@@ -382,12 +387,8 @@ export class TSServer {
 
     // a valid preflight response gives its allowed origin to the request response
     private _applyValidPreflight(originKey:string, res: http.ServerResponse) {
-        const preflightResponse = this._preflightResponseCache.get(originKey) ;
+        const preflightResponse = this._preflightResponseCache.get(originKey) ; // undefined once expired
         if (!$ok(preflightResponse)) { return ; }
-        if (!_isValidPreflight(preflightResponse, $mark())) {
-            this._preflightResponseCache.delete(originKey) ;
-            return ;
-        }
         if ($ok(preflightResponse.allowedOrigin)) { res.setHeader('Access-Control-Allow-Origin', preflightResponse.allowedOrigin) ; }
     }
 
@@ -472,8 +473,7 @@ export class TSServer {
     // TSStaticWebsite.clearCaches() is synchronous: there is nothing to await here
     private _clearCaches() {
         // clearing expired preflights
-        const timestamp = $mark() ;
-        $conditionalClearMap(this._preflightResponseCache, (_,v) => !_isValidPreflight(v, timestamp)) ;
+        this._preflightResponseCache.removeExpired() ;
         // clearing web sites caches
         this._sites.forEach(s => s.clearCaches()) ;
     }
@@ -603,10 +603,6 @@ function __clearCaches() { TSServer.clearCaches() ; }
 
 // a cached preflight response is valid until its timeout, which is the moment it expires
 // (the Access-Control-Max-Age duration added to the moment of the preflight request)
-function _isValidPreflight(response:TSPreflightResponse, now:number):boolean {
-    return $ok(response.timeout) && response.timeout! >= now ;
-}
-
 let __logIndex:number = 0 ;
 // the TSServerLogger contract is asynchronous: a resolved promise is returned
 const _internalLogger = (type:TSServerLogType, message:string, server?: TSServer, _req?: http.IncomingMessage):Promise<void> => {

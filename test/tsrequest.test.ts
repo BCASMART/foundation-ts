@@ -302,6 +302,19 @@ requestGroups.push(TSTest.group("TSRequest.req() — trailing slash and non JSON
         }
         finally { await new Promise(resolve => server.close(resolve)) ; }
     }) ;
+
+    group.unary('RespType.Stream gives the readable body stream', async (t) => {
+        const server = http.createServer((_req, res) => { res.writeHead(200, { 'content-type':'text/plain' }) ; res.end('streamed content') ; }) ;
+        await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve())) ;
+        try {
+            const port = (server.address() as any).port ;
+            const r = await new TSRequest(`http://127.0.0.1:${port}/`).req('/s', Verb.Get, RespType.Stream) ;
+            t.expect0(r.status).is(200) ;
+            t.expect1(r.response instanceof ReadableStream).true() ;
+            t.expect2(await new Response(r.response as any).text()).is('streamed content') ;
+        }
+        finally { await new Promise(resolve => server.close(resolve)) ; }
+    }) ;
 })) ;
 }
 

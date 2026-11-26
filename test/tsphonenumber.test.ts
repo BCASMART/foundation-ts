@@ -114,6 +114,21 @@ export const phoneGroups = TSTest.group("TSPhoneNumber class ", async (group) =>
         t.expect2($isophone('(00 33)01.45.24.7000')).is(N) ;
     }) ;
 
+    group.unary('primitive conversions, inspection, unknown directives and a wrong country', async (t) => {
+        const p = $phonenumber('+33145247000')! ;
+        // a phone number is not a number (its left zeros would be lost)
+        t.expect0(+p).toBeNaN() ;
+        t.expect1(Number(p)).toBeNaN() ;
+        t.expect2(`${p}`).is('+33145247000') ;
+        t.expect3($insp(p)).is('+33145247000') ;
+        t.expect4(p.toString('[%z]%%')).is('[z]%') ;      // an unknown directive gives its character
+        // an international number of another country than the given one
+        const [n, c, v, , step] = $phoneFromString('+33145247000', TSCountry.country('US')) ;
+        t.expect5([n, c, v, step]).is(['33145247000', null, PhoneValidity.BadCountryNumber, 6]) ;
+        t.expect6($phonenumber('+33145247000', TSCountry.country('US'))).null() ;
+        t.expect7($phonenumber('+33145247000', TSCountry.country('FR'))?.number).is('0145247000') ;
+    }) ;
+
     group.unary('TSPhoneNumber — interpret / exampleNumber / accessors / TSObject conformance', async (t) => {
         const p = TSPhoneNumber.fromString('+33145247000')! ;
         t.expect0(p).OK() ;

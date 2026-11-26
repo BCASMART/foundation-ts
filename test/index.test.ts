@@ -54,6 +54,7 @@ import { TSURLGroups } from './tsurl.test';
 import { objectGroups } from './object.test';
 import { coupleGroups } from './tscouple.test';
 import { listGroups } from './tslist.test';
+import { cacheGroups } from './tscache.test';
 import { charsetGroups } from './tscharset.test';
 import { contractGroups } from './contract.test';
 
@@ -93,6 +94,7 @@ tester.addGroups(TSURLGroups,       "url") ;
 tester.addGroups(objectGroups,      "objects") ;
 tester.addGroups(coupleGroups,      "couples") ;
 tester.addGroups(listGroups,        "lists") ;
+tester.addGroups(cacheGroups,       "cache") ;
 tester.addGroups(charsetGroups,     "charsets") ;
 tester.addGroups(contractGroups,    "contract") ;
 
@@ -105,11 +107,11 @@ tester.addGroup("Testing tester system itself", async (group) => {
         "requests", "server", "utils", "data", "url",
         "colors", "geometry", "qualifiers", "errors", "mapset",
         "fs", "fusion", "phones", "parser", "internals",
-        "objects", "couples", "lists", "charsets", "contract"]) ;
+        "objects", "couples", "lists", "cache", "charsets", "contract"]) ;
     const date = new TSDate() ;
     
     group.unary("tests list", async (t) => {
-        t.expect0(tester.names.length).is(33) ;
+        t.expect0(tester.names.length).is(34) ;
         t.expect1(setA).is(setB) ;
     }) ;
     

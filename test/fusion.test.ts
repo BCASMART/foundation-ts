@@ -1,5 +1,5 @@
 import { TSTest } from "../src/tstester";
-import { TSFusionTemplate, TSStringTemplate } from '../src/tsfusion';
+import { TSDataTemplate, TSFusionTemplate, TSStringTemplate } from '../src/tsfusion';
 import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from '../src/tsfusionnode';
 import { TSDictionary } from "../src/types";
 import { TSData } from "../src/tsdata";
@@ -461,8 +461,8 @@ TSTest.group("Fusion — operators, params, constants", async (group) => {
         t.expect1(run("{{m#:{{key}}={{value}} }}", { m:new Map([['x', 1], ['y', 2]]) }).res).is('x=1 y=2 ') ;
 
         t.expect2(run("{{a..b}}", { a:{ b:1 } }).errors.includes("contains internal '..'")).true() ;
-        t.expect3(run("{{a.zz}}", { a:{ b:1 } }).errors.includes("unknown method or preperty 'zz'")).true() ;
-        t.expect4(run("{{a.foo}}", { a:{ foo:(x:number) => x } }).errors.includes("is not an sinple accessor")).true() ;
+        t.expect3(run("{{a.zz}}", { a:{ b:1 } }).errors.includes("unknown method or property 'zz'")).true() ;
+        t.expect4(run("{{a.foo}}", { a:{ foo:(x:number) => x } }).errors.includes("is not a simple accessor")).true() ;
         t.expect5(run("{{a.n}}", { a:{ n:Number.NaN } }).errors.includes("would return NaN which was transformed to null")).true() ;
     }) ;
 }),
@@ -623,8 +623,8 @@ TSTest.group("Fusion — procedures, contexts and key paths", async (group) => {
         const e2:string[] = [] ;
         t.expect4(tpl!.fusionWithDataContext({ flag:true, x:'DATA' }, {}, e2)).is('[][LOCAL][]') ;
         t.expect5(e2).is([
-            "WARNING: unknown method or preperty 'y' in local context.",
-            "!ERROR!: unknown method or preperty 'y' in target object.",
+            "WARNING: unknown method or property 'y' in local context.",
+            "!ERROR!: unknown method or property 'y' in target object.",
             "WARNING: value returned for 'y' was undefined or null and should have result in data to merge in fusion.",
         ]) ;
     }) ;
@@ -740,6 +740,138 @@ TSTest.group("Fusion — procedures, contexts and key paths", async (group) => {
             t.expect7(output.includes("Data Parsing cannot use encoding: 'hex'")).true() ;
             t.expect8(output.includes('Data Parsing did encounter error')).true() ;
         }
+    }) ;
+
+    group.unary('parameters, separators and marks parsing', async (t) => {
+        const S = (src:string, data:any, opts:any = {}):string|null => TSFusionTemplate.fromString(src, opts)?.fusionWithDataContext(data, {}, []) ?? 'PARSE FAILED' ;
+        const error = (source:string, opts?:any):string => {
+            try { new TSStringTemplate(source, opts) ; return '' ; }
+            catch (e) { return (e as Error).message ; }
+        } ;
+        const o = { f:(...a:any[]) => JSON.stringify(a), twice:(n:number) => [n, n] } ;
+        t.expect0(S('{{o.f()}}', { o })).is('[]') ;                          // no parameter
+        t.expect1(S('{{o.f(1,)}}', { o })).is('[1]') ;                       // a comma before the closing parenthesis
+        t.expect2(S('{{o.f(2) }}', { o })).is('[2]') ;                       // a space after the parameters
+        t.expect3(S('{{o.twice(7)#:[{{self}}]}}', { o })).is('[7][7]') ;     // an enumeration of a method result
+        t.expect4(error('{{o.f(1)x}}').startsWith("Malformed var : found forbidden character 0x78 ('x') at position 8")).true() ;
+        // a two characters separator
+        t.expect5(S('{{a#:;[{{self}}]}}', { a:[1, 2] }, { separator:':;' })).is('[1][2]') ;
+        t.expect6(error('{{a#:x}}', { separator:':;' })).is("Malformed template structure on variable separator. Unatended character  0x78 ('x') at position 5 while decoding separator.") ;
+        // a three characters ending mark: a partial ending mark in the text is a text
+        t.expect7(S('a}x}}y{{b}}}', { b:1 }, { endingMark:'}}}' })).is('a}x}}y1') ;
+        t.expect8(error('a{{b}}x}', { endingMark:'}}}' })).is("Malformed template structure on closing variable. Unatended character  0x78 ('x') at position 6 while decoding ending mark.") ;
+        t.expect9(error('a }} b')).is('Malformed template structure. We have found a supernumerary ending mark at position 3.') ;
+        // a unicode parameter character which the charset of the template cannot write
+        const latin1 = TSCharset.charset('latin1')! ;
+        t.expectA(() => new TSDataTemplate(Buffer.from("{{s.concat('\\u20AC')}}"), latin1)).throws('Malformed template structure : unicode character U+20AC ending at position 17 cannot be written in latin1.') ;
+        t.expectB(new TSDataTemplate(Buffer.from("{{s.concat('\\u00E9')}}"), latin1).fusionStringWithDataContext({ s:'a' }, {}, [])).is('aé') ;
+    }) ;
+
+    group.unary('HTML elements which are not fusion elements are kept', async (t) => {
+        const H = (src:string, data:any) => TSFusionTemplate.fromHTMLData(Buffer.from(src))?.fusionStringWithDataContext(data, {}, []) ;
+        t.expect0(H('a</ b>c', {})).is('a</ b>c') ;                                          // not a closing element
+        t.expect1(H('a<b$>c', {})).is('a<b$>c') ;                                            // not an element name
+        t.expect2(H('<fusion path="x"y>{{x}}', { x:1 })).is('<fusion path="x"y>1') ;         // bad character after a quoted value
+        t.expect3(H('<p>{{b}}/{{n}}</p>', { b:true, n:3 })).is('<p>true/3</p>') ;           // values without toHTML() method
+        // an element which is not closed at the end of the source is kept as it is (it got a second '<' and a '>')
+        t.expect4(H('abc <b', {})).is('abc <b') ;
+        t.expect5(H('abc <b class="x', {})).is('abc <b class="x') ;
+        t.expect6(H('{{a}} <', { a:1 })).is('1 <') ;
+    }) ;
+
+    group.unary('inspection and enumerations of Map and Set', async (t) => {
+        const tpl = TSFusionTemplate.fromString('a{{b}}')! ;
+        t.expect0($inspect(tpl)).is('[object TSStringTemplate]') ;
+        t.expect1(tpl.toString()).is('[object TSStringTemplate]') ;
+        t.expect2($inspect(TSFusionTreeNode.root())).is('[FusionNode Root]') ;
+        t.expect3(new Map<any, any>([['k', 1], [2, 'v']]).fusionEnumeration()).is([{ key:'k', value:1 }, { key:2, value:'v' }]) ;
+        t.expect4(new Set(['a', 'b']).fusionEnumeration()).is(['a', 'b']) ;
+        // a null or undefined parameter is given as it is (it was removed, the following ones being shifted)
+        const P = (src:string) => TSFusionTemplate.fromString(src)?.fusionWithDataContext({ o:{ g:(a:any, b:any, c:any) => `${a}:${b}:${c}` } }, {}, []) ;
+        t.expect5(P('{{o.g(undefined,2,3)}}')).is('undefined:2:3') ;
+        t.expect6(P('{{o.g(null,2,3)}}')).is('null:2:3') ;
+        t.expect7(P('{{o.g(1,null,3)}}')).is('1:null:3') ;
+        t.expect8(P('{{o.g(1,2)}}')).is('1:2:undefined') ;
+    }) ;
+}),
+
+TSTest.group("Fusion — 1.8.12 corrections", async (group) => {
+    const S = (src:string, data:any, g:TSDictionary = {}, opts:any = {}):[string|null, string[]] => {
+        const e:string[] = [] ;
+        const t = TSFusionTemplate.fromString(src, opts) ;
+        return [t ? t.fusionWithDataContext(data, g, e) as string|null : 'PARSE FAILED', e] ;
+    } ;
+
+    group.unary("F1: the caller's global context is not modified", async (t) => {
+        const ctx:TSDictionary = { a:1 } ;
+        const A = TSFusionTemplate.fromString('A={{$f(1)}}', { globalFunctions:{ f:(_:any) => 'fromA' } })! ;
+        const B = TSFusionTemplate.fromString('B={{$f(1)}}', { globalFunctions:{ f:(_:any) => 'fromB' } })! ;
+        t.expect0([A.fusionWithDataContext({}, ctx, []), B.fusionWithDataContext({}, ctx, [])]).is(['A=fromA', 'B=fromB']) ;
+        t.expect1(Object.keys(ctx)).is(['a']) ;
+        S('{{$count}}', {}, ctx, { addStandardGlobalFunctions:true }) ;
+        t.expect2(Object.keys(ctx)).is(['a']) ;
+        // a value of the caller's context comes first, a procedure still writes in the caller's context
+        t.expect3(S('{{$f}}', {}, { f:'mine' }, { globalFunctions:{ f:() => 'fn' } })[0]).is('mine') ;
+        const written:TSDictionary = {} ;
+        const P = TSFusionTemplate.fromString('{{*w}}{{$x}}', { procedures:{ w:(_d:any, _r:any, _l:any, g:TSDictionary) => { g.x = 'X' ; return '' ; } } })! ;
+        t.expect4(P.fusionWithDataContext({}, written, [])).is('X') ;
+        t.expect5(written.x).is('X') ;
+    }) ;
+
+    group.unary("F2 and F3: characters which the charset cannot write", async (t) => {
+        const html = TSFusionTemplate.fromHTMLData(Buffer.from('<html><meta charset="iso-8859-1"><p>{{a}}</p></html>'))! ;
+        t.expect0(html.fusionStringWithDataContext({ a:{ toHTML:() => '<i>é€</i>' } }, {}, [])).is('<html><meta charset="iso-8859-1"><p><i>é&#8364;</i></p></html>') ;
+        const html8 = TSFusionTemplate.fromHTMLData(Buffer.from('<html><meta charset="utf-8"><p>{{a}}</p></html>'))! ;
+        t.expect1(html8.fusionStringWithDataContext({ a:{ toHTML:() => '<i>é€</i>' } }, {}, [])).is('<html><meta charset="utf-8"><p><i>é€</i></p></html>') ;
+        const latin = TSFusionTemplate.fromData(Buffer.from('v={{a}}'), 'latin1')! ;
+        t.expect2(latin.fusionStringWithDataContext({ a:'é' }, {}, [])).is('v=é') ;
+        const errors:string[] = [] ;
+        t.expect3(latin.fusionStringWithDataContext({ a:'é€' }, {}, errors)).null() ; // € used to be written as ¬
+        t.expect4(errors.some(e => e.includes("character '€' (U+20AC) cannot be written in latin1"))).true() ;
+    }) ;
+
+    group.unary("F4 and F5: unicode escapes and numbers of the parameters", async (t) => {
+        t.expect0(S("{{s.concat('\\uD83D\\uDE00\\u00e9')}}", { s:'a' })[0]).is('a😀é') ;
+        t.expect1(S("{{s.concat('\\uD83Dx')}}", { s:'a' })[0]).is('PARSE FAILED') ;
+        t.expect2(S("{{s.concat('\\uDE00')}}", { s:'a' })[0]).is('PARSE FAILED') ;
+        for (const [i, n] of ['1.2.3', '-', '.', '1..2'].entries()) { t.expect(S(`{{s.slice(${n})}}`, { s:'abcdef' })[0], `num-${i}`).is('PARSE FAILED') ; }
+        t.expect3(S('{{s.slice(-2)}}', { s:'abcdef' })[0]).is('ef') ;
+        t.expect4(S('{{s.slice(1.)}}', { s:'abcdef' })[0]).is('bcdef') ;
+    }) ;
+
+    group.unary("F6 and F7: capacity and a fusion during another one", async (t) => {
+        const c = TSFusionTemplate.fromString('abc{{a}}')! ;
+        c.capacity = 1000 ;
+        const capacity = c.capacity ;
+        t.expect0(capacity).is(1536) ; // $capacityForCount(1000): it used to be added to the current capacity (16 + 1536)
+        c.capacity = 1000 ;
+        t.expect1(c.capacity).is(capacity) ;
+        let tpl:any ;
+        tpl = TSFusionTemplate.fromString('[{{v}}{{n?:{{*inner}}}}]', { procedures:{ inner:() => tpl.fusionWithDataContext({ v:'in' }, {}, []) } })! ;
+        t.expect2(tpl.fusionWithDataContext({ v:'out', n:true }, {}, [])).is('[out[in]]') ;
+        let dtpl:any ;
+        dtpl = TSFusionTemplate.fromData(Buffer.from('[{{v}}{{n?:{{*inner}}}}]'), 'utf8', { procedures:{ inner:() => dtpl.fusionStringWithDataContext({ v:'in' }, {}, []) } })! ;
+        t.expect3(dtpl.fusionStringWithDataContext({ v:'out', n:true }, {}, [])).is('[out[in]]') ;
+    }) ;
+
+    group.unary("an unknown member of a primitive value is reported", async (t) => {
+        const [r, e] = S('[{{s.foo}}][{{s.length}}][{{n.bar}}][{{n.toFixed(1)}}]', { s:'abc', n:2 }) ;
+        t.expect0(r).is('[][3][][2.0]') ;
+        t.expect1(e.filter(x => x.includes("unknown method or property 'foo'")).length).is(1) ;
+        t.expect2(e.filter(x => x.includes("unknown method or property 'bar'")).length).is(1) ;
+        t.expect3(S('[{{b.x}}]', { b:true })[1].some(x => x.includes("unknown method or property 'x'"))).true() ;
+    }) ;
+
+    group.unary("empty values are false in the tests, Dates in ISO 8601 local time", async (t) => {
+        const tpl = '{{l?:list}}{{l!:empty}}' ;
+        for (const [i, v] of [[], new Set(), new Map(), '', 0, null].entries()) { t.expect(S(tpl, { l:v })[0], `empty-${i}`).is('empty') ; }
+        for (const [i, v] of [[1], new Set([1]), new Map([[1, 1]]), 'x', 1, {}].entries()) { t.expect(S(tpl, { l:v })[0], `full-${i}`).is('list') ; }
+        const d = new Date(Date.UTC(2024, 4, 1, 10, 20, 0)) ;
+        const local = S('{{d}}', { d })[0]! ;
+        t.expect0(/^2024-05-01T\d{2}:20:00[+-]\d{2}:\d{2}$/.test(local)).true() ;
+        t.expect1(new Date(local).getTime()).is(d.getTime()) ;            // the same instant
+        t.expect2(S('{{d}}', { d:new Date(Date.UTC(2024, 4, 1, 10, 20, 0, 5)) })[0]!.includes(':00.005')).true() ;
+        t.expect3(S('{{d.toISOString}}', { d })[0]).is('2024-05-01T10:20:00.000Z') ;
     }) ;
 }),
 

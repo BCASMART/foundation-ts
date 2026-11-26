@@ -22,7 +22,7 @@
 // =============================================================================
 
 import { TSTester } from '../src/tstester' ;
-import { $inbrowser } from '../src/utils' ;
+import { $browserOS, $inbrowser, TSBrowserOS } from '../src/utils' ;
 
 // --- browser-safe groups -----------------------------------------------------
 import { commonsGroups } from './commons.test' ;
@@ -52,6 +52,7 @@ import { TSURLGroups } from './tsurl.test' ;
 import { objectGroups } from './object.test' ;
 import { coupleGroups } from './tscouple.test' ;
 import { listGroups } from './tslist.test' ;
+import { cacheGroups } from './tscache.test' ;
 import { charsetGroups } from './tscharset.test' ;
 import { contractGroups } from './contract.test' ;
 import { requestGroups } from './tsrequest.test' ;
@@ -90,6 +91,7 @@ tester.addGroups(TSURLGroups,       "url") ;
 tester.addGroups(objectGroups,      "objects") ;
 tester.addGroups(coupleGroups,      "couples") ;
 tester.addGroups(listGroups,        "lists") ;
+tester.addGroups(cacheGroups,       "cache") ;
 tester.addGroups(charsetGroups,     "charsets") ;
 tester.addGroups(contractGroups,    "contract") ;
 tester.addGroups(requestGroups,     "requests") ;
@@ -105,6 +107,31 @@ tester.addGroup("jsdom environment sanity", async (group) => {
         t.expect1(typeof window).is("object") ;
         t.expect2(typeof document).is("object") ;
         t.expect3(typeof navigator).is("object") ;
+    }) ;
+
+    group.unary("$browserOS() recognizes the operating system from the user agent", async (t) => {
+        const agents:[string, TSBrowserOS][] = [
+            ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15', TSBrowserOS.macOS],
+            ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36', TSBrowserOS.windows],
+            ['Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', TSBrowserOS.iOS],
+            ['Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36', TSBrowserOS.android],
+            ['Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0', TSBrowserOS.linux],
+            ['Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36', TSBrowserOS.unknownOS], // was macOS
+            ['Mozilla/5.0 (X11; FreeBSD amd64; rv:120.0) Gecko/20100101 Firefox/120.0', TSBrowserOS.unknownOS],                                  // was macOS
+        ] ;
+        const n:any = window.navigator ;
+        try {
+            for (const [agent, os] of agents) {
+                Object.defineProperty(n, 'userAgent', { value:agent, configurable:true }) ;
+                ($browserOS as any).os = undefined ; // $browserOS() keeps its result
+                t.expect($browserOS(), agent).is(os) ;
+            }
+        }
+        finally {
+            delete n.userAgent ;
+            ($browserOS as any).os = undefined ;
+        }
+        t.expect0($inbrowser()).true() ;
     }) ;
 }, "jsdom") ;
 

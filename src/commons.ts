@@ -84,6 +84,12 @@ export function $isdataobject(o:any) : o is TSData | Uint8Array | ArrayBuffer
 
 export function $isfunction(o:any):o is Function { return typeof o === 'function' ; }
 
+// '__proto__', 'constructor' and 'prototype' are never read or written from external data: writing
+// obj['__proto__'] changes the prototype of obj, and these keys give access to the functions which
+// build the objects. A key which is not a string (eg. a symbol) is not a safe key either
+const __unsafeKeys = new Set(['__proto__', 'constructor', 'prototype']) ;
+export function $issafekey(k:any):boolean { return typeof k === 'string' && !__unsafeKeys.has(k) ; }
+
 export function $isproperty(obj:any, prop:string):boolean
 { return prop.length > 0 && $isobject(obj) && (prop in obj) ; }
 
@@ -367,8 +373,11 @@ export type $partialOptions<T,U> = TSPartialOptions<T,U> ;
 
 // default filter supress undefined, null values and functions (methods for real class instances)
 // if properties is not set, we use all the object keys to apply the filter
+// a is an object with properties (a plain object or a class instance) or null or undefined. A string,
+// a number, an array, a Date, a Map... throws an error (eg. a string used to give its characters)
 export function $partial<T,U>(a:Nullable<T>, opts:TSPartialOptions<T,U>={}):[U, number]
 {
+    _checkFusionArgument('partial', a) ;
     let ret:any = {} ;
     let n = 0 ;
     if ($ok(a)) {
@@ -443,15 +452,33 @@ export type $fusionOptions<T,U> = TSObjectFusionOptions<T,U> ;
 
 export function $fusion<T,U>(a:Nullable<T>, b:Nullable<U>, opts:TSObjectFusionOptions<T,U> = {}):[Partial<T> & Partial<U>, number]
 {
+    _checkFusionArgument('fusion', a) ;
+    _checkFusionArgument('fusion', b) ;
     if (!$ok(a)) { return $ok(b) ? $partial(b, opts.B as any) : [{}, 0] }
     else if (!$ok(b)) { return $partial(a, opts.A as any) ; }
 
-    let [ret, n] = $partial(a, opts.A) ;
+    let [ret,] = $partial(a, opts.A) ;
     let fopts:FillObjectOptions<T,U> = $ok(opts.B) ? { ... opts.B!} : {} ;
     if ($ok(opts.fusionArrays)) { fopts.fusionArrays = opts.fusionArrays ; }
     if ($ok(opts.fusionObjects)) { fopts.fusionObjects = opts.fusionObjects ; }
-    n += _fillObject<T,U>('fusion', ret, b, fopts) ;
-    return [ret as any, n] ;
+    _fillObject<T,U>('fusion', ret, b, fopts) ;
+    // the number of properties of the result, like $partial() (a property of a and b used to be counted twice)
+    return [ret as any, Object.keys(ret as any).length] ;
+}
+
+// the arguments of $partial() and $fusion() are objects with properties, or null or undefined
+function _checkFusionArgument(fn:string, v:any) {
+    if (!$ok(v)) { return ; }
+    if (typeof v !== 'object' || Array.isArray(v) || v instanceof Date || v instanceof Map || v instanceof Set || v instanceof RegExp || ArrayBuffer.isView(v) || v instanceof ArrayBuffer) {
+        TSError.throw(`$${fn}() needs objects with properties (or null or undefined)`, { function:fn, argument:v }) ;
+    }
+}
+
+// fusionObjects() only applies to plain objects (it also did to Dates or class instances, which became {})
+function _isPlainObject(v:any):boolean {
+    if (v === null || typeof v !== 'object') { return false ; }
+    const p = Object.getPrototypeOf(v) ;
+    return p === Object.prototype || p === null ;
 }
 
 
@@ -544,18 +571,20 @@ function _fillObject<T,U>(fn:string, destination:any, source:any, opts:FillObjec
             TSError.throw(`$${fn}() needs to have valid string properties`,
             { function:fn, source:source, destination:destination, options:opts}) ;
         }
-        const v = filter(source[p]) ;
-        if (!$defined(v)) { continue ; }
-        if (fusion_arrays && $isarray(v) && $isarray(destination[p])) {
-            destination[p] = opts.fusionArrays!(destination[p], v) ;
+        // an unsafe key is never read nor written (it used to change the prototype of the result)
+        const v = $issafekey(p) ? filter(source[p]) : undefined ;
+        if ($defined(v)) {
+            destination[p] = _filledValue(destination[p], v, fusion_arrays, fusion_objects, opts) ;
+            ret++ ;
         }
-        else if (fusion_objects && $isobject(v) && $isobject(destination[p])) {
-            destination[p] = opts.fusionObjects!(destination[p], v) ;
-        }
-        else { destination[p] = v ; }
-        ret++ ;
     }
     return ret ;
+}
+
+function _filledValue<T,U>(previous:any, v:any, fusionArrays:boolean, fusionObjects:boolean, opts:FillObjectOptions<T,U>):any {
+    if (fusionArrays && $isarray(v) && $isarray(previous)) { return opts.fusionArrays!(previous, v) ; }
+    if (fusionObjects && _isPlainObject(v) && _isPlainObject(previous)) { return opts.fusionObjects!(previous, v) ; }
+    return v ;
 }
 const __IPV4Regex = _ipv4Regex() ;
 const __IPV6Regex = _ipv6Regex() ;

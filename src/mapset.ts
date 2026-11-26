@@ -1,5 +1,5 @@
 import { Comparison, Nullable, Same, UINT_MIN, uint, TSDictionary } from "./types";
-import { $length, $ok, $string } from "./commons";
+import { $issafekey, $length, $ok, $string } from "./commons";
 import { $mapequal, $setequal } from "./compare";
 import { TSFusionEnumeration } from "./tsfusionnode";
 import { TSObject } from "./tsobject";
@@ -45,7 +45,7 @@ export function $dictionaryFromMap<K,V, U=V>(map:Nullable<Map<K,V>>, mapFunction
     const fn = $ok(mapFunction) ? mapFunction! : _simpleConvert ;
     map?.forEach((v0,k0) => { 
         const [k,u] = fn(k0, v0) ; 
-        if ($ok(u) && $length(k) > 0) { ret[k!] = u ; }
+        if ($ok(u) && $length(k) > 0 && $issafekey(k)) { ret[k!] = u ; } // see $issafekey()
     }) ;
     return ret ;
 }

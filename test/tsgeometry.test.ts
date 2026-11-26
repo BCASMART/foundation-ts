@@ -2,8 +2,18 @@ import { $keys } from '../src/commons';
 import { Ascending, Descending, Same } from '../src/types';
 import { TSArea, TSAssertFormat, TScm2Pixels, TSCompareSizes, TSDocumentFormats, TSEqualPoints, TSEqualSizes, TSInches2Pixels, TSmm2Pixels, TSPixels2cm, TSPixels2Inches, TSPixels2mm, TSRect, TSRectEdge } from '../src/tsgeometry';
 import { TSTest } from '../src/tstester';
+import { $inspect } from '../src/utils';
 
 export const geometryGroups = TSTest.group("Geometry functions and classes", async (group) => {
+    group.unary("TSRect inspection, TSAssertFormat() with a too large size", async(t) => {
+        const r = new TSRect(1, 2, 3, 4) ;
+        t.expect0($inspect(r)).is(r.toString()) ;
+        t.expectA(r.toString()).is('{ x:1, y:2, w:3, h:4 }') ; // it was '{ x = 1, y = 2), w:3, h:4 }'
+        t.expect1(TSAssertFormat({ w:1e9, h:1000 })).is(TSDocumentFormats.max) ;
+        t.expect2(TSAssertFormat({ w:1e9, h:1000 }, { maximalSize:{ w:2000, h:2000 } })).is({ w:2000, h:2000 }) ;
+        t.expect3(() => TSAssertFormat({ w:1e9, h:1000 }, { oversizeRaise:true })).throws('TSAssertFormat() : size format too large') ;
+    }) ;
+
     const A = new TSRect(10.5, 20.5, 3.5, 7.2) ;
     const B = new TSRect([10.5, 20.5, 3.5, 7.2]) ;
     const C = new TSRect(A) ;

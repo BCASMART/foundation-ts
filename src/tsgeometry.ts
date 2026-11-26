@@ -621,7 +621,7 @@ export class TSRect implements TSFrame, TSObject, TSLeafInspect, TSClone<TSRect>
     public toJSON():TSFrame { return this.frame ; } 
     
     public toString(): string { 
-        return `{ x = ${this.minX}, y = ${this.minY}), w:${this.width}, h:${this.height} }` ; 
+        return `{ x:${this.minX}, y:${this.minY}, w:${this.width}, h:${this.height} }` ; 
     }
 
     // warning : dont use generated array to create new Rect because we did send the oposite points here

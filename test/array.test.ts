@@ -5,6 +5,17 @@ import { TSTest } from "../src/tstester";
 import { Ascending, Descending, Same, TSUnicity } from "../src/types";
 
 export const arrayGroups = TSTest.group("Commons array functions", async (group) => {
+    group.unary("$includesvisual() not found, array methods includesequal() / includesvisual() / toArray()", async(t) => {
+        t.expect0($includesvisual(null, 1)).false() ;
+        t.expect1($includesvisual(['a', 'b'], 'c')).false() ;
+        t.expect2($includesvisual(['a', 'É'], 'e')).true() ;    // visual equality ignores case and accents
+        t.expect3([1, { a:1 }].includesequal({ a:1 })).true() ;
+        t.expect4([1, { a:1 }].includesequal({ a:2 })).false() ;
+        t.expect5(['A'].includesvisual('a')).true() ;
+        const a = [1, 2] ;
+        t.expect6(a.toArray()).is(a) ;
+    }) ;
+
     group.unary("functions $map(), $arrayset(), $includesequal(), $includesvisual", async(t) => {
         let array:string[] = [] ;
         array[3] = '3' ;

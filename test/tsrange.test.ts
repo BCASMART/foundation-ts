@@ -148,6 +148,15 @@ export const rangeGroups = [
         }) ;
     }),
     TSTest.group("TSRange — constructor guards, setters & TSObject conformance", async (group) => {
+        group.unary('operations with an invalid range', async (t) => {
+            const bad = TSBadRange(), ok = new TSRange(1, 2) ;
+            t.expect0(bad.maxRange).toBeNaN() ;
+            t.expect1(bad.unionRange(ok).isValid).false() ;
+            t.expect2(ok.unionRange(bad).isValid).false() ;
+            t.expect3(bad.intersectionRange(ok).isValid).false() ;
+            t.expect4(ok.intersectionRange(bad).isValid).false() ;
+        }) ;
+
         const significantInterval = { range:new TSRange(3, 4), hasSignificantRange:true, isValid:true, isEmpty:false } ;
         const emptyInterval = { range:TSRange.make(0, 0), hasSignificantRange:false, isValid:false, isEmpty:true } ;
         const hugeInterval = { range:{ location:Number.MAX_SAFE_INTEGER, length:10 } as any, hasSignificantRange:true, isValid:true, isEmpty:false } ;

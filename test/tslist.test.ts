@@ -1,9 +1,19 @@
 import { $equal } from "../src/compare";
-import { TSList } from "../src/tslist";
+import { TSList, TSListNode } from "../src/tslist";
 import { TSTest } from "../src/tstester";
 import { Ascending, Descending, Same } from "../src/types";
 
 export const listGroups = TSTest.group("TSList doubly-linked list", async (group) => {
+    group.unary("TSListNode TSObject conformance", async(t) => {
+        const a = new TSListNode({ v:1 }), b = new TSListNode({ v:2 }) ;
+        t.expect0(a.compare(a)).is(Same) ;
+        t.expect1(new TSListNode(1).compare(new TSListNode(2))).is(Ascending) ;
+        t.expect2(a.compare({ v:1 })).undef() ;                 // not a node
+        t.expect3(a.toJSON()).is({ v:1 }) ;
+        t.expect4(new TSListNode(12).toString()).is('12') ;
+        t.expect5(b.toArray()).is([{ v:2 }]) ;
+    }) ;
+
 
     group.unary("construction from an iterable, add() and traversal", async(t) => {
         const l = new TSList<number>([1, 2, 3]) ;

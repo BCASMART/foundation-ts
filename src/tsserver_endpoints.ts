@@ -1,6 +1,6 @@
 import { ServerResponse } from "http" ; // NOSONAR: no 'node:' prefix for webpack 5
 
-import { $defined, $isfunction, $isproperty, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
+import { $defined, $isfunction, $isproperty, $issafekey, $isstring, $keys, $length, $ok, $string, $valueorundefine } from "./commons";
 import { $ftrim } from "./strings";
 import { TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
@@ -415,7 +415,7 @@ function _queryParameters(searchParams:URLSearchParams, parser:TSParser, errors:
     const ret:TSDictionary = {} ;
     let total = 0 ;
     for (const key of new Set(searchParams.keys())) {
-        if (!key.length) { continue ; }
+        if (!key.length || !$issafekey(key)) { continue ; } // see $issafekey()
         const values = searchParams.getAll(key) ;
         const itemParser = parser.itemParserForKey(key) ;
         if (itemParser?.nodeType() === 'array' || (values.length > 1 && !$ok(itemParser))) { ret[key] = values ; }

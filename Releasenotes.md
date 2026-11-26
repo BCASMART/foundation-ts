@@ -2,6 +2,60 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.12
+
+#### Breaking changes
+
+- **The parsing of JSON and of external data is secured against the injection of unwanted code**: 
+    the `__proto__`, `constructor` and `prototype` keys are now ignored everywhere external data is read (`$jsonparse()`, `TSParser`, `$loadJSON()`, `TSRequest`, `TSServer`, `$env()`, `$fusion()`, `$partial()`...), and they cannot be read in a fusion template (using new function `$issafekey(key)`). 
+    Legitimate data using these keys lose them.
+- functions `$fusion()` and `$partial()` now throw an error when an argument is not an object (string, number, array, `Date`, `Map`...) and `$fusion()` like `$partial()` now returns the number of properties of the result.
+- Fusion templates:
+    - an empty array, `Set`, `Map` or collection is now considered as false in the tests (`{{v?:…}}`, `{{v!:…}}`);
+    - a `Date` object used as it is (without formatting) is now written in ISO 8601 + the server's offset 
+      (eg. `2024-05-01T12:20:00+02:00`);
+    - a `TSDataTemplate` now fails on a character which its charset cannot handle;
+    - a malformed number parameter is an error.
+- `TSServer` log levels were shifted: before `Errors` logged nothing, `Warnings` only the errors and `Infos` no information. Each level now logs what its name says, so the default level (`Warnings`) now logs the error responses (eg. the 404).
+
+#### Corrections
+
+- Fusion templates: 
+  - the global functions no longer pollute the caller's context, 
+  - the HTML templates write the values in the charset of the document, 
+  - the `\u` surrogate pairs give one character, 
+  - `capacity` is set instead of added, 
+  - a nested fusion no longer replaces the current output, 
+  - an unknown member of a primitive value is reported, 
+  - a `null` or `undefined` method parameter was wrongly removed, shifting the next ones: fixed, 
+  - an HTML template ending inside an unclosed element got an extra `<` and `>` to avoid an error.
+- `$fusion()` with `fusionObjects` no longer wrongly changes `Date` objects and class instances into `{}`.
+- `TSCharset`: `base64url` failed in browsers, 
+- Loaded charsets gave a 0 byte for some characters they cannot write: fixed.
+- Dates: 
+  - the `Computer` format wrongly wrote the day with 4 digits: fixed, 
+  - dates with a time written by `$components2string()` could not be read again: fixed.
+- `$browserOS()` gave `macOS` for an unrecognized operating system: fixed. 
+- `$inspect()` of a CMYK `TSColor` did had a stray comma: fixed, 
+- `TSRect.toString()` was malformed. Fixed.
+- `TSServer` static websites: a missing file stayed refused until the server stopped, even once created. It is now looked for again after `blacklistDuration` seconds (new website option, 60 by default). When the files cache is full, the least recently used file is now evicted (new files used to be no longer cached).
+
+#### What's new ?
+
+- `TSColor.fromString()` now accepts the `#rgba` form (eg. `#a1c8` for `#aa11cc88`).
+- `TSCharset` strict conversions, which refuse what the other conversions silently drop or change: `canEncode()`, `unencodableIndex()`, `strictStringToBytes()`, `canDecode()`, `undecodableIndex()`, `strictStringFromBytes()` and `strictStringFromData()`.
+- `TSServer`: the number of kept CORS preflight responses is now limited (new option `maxPreflightResponses`, 10000 by default).
+- New class `TSCache`, a cache whose keys can be any value, with:
+  - an expiration given as a ttl (absolute or sliding), an end of life (`Date`, `TSDate` or TSDate timestamp) or computed from the value (`ttlOf()` option);
+  - a maximum count and/or size, with `lru` (Least Recently Used), `fifo` (First In First Out) or `lfu` (Least Frequently Used) eviction mechanism ;
+  - `getOrSet()`, which computes a missing value only once, optionally giving the expired value while computing the new one (`staleWhileRevalidate`);
+  - statistics and an `onEvict()` callback.
+
+- function `$cache(name)` gives named caches shared by the application, 
+- function `$memoize(fn)` caches the results of a function.
+
+<hr/>
+
 ## version 1.8.11
 
 This version corrects bugs found in `TSRequest` and `TSParser`.

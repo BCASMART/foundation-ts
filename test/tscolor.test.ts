@@ -1,6 +1,7 @@
 import { $round } from '../src/number';
-import { TSColor, TSColorSpace } from '../src/tscolor';
+import { TSColor, TSColorSpace, TSToGrayScaleMode } from '../src/tscolor';
 import { TSTest } from '../src/tstester';
+import { $inspect } from '../src/utils';
 import { Ascending, Descending, Same, uint8 } from '../src/types';
 
 // TOTO
@@ -130,6 +131,12 @@ TSTest.group("TSColor class ", async (group) => {
         t.expect4(yellowCMYK.toString()).is('cmyk(0,0,1,0)') ;
         t.expect5(yellowRGB.toString({ rgbaCSSLike:true })).is('#ffff00ff') ;
         t.expect6(yellowRGB.toOpacity(0.5).toString({ rgbaCSSLike:true })).is('#ffff0080') ; // like CSS: 50% gives 80
+    }) ;
+
+    group.unary('TSColor $inspect()', async(t) => {
+        t.expect0($inspect(yellowRGB)).is('<RGB 255 255 0/255>') ;
+        t.expect1($inspect(TSColor.cmyk(0.1, 0.2, 0.3, 0.4))).is('<CMYK 0.1 0.2 0.3 0.4/1>') ; // there was a comma after M
+        t.expect2($inspect(TSColor.grayscale(0.75, 0.5))).is('<GRAY 0.75/0.5>') ;
     }) ;
 }),
 
@@ -314,6 +321,60 @@ TSTest.group("TSColor — CMYK / grayscale spaces, factories guards & toString f
         t.expect0(TSColor.cmyk(0.1, 0, 0, 0).cyan).is(0.1) ;
         t.expect1(TSColor.cmyk(0.1001, 0, 0, 0).cyan).is(0.1001) ;              // used to be 0.1 (the cached color)
         t.expect2(TSColor.cmyk(0, 0, 0, 1 - 0.7)).strictis(TSColor.cmyk(0, 0, 0, 0.3)) ; // computation jitters are merged
+    }) ;
+
+    group.unary('toOpacity() of CMYK and grayscale colors', async (t) => {
+        const c = TSColor.cmyk(0.1, 0.2, 0.3, 0.4, 0.5) ;
+        t.expect0(c.toOpacity(0.5)).is(c) ;                        // the same opacity gives the same color
+        const c2 = c.toOpacity(0.25) ;
+        t.expect1(c2.colorSpace).is(TSColorSpace.CMYK) ;           // a new opacity keeps the color space...
+        t.expect2(c2.opacity).is(0.25) ;
+        t.expect3(c2.cmykComponents()).is([0.1, 0.2, 0.3, 0.4]) ;  // ...and the components
+        const g = TSColor.grayscale(0.3, 0.8) ;
+        t.expect4(g.toOpacity(0.8)).is(g) ;
+        const g2 = g.toOpacity(0.2) ;
+        t.expect5(g2.colorSpace).is(TSColorSpace.Grayscale) ;
+        t.expect6(g2.opacity).is(0.2) ;
+        t.expect7($round(g2.gray, 6)).is(0.3) ;
+        t.expect8(g.toAlpha(51 as uint8).opacity).is(0.2) ;                 // toAlpha() of a non RGB color uses toOpacity()
+    }) ;
+
+    group.unary('toGrayscale() modes', async (t) => {
+        const c = TSColor.rgb(100, 150, 200, 102) ;
+        const brightness = c.toGrayscale() ;
+        t.expect0(brightness.colorSpace).is(TSColorSpace.Grayscale) ;
+        t.expect1(brightness.gray).is(200/255) ;                   // the greatest component
+        t.expect2(c.toGrayscale(TSToGrayScaleMode.Brightess).gray).is(brightness.gray) ;
+        t.expect3(c.toGrayscale(TSToGrayScaleMode.Luminosity).gray).is(c.luminosity) ;
+        t.expect4(c.toGrayscale(TSToGrayScaleMode.Luminance).gray).is(c.luminance) ;
+        t.expect5(c.toGrayscale(TSToGrayScaleMode.Luminosity).opacity).is(0.4) ;   // the opacity is kept
+        t.expect6($round(c.luminosity, 4)).is($round((0.21*100 + 0.72*150 + 0.07*200)/255, 4)) ;
+        t.expect7(brightness.toGrayscale(TSToGrayScaleMode.Luminance)).is(brightness) ; // already a grayscale color
+    }) ;
+
+    group.unary('bad channels give black, hue of green and blue colors, short hex strings', async (t) => {
+        const black = TSColor.rgb(0, 0, 0) ;
+        t.expect0(TSColor.rgb(256, 0, 0)).is(black) ;
+        t.expect1(TSColor.rgb(-1, 0, 0)).is(black) ;
+        t.expect2(TSColor.rgb(1.5, 2, 3)).is(black) ;
+        t.expect3(TSColor.rgb(1, 2, 3, 300)).is(black) ;
+        // the hue when the greatest component is the green or the blue one
+        t.expect4(TSColor.rgb(10, 200, 30).hsl()).is([126, 63, 41]) ;
+        t.expect5(TSColor.rgb(10, 200, 30).hsb()).is([126, 95, 78]) ;
+        t.expect6(TSColor.rgb(10, 30, 200).hsl()).is([234, 63, 41]) ;
+        t.expect7(TSColor.rgb(10, 30, 200).hsb()).is([234, 95, 78]) ;
+        // a short hex string which is not a cached color is parsed
+        const s = TSColor.fromString('#a1c') ;
+        t.expect8(s?.rgb()).is([0xaa, 0x11, 0xcc]) ;
+        t.expect9(s?.toString()).is('#aa11cc') ;
+        t.expectA(TSColor.fromString('B2D')?.rgb()).is([0xbb, 0x22, 0xdd]) ;
+        // #rgba (CSS Color 4) is #rrggbbaa, it was not recognized
+        const a = TSColor.fromString('#a1c8') ;
+        t.expectB(a?.rgb()).is([0xaa, 0x11, 0xcc]) ;
+        t.expectC(a?.alpha).is(0x88) ;
+        t.expectD(TSColor.fromString('#A1C8')).is(TSColor.fromString('#aa11cc88')) ;
+        t.expectE(TSColor.fromString('a1c8')).null() ;  // without '#', 4 digits are not a color
+        t.expectF(TSColor.fromString('#a1cg')).null() ;
     }) ;
 
     group.unary('rgb() / toAlpha() errors and isSimilar() alpha', async (t) => {

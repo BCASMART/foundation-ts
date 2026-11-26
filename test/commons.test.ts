@@ -12,6 +12,17 @@ export const commonsGroups = [
 
 TSTest.group("Commons — misc predicates & helpers", async (group) => {
 
+    group.unary('$string() of objects whose toString() does not return a string, of registered symbols', async (t) => {
+        // valueOf() is the last resort: a string or a number counts, anything else gives an empty string
+        t.expect0($string({ toString:() => 42, valueOf:() => 'from valueOf' })).is('from valueOf') ;
+        t.expect1($string({ toString:() => null, valueOf:() => 7.5 })).is('7.5') ;
+        t.expect2($string({ toString:() => 42, valueOf:() => ({}) })).is('') ;
+        t.expect3($string({ toString:() => { throw new Error('x') ; }, valueOf:() => 3 })).is('3') ;
+        t.expect4($string(Symbol.for('registered'))).is('registered') ;
+        t.expect5($symbol2string(Symbol.for('registered'))).is('registered') ;
+        t.expect6($symbol2string(Symbol())).is('') ;
+    }) ;
+
     group.unary('$iswhitespace()', async (t) => {
         t.expect0($iswhitespace(' ')).true() ;
         t.expect1($iswhitespace('\t')).true() ;
@@ -407,6 +418,27 @@ TSTest.group("Commons interpretation functions", async (group) => {
         t.expect4($includesdict(DICT, { a:'not-the-right-value' })).false() ; // value mismatch
         t.expect5($includesdict({}, {})).false() ;                            // nothing to check -> false
         t.expect6($includesdict(null, { a:1 })).false() ;                     // null source -> false
+    }) ;
+
+    group.unary("$fusion() and $partial(): count, arguments and fusionObjects", async(t) => {
+        // the number is the number of properties of the result, like $partial()
+        t.expect0($fusion({ x:1, y:1 }, { x:2, y:2 })).is([{ x:2, y:2 }, 2]) ;
+        t.expect1($fusion({ x:1 }, { y:2 })).is([{ x:1, y:2 }, 2]) ;
+        t.expect2($fusion(null, { y:2 })).is([{ y:2 }, 1]) ;
+        // arguments which are not objects with properties throw (a string used to give its characters)
+        for (const [i, v] of ['abc', 5, true, [1, 2], new Date(0), new Map(), new Set(), (() => 1) as any].entries()) {
+            t.expect(() => $fusion(v, { b:1 }), `fa-${i}`).toThrow() ;
+            t.expect(() => $fusion({ b:1 }, v), `fb-${i}`).toThrow() ;
+            t.expect(() => $partial(v), `pa-${i}`).toThrow() ;
+        }
+        class Car { public brand = 'R' ; }
+        t.expect3($partial(new Car())).is([{ brand:'R' }, 1]) ;   // a class instance is accepted
+        t.expect4($fusion(undefined, null)).is([{}, 0]) ;
+        // fusionObjects() only applies to plain objects (Dates became {})
+        const merge = (a:object, b:object) => ({ ...a, ...b }) ;
+        const [f] = $fusion({ d:new Date(0), o:{ x:1 } }, { d:new Date(1000), o:{ y:2 } }, { fusionObjects:merge }) ;
+        t.expect5((f as any).d instanceof Date && (f as any).d.getTime() === 1000).true() ;
+        t.expect6((f as any).o).is({ x:1, y:2 }) ;
     }) ;
 
     group.unary("$fusion() function", async(t) => {

@@ -4,6 +4,17 @@ import { TSData } from "../src/tsdata";
 import { TSTest } from "../src/tstester";
 
 export const charsetGroups = TSTest.group("TSCharset & $charset()", async (group) => {
+    group.unary("undecodableIndex() of decodable bytes, inspection", async(t) => {
+        const ascii = TSCharset.charset('ascii')! ;
+        t.expect0(ascii.undecodableIndex(Buffer.from('abc'))).is(-1) ;            // every byte is decodable
+        t.expect1(ascii.undecodableIndex(Buffer.from([0x61, 0xC3]))).is(1) ;
+        const w = TSCharset.charset('windows-1252')! ;                          // a loaded charset
+        t.expect2(w.undecodableIndex(Buffer.from('abc'))).is(-1) ;
+        t.expect3(w.undecodableIndex(Buffer.from([0x61, 0x81]))).is(1) ;         // 0x81 is not defined in windows-1252
+        t.expect4(w.toString()).is('[TSCharset: Windows-1252]') ;
+        t.expect5(w.leafInspect()).is('[TSCharset: Windows-1252]') ;
+    }) ;
+
 
     const utf8    = TSCharset.utf8Charset() ;
     const ascii   = TSCharset.asciiCharset() ;
@@ -179,5 +190,61 @@ export const charsetGroups = TSTest.group("TSCharset & $charset()", async (group
         t.expect2(TSCharset.isUTF8Charset(Buffer.from([0xFF, 0x41]))).false() ;
         t.expect3($charsetFromBytes(Buffer.from([0xF8, 0x41]))).is(TSCharset.latin1Charset()) ;
         t.expect4($charsetFromBytes(Buffer.from([0x80, 0x41]))).is(TSCharset.macCharset()) ;
+    }) ;
+
+    group.unary("strict encoding (string -> bytes): canEncode(), unencodableIndex(), strictStringToBytes()", async(t) => {
+        const C = (n:string) => TSCharset.charset(n)! ;
+        const enc = (n:string, s:string) => { const b = C(n).strictStringToBytes(s) ; return [C(n).canEncode(s), C(n).unencodableIndex(s), b ? Array.from(b) : null] ; } ;
+        t.expect0(enc('latin1', 'é')).is([true, -1, [0xE9]]) ;
+        t.expect1(enc('latin1', 'a€')).is([false, 1, null]) ;
+        t.expect2(enc('ascii', 'abé')).is([false, 2, null]) ;
+        t.expect3(enc('ansi', '€')).is([true, -1, [0x80]]) ;
+        t.expect4(enc('ansi', 'x😀y')).is([false, 1, null]) ;
+        t.expect5(enc('mac', 'é')).is([true, -1, [0x8E]]) ;
+        t.expect6(enc('utf8', '😀')).is([true, -1, [0xF0, 0x9F, 0x98, 0x80]]) ;
+        t.expect7(enc('utf8', 'a\uD83D')).is([false, 1, null]) ;      // a lone surrogate
+        t.expect8(enc('utf16le', '\uDE00b')).is([false, 0, null]) ;
+        t.expect9(enc('utf16be', 'ok')).is([true, -1, [0, 0x6F, 0, 0x6B]]) ;
+        t.expectA(enc('hex', '0aff')).is([true, -1, [0x0A, 0xFF]]) ;
+        t.expectB(enc('hex', '0af')).is([false, 2, null]) ;            // an odd number of digits
+        t.expectC(enc('hex', '0x')).is([false, 1, null]) ;
+        t.expectD(enc('base64', 'QUJD\nREVG')).is([true, -1, [0x41, 0x42, 0x43, 0x44, 0x45, 0x46]]) ; // spaces are ignored, like Buffer does
+        t.expectE(enc('base64', 'QUI=')).is([true, -1, [0x41, 0x42]]) ;
+        t.expectF(enc('base64', 'QU=B')).is([false, 3, null]) ;        // nothing but '=' after the padding
+        t.expectG(enc('base64', 'Q')).is([false, 0, null]) ;           // a single character cannot give a byte
+        t.expectH(enc('base64url', 'QU+/')).is([false, 2, null]) ;
+        t.expectI(enc('base64url', 'QU-_')).is([true, -1, [0x41, 0x4F, 0xBF]]) ;
+        t.expectJ(C('latin1').canEncode('a€b', 0, 1)).true() ;         // the range is used
+        t.expectK(C('latin1').unencodableIndex('a€b€', 2)).is(3) ;
+        // a loaded charset drops a missing character: between U+0000 and U+00FF, it used to give a 0 byte
+        t.expectL(Array.from(ansi.stringToBytes('a\u0081b'))).is([0x61, 0x62]) ;
+        t.expectM(Array.from(C('mac').stringToBytes('¤'))).is([]) ;
+        t.expectN(Array.from(ansi.stringToBytes('\u0000'))).is([0]) ; // U+0000 is in the charset
+        // the lenient conversion of the other charsets is unchanged
+        t.expectO(Array.from(latin1.stringToBytes('€'))).is([0xAC]) ;
+    }) ;
+
+    group.unary("strict decoding (bytes -> string): canDecode(), undecodableIndex(), strictStringFromBytes()", async(t) => {
+        const C = (n:string) => TSCharset.charset(n)! ;
+        const dec = (n:string, b:number[]) => { const u = Uint8Array.from(b) ; return [C(n).canDecode(u), C(n).undecodableIndex(u), C(n).strictStringFromBytes(u)] ; } ;
+        t.expect0(dec('ascii', [0x41, 0xE9])).is([false, 1, null]) ;
+        t.expect1(dec('latin1', [0xE9, 0x80])).is([true, -1, '\u00E9\u0080']) ;  // all the bytes are latin1 characters
+        t.expect2(dec('ansi', [0x80, 0x81])).is([false, 1, null]) ;               // 0x81 is not a Windows-1252 character
+        t.expect3(dec('utf8', [0xC3, 0xA9])).is([true, -1, 'é']) ;
+        t.expect4(dec('utf8', [0x61, 0xC3])).is([false, 1, null]) ;               // a truncated sequence
+        t.expect5(dec('utf8', [0xED, 0xA0, 0x80])).is([false, 0, null]) ;         // an encoded surrogate
+        t.expect6(dec('utf8', [0xE0, 0x80, 0x80])).is([false, 0, null]) ;         // an overlong form
+        t.expect7(dec('utf8', [0xF0, 0x9F, 0x98, 0x80])).is([true, -1, '😀']) ;
+        t.expect8(dec('utf16le', [0x61, 0x00, 0x3D])).is([false, 2, null]) ;      // an odd last byte
+        t.expect9(dec('utf16le', [0x3D, 0xD8, 0x61, 0x00])).is([false, 0, null]) ; // a lone high surrogate
+        t.expectA(dec('utf16be', [0xD8, 0x3D, 0xDE, 0x00])).is([true, -1, '😀']) ;
+        t.expectB(dec('utf16be', [0xDE, 0x00])).is([false, 0, null]) ;
+        t.expectC(dec('hex', [1, 2])).is([true, -1, '0102']) ;
+        t.expectD(utf8.strictStringFromData(Buffer.from([0x61, 0xFF]))).null() ;
+        t.expectE(utf8.strictStringFromData(new TSData(Buffer.from('été', 'utf8')))).is('été') ;
+        t.expectF(utf8.canDecode(Uint8Array.from([0x61, 0xFF, 0x62]), 2)).true() ; // the range is used
+        // the lenient conversions are unchanged
+        t.expectG(ascii.stringFromBytes(Uint8Array.from([0x41, 0xE9]))).is('Ai') ;
+        t.expectH(utf16le.stringFromBytes(Uint8Array.from([0x61, 0x00, 0x3D]))).is('a') ;
     }) ;
 }) ;

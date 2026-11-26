@@ -1,6 +1,6 @@
 
 import { $count, $encoding, $isproperty, $length, $lse, $ok, $toint, $value } from './commons';
-import { $arrayFromBytes, $bufferFromBytes, $bytesFromDataLike, $uint8ArrayFromBytes } from './data';
+import { $arrayFromBytes, $bufferFromBytes, $bytesFromDataLike, $decodeBase64URL, $encodeBase64URL, $uint8ArrayFromBytes } from './data';
 import { FoundationEncodingsAliases } from './string_tables';
 import TSCharsetDefinitions from './tscharsets.json' ;
 import { TSData } from './tsdata';
@@ -142,8 +142,42 @@ export abstract class TSCharset {
     // @ts-ignore
     [customInspectSymbol]() { return this.leafInspect() ; }
     
-    public abstract stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string ;
+    // string -> bytes (encoding). A character which cannot be written with the charset is dropped or
+    // changed: use strictStringToBytes() to refuse it
     public abstract stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes ;
+    // bytes -> string (decoding). A byte which does not represent a character is dropped or changed:
+    // use strictStringFromBytes() to refuse it
+    public abstract stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string ;
+
+    // ===== string -> bytes (encoding), strict versions
+    // index in source (in UTF-16 code units) of the first character which cannot be written with this charset, or -1
+    public abstract unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number ;
+
+    // true if all the characters of source can be written with this charset
+    public canEncode(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):boolean
+    { return this.unencodableIndex(source, sourceStart, sourceEnd) < 0 ; }
+
+    // like stringToBytes(), but null if a character cannot be written with this charset
+    public strictStringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes|null
+    { return this.canEncode(source, sourceStart, sourceEnd) ? this.stringToBytes(source, sourceStart, sourceEnd) : null ; }
+
+    // ===== bytes -> string (decoding), strict versions
+    // index in source of the first byte which does not represent a character (or does not start a
+    // valid byte sequence) in this charset, or -1
+    public abstract undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number ;
+
+    // true if all the bytes of source represent characters of this charset
+    public canDecode(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):boolean
+    { return this.undecodableIndex(source, sourceStart, sourceEnd) < 0 ; }
+
+    // like stringFromBytes(), but null if a byte does not represent a character of this charset
+    public strictStringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string|null
+    { return this.canDecode(source, sourceStart, sourceEnd) ? this.stringFromBytes(source, sourceStart, sourceEnd) : null ; }
+
+    // like stringFromData(), but null if a byte does not represent a character of this charset
+    public strictStringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string|null {
+        return this.strictStringFromBytes($bytesFromDataLike(source), sourceStart, sourceEnd) ;
+    }
 
     public stringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
         return this.stringFromBytes($bytesFromDataLike(source), sourceStart, sourceEnd)
@@ -169,7 +203,7 @@ export abstract class TSCharset {
 class TSLoadedCharset extends TSCharset {
     private static readonly UnicodeBufferSize = 256 ;
     private readonly _toUnicodeTable:string[] ;
-    private readonly _fromUnicodeTable:Uint8Array ;
+    private readonly _fromUnicodeTable:Int16Array ; // -1 for a unicode character which is not in the charset
     private readonly _fromUnicodeMap:Map<number,uint8> ;
     
     public constructor(def:CharsetDefinition) {
@@ -180,7 +214,7 @@ class TSLoadedCharset extends TSCharset {
         }
 
         this._toUnicodeTable = [] ;
-        this._fromUnicodeTable = new Uint8Array(n) ; 
+        this._fromUnicodeTable = new Int16Array(n).fill(-1) ; // it was filled with 0, so that a missing character gave a 0 byte
         this._fromUnicodeMap = new Map<number,uint8>() ;
         
         for (let i = 0 ; i < 256 ; i++) {
@@ -196,17 +230,46 @@ class TSLoadedCharset extends TSCharset {
         }
     }
 
+    // the byte of a unicode code point, or -1 if it is not in the charset
+    private _byte(uc:number):number {
+        return uc < TSLoadedCharset.UnicodeBufferSize ? this._fromUnicodeTable[uc] : (this._fromUnicodeMap.get(uc) ?? -1) ;
+    }
+
+    // a character which is not in the charset is dropped (between U+0000 and U+00FF, it used to give a 0 byte)
     public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes
-    {
+    { return this._toBytes(source, sourceStart, sourceEnd, false)! ; }
+
+    public override strictStringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes|null
+    { return this._toBytes(source, sourceStart, sourceEnd, true) ; }
+
+    public unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
-        const n = TSLoadedCharset.UnicodeBufferSize ;
-        const ret:uint8[] = [] ;
-        for (let i = start ; i < end ; i++) {
+        for (let i:number = start ; i < end ; ) {
             const uc = source.codePointAt(i)! ;
-            const c = uc < n ? this._fromUnicodeTable[uc] as uint8 : this._fromUnicodeMap.get(uc) ;
-            if ($ok(c)) { ret.push(c) ; }
+            if (this._byte(uc) < 0) { return i ; }
+            i += uc > 0xFFFF ? 2 : 1 ;
+        }
+        return -1 ;
+    }
+
+    // one loop for both conversions: a missing character is dropped, or stops a strict conversion
+    private _toBytes(source:string, sourceStart:Nullable<number>, sourceEnd:Nullable<number>, strict:boolean):Bytes|null {
+        const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        const ret:uint8[] = [] ;
+        for (let i:number = start ; i < end ; ) {
+            const uc = source.codePointAt(i)! ;
+            const c = this._byte(uc) ;
+            if (c >= 0) { ret.push(c as uint8) ; }
+            else if (strict) { return null ; }
+            i += uc > 0xFFFF ? 2 : 1 ; // the low surrogate of an astral character used to be looked for too
         }
         return ret ;
+    }
+
+    public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+        const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        for (let i = start ; i < end ; i++) { if (!this._toUnicodeTable[source[i]]) { return i ; } }
+        return -1 ;
     }
 
     public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string
@@ -231,6 +294,12 @@ class TSLoadedCharset extends TSCharset {
 class TSUTF16BECharset extends TSCharset {
     public constructor() { super('utf16be', ['utf-16be', 'utf_16be']) ; }
 
+    public unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number
+    { return _loneSurrogateIndex(source, sourceStart, sourceEnd) ; }
+
+    public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number
+    { return _utf16UndecodableIndex(source, sourceStart, sourceEnd, true) ; }
+
     public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes {
         const [len, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start >= end) { return [] ; }
@@ -248,11 +317,34 @@ class TSUTF16BECharset extends TSCharset {
 }
 
 export class TSSystemCharset extends TSCharset {
+    // ascii, latin1, utf8 and utf16le are text encodings. base64, base64url and hex are the other way
+    // round: stringToBytes() decodes a text into bytes, and stringFromBytes() encodes bytes into a text
+    public unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+        switch (this.name) {
+            case 'ascii':     return _codePointAboveIndex(source, 0x7F, sourceStart, sourceEnd) ;
+            case 'latin1':    return _codePointAboveIndex(source, 0xFF, sourceStart, sourceEnd) ;
+            case 'base64':    return _base64UnencodableIndex(source, false, sourceStart, sourceEnd) ;
+            case 'base64url': return _base64UnencodableIndex(source, true, sourceStart, sourceEnd) ;
+            case 'hex':       return _hexaUnencodableIndex(source, sourceStart, sourceEnd) ;
+            default:          return _loneSurrogateIndex(source, sourceStart, sourceEnd) ; // utf8, utf16le
+        }
+    }
+
+    public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+        switch (this.name) {
+            case 'ascii':   return _byteAboveIndex(source, 0x7F, sourceStart, sourceEnd) ;
+            case 'utf8':    return _utf8UndecodableIndex(source, sourceStart, sourceEnd) ;
+            case 'utf16le': return _utf16UndecodableIndex(source, sourceStart, sourceEnd, false) ;
+            default:        return -1 ; // latin1 (all the bytes are characters), base64, base64url and hex (all the bytes can be written)
+        }
+    }
     public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes
     {
         const [len, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
             const s = start === 0 && end === len ? source : source.slice(start, end) ;
+            // the Buffer of the browsers (feross/buffer) does not know base64url: $decodeBase64URL() does
+            if (this.name === 'base64url') { return $decodeBase64URL(s) ; }
             return Buffer.from(s, $encoding(this.name as StringEncoding)) ; 
         }
         return [] ;
@@ -261,6 +353,8 @@ export class TSSystemCharset extends TSCharset {
     private _stringFromBuffer(source:Buffer, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
+            // the Buffer of the browsers (feross/buffer) does not know base64url: $encodeBase64URL() does
+            if (this.name === 'base64url') { return $encodeBase64URL(source.subarray(start, end)) ; }
             return source.toString($encoding(this.name as StringEncoding), start, end) ;
         }
         return '' ;
@@ -275,6 +369,94 @@ export class TSSystemCharset extends TSCharset {
         else if (src instanceof TSData) { return this._stringFromBuffer(src.mutableBuffer, sourceStart, sourceEnd) ; }
         else { return this._stringFromBuffer($bufferFromBytes(src as Bytes), sourceStart, sourceEnd) ; }
     }
+}
+
+// ===== strict conversions helpers
+
+function _isHighSurrogate(u:number):boolean { return u >= 0xD800 && u <= 0xDBFF ; }
+function _isLowSurrogate(u:number):boolean  { return u >= 0xDC00 && u <= 0xDFFF ; }
+
+// index of the first character beyond max (a code point), or -1
+function _codePointAboveIndex(source:string, max:number, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    for (let i:number = start ; i < end ; ) {
+        const cp = source.codePointAt(i)! ;
+        if (cp > max) { return i ; }
+        i += cp > 0xFFFF ? 2 : 1 ;
+    }
+    return -1 ;
+}
+
+// index of the first lone surrogate (which UTF-8 and UTF-16 would replace by U+FFFD), or -1
+function _loneSurrogateIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    for (let i:number = start ; i < end ; ) {
+        // codePointAt() gives the code point of a surrogate pair, and the surrogate itself if it is alone
+        const cp = source.codePointAt(i)! ;
+        if (cp >= 0xD800 && cp <= 0xDFFF) { return i ; }
+        // a pair cut by the end of the range is a lone surrogate in this range
+        if (cp > 0xFFFF && i + 1 >= end) { return i ; }
+        i += cp > 0xFFFF ? 2 : 1 ;
+    }
+    return -1 ;
+}
+
+function _byteAboveIndex(source:Bytes, max:number, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    for (let i = start ; i < end ; i++) { if (source[i] > max) { return i ; } }
+    return -1 ;
+}
+
+// index of the first byte which does not start a valid UTF-8 sequence (no truncated or overlong
+// sequence, no surrogate, nothing beyond U+10FFFF), or -1
+function _utf8UndecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    let i:number = start ;
+    while (i < end) {
+        const n = source[i] <= 0x7F ? 1 : _utf8SequenceLength(source, i, end) ;
+        if (n === 0) { return i ; }
+        i += n ;
+    }
+    return -1 ;
+}
+
+// index of the first byte of a lone surrogate or of an odd last byte, or -1
+function _utf16UndecodableIndex(source:Bytes, sourceStart:Nullable<number>, sourceEnd:Nullable<number>, bigEndian:boolean):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    const unit = (i:number) => bigEndian ? (source[i] << 8) | source[i + 1] : source[i] | (source[i + 1] << 8) ;
+    let i:number = start ;
+    for ( ; i + 1 < end ; i += 2) {
+        const u = unit(i) ;
+        if (_isHighSurrogate(u) && i + 3 < end && _isLowSurrogate(unit(i + 2))) { i += 2 ; }
+        else if (_isHighSurrogate(u) || _isLowSurrogate(u)) { return i ; }
+    }
+    return i < end ? i : -1 ; // an odd last byte
+}
+
+// index of the first character which is not part of a valid base64 (or base64url) text, or -1.
+// As with Buffer, the padding is optional and the ASCII spaces (eg. line breaks) are ignored
+function _base64UnencodableIndex(source:string, url:boolean, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    const alphabet = url ? /[A-Za-z0-9_-]/ : /[A-Za-z0-9+/]/ ;
+    let significant = 0, padding = 0, last = -1 ;
+    for (let i = start ; i < end ; i++) {
+        const c = source[i] ;
+        if (c === ' ' || c === '\t' || c === '\r' || c === '\n') { continue ; }
+        if (c === '=') {
+            padding++ ;
+            if (padding > 2) { return i ; }
+        }
+        else if (padding > 0 || !alphabet.test(c)) { return i ; } // nothing but '=' after the padding
+        else { significant++ ; last = i ; }
+    }
+    return significant % 4 === 1 ? last : -1 ; // a single last character cannot give a byte
+}
+
+// index of the first character which is not part of an even number of hexadecimal digits, or -1
+function _hexaUnencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    for (let i = start ; i < end ; i++) { if (!/[0-9A-Fa-f]/.test(source[i])) { return i ; } }
+    return (end - start) % 2 ? end - 1 : -1 ;
 }
 
 interface CharsetDefinition  {

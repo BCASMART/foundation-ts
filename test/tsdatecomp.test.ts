@@ -1,5 +1,5 @@
 import { TSDate, TSDay, TSHour, TSMinute } from "../src/tsdate";
-import { $components, $components2StringWithOffset, $components2stringformat, $components2timestamp, $componentshavetime, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, $durationNumber2StringFormat, $parsedate, $parsedatetime, $parsetime, $timecomponents, $timezoneOffsetWithComponents, TSDateForm, TSDurationComp } from "../src/tsdatecomp";
+import { TSDateComp, $components, $components2string, $components2StringWithOffset, $components2stringformat, $components2timestamp, $componentshavetime, $datetimeDescription, $duration, $duration2String, $durationcomponents, $durationDescription, $durationNumber2StringFormat, $parsedate, $parsedatetime, $parsetime, $timecomponents, $timezoneOffsetWithComponents, TSDateForm, TSDurationComp } from "../src/tsdatecomp";
 import { uint } from "../src/types";
 import { TSTest } from '../src/tstester';
 import { $timeBetweenDates } from "../src/date";
@@ -296,6 +296,30 @@ export const dateCompGroups = [
             t.expect2(TSDate.fromString("2020/03/15 14:30:05", TSDateForm.Computer)?.toIsoString()).is("2020-03-15T14:30:05") ;
             t.expect3(TSDate.fromString("15/03/2020")?.toIsoString()).is("2020-03-15T00:00:00") ;
         }) ;
+
+        group.unary('$components2string() in the non-ISO forms', async (t) => {
+            const D = { year:2020, month:3, day:5, hour:0, minute:0, second:0 } as TSDateComp ;
+            const T = { ...D, hour:14, minute:30, second:5 } as TSDateComp ;
+            t.expect0($components2string(D)).is("05/03/2020") ;
+            t.expect1($components2string(T, TSDateForm.Standard)).is("05/03/2020-14:30:05") ;
+            t.expect2($components2string(D, TSDateForm.English)).is("03/05/2020") ;
+            t.expect3($components2string(T, TSDateForm.English)).is("03/05/2020-14:30:05") ;
+            t.expect4($components2string(D, TSDateForm.Computer)).is("2020/03/05") ;          // the day had 4 digits
+            t.expect5($components2string(T, TSDateForm.Computer)).is("2020/03/05-14:30:05") ;
+            t.expect6($parsedate($components2string(D, TSDateForm.Computer), TSDateForm.Computer)).is(D) ;
+            // what $components2string() writes with a time can be read again: a '-' is accepted between the date and the time
+            for (const form of [TSDateForm.Standard, TSDateForm.English, TSDateForm.Computer]) {
+                t.expect($parsedatetime($components2string(T, form), form), `round trip ${form}`).is(T) ;
+                t.expect($parsedatetime($components2string(D, form), form), `date round trip ${form}`).is(D) ;
+            }
+            t.expect7($parsedatetime("05-03-2020-14:30")).is({ ...D, hour:14, minute:30 }) ;
+            t.expect8($parsedatetime("2020.03.05-14", TSDateForm.Computer)).is({ ...D, hour:14 }) ;
+            t.expect9($parsedate("05/03/2020-14:30")).null() ;          // no time for $parsedate(), as with a space
+            t.expectA($parsedatetime("05/03-14:30")).null() ;           // a time needs a complete date, as with a space
+            t.expectB($parsedatetime("05/03/2020-")).null() ;
+            t.expectC($parsedatetime("05/03/2020-14:30:61")).null() ;
+            t.expectD($parsedatetime("05/03/2020--14:30")).null() ;
+        }) ;
     }),
 
     TSTest.group("tsdatecomp — $components2stringformat directives", async (group) => {
@@ -390,6 +414,41 @@ export const dateCompGroups = [
             t.expect2($durationNumber2StringFormat(TSDay, "x%(%p%")).is("x") ;      // same behavior as a days part
             t.expect3($durationNumber2StringFormat(1, "x%(%p%")).is("x%") ;
         }) ;
+        group.unary('$components2StringWithOffset() in the compact ISO 8601 form', async t => {
+            const C = new TSDate(1945, 5, 8, 23, 1, 35).toComponents() ;
+            const C8 = (m:number, ms?:number) => $components2StringWithOffset(C, { form:TSDateForm.ISO8601C, minutesOffset:m as any, milliseconds:ms as any }) ;
+            // the compact form has Z, +HH or +HHMM offsets
+            t.expect0(C8(0)).is('19450508T230135Z') ;
+            t.expect1(C8(60)).is('19450508T230135+01') ;
+            t.expect2(C8(-90)).is('19450508T230135-0130') ;
+            t.expect3(C8(330)).is('19450508T230135+0530') ;
+            t.expect4(C8(-90, 7)).is('19450508T230135.007-0130') ;
+            t.expect5(C8(0, 0)).is('19450508T230135.000Z') ;
+        }) ;
+
+        group.unary('$durationDescription() rounded and cut depths', async t => {
+            const d = TSDay + 13 * TSHour + 41 * TSMinute + 50 ; // 1d 13h 41m 50s
+            const desc = (depth:any) => $durationDescription(d, { depth, locale:'en' }) ;
+            t.expect0(desc('days')).is('2 days') ;                          // 13h41 is rounded to one more day
+            t.expect1(desc('days-cut')).is('1 day') ;                       // ...and is ignored when cut
+            t.expect2(desc('hours')).is('1 day 14 hours') ;
+            t.expect3(desc('hours-cut')).is('1 day 13 hours') ;
+            t.expect4(desc('minutes')).is('1 day 13 hours 42 minutes') ;
+            t.expect5(desc('minutes-cut')).is('1 day 13 hours 41 minutes') ;
+            // the rounding carries to the upper units
+            t.expect6($durationDescription(23 * TSHour + 59 * TSMinute + 40, { depth:'minutes', locale:'en' })).is('1 day') ;
+            t.expect7($durationDescription(23 * TSHour + 59 * TSMinute + 40, { depth:'minutes-cut', locale:'en' })).is('23 hours 59 minutes') ;
+            // an unknown directive is kept
+            t.expect8($durationNumber2StringFormat(3600, 'a%zb%H')).is('a%zb01') ;
+        }) ;
+
+        group.unary('$datetimeDescription() of components and timestamps', async t => {
+            const D = new TSDate(1945, 5, 8, 23, 1, 35) ;
+            t.expect0($datetimeDescription(D.toComponents(), 'date-time', 'fr')).is('08/05/1945 23:01:35') ;
+            t.expect1($datetimeDescription(D.timestamp, 'date', 'fr')).is('08/05/1945') ;
+            t.expect2($datetimeDescription(D.timestamp, 'date-time', 'fr', TSHour)).is('09/05/1945 00:01:35') ;
+        }) ;
+
         group.unary('$components2StringWithOffset() bad options', async t => {
             const C = new TSDate(1945, 5, 8, 23, 1, 35).toComponents() ;
             t.expect0(() => $components2StringWithOffset(C, { minutesOffset:7.5 as any })).toThrow(/time zone offset must be an integer/) ;

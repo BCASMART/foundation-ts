@@ -149,7 +149,7 @@ export const countriesGroups = TSTest.group("Testing TSCountry class", async (gr
                                 TSCountry.alpha2CodeForNumericCode(250), TSCountry.alpha3Codes().includes('DEU'), 
                                 TSCountry.countriesForDialCode('33').length ])) ;` ;
             const out = execFileSync(process.execPath, ['--no-warnings', '-e', script], { encoding:'utf8' }) ;
-            t.expect0(JSON.parse(out)).is(['FR', 'FRA', 'FR', true, 1]) ;
+            t.expect0(JSON.parse(out)).is(['FR', 'FRA', 'FR', true, 1]) ; // don't replace this by $jsonparse(). Data comes from a script written by the test itself
         }) ;
     }
 }) ;

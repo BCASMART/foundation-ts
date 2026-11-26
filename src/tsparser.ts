@@ -1,5 +1,5 @@
 import { INT16_MIN, INT16_MAX, INT32_MAX, INT32_MIN, Nullable, UINT32_MAX, UINT16_MAX, INT8_MIN, INT8_MAX, UINT8_MAX, UINT_MAX, TSDictionary, INT_MIN, INT_MAX, TSCountrySet, TSCurrencySet, TSLanguageSet, TSContinentSet, language, continent, currency, country } from "./types";
-import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $isobject, $isodate, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull, $isipaddress, $isipv4, $isipv6 } from "./commons";
+import { $UUID, $count, $defined, $email, $int, $isarray, $isbool, $isdataobject, $isemail, $isfunction, $isint, $isnumber, $issafekey, $isobject, $isphonenumber, $isstring, $isunsigned, $isurl, $isuuid, $keys, $length, $objectcount, $ok, $string, $unsigned, $value, $valueornull, $isipaddress, $isipv4, $isipv6 } from "./commons";
 import { $bufferFromHexaString, $decodeBase64, $decodeBase64URL, $encodeBase64, $encodeBase64URL, $encodeHexa } from "./data";
 import { $ascii, $ftrim } from "./strings";
 
@@ -7,6 +7,7 @@ import { TSCharset } from "./tscharset";
 import { TSColor, TSColorSpace } from "./tscolor";
 import { TSCountry } from "./tscountry";
 import { TSDate } from "./tsdate";
+import { $parsedatetime, TSDateForm } from "./tsdatecomp";
 import { TSDocumentFormat, TSDocumentFormats } from "./tsgeometry";
 import { TSPhoneNumber } from "./tsphonenumber";
 import { TSURL } from './tsurl';
@@ -275,6 +276,7 @@ class TSDictionaryParser extends TSParser {
         // with _normalizesKeys, two keys with the same interpreted form (eg. '02' and '2' for int keys) are refused
         const normalizedKeys = this._normalizesKeys ? new Set<string>() : undefined ;
         for (let [k, v] of entries) {
+            if (!$issafekey(k)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             if (!this._validateEntry(k, v, p, normalizedKeys, opts)) { doomed = true ; }
         }
         if (doomed) { return false ; }
@@ -311,6 +313,7 @@ class TSDictionaryParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
+            if (!$issafekey(k)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             const ki = this._outputKey(k, opts) ; 
             const vi = this._valuesParser.rawInterpret(v, opts) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
@@ -323,6 +326,7 @@ class TSDictionaryParser extends TSParser {
         const ret:any = {}
         const entries = Object.entries(value) ;
         for (let [k, v] of entries) {
+            if (!$issafekey(k)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             const ki = this._outputKey(k, opts) ; 
             const vi = this._valuesParser.rawEncode(v, opts) ;
             if ($ok(ki) && $ok(vi)) { ret[ki] = vi ; } 
@@ -427,6 +431,7 @@ class TSObjectParser extends TSParser {
         const founds = new Set<string>() ;
         let doomed = false ;
         for (let [key, v] of Object.entries(value)) {
+            if (!$issafekey(key)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             if (!this._validateItem(this._resolvedKey(key), v, founds, path, p, opts)) { doomed = true ; }
         }
         // look for mandatory fields not present
@@ -473,6 +478,7 @@ class TSObjectParser extends TSParser {
         if (!$ok(value) && !this.mandatory) { return value ; }
         const ret:any = {}
         for (let [key, v] of Object.entries(value)) {
+            if (!$issafekey(key)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             const k = this._resolvedKey(key) ;
             const struct = this._itemsParsers[k] ;
             // if this just a non described item, we keep it as it was
@@ -495,6 +501,7 @@ class TSObjectParser extends TSParser {
         if (!$ok(value)) { return value ; } // a non mandatory absent value (it used to throw)
         const ret:any = {}
         for (let [key, v] of Object.entries(value)) {
+            if (!$issafekey(key)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored (see $issafekey())
             const k = this._resolvedKey(key) ;
             const struct = this._itemsParsers[k] ;
             // a non described item (accepted with _acceptsUncheckedItems) is kept as it was, like in rawInterpret()
@@ -906,8 +913,13 @@ function _countryTrans(v:any):any {
 const __jsonBooleanStrings:[Set<string>, Set<string>] = [new Set(['true']), new Set(['false'])] ;
 const __booleanStrings:[Set<string>, Set<string>] = [new Set(['true', '1', 'y', 'yes']), new Set(['false', '0', 'n', 'no'])] ;
 
+const __asciiString = /^[\x00-\x7F]*$/ ;
+
 function _stringToBoolean(s:string, opts?:Nullable<TSParserActionOptions>):boolean | null {
-    s = $ascii($ftrim(s)).toLowerCase() ;
+    s = $ftrim(s) ;
+    // $ascii() is the identity on an ASCII string, and transliterating is costly
+    if (!__asciiString.test(s)) { s = $ascii(s) ; }
+    s = s.toLowerCase() ;
     const [trueStrings, falseStrings] = opts?.context === TSParserActionContext.json ? __jsonBooleanStrings : __booleanStrings ;
     if (trueStrings.has(s)) { return true ; }
     return falseStrings.has(s) ? false : null ;
@@ -1021,8 +1033,9 @@ function _jsDateYearMonthDay(s:string):[number, number, number]|null {
     return year && day ? [Number(year), month, Number(day)] : null ;
 }
 
+// same validation as $isodate() without formatting back the parsed date
 function _isTsDate(v:any):boolean
-{ return v instanceof TSDate || ($isstring(v) && $ok($isodate(v)))}
+{ return v instanceof TSDate || ($isstring(v) && $ok($parsedatetime($ftrim(v), TSDateForm.ISO8601)))}
 
 function _iscolor(o:any) : boolean
 { return o instanceof TSColor || ($isstring(o)) && $ok(TSColor.fromString(o)) ; }
@@ -1119,6 +1132,7 @@ function _objectConstruction(node:TSObjectNode, errors:Nullable<string[]>):TSPar
     ) ;
     let found = 0 ;
     for (let [key, subnode] of Object.entries(node)) {
+        if (!$issafekey(key)) { errors?.push(`forbidden key '${key}' for object node definition`) ; continue ; } // see $issafekey()
         if (InternalFieldsSet.has(key)) { continue ; }
         if (!IsFieldOrEnumRegex.test(key)) {
             errors?.push(`wrong key '${key}' for object node definition`) ;

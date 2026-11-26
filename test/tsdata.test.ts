@@ -334,6 +334,24 @@ export const mutableDataGroups = [
             t.expectC(d.isEqual(new Uint8Array([97, 98]))).false() ;
             t.expectD(d.isEqual(new Uint8Array([97, 98, 99]))).true() ;
         }) ;
+        group.unary('copy() into a buffer, an Uint8Array or a TSData, isEqual(ArrayBuffer)', async(t) => {
+            const d = new TSData(Buffer.from([1, 2, 3, 4, 5])) ;
+            const b = Buffer.alloc(4) ;
+            t.expect0(d.copy(b, 1, 1, 4)).is(3) ;                        // the number of copied bytes
+            t.expect1(Array.from(b)).is([0, 2, 3, 4]) ;
+            const u = new Uint8Array(3) ;
+            t.expect2(d.copy(u, 0, 3)).is(2) ;
+            t.expect3(Array.from(u)).is([4, 5, 0]) ;
+            const target = new TSData(Buffer.from([9, 9])) ;
+            t.expect4(d.copy(target, 1, 0, 3)).is(3) ;                   // a TSData target is replaced and grown
+            t.expect5(Array.from(target.mutableBuffer)).is([9, 1, 2, 3]) ;
+            t.expect6(d.copy(b, 0, 2, 2)).is(0) ;                        // nothing to copy
+            t.expect7(Array.from(b)).is([0, 2, 3, 4]) ;
+            t.expect8(d.isEqual($arrayBufferFromBytes(Buffer.from([1, 2, 3, 4, 5])))).true() ;
+            t.expect9(d.isEqual($arrayBufferFromBytes(Buffer.from([1, 2, 3, 4])))).false() ;
+            t.expectA(d.isEqual([1, 2, 3, 4, 5])).false() ;              // arrays are not compared
+        }) ;
+
         group.unary('data.length = n', async(t) => {
             const data = new TSData() ;
             data.length = 10 ;

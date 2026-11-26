@@ -1,5 +1,5 @@
 import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
-import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned, $ismethod } from './commons';
+import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned, $ismethod, $issafekey } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $jsonparse, $timeout } from './utils';
 import { $ftrim } from './strings';
@@ -536,7 +536,7 @@ $declareMethods(URLSearchParams, {
         // a repeated key keeps its last value: TSServer end points use the query parser
         // definition instead, to get arrays and to refuse repeated scalar parameters
         for (const [key, value] of this) {
-            if (key.length > 0) { ret[key] = value ; total ++ ; }
+            if (key.length > 0 && $issafekey(key)) { ret[key] = value ; total ++ ; } // see $issafekey()
         }
         return total > 0 ? ret : null ;
     },

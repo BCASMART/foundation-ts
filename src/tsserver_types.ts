@@ -98,7 +98,8 @@ export interface TSWebSiteDefinition {
     maxCacheSize?:number,
     maxCachedFileSize?:number,
     maxCachedFiles?:number,
-    maxBlacklistedFiles?:number
+    maxBlacklistedFiles?:number,
+    blacklistDuration?:number      // seconds during which a missing file is not looked for again (default 60)
 }
 
 export enum TSServerErrorCodes {

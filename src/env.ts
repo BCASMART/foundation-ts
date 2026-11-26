@@ -1,5 +1,5 @@
 import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, unichar } from "./types";
-import { $count, $defined, $isarray, $isnumber, $isstring, $length, $ok, $string, $toint, $unsigned, $value, $valueornull } from "./commons";
+import { $count, $defined, $isarray, $isnumber, $issafekey, $isstring, $length, $ok, $string, $toint, $unsigned, $value, $valueornull } from "./commons";
 import { DefaultsConfigurationOptions } from "./tsdefaults";
 import { $exit, $logheader, $logterm } from "./utils";
 import { $ascii, $ftrim, $lines, $normspaces } from "./strings";
@@ -106,6 +106,7 @@ function _interpretEnvLines(lines:string[], ret:TSDictionary, unary:Nullable<TSD
         const [key, value] = _interpretEnvLine(ret, lines[i].rtrim(), i + 1, ctx) ;
         if (key === 'void') { continue ; }
         if (!key.length) { return false ; }
+        if (!$issafekey(key)) { continue ; } // '__proto__', 'constructor' and 'prototype' are ignored
         backup?.save(key) ;
         ret[key] = value ;
         if ($ok(unary)) { unary![key] = value ; }

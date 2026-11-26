@@ -1,5 +1,4 @@
-import { $map } from "./array";
-import { $array, $count, $email, $int, $intornull, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isiterable, $ismethod, $isnumber, $isobject, $isodate, $isstring, $isunsigned, $isurl, $isuuid, $iswhitespace, $json, $jsonobj, $keys, $length, $lengthin, $objectcount, $ok, $string, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $value, $valueornull, $valueorundefine } from "./commons";
+import { $array, $count, $email, $int, $intornull, $isarray, $isbool, $isdate, $isemail, $isfunction, $isint, $isiterable, $ismethod, $isnumber, $isobject, $isodate, $issafekey, $isstring, $isunsigned, $isurl, $isuuid, $iswhitespace, $json, $jsonobj, $keys, $length, $lengthin, $objectcount, $ok, $string, $strings, $toint, $tounsigned, $unsigned, $unsignedornull, $url, $UUID, $value, $valueornull, $valueorundefine } from "./commons";
 import { $bytescompare, $bytesequal, $compare, $datecompare, $equal, $numcompare, $setequal, $unorderedEqual } from "./compare";
 import { $bufferFromArrayBuffer, $bufferFromBytes, $uint8ArrayFromBytes, $uint8ArrayFromDataLike, $arrayBufferFromBytes, $decodeBase64, $encodeBase64 } from "./data"
 import { $timeBetweenDates } from "./date"
@@ -111,12 +110,18 @@ export class TSFusionTreeNode {
         }
         try {
             
-            const globalContext = $ok(options.globalContext) ? options.globalContext! : {} ;
-            
-            function _addGlobalFunctions(functions:Nullable<TSDictionary<Function>>) {
-                if ($ok(functions)) {
-                    for (let [name, fn] of Object.entries(functions)) {
-                        if (!$ok(globalContext[name])) { globalContext[name] = fn ; }
+            const callerContext = $ok(options.globalContext) ? options.globalContext! : {} ;
+            // the global functions are no longer added to the caller's global context (another template
+            // using the same context did get the functions of the first one): they are kept apart, and
+            // the fusion sees both through a proxy. A value of the caller's context comes first, and the
+            // values written by the procedures are still written in the caller's context
+            const functions:TSDictionary<Function> = {} ;
+            const globalContext = _globalContextView(callerContext, functions) ;
+
+            function _addGlobalFunctions(fns:Nullable<TSDictionary<Function>>) {
+                if ($ok(fns)) {
+                    for (let [name, fn] of Object.entries(fns)) {
+                        if (!$ok(globalContext[name])) { functions[name] = fn ; }
                     }    
                 }
             }
@@ -140,7 +145,7 @@ export class TSFusionTreeNode {
                     $inspect, $insp, $term, $termclean, $stack
                 ].forEach( fn => {
                     const name = fn.name.slice(1) ; // we remove the front $ sign
-                    if (!$ok(globalContext[name])) { globalContext[name] = fn ; }
+                    if (!$ok(globalContext[name])) { functions[name] = fn ; }
                 }) ;
 
                 _addGlobalFunctions({
@@ -235,7 +240,8 @@ export class TSFusionTreeNode {
     private _keyPathValue(run:FusionRun, stack:any[], localStack:TSDictionary[], systemContext:TSDictionary):any {
         const hasRedefinedLocalItems = $objectcount(localStack.last()) > 0 ;
         const [target, dataType] = _contextTarget(this.contextType, stack, localStack, hasRedefinedLocalItems, run.globalContext, systemContext) ;
-        const parameters = $count(this.parameters) ? $map(this.parameters, p => p === run.template ? stack.last() : p) : undefined ;
+        // map() and not $map(), which skips the null and undefined values (they would shift the next parameters)
+        const parameters = $count(this.parameters) ? this.parameters!.map(p => p === run.template ? stack.last() : p) : undefined ;
         if (this.contextType !== TSFusionContextType.Local || !hasRedefinedLocalItems) {
             return _valueForKeyPath(target, this._pathCache, dataType, false, parameters, run.errors) ;
         }
@@ -263,10 +269,10 @@ export class TSFusionTreeNode {
                 else { run.errors?.push(`WARNING: value returned for '${this.value!}' was undefined or null and should have result in data to merge in fusion.`) ; }
                 break ;
             case TSFusionNodeType.Test:
-                if (v) { this._fusion(run, stack, localStack, systemContext) ; }
+                if (_isTrue(v)) { this._fusion(run, stack, localStack, systemContext) ; }
                 break ;
             case TSFusionNodeType.NegativeTest:
-                if (!v) { this._fusion(run, stack, localStack, systemContext) ; }
+                if (!_isTrue(v)) { this._fusion(run, stack, localStack, systemContext) ; }
                 break ;
             case TSFusionNodeType.Enumeration:
                 if ($ok(v)) { this._fusionEnumeration(v, run, stack, localStack, systemContext) ; }
@@ -297,6 +303,35 @@ interface FusionRun {
 }
 
 // objects in which a key path is searched, and their description for error messages
+function _isUnknownMember(v:any, m:string):boolean {
+    if ($isobject(v)) { return !(m in v) ; }
+    const t = typeof v ;
+    return (t === 'string' || t === 'number' || t === 'boolean' || t === 'bigint' || t === 'symbol') && !(m in Object(v)) ;
+}
+
+// the value of a test: an empty array, set, map or collection (eg. a TSList) is false, like false,
+// 0, NaN, '', null and undefined (an empty array, set... used to be true)
+function _isTrue(v:any):boolean {
+    if (!v) { return false ; }
+    if ($isarray(v)) { return v.length > 0 ; }
+    if (v instanceof Set || v instanceof Map) { return v.size > 0 ; }
+    if ($iscollection(v)) { return $count(v.getItems()) > 0 ; }
+    return true ;
+}
+
+// a view of the caller's global context and of the global functions: reading or testing a name looks
+// in the caller's context first, writing a value writes it in the caller's context
+function _globalContextView(callerContext:TSDictionary, functions:TSDictionary<Function>):TSDictionary {
+    return new Proxy(callerContext, {
+        get(target, name, receiver) {
+            const v = Reflect.get(target, name, receiver) ;
+            // a null or undefined value of the caller's context lets the function be used, as before
+            return $ok(v) || typeof name !== 'string' || !Object.hasOwn(functions, name) ? v : functions[name] ;
+        },
+        has(target, name) { return name in target || Object.hasOwn(functions, name) ; }
+    }) ;
+}
+
 function _contextTarget(contextType:TSFusionContextType, stack:any[], localStack:TSDictionary[], hasRedefinedLocalItems:boolean, globalContext:TSDictionary, systemContext:TSDictionary):[any[], string] {
     switch (contextType) {
         case TSFusionContextType.Root:   return [[stack.first()], 'root'] ;
@@ -365,13 +400,18 @@ function _keyPathStep(v:any, i:number, w:KeyPathWalk):KeyPathStep {
 
     if (!m.length) { return _keyPathStop(w, `!ERROR!: key path '${w.keyPath.join('.')}' contains internal '..'.`) ; }
     if (!isCall && m === 'self') { return { value:v } ; } // special keyword for referencing itself
-    if ($isobject(v) && !(m in v)) { return _keyPathStop(w, `${level}: unknown method or preperty '${m}' in ${w.dataType}.`) ; }
+    // '__proto__', 'constructor' and 'prototype' cannot be read: they give access to the functions which
+    // build the objects (eg. {{f.constructor('code')}} did compile a function), see $issafekey()
+    if (!$issafekey(m)) { return _keyPathStop(w, `!ERROR!: property '${m}' cannot be read in a fusion template.`) ; }
+    // an unknown member of a primitive value (eg. {{s.foo}} for a string) is reported like the one of an
+    // object (only the final 'undefined or null' warning was given)
+    if (_isUnknownMember(v, m)) { return _keyPathStop(w, `${level}: unknown method or property '${m}' in ${w.dataType}.`) ; }
 
     const member = v[m] ;
     if (!$isfunction(member)) {
         return isCall ? _keyPathStop(w, `${level}: unknown method '${m}()' in ${w.dataType}.`) : _keyPathValue(member, w) ;
     }
-    if (member.length > 0 && !isCall) { return _keyPathStop(w, `!ERROR!: method ${m}() is not an sinple accessor in ${w.dataType}.`) ; }
+    if (member.length > 0 && !isCall) { return _keyPathStop(w, `!ERROR!: method ${m}() is not a simple accessor in ${w.dataType}.`) ; }
 
     let result:any ;
     try { result = isCall ? member.apply(v, w.parameters) : member.call(v) ; }

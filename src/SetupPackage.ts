@@ -6,7 +6,7 @@ import fs from "node:fs";
 
 function main() {
     const source = fs.readFileSync(__dirname + "/../package.json").toString('utf8');
-    const sourceObj = JSON.parse(source);
+    const sourceObj = JSON.parse(source); // don't replace this by $jsonparse(). No foundation-ts here
     sourceObj.scripts = {};
     sourceObj.devDependencies = {};
     if (sourceObj.main.startsWith("dist/")) {

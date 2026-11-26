@@ -1,4 +1,4 @@
-import { $isarray, $isobject, $isstring, $length, $ok, $value, $valueornull } from "./commons";
+import { $isarray, $isobject, $issafekey, $isstring, $length, $ok, $value, $valueornull } from "./commons";
 import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os' // NOSONAR: no 'node:' prefix for webpack 5
@@ -229,7 +229,7 @@ export class TSDefaults {
 
     // these 3 methods permits using software to store global values on unique Defaults instance
     public setValue(key:string, value:any) {
-        if ($length(key)) {
+        if ($length(key) && $issafekey(key)) { // see $issafekey()
             if ($ok(value)) {
                 this._values[key] = value ;
             }

@@ -7,6 +7,12 @@ import { TSColor } from "../src/tscolor";
 import { TSData } from "../src/tsdata";
 import { TSCountry } from "../src/tscountry";
 import { TSCharset } from "../src/tscharset";
+import { $fusion, $issafekey } from "../src/commons";
+import { $env } from "../src/env";
+import { $dictionaryFromMap } from "../src/mapset";
+import { TSParser } from "../src/tsparser";
+import { TSQualifier } from "../src/tsqualifier";
+import { TSFusionTemplate } from "../src/tsfusion";
 
 function stringifyMe(e: any) { return `${e}`; }
 
@@ -224,5 +230,82 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
             t.description("-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.");
         });
     }
+
+    group.unary("unsafe keys: '__proto__', 'constructor' and 'prototype' are never read nor written", async (t) => {
+        const plain = (o:any) => Object.getPrototypeOf(o) === Object.prototype ;
+        t.expect0([$issafekey('a'), $issafekey('__proto__'), $issafekey('constructor'), $issafekey('prototype'), $issafekey(Symbol('x')), $issafekey('Constructor')]).is([true, false, false, false, false, true]) ;
+        // $jsonparse() removes them at all levels, even written with \u escapes
+        const evil = '{"a":{"__proto__":{"x":1},"constructor":{"prototype":{"y":2}},"b":[{"prototype":3,"c":4}]},"\\u005f_proto__":{"z":3},"ok":2}' ;
+        const v = $jsonparse(evil) ;
+        t.expect1(v).is({ a:{ b:[{ c:4 }] }, ok:2 }) ;
+        t.expect2(plain(v) && plain(v.a) && v.a.x === undefined && v.z === undefined).true() ;
+        // the caller's reviver never receives them, and keeps its this and its other arguments
+        const seen:string[] = [] ;
+        const r = $jsonparse('{"constructor":1,"n":2,"o":{"m":3}}', false, function(this:any, k:string, val:any) { seen.push(k) ; return typeof val === 'number' && this ? val * 10 : val ; }) ;
+        t.expect3(r).is({ n:20, o:{ m:30 } }) ;
+        t.expect4(seen.includes('constructor')).false() ;
+        t.expect5($jsonparse('{"text":"a constructor and a prototype","p":"https://x.org"}')).is({ text:'a constructor and a prototype', p:'https://x.org' }) ;
+        // $fusion() (it used to change the prototype of the result)
+        const [f] = $fusion({ a:1 }, JSON.parse('{"__proto__":{"polluted":1},"constructor":2,"b":2}')) ; // don't replace this by $jsonparse()
+                                                                                                         // we want to create a real __proto__ property
+
+        t.expect6([f, plain(f), (f as any).polluted]).is([{ a:1, b:2 }, true, undefined]) ;
+        // .env files, maps, TSParser dictionaries and unchecked items, TSQualifier key paths
+        t.expect7($env('A=1\nconstructor=2\n__proto__=3\nB=4')).is({ A:'1', B:'4' }) ;
+        t.expect8($dictionaryFromMap(new Map<string, number>([['a', 1], ['__proto__', 2], ['prototype', 3]]))).is({ a:1 }) ;
+        const dictParser = TSParser.define({ _keysType:'string', _valueItemsType:'int' })! ;
+        const raw:any = { a:1 } ; Object.defineProperty(raw, '__proto__', { value:{ x:5 }, enumerable:true }) ; raw.constructor = 3 ;
+        const d = dictParser.interpret(raw) ;
+        t.expect9([d, plain(d)]).is([{ a:1 }, true]) ;
+        const objParser = TSParser.define({ a:'int' })! ;
+        const o = objParser.interpret(raw, { acceptsUncheckedItems:true }) ;
+        t.expectA([o, plain(o)]).is([{ a:1 }, true]) ;
+        t.expectB(TSParser.define({ a:'int' })!.parse('{"a":1,"__proto__":{"x":1}}')).is({ a:1 }) ;
+        const derrs:string[] = [] ;
+        TSParser.define({ a:'int', constructor:'string' } as any, derrs) ;
+        t.expectC(derrs).is(["forbidden key 'constructor' for object node definition"]) ;
+        t.expectD(TSQualifier.OK<any>('constructor.name').validateValue({ a:1 })).false() ;
+        // fusion templates cannot read them
+        const fe:string[] = [] ;
+        const res = TSFusionTemplate.fromString('[{{o.constructor}}][{{o.__proto__}}][{{s.length}}]')!.fusionWithDataContext({ o:{}, s:'abc' }, {}, fe) ;
+        t.expectE(res).is('[][][3]') ;
+        t.expectF(fe.filter(e => e.includes('cannot be read in a fusion template')).length).is(2) ;
+        t.expectG((new URLSearchParams('a=1&__proto__=2&constructor=3') as any).query()).is({ a:'1' }) ;
+    }) ;
+
+    group.unary("$jsonparse(): probable comments are stripped first, the other ones after a failure", async (t) => {
+        t.expect0($jsonparse('// header\n{ "a":1, /* x */ "b":[1, // y\n 2] }', true)).is({ a:1, b:[1, 2] }) ; // found first
+        t.expect1($jsonparse('{"a":/*x*/1,"b":2/*y*/}', true)).is({ a:1, b:2 }) ;  // not seen first: found by the failure
+        t.expect2($jsonparse('{"u":"https://x.org/a//b","t":"a // b /* c */"}', true)).is({ u:'https://x.org/a//b', t:'a // b /* c */' }) ; // false positive
+        t.expect3($jsonparse('{"a":1} // end', false)).undef() ;                       // strip is false
+        const seen:string[] = [] ;
+        t.expect4($jsonparse('{ "a":1, // c\n "b":2 }', true, (k:string, v:any) => { seen.push(k) ; return v ; })).is({ a:1, b:2 }) ;
+        t.expect5(seen).is(['a', 'b', '']) ;                                           // the reviver is called once per key
+    }) ;
+
+    group.unary("$jsonparse(): comments stripped only when needed, unsafe keys written with \\u escapes", async (t) => {
+        // with strip, a text with comments (even containing the unsafe words) is still parsed
+        const commented = '{\n  // the constructor\n  "a":1, /* __proto__ and prototype */ "u":"http://x.org/*y*/",\n  "s":"a//b" // end\n}' ;
+        t.expect0($jsonparse(commented, true)).is({ a:1, u:'http://x.org/*y*/', s:'a//b' }) ;
+        t.expect1($jsonparse(commented)).undef() ;                       // strip=false is unchanged
+        t.expect2($jsonparse('{"a":1} /* x', false)).undef() ;
+        t.expect3($jsonparse('{"a":"//", "b":"/*"}', true)).is({ a:'//', b:'/*' }) ;
+        t.expect4($jsonparse(' /* only */ ', true)).undef() ;
+        // the caller's reviver is called exactly once per key, comments present or not
+        for (const [i, src] of [commented, $jsonstrip(commented)].entries()) {
+            const seen:string[] = [] ;
+            const v = $jsonparse(src, true, (k:string, val:any) => { seen.push(k) ; return val ; }) ;
+            t.expect(v, `r${i}a`).is({ a:1, u:'http://x.org/*y*/', s:'a//b' }) ;
+            t.expect(seen, `r${i}b`).is(['a', 'u', 's', '']) ;
+        }
+        // a failing reviver is not called again on the stripped text
+        let calls = 0 ;
+        t.expect5($jsonparse('{"a":1}', true, () => { calls++ ; throw new Error('x') ; })).undef() ;
+        t.expect6(calls).is(1) ;
+        // escapes: "constructor" written with \u is removed, "é" kept, "Constructor" is not unsafe
+        t.expect7($jsonparse('{"\\u0063onstructor":1,"\\u00e9t\\u00E9":"\\u20ac","Constructor":2}')).is({ 'été':'€', Constructor:2 }) ;
+        t.expect8($jsonparse('{"pr\\u006Ftotype":1,"_\\u005Fproto__":{"x":1},"\\u0041":2}', true)).is({ A:2 }) ;
+        t.expect9($jsonparse('{"x":{"constructo\\u0072":1, "y":"\\u00e9"}} // c', true)).is({ x:{ y:'é' } }) ;
+    }) ;
 
 });

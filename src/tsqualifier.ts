@@ -1,4 +1,4 @@
-import { $isarray, $isstring, $ok } from "./commons";
+import { $isarray, $issafekey, $isstring, $ok } from "./commons";
 import { TSRange } from "./tsrange";
 import { TSRangeSet } from "./tsrangeset";
 import { TSInterval } from "./tsinterval";
@@ -548,6 +548,7 @@ function _valuesForKeyPath(v:any, keyPath:string[]):any[] {
 
 function _valuesForKey(values:any[], key:string):any[] {
     const newValues:any[] = [] ;
+    if (!$issafekey(key)) { return newValues ; } // '__proto__', 'constructor' and 'prototype' are never read (see $issafekey())
     for (let v of values) { _pushKeyPathValue(newValues, v[key]) ; }
     return newValues ;
 }

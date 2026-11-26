@@ -384,7 +384,7 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             }
             case TSColorSpace.CMYK:{
                 const [C,M,Y,K] = this.cmykComponents() ;
-                return `<CMYK ${C} ${M}, ${Y} ${K}/${this.opacity}>` ;
+                return `<CMYK ${C} ${M} ${Y} ${K}/${this.opacity}>` ;
             }
             case TSColorSpace.Grayscale:{
                 const [,,,KS] = this.cmykComponents() ;
@@ -689,7 +689,10 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             rx: /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
             short: true
         },
-        null,
+        {
+            rx: /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/,
+            short: true
+        },
         {
             rx: /^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
             short: false
@@ -790,10 +793,11 @@ export class TSColor implements TSObject, TSLeafInspect, TSClone<TSColor> {
             if (!$isunsigned(v,0xFF)) { return [null, UINT8_MIN] ; }
             channels[i] = <uint8>v ; 
         }
-        if (parser!.short) {
-            channels = channels.map(v => ((v<<4) | v) as uint8)
+        let alpha = m.length === 5 ? <uint8>Number.parseInt(m[4], 16) : UINT8_MAX ;
+        if (parser!.short) { // #abc is #aabbcc, #abcd is #aabbccdd
+            channels = channels.map(v => ((v<<4) | v) as uint8) ;
+            if (m.length === 5) { alpha = <uint8>((alpha<<4) | alpha) ; }
         }
-        const alpha = m.length === 5 ? <uint8>Number.parseInt(m[4], 16) : UINT8_MAX ;
         return [channels, alpha] ;
     }
 }

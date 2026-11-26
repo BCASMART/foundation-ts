@@ -143,7 +143,7 @@ export abstract class TSFusionTemplate {
     public get capacity():number { return this._capacity ; }
     public set capacity(n:number) { 
         const c = $capacityForCount(n) ;
-        if (c > this._capacity) { this._capacity = (this._capacity + $capacityForCount(n)) as uint ; }
+        if (c > this._capacity) { this._capacity = c ; } // it used to be added to the current capacity
     }
 
     get [Symbol.toStringTag](): string { return this.constructor.name ; }
@@ -210,17 +210,23 @@ export class TSStringTemplate extends TSFusionTemplate {
     { this._outputString += TSStringTemplate.__stringCharset.stringFromData(data) ; }
 
     public pushFusionValue(value:NonNullable<any>):void
-    { this._outputString += $string(value) ; }
+    { this._outputString += _fusionString(value) ; }
 
+    // the output of a fusion called during another one (eg. by a procedure) does not replace the
+    // output of the first one (it used to)
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
+        const previousOutput = this._outputString ;
         this._outputString = '' ;
-        return this._treeRoot.fusion(this, data, { 
-            globalContext: globalContext, 
-            procedures: this._procedures, 
-            errors:errors, 
-            globalFunctions:this._globalFunctions, 
-            addStandardGlobalFunctions:this._addStandardGlobalFunctions
-        }) ? this._outputString! : null ;
+        try {
+            return this._treeRoot.fusion(this, data, { 
+                globalContext: globalContext, 
+                procedures: this._procedures, 
+                errors:errors, 
+                globalFunctions:this._globalFunctions, 
+                addStandardGlobalFunctions:this._addStandardGlobalFunctions
+            }) ? this._outputString! : null ;
+        }
+        finally { this._outputString = previousOutput ; }
     }
 
     public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null { return this.fusionWithDataContext(data, globalContext, errors) ; }
@@ -232,15 +238,22 @@ export abstract class TSGenericDataTemplate extends TSFusionTemplate {
     public pushFusionData(data:Bytes):void
     { this._outputData?.appendBytes(data) ; }
 
+    // the output of a fusion called during another one (eg. by a procedure) does not replace the
+    // output of the first one (it used to)
     public fusionWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):TSData|null {
-        this._outputData = new TSData(this._capacity) ;
-        return this._treeRoot.fusion(this, data, { 
-            globalContext: globalContext, 
-            procedures: this._procedures, 
-            errors:errors, 
-            globalFunctions:this._globalFunctions,
-            addStandardGlobalFunctions:this._addStandardGlobalFunctions
-        }) ? this._outputData! : null ;
+        const previousOutput = this._outputData ;
+        const output = new TSData(this._capacity) ;
+        this._outputData = output ;
+        try {
+            return this._treeRoot.fusion(this, data, { 
+                globalContext: globalContext, 
+                procedures: this._procedures, 
+                errors:errors, 
+                globalFunctions:this._globalFunctions,
+                addStandardGlobalFunctions:this._addStandardGlobalFunctions
+            }) ? output : null ;
+        }
+        finally { this._outputData = previousOutput ; }
     }
 }
 
@@ -270,12 +283,15 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
         this._htmlCharset = charset ;
     }
 
+    // the value is written with the charset of the HTML document, a character which this charset cannot
+    // write being given as an HTML character reference (eg. &#8364;). The value of a toHTML() method used
+    // to be written in ASCII, so that its non ASCII characters were wrong
     public pushFusionValue(value:NonNullable<any>):void {
         let s = "" ;
         if ($ismethod(value, 'toHTML')) { s = value.toHTML() ; }
         else if ($isnumber(value)) { s = ''+ value ; }
-        else { s = $string(value).toHTML() ; }
-        if (s.length) { this._outputData?.appendBytes(_ascii2data(s!)) ; }
+        else { s = _fusionString(value).toHTML() ; }
+        if (s.length) { this._outputData?.appendBytes(_htmlBytes(s, this._htmlCharset)) ; }
     }
 
     public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
@@ -316,8 +332,19 @@ export class TSDataTemplate extends TSGenericDataTemplate {
 
     public get charset():TSCharset { return this._charset ; }
 
+    // a value with a character which the charset of the template cannot write makes the fusion fail
+    // (this character used to be dropped or changed)
     public pushFusionValue(value:NonNullable<any>):void {
-        this._outputData?.appendString($string(value), this._charset) ;
+        const s = _fusionString(value) ;
+        const bytes = this._charset.strictStringToBytes(s) ;
+        if (!bytes) {
+            const i = this._charset.unencodableIndex(s) ;
+            const cp = s.codePointAt(i)! ;
+            TSError.throw(`TSDataTemplate: character '${String.fromCodePoint(cp)}' (U+${cp.toString(16).toUpperCase().padStart(4, '0')}) cannot be written in ${this._charset.name}`, {
+                value:s, position:i, charset:this._charset.name
+            }) ;
+        }
+        this._outputData?.appendBytes(bytes!) ;
     }
 
     public fusionStringWithDataContext(data:any, globalContext:TSDictionary, errors?:string[]):string|null {
@@ -333,6 +360,40 @@ export class TSDataTemplate extends TSGenericDataTemplate {
  * HTML comentaries or CDATA
  */
 const ASCIICharset = TSCharset.asciiCharset() ;
+
+// a Date is given in ISO 8601 in the time zone of the server, with its offset (eg. 2024-05-01T12:20:00+02:00):
+// unlike a TSDate, a Date is an instant. Its toString() used to be given (eg. Wed May 01 2024 12:20:00 GMT+0200
+// (Central European Summer Time)), in English and depending on the JavaScript engine
+function _fusionString(value:any):string {
+    return value instanceof Date && !Number.isNaN(value.getTime()) ? _localISOString(value) : $string(value) ;
+}
+
+function _localISOString(d:Date):string {
+    const y = d.getFullYear() ;
+    if (y < 0 || y > 9999) { return d.toISOString() ; } // an extended year, in UTC
+    const p2 = (n:number) => String(n).padStart(2, '0') ;
+    const offset = -d.getTimezoneOffset() ;
+    const a = Math.abs(offset) ;
+    const ms = d.getMilliseconds() ;
+    return `${String(y).padStart(4, '0')}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` +
+           (ms ? '.' + String(ms).padStart(3, '0') : '') + `${offset < 0 ? '-' : '+'}${p2(Math.floor(a / 60))}:${p2(a % 60)}` ;
+}
+
+// the bytes of an HTML text in the charset of the document: a character which it cannot write is
+// given as an HTML character reference
+function _htmlBytes(s:string, charset:TSCharset):Bytes {
+    const bytes = charset.strictStringToBytes(s) ;
+    if (bytes) { return bytes ; }
+    let html = '' ;
+    for (let i = 0 ; i < s.length ; ) {
+        const cp = s.codePointAt(i)! ;
+        const n = cp > 0xFFFF ? 2 : 1 ;
+        const c = s.slice(i, i + n) ;
+        html += charset.canEncode(c) ? c : `&#${cp};` ;
+        i += n ;
+    }
+    return charset.stringToBytes(html) ;
+}
 
 function _ascii2data(s:string)
 { return ASCIICharset.bytesFromString(s) ; }
@@ -493,6 +554,7 @@ class FusionTemplateParser {
     private stringEnder:uint8 = QUOTE ;
     private fusionContext = TSFusionContextType.Local ;
     private unicodeValue = 0 ;
+    private highSurrogate = 0 ; // the high surrogate of a \u surrogate pair, waiting for its low surrogate
 
     public constructor(private readonly opts:FusionTemplateParserOptions) {
         this.source = opts.source ;
@@ -722,9 +784,15 @@ class FusionTemplateParser {
 
     private _numberParameter(c:uint8) {
         if (_isVariableSpace(c) || c === RPAR || c === COMMA) {
-            const num = Number(this.opts.charset?.stringFromData(this.source.slice(this.tokenPos, this.i))) ;
-            this.currentParameter = $isnumber(num) ? num : 0 ;
-            // QUESTION: shouldn't we throw if we have not a number here
+            const text = this.opts.charset?.stringFromData(this.source.slice(this.tokenPos, this.i)) ;
+            const num = Number(text) ;
+            // a malformed number (eg. 1.2.3, - or .) is an error (it used to give 0)
+            if (!$isnumber(num)) {
+                TSError.throw(`Malformed template structure : malformed number parameter '${text}' ending at position ${this.i}.`, {
+                    source:this.source, position:this.i, state:this.state
+                }) ;
+            }
+            this.currentParameter = num ;
             this.state = FusionState.AfterParameter ;
             this.i-- ;
         }
@@ -735,6 +803,7 @@ class FusionTemplateParser {
     }
 
     private _stringParameter(c:uint8) {
+        if (this.highSurrogate && c !== BACKSLASH) { this._loneSurrogate() ; } // a high surrogate must be followed by a \u low surrogate
         if (c === this.stringEnder) {
             this.currentParameter = this.currentParameter.toString(this.opts.charset) ;
             if (this.stringEnder === PIPE) {
@@ -789,6 +858,12 @@ class FusionTemplateParser {
         }) ;
     }
 
+    private _loneSurrogate():never {
+        TSError.throw(String.raw`Malformed template structure : lone surrogate in a \u sequence ending at position ${this.i}.`, {
+            source:this.source, position:this.i, state:this.state
+        }) ;
+    }
+
     private _stringParamUnicode(c:uint8) {
         const hexa = c.hexaValue() ;
         if (hexa < 0) {
@@ -802,9 +877,25 @@ class FusionTemplateParser {
         this.unicodeValue = (this.unicodeValue << 4) | hexa ;
         this.tokenPos++ ;
         if (this.tokenPos === 4) {
-            const bytes = this.opts.charset.bytesFromString(String.fromCodePoint(this.unicodeValue)) ;
-            this.currentParameter.appendBytes(bytes) ;
             this.state = FusionState.StringParameter ;
+            const u = this.unicodeValue ;
+            if (u >= 0xD800 && u <= 0xDBFF && this.highSurrogate === 0) { this.highSurrogate = u ; return ; } // waiting for the low surrogate
+            let s:string ;
+            if (this.highSurrogate) {
+                // a surrogate pair (eg. \uD83D\uDE00) is one character (each half used to be converted alone)
+                if (u < 0xDC00 || u > 0xDFFF) { this._loneSurrogate() ; }
+                s = String.fromCharCode(this.highSurrogate, u) ;
+                this.highSurrogate = 0 ;
+            }
+            else if (u >= 0xDC00 && u <= 0xDFFF) { return this._loneSurrogate() ; }
+            else { s = String.fromCodePoint(u) ; }
+            const bytes = this.opts.charset.strictStringToBytes(s) ;
+            if (!bytes) {
+                TSError.throw(`Malformed template structure : unicode character U+${s.codePointAt(0)!.toString(16).toUpperCase()} ending at position ${this.i} cannot be written in ${this.opts.charset.name}.`, {
+                    source:this.source, position:this.i, state:this.state
+                }) ;
+            }
+            this.currentParameter.appendBytes(bytes!) ;
         }
     }
 
@@ -1024,11 +1115,8 @@ class HTMLFusionParser {
             }
         }
 
-        if (this.state !== FusionHTMLState.Text) {
-            this.target.appendByte(LT) ;
-            this.target.appendBytes(this.src, this.last, this.i) ;
-            this.target.appendByte(GT) ;
-        }
+        // an unterminated element is kept as it is written (src[last] is its '<')
+        if (this.state !== FusionHTMLState.Text) { this.target.appendBytes(this.src, this.last, this.i) ; }
 
         if (this.debug) {
             $logterm(`&0&j--STOP--&w: &rEOF&x, state:&p${this.state}&x, last:&p${this.last}&0`) ;

@@ -248,6 +248,18 @@ export const dateGroups = [
             t.expectG($timeBetweenDates(d0, d1)).is(TSHour) ;
             t.expectH($timeBetweenDates(d1, d0)).is(-TSHour) ;
         }) ;
+        group.unary('toString() without format, toTSDate() and from() infinite dates', async (t) => {
+            // without format nor locale, toString() gives the ISO string, with a locale only the Standard form
+            t.expect0(D.toString()).is('1945-05-08T23:01:00') ;
+            t.expect1(D.toString(undefined, 'en')).is(D.toString(TSDateForm.Standard)) ;
+            t.expect2(D.toString(undefined, 'en')).is('08/05/1945-23:01:00') ;
+            t.expect3(D.toTimezoneString('UTC')).is('08/05/1945-23:01:00') ;    // the Standard form in the UTC time zone
+            t.expect4(D.toTSDate().isEqual(D)).true() ;
+            t.expect5(TSDate.from(Number.POSITIVE_INFINITY)?.isEqual(TSDate.future())).true() ;
+            t.expect6(TSDate.from(Number.NEGATIVE_INFINITY)?.isEqual(TSDate.past())).true() ;
+            t.expect7(TSDate.from(TSDate.FUTURE)?.isEqual(TSDate.future())).true() ;
+            t.expect8(TSDate.from(TSDate.PAST)?.isEqual(TSDate.past())).true() ;
+        }) ;
         group.unary('d.firstDateOfYear()', async (t) => {
             t.expect(D.firstDateOfYear().toString(full)).is("1945/01/01-00:00:00") ;
         });

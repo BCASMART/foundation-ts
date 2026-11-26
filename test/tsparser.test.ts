@@ -958,7 +958,7 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         t.expect1(encoded).is({ name:'Bob', when:'2020-03-15T00:00:00', color:'#ff0000ff', count:3, tags:['a', 'b'] }) ;
 
         const str = p.stringify(nat)! ;
-        t.expect2(JSON.parse(str)).is(encoded) ;
+        t.expect2(JSON.parse(str)).is(encoded) ; // don't replace this by $jsonparse(): we want to test the actual JSON.stringify() output
 
         const back = p.parse(str) ;
         t.expect3(back?.name).is('Bob') ;
@@ -1505,6 +1505,16 @@ export const structureGroups = TSTest.group("TSParser class ", async (group) => 
         const derrs = (node:any) => { const e:string[] = [] ; TSParser.define(node, e) ; return e ; } ;
         t.expect7(derrs({ a:'int', _normalizesKeys:true })).is(['_normalizesKeys field can only be set for a dictionary node definition']) ;
         t.expect8(TSParser.define({ _keysType:'int', _valueItemsType:'string', _normalizesKeys:'yes' } as any)!.errors).is(['_normalizesKeys field should be a boolean']) ;
+    }) ;
+    group.unary("'date' and 'boolean' string values", async (t) => {
+        const D = TSParser.define({ _type:'date' })!, B = TSParser.define({ _type:'boolean' })! ;
+        const dates = ['2024-05-01', ' 2024-05-01T10:20:30 ', '2024-05-01T10:20:30Z', '20240501T102030Z', '2024-02-29', '2024-02-30', '2024-13-01', '2024-05-01T25:00:00', '', 'abc'] ;
+        t.expect0(dates.map(s => D.validate(s))).is([true, true, true, true, true, false, false, false, false, false]) ;
+        t.expect1(D.interpret(' 2024-05-01T10:20:30 ')?.toIsoString()).is('2024-05-01T10:20:30') ;
+        t.expect2([D.validate(new TSDate(2024, 5, 1)), D.validate(12)]).is([true, false]) ;
+        const bools = ['true', ' TRUE ', 'Yés', 'nö', '1', '0', 'maybe', 'ｙｅｓ', ''] ;
+        t.expect3(bools.map(s => B.validate(s) ? B.interpret(s) : null)).is([true, true, true, false, true, false, null, true, null]) ;
+        t.expect4(bools.map(s => B.validate(s, { context:'json' }))).is([true, true, false, false, false, false, false, false, false]) ;
     }) ;
 }) ;
 

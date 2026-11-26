@@ -1,7 +1,7 @@
 import { inspect } from "util";  // NOSONAR: no 'node:' prefix for webpack 5
 import { Stream } from "stream"; // NOSONAR: no 'node:' prefix for webpack 5
 
-import { $count, $defined, $isarray, $isfunction, $isint, $ismethod, $isproperty, $isstring, $length, $ok, $unsigned } from "./commons";
+import { $count, $defined, $isarray, $isfunction, $isint, $ismethod, $isproperty, $issafekey, $isstring, $length, $ok, $unsigned } from "./commons";
 import { $HTML, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
 import { Nullable, TSDataLike } from './types';
@@ -39,7 +39,7 @@ export function $browserOS(): TSBrowserOS {
             else if (agent.includes('debian') || agent.includes('ubuntu') || agent.includes('centos') ||
                 agent.includes('fedora') || agent.includes('red hat') || agent.includes('suze') ||
                 agent.includes('linux')) { bs = TSBrowserOS.linux; } // we don't test for other linux of other unix
-            else if (agent.indexOf('mac')) { bs = TSBrowserOS.macOS; }
+            else if (agent.includes('mac')) { bs = TSBrowserOS.macOS; }
         }
         ($browserOS as any).os = bs;
     }
@@ -232,13 +232,49 @@ export function $writeterm(format: string, ...args: any[]) {
  * @param strip     Do we try to strip the JSON string from comments ?
  * @param reviver   Same param as JSON.parse() reviver
  * @returns undefined if there is no JSON or if we cannot parse it, otherwise the parsed value
+ *
+ * The '__proto__', 'constructor' and 'prototype' keys are removed at all levels (see $issafekey()),
+ * before the given reviver is called: it never receives them.
  */
-export function $jsonparse(source: Nullable<string | TSDataLike>, strip?: Nullable<boolean>, reviver?: (this: any, key: string, value: any) => any): any {
+export function $jsonparse(source: Nullable<string | TSDataLike>, strip?: Nullable<boolean>, reviver?: JSONReviver): any {
     if (!$length(source)) { return undefined; }
     if (!$isstring(source)) { source = TSCharset.utf8Charset().stringFromData(source!); }
-    if (strip) { source = $jsonstrip(source); }
-    try { return JSON.parse(source, reviver) ; }
+    // a text which seems to have a comment (a // or a /* after a space, a structural character or at the
+    // start) is stripped first: a JSON.parse() which fails is costly. Otherwise a valid JSON text has no
+    // comment, so we only strip (costly on big texts) a text JSON.parse() refuses. The reviver is only
+    // called once the whole text is analysed: if it was called, it's its own failure
+    if (strip && __jsonCommentStart.test(source)) { source = $jsonstrip(source) ; strip = false ; }
+    const state = { revived:false } ;
+    try { return JSON.parse(source, _safeReviver(source, reviver, state)) ; }
+    catch { if (!strip || state.revived) { return undefined ; } }
+    source = $jsonstrip(source) ;
+    try { return JSON.parse(source, _safeReviver(source, reviver)) ; }
     catch { return undefined ; }
+}
+
+// a probable start of comment: false positives (eg. " // " in a string) only make us strip a text which
+// has no comment, and a missed comment (eg. 1/*x*/ or "a":/*x*/) is still found by the failure of
+// JSON.parse(). No ':' before it: every URL (https://...) would be a false positive
+const __jsonCommentStart = /(?:^|[\s,{}[\]])\/[/*]/ ;
+
+export type JSONReviver = (this: any, key: string, value: any, ...others: any[]) => any ;
+
+// a reviver is only used if it is needed: JSON.parse() is about 5 times slower with one. An unsafe
+// key may be written with \u escapes (eg. "\u005f_proto__"), at least one of them coding one of its
+// letters (_ c e n o p r s t u y): other escapes (eg. "\u00e9" written by Python or PHP) don't need it
+const __unsafeKeyEscape = /\\u00(?:5f|6[35ef]|7[02-59])/i ;
+
+function _safeReviver(source:string, reviver?:JSONReviver, state?:{ revived:boolean }):JSONReviver|undefined {
+    if (!reviver && !source.includes('__proto__') && !source.includes('constructor') && !source.includes('prototype') && !__unsafeKeyEscape.test(source)) {
+        return undefined ;
+    }
+    // the unsafe keys are removed (by returning undefined) before the caller's reviver is called. this
+    // (the object holding the key) and the other arguments (eg. the source text context) are given to it
+    return function(this:any, key:string, value:any, ...others:any[]) {
+        if (state) { state.revived = true ; }
+        if (!$issafekey(key)) { return undefined ; }
+        return reviver ? reviver.call(this, key, value, ...others) : value ;
+    } ;
 }
 
 export function $jsonstrip(source: Nullable<string>): string {

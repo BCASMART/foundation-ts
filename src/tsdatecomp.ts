@@ -194,6 +194,8 @@ export function $parsetime(s:Nullable<string>) : TSTimeComp|null {
  */
 const DATE_PARSE_REGEX = /^(?<n1>\d{1,8})(?:[-/.](?<n2>\d{1,2})(?:[-/.](?<n3>\d{1,4}))?)?$/ ;
 const SPACE_REGEX = /\s/ ;
+// a complete date, a '-' and a time, as written by $components2string() (eg. 15/03/2020-14:30:05)
+const DATE_DASH_TIME_REGEX = /^(\d{1,8}[-/.]\d{1,2}[-/.]\d{1,4})-(\d.*)$/ ;
 
 export function $parsedatetime(s:Nullable<string>, form:TSDateForm=TSDateForm.Standard) : TSDateComp|null {
 	return _parsedt(s, true, form) ;
@@ -308,8 +310,8 @@ export function $components2string(c:TSDateComp, form:TSDateForm=TSDateForm.Stan
 			return $componentshavetime(c) ? `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
 						                  : `${$fpad2(c.month)}/${$fpad2(c.day)}/${$fpad4(c.year)}` ;
 		case TSDateForm.Computer:
-			return $componentshavetime(c) ? `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
-						                  : `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad4(c.day)}` ;
+			return $componentshavetime(c) ? `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad2(c.day)}-${$fpad2(c.hour)}:${$fpad2(c.minute)}:${$fpad2(c.second)}`
+						                  : `${$fpad4(c.year)}/${$fpad2(c.month)}/${$fpad2(c.day)}` ;
 	}
 }
 
@@ -968,10 +970,13 @@ function _parsedt(s:Nullable<string>, withTime:boolean, form:TSDateForm=TSDateFo
 //         time (absent for $parsedate). A missing n2 means the source was a single
 //         packed number with no separator.
 
-// a date without any space, then, if accepted and if the date has 3 numbers, spaces and a time
+// a date without any space, then, if accepted and if the date has 3 numbers, spaces or a '-' and a time
 function _standardDateGroups(s:string, withTime:boolean):Nullable<StringDictionary> {
 	const i = s.search(SPACE_REGEX) ;
-	if (i < 0) { return DATE_PARSE_REGEX.exec(s)?.groups ; }
+	if (i < 0) {
+		const m = withTime ? DATE_DASH_TIME_REGEX.exec(s) : null ;
+		return $ok(m) ? _dateTimeGroups(m![1], m![2], DATE_PARSE_REGEX, TIME_PARSE_REGEX) : DATE_PARSE_REGEX.exec(s)?.groups ;
+	}
 	if (!withTime) { return null ; }
 	const g = _dateTimeGroups(s.slice(0, i), s.slice(i).trim(), DATE_PARSE_REGEX, TIME_PARSE_REGEX) ;
 	return $length(g?.n3) ? g : null ; // a time needs a complete date
