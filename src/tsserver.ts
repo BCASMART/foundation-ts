@@ -2,7 +2,7 @@ import * as http from "http";    // NOSONAR: no 'node:' prefix for webpack 5
 import * as https from "https";  // NOSONAR: no 'node:' prefix for webpack 5
 
 import { $isarray, $ismethod, $isnumber, $isunsigned, $keys, $length, $objectcount, $ok, $string, $strings, $unsigned, $value } from "./commons";
-import { $bufferFromDataLike } from "./data";
+import { __bufferFromDataLike } from "./data";
 import { $isabsolutepath } from "./fs";
 import { $ftrim } from "./strings";
 import { TSCache } from "./tscache";
@@ -48,17 +48,17 @@ export interface TSServerOptions {
     port?:uint16 ;
     rootPath?:string ; // set that path to a real page if you want to have an available root page. Must be absolute
     webSites?:TSDictionary<TSWebSiteDefinition|string> ; // [starting path] => folders
-    key?:Nullable<TSDataLike> ; // NOSONAR: optional
-    certificate?:Nullable<TSDataLike> ; // NOSONAR: optional
-    certificateAuthority?:Nullable<TSDataLike> ; // NOSONAR: optional
-    mtls?:Nullable<boolean> ; // NOSONAR: optional. if true, the server will request a client certificate for mTLS authentication
-    maxHeaderSize?:Nullable<number> ; // NOSONAR: optional
-    tlsSecTimeout?:Nullable<number> ; // NOSONAR: optional. The number of seconds after which a TLS session will no longer be resumable. default 300.
-    handshakeMsTimeout?:Nullable<number> ; // NOSONAR: optional. Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
-    forceCloseMsTimeout?:Nullable<number> ; // NOSONAR: optional. timeout to force remaining connection after server stop. Default is 15000
-    preflightController?:Nullable<TSPreflightController>|'default'|'permisive' ; // NOSONAR: optional
-    clearCacheInterval?:Nullable<number> ; // NOSONAR: optional. default is 900s (15 mn)
-    maxPreflightResponses?:Nullable<number> ; // NOSONAR: optional. Maximum number of kept preflight responses. default is 10000
+    key?:TSDataLike | null ;
+    certificate?:TSDataLike | null ;
+    certificateAuthority?:TSDataLike | null ;
+    mtls?:boolean | null ; // if true, the server will request a client certificate for mTLS authentication
+    maxHeaderSize?:number | null ;
+    tlsSecTimeout?:number | null ; // The number of seconds after which a TLS session will no longer be resumable. default 300.
+    handshakeMsTimeout?:number | null ; // Abort the connection if the SSL/TLS handshake does not finish in the specified number of milliseconds.
+    forceCloseMsTimeout?:number | null ; // timeout to force remaining connection after server stop. Default is 15000
+    preflightController?:TSPreflightController|'default'|'permisive'|null ;
+    clearCacheInterval?:number | null ; // default is 900s (15 mn)
+    maxPreflightResponses?:number | null ; // Maximum number of kept preflight responses. default is 10000
     log?: {
         logger?: TSServerLogger;
         level?: TSServerLogLevel;
@@ -545,9 +545,10 @@ interface ConnectionStatus {
 function _internalServerOptions(opts:TSServerOptions, isHTTPs:boolean):InternalServerOptions {
     const ret:InternalServerOptions = {} ;
     if (isHTTPs) {
-        ret.cert = $bufferFromDataLike(opts.certificate!) ;
-        ret.key = $bufferFromDataLike(opts.key!) ;
-        if ($length(opts.certificateAuthority) > 0) { ret.ca = $bufferFromDataLike(opts.certificateAuthority!) ; }
+        // a plain array element which is not a byte is reported with the option which contains it
+        ret.cert = __bufferFromDataLike("TSServer.start(): option 'certificate'", opts.certificate!) ;
+        ret.key = __bufferFromDataLike("TSServer.start(): option 'key'", opts.key!) ;
+        if ($length(opts.certificateAuthority) > 0) { ret.ca = __bufferFromDataLike("TSServer.start(): option 'certificateAuthority'", opts.certificateAuthority!) ; }
         if (opts.mtls) { 
             ret.requestCert = true ; 
             ret.rejectUnauthorized = true ; 

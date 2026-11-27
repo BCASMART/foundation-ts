@@ -1,11 +1,11 @@
 import { $capacityForCount, $isarray, $isnumber, $isstring, $isunsigned, $lse, $ok, $tounsigned } from "./commons";
 import { $crc16, $crc32, $hash, TSHashOptions, $slowhash, HashMethod } from "./crypto";
-import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $bufferFromDataLike, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa, $encodeBase64URL, $bufferFromHexaString, $decodeBase64, $decodeBase64URL } from "./data";
+import { $arrayBufferFromBytes, $dataAspect, $bufferFromArrayBuffer, $uint8ArrayFromBytes, $encodeBase64, $arrayFromBytes, $uint8ArrayFromDataLike, $dataXOR, $encodeBytesToHexa, $encodeBase64URL, $bufferFromHexaString, $decodeBase64, $decodeBase64URL, __bufferFromBytes } from "./data";
 import { $fullWriteBuffer, $readBuffer, $writeBuffer, TSWriteBufferOptions } from "./fs";
-import { $charset, TSCharset } from "./tscharset";
+import { $charset, EncodingOrCharset, TSCharset } from "./tscharset";
 import { TSError } from "./tserrors";
 import { TSClone, TSLeafInspect, TSObject } from "./tsobject";
-import { Bytes, Comparison, Nullable, Same, StringEncoding, TSDataLike, TSEndianness, uint, uint16, uint32, uint8, UINT8_MAX } from "./types" ;
+import { Ascending, Bytes, Comparison, Descending, Nullable, Same, TSDataLike, TSEndianness, uint, uint16, uint32, uint8, UINT8_MAX } from "./types" ;
 
 /**
  * TSData is a mutable buffer-like class. You cannot directly access the contained bytes in a TSData.
@@ -65,7 +65,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             const slen = (source as Bytes).length ;
             this._len = 0 ;
             this._buf = this._allocFn($capacityForCount(slen)) ;
-            this.appendBytes(source as Bytes, 0, slen)
+            this._splice('TSData.constructor()', 0, 0, source as Bytes, 0, slen) ;
         }
         else if ($isnumber(source)) {
             const capacity = $capacityForCount(source) 
@@ -83,7 +83,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         return $ok(b) ? new TSData(b, { dontCopySourceBuffer:true }) : null ;
     }
 
-    public static fromString(source:Nullable<string>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
+    public static fromString(source:Nullable<string>, encoding?:Nullable<EncodingOrCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):TSData {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         return start < end ? $charset(encoding, TSCharset.binaryCharset()).dataFromString(source!, start, end) : new TSData() ;
     }
@@ -127,7 +127,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     // ============================ POTENTIALLY MUTABLE OPERATIONS =============================================
 
     public splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):this {
-        return this._splice(targetStart, deleteCount, source, sourceStart, sourceEnd, paddingByte) ;    
+        return this._splice('TSData.splice()', targetStart, deleteCount, source, sourceStart, sourceEnd, paddingByte) ;
     }
     
     public appendByte(source:uint8):this {
@@ -137,12 +137,12 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     public appendBytes(source:Nullable<Bytes>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this
-    { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
+    { return $ok(source) ? this._splice('TSData.appendBytes()', this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
     public appendData(source:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this
-    { return $ok(source) ? this._splice(this._len, 0, source, sourceStart, sourceEnd) : this ; }
+    { return $ok(source) ? this._splice('TSData.appendData()', this._len, 0, source, sourceStart, sourceEnd) : this ; }
 
-    public appendString(source:Nullable<string>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
+    public appendString(source:Nullable<string>, encoding?:Nullable<EncodingOrCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [,start,end,] = $lse(source, sourceStart, sourceEnd) ;
         if (start < end) {
             const b = $charset(encoding, TSCharset.binaryCharset()).stringToBytes(source!, start, end) ;
@@ -163,18 +163,18 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 
     public replaceBytes(source:Nullable<Bytes>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
-        return this._splice($tounsigned(targetStart), len, source, start, end) ;
+        return this._splice('TSData.replaceBytes()', $tounsigned(targetStart), len, source, start, end) ;
     }
 
     public replaceData(source:Nullable<TSDataLike>, targetStart?:Nullable<number>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
-        return this._splice($tounsigned(targetStart), len, source, start, end) ; // we remove 
+        return this._splice('TSData.replaceData()', $tounsigned(targetStart), len, source, start, end) ; // we remove 
     }
 
-    public replaceString(source:Nullable<string>, targetStart?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
+    public replaceString(source:Nullable<string>, targetStart?:Nullable<number>, encoding?:Nullable<EncodingOrCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):this {
         const datasource = $ok(source) ? $charset(encoding, TSCharset.binaryCharset()).bufferFromString(source!, sourceStart, sourceEnd) : null ;
         const [, start, end, len] = $lse(datasource) ;
-        return this._splice($tounsigned(targetStart), len, datasource, start, end) ; 
+        return this._splice('TSData.replaceString()', $tounsigned(targetStart), len, datasource, start, end) ; 
     }
 
     public getInt8(byteOffset:number = 0):number { return this._checkedDataView(byteOffset, 1).getInt8(byteOffset) ; }
@@ -288,34 +288,34 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public keys():    IterableIterator<number>           { return this.mutableBuffer.keys() ; }
     public values():  IterableIterator<number>           { return this.mutableBuffer.values() ; }
 
-    public includes(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<StringEncoding|TSCharset>): boolean // NOSONAR: union used only here, no alias needed
+    public includes(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<EncodingOrCharset>): boolean // NOSONAR: union used only here, no alias needed
     {
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return false ; }
         return this._index(data!, 0 as uint) !== -1 ; 
     }
 
-    public startsWith(value:Nullable<TSData | number | string>, encoding?:Nullable<StringEncoding|TSCharset>):boolean 
+    public startsWith(value:Nullable<TSData | number | string>, encoding?:Nullable<EncodingOrCharset>):boolean 
     { 
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return false ; }
         return this._matchesAt(data!, 0) ;
     }
 
-    public endsWith(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<StringEncoding|TSCharset>):boolean {
+    public endsWith(value:Nullable<TSDataLike | number | string>, encoding?:Nullable<EncodingOrCharset>):boolean {
         if (!$ok(value) || !this._len) { return false ; }
         const data = _dataValue(value!, encoding) ;    if (!$ok(data)) { return false ; }
         return this._matchesAt(data!, this._len - _searchedLength(data)) ;
     }
 
-    public indexOf(value:Nullable<TSDataLike | number | string>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
+    public indexOf(value:Nullable<TSDataLike | number | string>, byteOffset?:Nullable<number>, encoding?:Nullable<EncodingOrCharset>): number {
         if (!$ok(value) || !this._len) { return - 1 ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return -1 ; }
 
         return this._index(data!, $tounsigned(byteOffset)) ;
     }
     
-    public lastIndexOf(value:Nullable<TSDataLike | number | Uint8Array>, byteOffset?:Nullable<number>, encoding?:Nullable<StringEncoding|TSCharset>): number {
+    public lastIndexOf(value:Nullable<TSDataLike | number | Uint8Array>, byteOffset?:Nullable<number>, encoding?:Nullable<EncodingOrCharset>): number {
         if (!$ok(value) || !this._len) { return - 1 ; }
         const data = _dataValue(value!, encoding) ; if (!$ok(data)) { return -1 ; }
 
@@ -338,7 +338,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     public uint8ArraySlice(sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Uint8Array {
         const [, start, end, len] = $lse(this, sourceStart, sourceEnd) ;
         const ret = new Uint8Array(len)
-        if (len) { this._buf.copy(ret, 0, start, end) ; }
+        if (len) { ret.set(this._buf.subarray(start, end)) ; } // not copy(): the browsers Buffer refuses an Uint8Array target
         return ret ;
     } 
     
@@ -346,9 +346,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         const [, start, end, len] = $lse(this, sourceStart, sourceEnd) ;
         if (len) {
             targetStart = $tounsigned(targetStart) ;
-            if (targetBuffer instanceof Uint8Array || targetBuffer instanceof Buffer) {
-                return this._buf.copy(targetBuffer, targetStart, start, end) ;
-            }
+            if (targetBuffer instanceof Buffer) { return this._buf.copy(targetBuffer, targetStart, start, end) ; }
+            if (targetBuffer instanceof Uint8Array) { return _copyToUint8Array(this._buf, targetBuffer, targetStart, start, end) ; }
             targetBuffer.replaceBytes(this._buf, targetStart, start, end) ;
             return len ;
         }
@@ -443,7 +442,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
     }
 
     // ============ TSObject conformance =============== 
-    public toString(encoding?: Nullable<StringEncoding|TSCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string 
+    public toString(encoding?: Nullable<EncodingOrCharset>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>): string 
     { return $charset(encoding, TSCharset.binaryCharset())!.stringFromData(this, sourceStart, sourceEnd) ; }
     
     public hexaString(toLowerCase?:boolean):string { return $encodeBytesToHexa(this.mutableBuffer, toLowerCase) ; }
@@ -480,16 +479,14 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (this === other) { return Same ; }
         else if (other instanceof TSData) { return Buffer.compare(this.mutableBuffer, other.mutableBuffer) as Comparison ; }
         else if (other instanceof Uint8Array) { return Buffer.compare(this.mutableBuffer, other) as Comparison ; }
-        else if (other instanceof ArrayBuffer) { return Buffer.compare(this.mutableBuffer, $bufferFromArrayBuffer(other)) ; }
-        // QUESTION: should we have a comparaison with uint8[] here.
-        return undefined ;
+        else if (other instanceof ArrayBuffer) { return Buffer.compare(this.mutableBuffer, new Uint8Array(other)) as Comparison ; } // two views, no copy
+        // a plain array is not converted: its elements would be truncated (256 compared as 0)
+        return $isarray(other) ? _compareToArray(this.mutableBuffer, other) : undefined ;
     }
 
-    public compareToData(other:Nullable<TSDataLike>) : Comparison {
-        if (this === other) { return Same ; }
-        else if (!$ok(other)) { return undefined ; }
-        return Buffer.compare(this.mutableBuffer, other instanceof TSData ? other.mutableBuffer : $bufferFromDataLike(other!)) ;
-    }
+    // like compare(): a plain array holding something else than bytes is not comparable (it used to be truncated)
+    public compareToData(other:Nullable<TSDataLike>) : Comparison
+    { return $ok(other) ? this.compare(other) : undefined ; }
 
     public isEqual(other:any) : boolean {
         if (this === other) { return true ; }
@@ -497,22 +494,29 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
             if (other._len !== this._len) { return false ; } 
             return Buffer.compare(this.mutableBuffer, other.mutableBuffer) === 0 ;
         }
-        else if (other instanceof Uint8Array || other instanceof Buffer) {
+        else if (other instanceof Uint8Array /* includes Buffer */) {
             if (other.length !== this._len) { return false ; } 
             return Buffer.compare(this.mutableBuffer, other) === 0 ;
         }
         else if (other instanceof ArrayBuffer) {
-            return this.isEqual($bufferFromArrayBuffer(other)) ;
+            // the length first, then two views (no copy)
+            return other.byteLength === this._len && Buffer.compare(this.mutableBuffer, new Uint8Array(other)) === 0 ;
         }
-        // QUESTION: should we test equality with uint8[] here.
-        return false ;
+        return $isarray(other) && _isEqualToArray(this.mutableBuffer, other) ;
     }
 
     public isEqualToData(other:Nullable<TSDataLike>) : boolean
-    { return this.compareToData(other) === Same ; }
+    { return $ok(other) && this.isEqual(other) ; }
 
     // ============ private methods =============== 
-    private _splice(targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):this {
+    private _splice(fn:string, targetStart:number, deleteCount:number, source?:Nullable<TSDataLike>, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>, paddingByte?:Nullable<number>):this {
+        if ($isarray(source)) {
+            // a plain array is checked (and copied) before any change: a non byte element
+            // throws a TSError and leaves the data unchanged
+            const [, s, e] = $lse(source, sourceStart, sourceEnd) ;
+            source = __bufferFromBytes(fn, source, { start:s, end:e }) ;
+            sourceStart = 0 ; sourceEnd = source.length ;
+        }
         const [, start, end, len] = $lse(source, sourceStart, sourceEnd) ;
         const padding = Math.min($tounsigned(paddingByte), UINT8_MAX) ;
         targetStart = $tounsigned(targetStart) ;
@@ -554,7 +558,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (!this._len) { return - 1 ;}
         const slen = _searchedLength(value) ;
         if (slen <= 0 || byteOffset + slen > this._len) { return -1 ; }
-        return this.mutableBuffer.indexOf(value!, byteOffset) ;
+        return this.mutableBuffer.indexOf(_searchable(value!), byteOffset) ;
     }
 
     private _rindex(value:number | Uint8Array, byteOffset:uint):number {
@@ -562,7 +566,7 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         const slen = _searchedLength(value) ;
         if (byteOffset >= this._len) { byteOffset = (this._len - 1) as uint ;}
         if (slen <= 0 || byteOffset - slen + 1 < 0) { return -1 ; }
-        return this.mutableBuffer.lastIndexOf(value!, byteOffset) ;
+        return this.mutableBuffer.lastIndexOf(_searchable(value!), byteOffset) ;
     }
 
     // true if value is found at position i (a byte or a non empty sequence of bytes)
@@ -576,9 +580,8 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
         if (start < end) {
             if (source instanceof ArrayBuffer) { $bufferFromArrayBuffer(source).copy(this._buf, targetStart, start, end) ;}
             else if (source instanceof Buffer || source instanceof TSData) { source.copy(this._buf, targetStart, start, end) ; }
-            else if (source instanceof Uint8Array) { this._buf.set(source.subarray(start, end), targetStart) ; }
-            // source[start..end[ must land at _buf[targetStart..] — like the Buffer.copy() above.
-            else { for (let i = start ; i < end ; i++) { this._buf[targetStart + i - start] = source[i] & 0xff } ; }
+            // _splice() changed a plain array into a Buffer: only an Uint8Array can remain here
+            else { this._buf.set((source as Uint8Array).subarray(start, end), targetStart) ; }
         }
     }
 
@@ -628,10 +631,61 @@ export class TSData implements Iterable<number>, TSObject, TSLeafInspect, TSClon
 }
 export type TSDataConstructor = new (source?:Nullable<TSDataLike|number>, opts?:TSDataOptions) => TSData;
 
-function _dataValue(value:TSDataLike|number|string, encoding?:Nullable<StringEncoding|TSCharset>):Uint8Array|number|null {
+function _dataValue(value:TSDataLike|number|string, encoding?:Nullable<EncodingOrCharset>):Uint8Array|number|null {
     if (typeof value === 'number') { return $isunsigned(value) ? value : null ; }
     if ($isstring(value)) { return $charset(encoding, TSCharset.binaryCharset()).uint8ArrayFromString(value) ; }
-    return $uint8ArrayFromDataLike(value) ;
+    return $isarray(value) ? _searchedArray(value) : $uint8ArrayFromDataLike(value) ;
+}
+
+// the Buffer of the browsers (feross/buffer) refuses a target which is not a Buffer in copy() (Node accepts an
+// Uint8Array): the bytes are set, as many as the target can hold, like Buffer.copy() does
+function _copyToUint8Array(source:Buffer, target:Uint8Array, targetStart:number, start:number, end:number):number {
+    const n = Math.min(end - start, target.length - targetStart) ;
+    if (n <= 0) { return 0 ; }
+    target.set(source.subarray(start, start + n), targetStart) ;
+    return n ;
+}
+
+// the Buffer of the browsers (feross/buffer) only searches a number, a string or a Buffer (Node also accepts
+// an Uint8Array): a searched Uint8Array is given as a Buffer view on its bytes (no copy)
+function _searchable(value:number | Uint8Array):number | Buffer {
+    if (typeof value === 'number' || value instanceof Buffer) { return value ; }
+    return Buffer.from(value.buffer, value.byteOffset, value.length) ;
+}
+
+// a searched plain array holding a non byte element cannot be found: null, since a search never throws
+function _searchedArray(a:any[]):Uint8Array|null {
+    const n = a.length ;
+    const ret = new Uint8Array(n) ;
+    for (let i = 0 ; i < n ; i++) {
+        const v = a[i] ;
+        if (!$isunsigned(v, UINT8_MAX)) { return null ; }
+        ret[i] = v ;
+    }
+    return ret ;
+}
+
+// element by element, without conversion: an element which is not a byte is never equal to a byte
+function _isEqualToArray(buf:Buffer, a:any[]):boolean {
+    const n = buf.length ;
+    if (a.length !== n) { return false ; }
+    for (let i = 0 ; i < n ; i++) { if (a[i] !== buf[i]) { return false ; } }
+    return true ;
+}
+
+// the order of Buffer.compare() (at equal common part, the shortest is the smallest),
+// or undefined if the array holds an element which is not a byte
+function _compareToArray(buf:Buffer, a:any[]):Comparison {
+    const n = buf.length, m = a.length ;
+    let ret:Comparison = undefined ;
+    for (let i = 0 ; i < m ; i++) {
+        const v = a[i] ;
+        if (!$isunsigned(v, UINT8_MAX)) { return undefined ; } // even after the first difference
+        if (ret === undefined && i < n && v !== buf[i]) { ret = buf[i] < v ? Ascending : Descending ; }
+    }
+    if (ret !== undefined) { return ret ; }
+    if (n === m) { return Same ; }
+    return n < m ? Ascending : Descending ;
 }
 
 function _searchedLength(value: Nullable<TSData | number | Uint8Array>):number {

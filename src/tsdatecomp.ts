@@ -414,7 +414,7 @@ function _compactOffset(m:int):string {
  *          (meaning enabled if hour > 0 || minute > 0 || second > 0)
  *      %]  exit previous format zone without time
  */
-export function $components2stringformat(comp:TSDateComp, format:Nullable<string>='', locale?:LocaleInfo) : string | null {
+export function $components2stringformat(comp:TSDateComp, format:Nullable<string>='', locale?:Nullable<LocaleInfo>) : string | null {
     if (!$componentsarevalid(comp)) { return null ; }
     const trs = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
     const ctx:DateDirectiveContext = { comp:comp, ts:$components2timestamp(comp), trs:trs, locale:locale } ;
@@ -461,7 +461,7 @@ interface DateDirectiveContext {
     comp:TSDateComp ;
     ts:number ;             // the timestamp of comp
     trs:Locales ;
-    locale?:LocaleInfo ;    // NOSONAR: optional. the locale used for sub-formats
+    locale?:LocaleInfo | null ;    // the locale used for sub-formats
 }
 
 // returns false if the date cannot be formatted
@@ -520,7 +520,7 @@ const _dateDirectiveHandlers:{[key:string]:(x:DateDirectiveContext) => string|nu
 export function $datetimeDescription(
     date:TSDateComp|Date|TSDate|number, 
     predefinedFormat:TSDateTimeFormat, 
-    locale:LocaleInfo=undefined,
+    locale:Nullable<LocaleInfo>=undefined,
     timezoneOffset?:Nullable<number>):string|null
 {
     let ts:number ;
@@ -566,16 +566,16 @@ export function $duration2String(comps:TSDurationComp, format?:Nullable<string>)
 
 
 export interface TSDurationDescriptionOptions {
-    depth?:Nullable<TSDurationDescriptionDepth> ; // NOSONAR: optional
-    locale?:LocaleInfo ;  // NOSONAR: optional
-    noDays?:Nullable<boolean> ;  // NOSONAR: optional
+    depth?:TSDurationDescriptionDepth|null ;
+    locale?:LocaleInfo|null ;
+    noDays?:boolean|null ;
 }
 /** @deprecated use TSDurationDescriptionOptions */
 export type $durationDescriptionOptions = TSDurationDescriptionOptions ;
 
 // hoisted to module scope for the same reason as the directive handlers above :
 // avoids redefining a closure over `a`/`locale` on every $durationDescription() call.
-function _durationRepString(key:string, value:number, defaultDefinition:UnitDefinition, locale:LocaleInfo):string {
+function _durationRepString(key:string, value:number, defaultDefinition:UnitDefinition, locale:Nullable<LocaleInfo>):string {
     const def = $value($unitDefinition(key, locale), defaultDefinition) ;
     return `${value} ${value===1?def?.singular:def.plural}` ;
 }

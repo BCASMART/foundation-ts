@@ -1,12 +1,12 @@
 import { $capacityForCount, $defined, $ismethod, $isnumber, $length, $ok, $string } from "./commons";
 import { $equal } from "./compare";
-import { $uint8ArrayFromDataLike } from "./data";
-import { $charset, TSCharset } from "./tscharset";
+import { __uint8ArrayFromDataLike } from "./data";
+import { $charset, EncodingOrCharset, TSCharset } from "./tscharset";
 import { TSData } from "./tsdata";
 import { TSDate } from "./tsdate";
 import { TSError } from "./tserrors";
 import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from "./tsfusionnode";
-import { Bytes, NormativeStringEncoding, Nullable, StringEncoding, TSDataLike, TSDictionary, uint, uint8 } from "./types";
+import { Bytes, NormativeStringEncoding, Nullable, TSDataLike, TSDictionary, uint, uint8 } from "./types";
 import { $inspect, $jsonparse, $logterm } from "./utils";
 
 export type TSFusionProcedure = (data:any, rootData:any, localContext:TSDictionary, globalContext:TSDictionary, system:TSDictionary) => any ;
@@ -22,6 +22,7 @@ export type TSFusionProcedure = (data:any, rootData:any, localContext:TSDictiona
     after of the end of the procedure.
 */
 
+/** @internal */
 export enum TSCharRole {
     UnsignificantStarterChar = 0,
     StarterChar,
@@ -36,11 +37,11 @@ interface TSFusionTemplateOptions {
     debugParsing?:boolean ;
     procedures?:TSDictionary<TSFusionProcedure> ;
     globalFunctions?:TSDictionary<Function> ;
-    addStandardGlobalFunctions?:Nullable<boolean> ; // NOSONAR: optional
+    addStandardGlobalFunctions?:boolean | null ;
 }
 
 export interface TSDataTemplateOptions extends TSFusionTemplateOptions {
-    encoding?:StringEncoding|TSCharset ;
+    encoding?:EncodingOrCharset ;
 }
 
 const [TAB,  LF,   BS,   FF,   CR,   SPACE, EXCLAMATION_MARK, DOUBLE_QUOTE, SHARP, DOLLAR, QUOTE, LPAR, RPAR, ASTERISK, PLUS, COMMA, MINUS, DOT,  SLASH, ZERO, NINE, COLON, LT,   EQ,   GT,   QUESTION_MARK, AT,   A,    Uu,   Z,    BACKSLASH, UNDERSCORE, bu,   fu,   nu,   ru,   tu,   uu,   PIPE   ] = 
@@ -90,7 +91,7 @@ export abstract class TSFusionTemplate {
     public abstract pushFusionData(data:Bytes):void ;
     public abstract pushFusionValue(value:NonNullable<any>):void ;
     
-    public static fromData(source:TSDataLike, encoding?:Nullable<StringEncoding|TSCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null
+    public static fromData(source:TSDataLike, encoding?:Nullable<EncodingOrCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null
     { return TSDataTemplate.fromData(source, encoding, opts) ; }
 
     public static fromHTMLData(source:TSDataLike, opts?:TSFusionTemplateOptions):TSHTMLTemplate|null
@@ -104,7 +105,8 @@ export abstract class TSFusionTemplate {
         const em = _ascii2data($length(opts.endingMark) ? opts.endingMark! : TSFusionTemplate.DefaultEndingMark) ;
         const sepa = _ascii2data($length(opts.separator) ? opts.separator! : TSFusionTemplate.DefaultSeparator) ;
         const debug = !!opts.debugParsing ;
-        const source = $uint8ArrayFromDataLike(src) ; 
+        // a plain array element which is not a byte is reported with the class which is built (eg. new TSDataTemplate())
+        const source = __uint8ArrayFromDataLike(`new ${new.target.name}()`, src) ; 
  
         if (debug) {
             $logterm(`&0\n&Y&k ${this.constructor.name} parsing in debug mode &0`) ;
@@ -267,7 +269,7 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     private readonly _htmlCharset:TSCharset ;
 
     public static fromHTMLData(src:TSDataLike, opts?:TSFusionTemplateOptions):TSHTMLTemplate|null {
-        const source = $uint8ArrayFromDataLike(src) ; 
+        const source = __uint8ArrayFromDataLike('TSHTMLTemplate.fromHTMLData()', src) ; 
         if (!$length(source)) { return null ; }  
         try { return new TSHTMLTemplate(source, opts) ; }
         catch(e) {
@@ -278,7 +280,7 @@ export class TSHTMLTemplate extends TSGenericDataTemplate {
     
     public constructor(src:TSDataLike, opts?:TSFusionTemplateOptions)
     { 
-        const [data, charset] = _parseHTML($uint8ArrayFromDataLike(src), opts) ;
+        const [data, charset] = _parseHTML(__uint8ArrayFromDataLike('new TSHTMLTemplate()', src), opts) ;
         super(data, opts, charset) ;
         this._htmlCharset = charset ;
     }
@@ -305,8 +307,8 @@ export class TSDataTemplate extends TSGenericDataTemplate {
     protected _charset:TSCharset ;
 
     // default charset is UTF-8
-    public static fromData(src:TSDataLike, encoding?:Nullable<StringEncoding|TSCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null {
-        const source = $uint8ArrayFromDataLike(src) ; 
+    public static fromData(src:TSDataLike, encoding?:Nullable<EncodingOrCharset>, opts?:TSFusionTemplateOptions):TSDataTemplate|null {
+        const source = __uint8ArrayFromDataLike('TSDataTemplate.fromData()', src) ; 
 
         if (!$length(source)) { return null ; }
         const charset = $charset(encoding) ;
@@ -884,7 +886,8 @@ class FusionTemplateParser {
             if (this.highSurrogate) {
                 // a surrogate pair (eg. \uD83D\uDE00) is one character (each half used to be converted alone)
                 if (u < 0xDC00 || u > 0xDFFF) { this._loneSurrogate() ; }
-                s = String.fromCharCode(this.highSurrogate, u) ;
+                // the code point of the pair, built from its two halves (String.fromCodePoint() is preferred)
+                s = String.fromCodePoint(0x10000 + ((this.highSurrogate - 0xD800) << 10) + (u - 0xDC00)) ;
                 this.highSurrogate = 0 ;
             }
             else if (u >= 0xDC00 && u <= 0xDFFF) { return this._loneSurrogate() ; }

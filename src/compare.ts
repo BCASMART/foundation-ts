@@ -1,6 +1,6 @@
-import { $defined, $isarray, $ismethod, $isstring, $ok, $string } from "./commons";
+import { $defined, $isarray, $ismethod, $isstring, $isunsigned, $ok, $string } from "./commons";
 import { TSDate } from "./tsdate";
-import { Comparison, Same, Ascending, Descending, Nullable, Bytes} from "./types";
+import { Comparison, Same, Ascending, Descending, Nullable, Bytes, UINT8_MAX } from "./types";
 import { $normspaces, $ascii } from "./strings";
 import { TSError } from "./tserrors";
 
@@ -61,6 +61,8 @@ export function $dateorder(a:DateCompareable, b:DateCompareable):NonNullable<Com
 
 export function $bytescompare(a:Nullable<Bytes>, b:Nullable<Bytes>):Comparison {
     if (!$ok(a) || !$ok(b)) { return undefined ; }
+    // a plain array holding something else than bytes is not comparable (a comparison never throws)
+    if (!_holdsBytes(a!) || !_holdsBytes(b!)) { return undefined ; }
 	if (a === b) { return Same ; }
     const na = a!.length, nb = b!.length ;
     let i = 0 ;
@@ -100,9 +102,20 @@ export function $compare(a:any, b:any):Comparison {
         if (accepts(a) && accepts(b)) { return compare(a, b) ; }
     }
 
+    // an array and an object which compares itself with arrays (eg. a TSData): the object decides in both
+    // orders (Array.compare() refuses any non array). Not a typed array: Buffer.compare() throws on an array
+    if ($isarray(a) && !$isarray(b) && !ArrayBuffer.isView(b) && $ismethod(b, 'compare')) { return _inverseComparison(b.compare(a)) ; }
+
+    // binary data (a typed array or an ArrayBuffer) and another kind of object: that object decides in both
+    // orders (eg. a TSData), otherwise they are not comparable. Buffer.prototype.compare() is not called:
+    // it throws a TypeError on anything else than a typed array
+    if (_isBinary(a)) { return !_isBinary(b) && $ismethod(b, 'compare') ? _inverseComparison(b.compare(a)) : undefined ; }
+
     // Array, Set, Map are now conform to TSObject
     return $ismethod(a, 'compare') ? a.compare(b) : undefined ;
 }
+
+function _isBinary(v:any):boolean { return ArrayBuffer.isView(v) || v instanceof ArrayBuffer ; }
 
 export function $order(a:any, b:any): NonNullable<Comparison>
 { 
@@ -129,11 +142,16 @@ export function $visualorder(a:any, b:any):NonNullable<Comparison>
 // ================== equality functions =========================
 
 export function $bytesequal(a:Nullable<Bytes>, b:Nullable<Bytes>):boolean {
-	if (a === b) { return true ; }
+	if (a === b) { return !$ok(a) || _holdsBytes(a) ; } // a plain array holding a non byte element is not equal to itself
 	if (!$ok(a) || !$ok(b)) { return false ; }
     const n = a.length ;
     if (n !== b.length) { return false ; }
-    for(let i = 0 ; i < n ; i++) { if (a[i] !== b[i]) return false ; }
+    // a byte is never strictly equal to something else: the elements need a check only between two plain arrays
+    const checked = !(a instanceof Uint8Array) && !(b instanceof Uint8Array) ;
+    for(let i = 0 ; i < n ; i++) {
+        const v = a[i] ;
+        if (v !== b[i] || (checked && !$isunsigned(v, UINT8_MAX))) { return false ; }
+    }
     return true ;
 }
 
@@ -145,16 +163,25 @@ export function $equal(a:any, b:any):boolean {
 
     if (a instanceof URL && b instanceof URL) { return a.href === b.href ; }
 
+    // an array and an object which compares itself with arrays (eg. a TSData): the object decides in both
+    // orders (Array.isEqual() refuses any non array)
+    if ($isarray(a) && !$isarray(b) && $ismethod(b, 'isEqual')) { return b.isEqual(a) ; }
+
     // Set, Map and Array are now conform to TSObject
     if ($ismethod(a, 'isEqual')) { return a.isEqual(b) ; }
     if ($ismethod(b, 'isEqual')) { return b.isEqual(a) ; }
 
+    return _binaryEqual(a, b) ?? $objectsequal(a, b) ;
+}
+
+// the equality of two binary values (Buffer, typed arrays, ArrayBuffer), or undefined if a or b is not one
+function _binaryEqual(a:any, b:any):boolean|undefined {
 	if (a instanceof Buffer && b instanceof Buffer) { return Buffer.compare(a, b) === 0 ; }
 	if (a instanceof Uint8Array && b instanceof Uint8Array) { return $bytesequal(a, b) ; }
 	if ((a instanceof ArrayBuffer || ArrayBuffer.isView(a)) && (b instanceof ArrayBuffer || ArrayBuffer.isView(b))) {
         return $bytesequal(new Uint8Array(a as ArrayBufferLike), new Uint8Array(b as ArrayBufferLike)) ;
 	}
-    return $objectsequal(a, b) ;
+    return undefined ;
 }
 
 export function $objectsequal(a:Nullable<object>, b:Nullable<object>) {
@@ -282,6 +309,13 @@ function _inverseComparison(c:Comparison):Comparison {
 
 
 function _isnan(x:any):boolean { return typeof x !== 'number' || Number.isNaN(x) ; }
+
+// true for a typed array (never scanned) or a plain array whose elements are all integers from 0 to 255
+function _holdsBytes(x:Bytes):boolean {
+    if (x instanceof Uint8Array) { return true ; }
+    for (const v of x) { if (!$isunsigned(v, UINT8_MAX)) { return false ; } }
+    return true ;
+}
 
 function _strcompare(a:string, b:string):Comparison {
     if (a === b) { return Same ; }

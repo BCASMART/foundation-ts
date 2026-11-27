@@ -36,9 +36,9 @@ import { TSClone, TSObject } from "./tsobject";
  * - does not provide user and password
  */
 export interface TSURLParseOptions {
-    acceptedProtocols?:Nullable<string[]> ; // NOSONAR: optional
-    refusesParameters?:Nullable<boolean> ; // NOSONAR: optional
-    throwsError?:Nullable<boolean> ; // NOSONAR: optional
+    acceptedProtocols?:string[] | null ;
+    refusesParameters?:boolean | null ;
+    throwsError?:boolean | null ;
 }
 
 export class TSURL implements TSObject, TSClone<TSURL> {
@@ -73,10 +73,16 @@ export class TSURL implements TSObject, TSClone<TSURL> {
         return TSURL.url(source.href, options!)
     }
 
+    // the path is always a path of the origin: an absolute URL ('https://host/x') or a path starting with '//'
+    // (another host for new URL()) is refused, and so is an origin with a query string or a fragment (the
+    // path would be written after them). They used to give an absurd URL (eg. 'http://localhost/https://host/x')
     public static compose(origin:Nullable<string>, path:string, options?:Nullable<TSURLParseOptions>):TSURL|null {
+        const opts = $value(options, {}) ;
         let o = $ftrim(origin) ;
         let p = $ftrim(path) ;
+        if (__absoluteURLRegex.test(p) || p.startsWith('//')) { return _urlError(opts, `TSURL.compose(): '${p}' is not a path`) ; }
         if (!o.length) { o = 'http://localhost/' ; }
+        else if (o.includes('?') || o.includes('#')) { return _urlError(opts, `TSURL.compose(): origin '${o}' has a query string or a fragment`) ; }
         if (!o.endsWith('/')) { o += '/' ; }
         if (p.startsWith('/')) { p = p.slice(1) ; }
         return this.url(o+p, options) ;
@@ -336,6 +342,9 @@ function _validateHostName(hostname:string):[string, string] {
 }
 
 // returns null or throws an error with the message, according to the throwsError option
+/** @internal — a scheme followed by '//' (RFC 3986): an absolute URL, not a path */
+export const __absoluteURLRegex = /^[a-z][a-z0-9+.-]*:\/\//i ;
+
 function _urlError(opts:TSURLParseOptions, message:string):null {
     if (opts.throwsError) { TSError.throw(message) ; }
     return null ;

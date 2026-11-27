@@ -55,7 +55,7 @@ export interface TSEndPoint {
     query?: {[key: string]: TSLeafNode } ;
     body?:TSNode ;
     response?:TSNode ;
-    context?:Nullable<TSDictionary> ; // NOSONAR: optional
+    context?:TSDictionary | null ;
 }
 
 /** 
@@ -77,7 +77,7 @@ export interface TSPreflightResponse {
     allowedOrigin:Nullable<string> ; // if not set or empty, allowed origin is '*'
     allowedMethods:Nullable<string|string[]> ; // allowed methods. if not set or '*', all Verb union
     allowedHeaders:Nullable<string|string[]> ; // if not set '*'
-    timeout?:Nullable<number> ;  // NOSONAR: optional. max age value in seconds
+    timeout?:number | null ; // max age value in seconds
     // if not set or 0 or >= 86400 (1 day) the response is valid 1 day. if duration > 0 and duration < 10, duration = 10 
 }
 

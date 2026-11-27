@@ -19,8 +19,9 @@ import { Ascending, Comparison, Descending, Nullable, TSUnicity } from "./types"
 export type $mapCallback<T,R> = (value: T, index: number) => Nullable<R> ;  
 export interface TSMapOptions<T, R> {
     callback?: $mapCallback<T,R>,
-    unicity?:Nullable<TSUnicity> ; // NOSONAR: optional
+    unicity?:TSUnicity|null ;
 }
+
 /** @deprecated use TSMapOptions */
 export type $mapOptions<T, R> = TSMapOptions<T,R> ;
 

@@ -365,6 +365,9 @@ if (!$inbrowser()) {
                     t.expectF((await fetch('/a/..%2F..%2Fsecret.html'))[0]).is(Resp.NotFound) ;
                     t.expectG((await fetch('/%ZZ.html'))[0]).is(Resp.NotFound) ;
                     t.expectH((await fetch('/index%00.html'))[0]).is(Resp.NotFound) ;
+                    // a request target which is not a path of the server (an absolute URL or '//host') is not found
+                    t.expectI((await fetch('http://other.example/index.html'))[0]).is(Resp.NotFound) ;
+                    t.expectJ((await fetch('//other.example/index.html'))[0]).is(Resp.NotFound) ;
                 }
                 finally { await TSServer.stop() ; }
             }
@@ -548,6 +551,17 @@ if (!$inbrowser()) {
                 finally { await TSServer.stop() ; }
                 t.expect([...logged].sort(), `level ${level}`).is([...types].sort()) ;
             }
+        }) ;
+
+        group.unary('start() reports the TLS option holding a plain array element which is not a byte', async (t) => {
+            const nb = (o:string) => `TSServer.start(): option '${o}': element #1 (300) is not a byte (an integer from 0 to 255).` ;
+            const st1:any = await TSServer.start(endpoints, { ...opts, key:Buffer.from('k'), certificate:[65, 300] as any }) ;
+            t.expect0(st1?.message).is(nb('certificate')) ;
+            const st2:any = await TSServer.start(endpoints, { ...opts, key:[65, 300] as any, certificate:Buffer.from('c') }) ;
+            t.expect1(st2?.message).is(nb('key')) ;
+            const st3:any = await TSServer.start(endpoints, { ...opts, key:Buffer.from('k'), certificate:Buffer.from('c'), certificateAuthority:[65, 300] as any }) ;
+            t.expect2(st3?.message).is(nb('certificateAuthority')) ;
+            t.expect3(TSServer.isRunning()).false() ;
         }) ;
 
         group.unary('start() with bad TLS options returns the error', async (t) => {

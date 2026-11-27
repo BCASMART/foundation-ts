@@ -85,12 +85,12 @@ export enum TSParserActionContext {
 
 export type TSParserActionContextType = keyof typeof TSParserActionContext ;
 export interface TSParserOptions {
-    errors?:Nullable<string[]> ;                    // NOSONAR: optional
-    context?:Nullable<TSParserActionContextType> ;  // NOSONAR: optional
-    acceptsUncheckedItems?:Nullable<boolean> ;      // NOSONAR: optional
+    errors?:string[]|null ;
+    context?:TSParserActionContextType|null ;
+    acceptsUncheckedItems?:boolean|null ;
 }
 export interface TSParserActionOptions extends TSParserOptions {
-    options?:Nullable<TSDictionary> ;               // NOSONAR: optional
+    options?:TSDictionary|null ;
 }
 export type TSParserAction<T>   = (v:any, opts?:Nullable<TSParserActionOptions>) => T ;
 export type TSParserChecker     = TSParserAction<boolean> ;
@@ -142,9 +142,9 @@ export type TSObjectNode = { [key: string]: TSNode } | {
     _transformer?:TSParserTransformer ; 
     _natifier?:TSParserNatifier ;
     _mandatory?:boolean ;
-    _keysCase?:Nullable<TSCase> ;                       // NOSONAR: optional
-    _aliases?:Nullable<Map<string, string>> ;           // NOSONAR: optional
-    _outputAliases?:Nullable<Map<string, string>> ;     // NOSONAR: optional
+    _keysCase?:TSCase | null ;
+    _aliases?:Map<string, string> | null ;
+    _outputAliases?:Map<string, string> | null ;
     _aliasUnsensitive?:boolean ;
 }
 
@@ -614,6 +614,7 @@ function _arrayNodeItems(value:any):any[]|null {
     return null ;
 }
 
+/** @internal */
 export function isLeafParserType(s:Nullable<string>) {
     return $length(s) ? TSLeafParser.isLeafParserType(s!) : false ;
 }
@@ -991,7 +992,10 @@ function _isJsDate(v:any):boolean
 // A number alone (eg. '5' or '20240501') is refused: Date.parse() gives strange dates for it. Without any
 // timezone indication, the date is a UTC date (Date.parse() used a UTC or a local time, depending on the form).
 const __JSDATE_TIME = /\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?/ ;
-const __JSDATE_TIME_ZONE = /\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{2}(?::?\d{2})?)(?![\d:])/i ;
+// a single regex for a time followed by a timezone was too complex: the times are found with __JSDATE_TIMES
+// and the timezone is checked right after each of them (see _hasTimeWithZone())
+const __JSDATE_TIMES = new RegExp(__JSDATE_TIME.source, 'g') ;
+const __JSDATE_ZONE_AFTER_TIME = /^\s*(?:Z|[+-]\d{2}(?::?\d{2})?)(?![\d:])/i ;
 const __JSDATE_ZONE_NAME = /\b(?:UTC|GMT|UT|[ECMP][SD]T)\b/i ;
 const __JSDATE_ISO_DATE = /^[+-]?\d{4,6}-\d{2}-\d{2}$/ ;
 const __JSDATE_YEAR_FIRST = /^([+-]?\d{4,6})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)/ ;
@@ -1012,8 +1016,22 @@ function _jsDateFromString(source:string):Date|null {
 
 // the string with a UTC timezone if it has none
 function _jsDateUTCString(s:string):string {
-    if (__JSDATE_TIME_ZONE.test(s) || __JSDATE_ZONE_NAME.test(s) || __JSDATE_ISO_DATE.test(s)) { return s ; } // an ISO date alone is a UTC date
+    if (_hasTimeWithZone(s) || __JSDATE_ZONE_NAME.test(s) || __JSDATE_ISO_DATE.test(s)) { return s ; } // an ISO date alone is a UTC date
     return /^[+-]?\d{4,6}-\d{2}-\d{2}T/i.test(s) ? s + 'Z' : s + ' UTC' ; // Date.parse() refuses an ISO date-time with ' UTC'
+}
+
+// true if a time of the string is followed by a numeric or 'Z' timezone
+function _hasTimeWithZone(s:string):boolean {
+    // __JSDATE_TIMES is a shared global regex: its lastIndex is reset before use and on success
+    // (exec() resets it when it finds nothing)
+    const re = __JSDATE_TIMES ;
+    re.lastIndex = 0 ;
+    for (let m = re.exec(s) ; m ; m = re.exec(s)) {
+        if (__JSDATE_ZONE_AFTER_TIME.test(s.slice(m.index + m[0].length))) { re.lastIndex = 0 ; return true ; }
+        // a time may also begin inside the one just found (eg. '56:78Z' in '12:34:56:78Z')
+        re.lastIndex = m.index + 1 ;
+    }
+    return false ;
 }
 
 // the year, month and day written in the string, or null if they are not found
@@ -1023,7 +1041,8 @@ function _jsDateYearMonthDay(s:string):[number, number, number]|null {
     m = __JSDATE_MONTH_FIRST.exec(s) ;
     if (m) { return [Number(m[3]), Number(m[1]), Number(m[2])] ; }
     // an English month name, a day and a 4 digits year (the times and timezones are not numbers of the date)
-    const words = s.replace(new RegExp(__JSDATE_TIME.source, 'g'), ' ').replace(/[+-]\d{2}:?\d{2}\b/g, ' ').toLowerCase().split(/[^a-z0-9]+/) ;
+    // (replace() with the shared global __JSDATE_TIMES always starts at 0 and leaves its lastIndex at 0)
+    const words = s.replace(__JSDATE_TIMES, ' ').replace(/[+-]\d{2}:?\d{2}\b/g, ' ').toLowerCase().split(/[^a-z0-9]+/) ;
     const numbers = words.filter(w => /^\d+$/.test(w)) ;
     const months = words.filter(w => w.length >= 3 && __JSDATE_MONTHS.includes(w.slice(0, 3))) ;
     if (months.length !== 1 || numbers.length !== 2) { return null ; } // one month name, a day and a year

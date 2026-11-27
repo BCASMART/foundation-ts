@@ -1,6 +1,6 @@
 {
   "name": "foundation-ts",
-  "version": "1.8.12",
+  "version": "1.8.13",
   "description": "Typescript basic manipulation functions and classes",
   "scripts": {
     "build": "tsc",
@@ -10,6 +10,7 @@
     "publish": "npm run clean && npm run build && node dist/SetupPackage.js && cd dist && npm pack && npm publish",
     "test": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node --async-stack-traces --experimental-modules --no-warnings tdist/test/index.test.js",
     "coverage": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && c8 node --async-stack-traces --no-warnings tdist/test/index.test.js",
+    "coverage:all": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && c8 --clean node --async-stack-traces --no-warnings tdist/test/index.test.js && c8 --clean=false node -r ./test/jsdom-register.cjs --async-stack-traces --no-warnings tdist/test/jsdom.test.js",
     "test:jsdom": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node -r ./test/jsdom-register.cjs --async-stack-traces --no-warnings tdist/test/jsdom.test.js",
     "test:chrome": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node test/browser-build.mjs && node test/browser-driver.mjs chromium",
     "test:firefox": "npm run clean && tsc --project tsconfig.test.json && cp -R src/*.json tdist/src && node test/browser-build.mjs && node test/browser-driver.mjs firefox",

@@ -249,16 +249,16 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
         return false ;
     }
 	
-    public toString(format?:Nullable<TSDateForm|string>, locale?:LocaleInfo) : string {
+    public toString(format?:Nullable<TSDateForm|string>, locale?:Nullable<LocaleInfo>) : string {
         if (!$ok(format) && !$ok(locale)) { return this.toIsoString() ;}
         return this._toString(false, format, locale) ;
     }
 
-    public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:LocaleInfo) : string {
+    public toLocaleString(format?:Nullable<TSDateForm|string>,locale?:Nullable<LocaleInfo>) : string {
         return this._toString(true, format, locale) ;
     }
 
-    public toTimezoneString(timezone:string, format?:Nullable<TSDateForm|string>, locale?:LocaleInfo):string {
+    public toTimezoneString(timezone:string, format?:Nullable<TSDateForm|string>, locale?:Nullable<LocaleInfo>):string {
         return this._toString(timezone, format, locale) ;
     }
 
@@ -274,7 +274,7 @@ export class TSDate implements TSObject, TSLeafInspect, TSClone<TSDate> {
     }
     
 	// ============ Private methods =============== 
-    private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:LocaleInfo) : string {
+    private _toString(localTimeOrTZ:boolean|string, format?:Nullable<TSDateForm|string>, locale?:Nullable<LocaleInfo>   ) : string {
         let offset = 0 ; 
         if (typeof localTimeOrTZ == 'string') {
             offset = $timezoneOffsetWithComponents($ftrim(localTimeOrTZ), $components(this._timestamp)) * TSMinute ;

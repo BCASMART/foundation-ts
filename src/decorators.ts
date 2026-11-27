@@ -6,9 +6,9 @@ import { $ellapsed, $inspect, $logterm, $mark, $writeterm } from "./utils";
 export type TSTraceOutput = (s:string) => void ;
 
 export interface TSTraceOptions {
-    log?:Nullable<TSTraceOutput> ;   // NOSONAR: optional. outputs a line (default: TSTracer.defaultLog)
-    write?:Nullable<TSTraceOutput> ; // NOSONAR: optional. outputs a string without line feed (default: TSTracer.defaultWrite)
-    label?:Nullable<string> ;        // NOSONAR: optional. the name of the traced method in the traces (default: Class.method)
+    log?:TSTraceOutput | null ;   // outputs a line (default: TSTracer.defaultLog)
+    write?:TSTraceOutput | null ; // outputs a string without line feed (default: TSTracer.defaultWrite)
+    label?:string | null ;        // the name of the traced method in the traces (default: Class.method)
 }
 
 /**

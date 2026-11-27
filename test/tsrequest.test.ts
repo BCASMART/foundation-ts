@@ -50,6 +50,13 @@ TSTest.group("Testing static request functions", async (group) => {
 
 TSTest.group("$basicauth / $barerauth / $query edge cases", async (group) => {
 
+    group.unary('$barerauth() and setToken() report a plain array element which is not a byte under their name', async (t) => {
+        const nb = (fn:string) => (e:any) => e?.message === `${fn}: element #1 (300) is not a byte (an integer from 0 to 255).` ;
+        t.expect0(() => $barerauth([65, 300] as any)).throws(nb('$barerauth()')) ;
+        t.expect1(() => new TSRequest('http://localhost/').setToken([65, 300] as any)).throws(nb('TSRequest.setToken()')) ;
+        t.expect2($barerauth([65, 66] as any)).is('Bearer QUI=') ;
+    }) ;
+
     group.unary('$basicauth() / $barerauth()', async (t) => {
         t.expect0($basicauth('alice', 'secret')).is('Basic YWxpY2U6c2VjcmV0') ;   // base64("alice:secret")
         t.expect1($basicauth('café', 'naïve')).is('Basic Y2Fmw6k6bmHDr3Zl') ;     // utf-8 by default
@@ -266,6 +273,43 @@ requestGroups.push(TSTest.group("TSRequest.req() — composition, response type,
 // Node-only : a raw local HTTP server, to see the exact received paths
 if (!$inbrowser()) {
 requestGroups.push(TSTest.group("TSRequest.req() — trailing slash and non JSON responses", async (group) => {
+    group.unary('an absolute URL is used as it is, whatever the base URL', async (t) => {
+        const paths:string[] = [] ;
+        const server = http.createServer((req, res) => {
+            paths.push(req.url!) ;
+            res.writeHead(200, { 'content-type':'application/json' }) ; res.end('{"ok":true}') ;
+        }) ;
+        await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve())) ;
+        try {
+            const url = `http://127.0.0.1:${(server.address() as any).port}` ;
+            const sent = async (r:TSRequest, rel:string):Promise<[number, string]> => { paths.length = 0 ; const resp = await r.req(rel) ; return [resp.status, paths[0]] ; } ;
+            // without base URL (http://localhost/), it used to request http://localhost/http://127.0.0.1:...
+            t.expect0(await sent(new TSRequest(), `${url}/.well-known/openid-configuration`)).is([200, '/.well-known/openid-configuration']) ;
+            paths.length = 0 ;
+            const [ret, status] = await new TSRequest().request(`${url}/a/b?x=1`) ;
+            t.expect1([ret, status]).is([{ ok:true }, 200]) ;
+            t.expect2(paths[0]).is('/a/b?x=1') ;
+            // another base URL (unreachable) is ignored
+            t.expect3(await sent(new TSRequest('http://127.0.0.1:1/api'), `${url}/c`)).is([200, '/c']) ;
+            t.expect4(await sent(new TSRequest('http://127.0.0.1:1/api'), `HTTP://127.0.0.1:${(server.address() as any).port}/d`)).is([200, '/d']) ;
+            // the final '/' follows the keepsTrailingSlash option, like with a relative URL
+            t.expect5(await sent(new TSRequest(), `${url}/e/`)).is([200, '/e']) ;
+            t.expect6(await sent(new TSRequest('', { keepsTrailingSlash:true }), `${url}/e/`)).is([200, '/e/']) ;
+            t.expect7(await sent(new TSRequest('', { keepsTrailingSlash:true }), url)).is([200, '/']) ;
+            // a relative URL which is not a path, or a base URL with a query string, is refused before any request
+            const nc = 'TSRequest.req(): impossible to compose base URL and relativeURL' ;
+            paths.length = 0 ;
+            await t.expectA(new TSRequest(url).req('//other.example/x')).rejects(nc) ;
+            await t.expectB(new TSRequest(`${url}/api?x=1`).req('b')).rejects(nc) ;
+            await t.expectC(new TSRequest(`${url}/api?x=1`).request('b')).rejects(nc) ;
+            t.expectD(paths.length).is(0) ;
+            // relative URLs are unchanged
+            t.expect8(await sent(new TSRequest(`${url}/api`), '/f')).is([200, '/api/f']) ;
+            t.expect9(await sent(new TSRequest(`${url}/api`), 'g')).is([200, '/api/g']) ;
+        }
+        finally { await new Promise<void>(resolve => server.close(() => resolve())) ; }
+    }) ;
+
     group.unary('keepsTrailingSlash option and RespType.Json on a non JSON response', async (t) => {
         const paths:string[] = [] ;
         const server = http.createServer((req, res) => {

@@ -2,6 +2,31 @@
 
 Prior to version 1.6, foundation-ts release notes where included in commit contents. For better assessement of what was changed, from now on, we will maintain this release notes file.
 
+## version 1.8.13
+
+#### Breaking changes
+
+- The conversions and the functions which take bytes (`$bufferFromBytes()`, `$uint8ArrayFromDataLike()`, `$encodeBase64()`, `$encodeHexa()`, `$dataXOR()`, `new TSData()`, `appendBytes()`, the `TSCharset` decoding methods, `$hash()`, `$encrypt()`...) now throw a `TSError` when a plain array contains something else than integers from 0 to 255. These values used to be silently truncated (eg. `258` became `2`).
+- `TSURL.compose(origin, path)` refuses a path which is an absolute URL or starts with `//`, and an origin with a query string or a fragment: they used to give absurd URLs (eg. `http://localhost/https://host/x`). `compose()` now returns `null`in that case. Be aware that `TSRequest.req()` and `request()` throw a `TSError` when `TSURL.compose()` returns `null`.
+
+#### Corrections
+
+- `TSData.compareToData()` and `isEqualToData()` said that an array with values greater than 255 (or negative, decimal values, strings) was equal to the data: fixed. Same correction for `$bytesequal()`, `$bytescompare()` and the `TSData` searches (`includes()`, `indexOf()`...).
+- `$compare()` threw a `TypeError` when its first argument was a `Buffer` and the second one a `TSData` (or any other non binary object): binary data and a `TSData` are now compared in both orders, and binary data and other values are not comparable (`undefined`).
+- `$encodeHexa(source, true)` ignored the lower case for a `TSData` or an `ArrayBuffer`.
+- In the browsers, `TSData.includes()`, `indexOf()` and `lastIndexOf()` with an `Uint8Array`, `TSData.copy()` into an `Uint8Array` and `TSData.uint8ArraySlice()` threw a `TypeError`: the `Buffer` of the browser bundles only accepts a `Buffer` there.
+
+#### What's new ?
+
+- `TSData.isEqual()` and `TSData.compare()` accept an `uint8[]`.
+- `$equal()` and `$compare()` are now symmetric between an array and an object which compares itself with arrays (eg. `$equal([1, 2], data)` is `$equal(data, [1, 2])`).
+- `TSRequest.req()` and `request()` can now directly use an absolute URL (like `fetch()` does). In that case, `TSRequest`'s `origin` is not used.
+- A new type `EncodingOrCharset` replaces definitions like `StringEncoding | TSCharset`.
+- Type `LocalInfo` does not includes `undefined` or `null` anymore.
+- Some useless exports where removed from typescript `*.d.ts` files.
+
+<hr/>
+
 ## version 1.8.12
 
 #### Breaking changes

@@ -123,6 +123,11 @@ export const utilsGroups =TSTest.group("Other utils functions", async (group) =>
     tree.sub1.sub2.sub3.root = tree;
     tree.sub1.sub2.sub3.parent = tree.sub1.sub2;
 
+    group.unary('$hexadump() reports a plain array element which is not a byte under its name', async(t) => {
+        const nb = (fn:string) => (e:any) => e?.message === `${fn}: element #1 (300) is not a byte (an integer from 0 to 255).` ;
+        t.expect0(() => $hexadump([65, 300] as any)).throws(nb('$hexadump()')) ;
+    }) ;
+
     group.unary('$inbrowser() function', async(t) => {
         if ($inbrowser()) {
             t.expect1(typeof document === 'undefined').false() ;

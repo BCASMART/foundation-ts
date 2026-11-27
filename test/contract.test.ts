@@ -20,6 +20,7 @@ interface ContractCase {
     a:any ;
     equalToA:any ;          // distinct instance, equal value
     greaterThanA:any ;      // strictly ordered after `a`
+    comparesArrays?:boolean ; // compare() orders the plain arrays of bytes (they are not foreign values)
 }
 
 const cases:ContractCase[] = [
@@ -28,7 +29,7 @@ const cases:ContractCase[] = [
     { name:"TSCouple", a:new TSCouple(1, "a"),             equalToA:new TSCouple(1, "a"),             greaterThanA:new TSCouple(2, "a") },
     { name:"TSList",   a:new TSList([1, 2, 3]),            equalToA:new TSList([1, 2, 3]),            greaterThanA:new TSList([1, 2, 4]) },
     { name:"TSRange",  a:new TSRange(0, 3),                equalToA:new TSRange(0, 3),                greaterThanA:new TSRange(5, 3) },
-    { name:"TSData",   a:TSData.fromString("aaa"),         equalToA:TSData.fromString("aaa"),         greaterThanA:TSData.fromString("aab") },
+    { name:"TSData",   a:TSData.fromString("aaa"),         equalToA:TSData.fromString("aaa"),         greaterThanA:TSData.fromString("aab"), comparesArrays:true },
     { name:"TSColor",  a:TSColor.rgb(10, 20, 30),          equalToA:TSColor.rgb(10, 20, 30),          greaterThanA:TSColor.rgb(200, 20, 30) },
     // TSInterval.compare() is a *partial* (precedence) order: it only orders disjoint
     // intervals, so the ordered pair below must not overlap.
@@ -66,6 +67,7 @@ export const contractGroups = TSTest.group("TSObject equality / comparison / clo
             for (let i = 0 ; i < ForeignValues.length ; i++) {
                 const f = ForeignValues[i] ;
                 t.expect(a.isEqual(f), `${c.name}.isEqual(foreign#${i})`).false() ;
+                if (c.comparesArrays && Array.isArray(f)) { continue ; } // see the TSData tests
                 t.expect(a.compare(f), `${c.name}.compare(foreign#${i})`).undef() ;
             }
         }) ;

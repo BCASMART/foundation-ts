@@ -24,17 +24,17 @@ export type TSCachePolicy = 'lru' | 'fifo' | 'lfu' ;
 export type TSCacheEvictionReason = 'expired' | 'evicted' | 'deleted' | 'replaced' ;
 
 export interface TSCacheOptions<K, V> {
-    ttl?:Nullable<number> ;                     // NOSONAR: optional. Time to live in seconds (0 or absent: no expiration)
-    sliding?:Nullable<boolean> ;                // NOSONAR: optional. Each reading delays the expiration of the item
-    maxCount?:Nullable<number> ;                // NOSONAR: optional. Maximum number of items
-    maxSize?:Nullable<number> ;                 // NOSONAR: optional. Maximum total size of the items (see sizeOf)
-    sizeOf?:Nullable<(value:V, key:K) => number> ; // NOSONAR: optional. Size of an item (default: 1)
-    ttlOf?:Nullable<(value:V, key:K) => Nullable<TSCacheLifetime>> ; // NOSONAR: optional. Life of an item, used when set() has no ttl nor expires option (undefined or null: the ttl option)
-    policy?:Nullable<TSCachePolicy> ;           // NOSONAR: optional. Eviction policy when the cache is full (default: 'lru')
-    staleWhileRevalidate?:Nullable<number> ;    // NOSONAR: optional. Seconds during which getOrSet() gives an expired value while computing the new one
-    sweepInterval?:Nullable<number> ;           // NOSONAR: optional. Seconds between two removals of the expired items (0 or absent: none)
-    onEvict?:Nullable<(key:K, value:V, reason:TSCacheEvictionReason) => void> ; // NOSONAR: optional
-    now?:Nullable<() => number> ;               // NOSONAR: optional. Clock in milliseconds (default: Date.now), eg. for tests
+    ttl?:number | null ;                           // Time to live in seconds (0 or absent: no expiration)
+    sliding?: boolean | null ;                     // Each reading delays the expiration of the item
+    maxCount?: number | null ;                     // Maximum number of items
+    maxSize?: number | null ;                      // Maximum total size of the items (see sizeOf)
+    sizeOf?:((value:V, key:K) => number) | null ;  // Size of an item (default: 1)
+    ttlOf?:((value:V, key:K) => Nullable<TSCacheLifetime>) | null ; // Life of an item, used when set() has no ttl nor expires option (undefined or null: the ttl option)
+    policy?:TSCachePolicy | null ;           // Eviction policy when the cache is full (default: 'lru')
+    staleWhileRevalidate?:number | null ;    // Seconds during which getOrSet() gives an expired value while computing the new one
+    sweepInterval?:number | null ;           // Seconds between two removals of the expired items (0 or absent: none)
+    onEvict?:((key:K, value:V, reason:TSCacheEvictionReason) => void) | null ;
+    now?:(() => number) | null ;             // Clock in milliseconds (default: Date.now), eg. for tests
 }
 
 // the end of life of an item: a Date, a TSDate or a TSDate timestamp (seconds from 2001-01-01 UTC)
@@ -45,9 +45,9 @@ export type TSCacheExpiration = Date | TSDate | number ;
 export type TSCacheLifetime = number | Date | TSDate ;
 
 export interface TSCacheSetOptions {
-    ttl?:Nullable<number> ;                     // NOSONAR: optional. Time to live of this item in seconds (0: no expiration)
-    expires?:Nullable<TSCacheExpiration> ;      // NOSONAR: optional. End of life of this item, instead of a ttl (never delayed by the sliding expiration)
-    size?:Nullable<number> ;                    // NOSONAR: optional. Size of this item (default: sizeOf())
+    ttl?:number | null ;                     // Time to live of this item in seconds (0: no expiration)
+    expires?:TSCacheExpiration | null ;      // End of life of this item, instead of a ttl (never delayed by the sliding expiration)
+    size?:number | null ;                    // Size of this item (default: sizeOf())
 }
 
 export interface TSCacheStats {
@@ -358,7 +358,7 @@ export function $removecaches():void { for (const name of __caches.keys()) { $re
 
 // ===== memoized functions
 export interface TSMemoizeOptions<K, V> extends TSCacheOptions<K, V> {
-    key?:Nullable<(...args:any[]) => K> ; // NOSONAR: optional. The key of the arguments (default: the first argument)
+    key?:((...args:any[]) => K)|null ; // The key of the arguments (default: the first argument)
 }
 
 /**

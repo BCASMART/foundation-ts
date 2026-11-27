@@ -1,5 +1,5 @@
 import { TSTest } from "../src/tstester";
-import { TSDataTemplate, TSFusionTemplate, TSStringTemplate } from '../src/tsfusion';
+import { TSDataTemplate, TSFusionTemplate, TSHTMLTemplate, TSStringTemplate } from '../src/tsfusion';
 import { TSFusionContextType, TSFusionNodeType, TSFusionTreeNode } from '../src/tsfusionnode';
 import { TSDictionary } from "../src/types";
 import { TSData } from "../src/tsdata";
@@ -81,6 +81,17 @@ TSTest.group("Fusion tests", async (group) => {
     const mac = TSCharset.macCharset() ;
     const ansi = TSCharset.ansiCharset() ;
     
+    group.unary("the templates built from a plain array report an element which is not a byte under the called function", async(t) => {
+        const nb = (fn:string) => (e:any) => e?.message === `${fn}: element #1 (300) is not a byte (an integer from 0 to 255).` ;
+        const bad = [65, 300] as any ;
+        t.expect0(() => TSFusionTemplate.fromData(bad)).throws(nb('TSDataTemplate.fromData()')) ;
+        t.expect1(() => TSDataTemplate.fromData(bad)).throws(nb('TSDataTemplate.fromData()')) ;
+        t.expect2(() => TSFusionTemplate.fromHTMLData(bad)).throws(nb('TSHTMLTemplate.fromHTMLData()')) ;
+        t.expect3(() => new TSHTMLTemplate(bad)).throws(nb('new TSHTMLTemplate()')) ;
+        t.expect4(() => new TSDataTemplate(bad, TSCharset.utf8Charset())).throws(nb('new TSDataTemplate()')) ;
+        t.expect5(TSFusionTemplate.fromData([...Buffer.from('a{{b}}')] as any)).notnull() ; // a valid array is accepted
+    }) ;
+
     group.unary("String untouched", async(t) => {
         const s = ' Ceci est une belle chaîne de {\n caractères}' ;
         const template = TSFusionTemplate.fromString(s, { debugParsing:false }) ;

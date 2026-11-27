@@ -5,6 +5,7 @@ import { TSTest } from "../src/tstester";
 import { UUIDv1, UUIDv4 } from "../src/types";
 import { TSCrypto } from "../src/tscrypto"
 import { TSCharset } from "../src/tscharset";
+import { TSError } from "../src/tserrors";
 
 const text = `Lorem Ipsum comes from a latin text written in 45BC by Roman statesman, lawyer, scholar, and philosopher, Marcus Tullius Cicero. The text is titled "de Finibus Bonorum et Malorum" which means "The Extremes of Good and Evil". The most common form of Lorem ipsum is the following:Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. The text is a corrupted version of the original and therefore does not mean anything in particular. The book however where it originates discusses the philosophical views of Epicureanism, Stoicism, and the Platonism of Antiochus of Ascalon. Lorem ipsum is widely in use since the 14th century and up to today as the default dummy "random" text of the typesetting and web development industry. In fact not only it has survived the test of time but it thrived and can be found in many software products, from Microsoft Word to WordPress.` ;
 
@@ -630,6 +631,36 @@ export const cryptoGroups = [
             try { $random(1000) ; t.expect3(grv).is(7) ; }
             finally { $setCryptoProvider(null) ; }
             t.expect4($random(1000) < 1000).true() ;
+        }) ;
+    }),
+    TSTest.group("crypto functions refuse a plain array holding a non byte element (1.8.13)", async (group) => {
+        group.unary("hash, crc, sha, encrypt, decrypt and initialization vector", async (t) => {
+            const nb = (fn:string, i:number, v:string) => (e:any) => e instanceof TSError && e.message === `${fn}: element #${i} (${v}) is not a byte (an integer from 0 to 255).` ;
+            const bad = [1, 2, 256] as any ;
+            const key = 'k'.repeat(32) ;
+            t.expect0(() => $hash(bad)).throws(nb('$hash()', 2, '256')) ;
+            t.expect1(() => $nativeHash(bad)).throws(nb('$nativeHash()', 2, '256')) ;
+            t.expect2(() => $slowhash(bad)).throws(nb('$slowhash()', 2, '256')) ;
+            t.expect3(() => $crc16(bad)).throws(nb('$crc16()', 2, '256')) ;
+            t.expect4(() => $crc32(bad)).throws(nb('$crc32()', 2, '256')) ;
+            t.expect5(() => $sha1(bad)).throws(nb('$sha1()', 2, '256')) ;
+            t.expect6(() => $sha224(bad)).throws(nb('$sha224()', 2, '256')) ;
+            t.expect7(() => $sha256(bad)).throws(nb('$sha256()', 2, '256')) ;
+            t.expect8(() => $sha384(bad)).throws(nb('$sha384()', 2, '256')) ;
+            t.expect9(() => $sha512(bad)).throws(nb('$sha512()', 2, '256')) ;
+            t.expectA(() => $encrypt(bad, key)).throws(nb('$encrypt()', 2, '256')) ;
+            t.expectB(() => $encrypt('text', [1, 256] as any)).throws(nb('$encrypt()', 1, '256')) ;
+            const encrypted = new Array(32).fill(1) ;
+            encrypted[20] = 256 ;
+            t.expectC(() => $decrypt(encrypted as any, key)).throws(nb('$decrypt()', 20, '256')) ;
+            encrypted[20] = 1 ; encrypted[5] = -1 ;
+            t.expectD(() => $decrypt(encrypted as any, key)).throws(nb('$decrypt()', 5, '-1')) ;
+            t.expectE(() => $setCommonItializationVector([...new Array(15).fill(0), 300] as any)).throws(nb('$setCommonItializationVector()', 15, '300')) ;
+            // valid arrays give the same results as the typed arrays
+            t.expectF($hash([1, 2, 3] as any)).is($hash(Buffer.from([1, 2, 3]))) ;
+            t.expectG($crc32([1, 2, 3] as any)).is($crc32(Uint8Array.from([1, 2, 3]))) ;
+            t.expectH($sha256([1, 2, 3] as any)).is($sha256(Buffer.from([1, 2, 3]))) ;
+            t.expectI($slowhash([1, 2, 3] as any)).is($slowhash(Buffer.from([1, 2, 3]))) ;
         }) ;
     })
 ] ;

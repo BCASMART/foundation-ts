@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable */
 // =============================================================================
 // Node preload for `npm run test:jsdom`.
 //

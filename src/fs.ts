@@ -44,9 +44,9 @@ import { $uuid } from './crypto';
 import { $inbrowser, $jsonparse } from './utils';
 import { TSData } from './tsdata';
 import { TSError } from './tserrors';
-import { Nullable, StringEncoding } from './types';
+import { Nullable } from './types';
 import { $asciifs, $ftrim } from './strings';
-import { $charset, TSCharset } from './tscharset';
+import { $charset, EncodingOrCharset, TSCharset } from './tscharset';
 import { $arrayset } from './array';
 import { $declareMethods } from "./object";
 
@@ -388,23 +388,23 @@ export function $loadJSON(source: Nullable<string>, acceptedExtensions?:Nullable
     return $valueornull($jsonparse(source, true, reviver)) ; // strips by default
 }
 
-export function $readString(src: Nullable<string>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
+export function $readString(src: Nullable<string>, encoding?: Nullable<EncodingOrCharset>): string | null {
     TSError.assertNotInBrowser('$readString');
     const buffer = $readBuffer(src);
     return $ok(buffer) ? $charset(encoding).stringFromData(buffer!) : null;
 }
 
 export interface BasicWriteOptions { 
-    attomically?: Nullable<boolean>; // NOSONAR: optional
-    removePrecedentVersion?: Nullable<boolean>; // NOSONAR: optional
-    mode?: Nullable<number>; // NOSONAR: optional
-    errors?: Nullable<string[]>; // NOSONAR: optional. when set, every error encountered (not warnings) is pushed here
+    attomically?: boolean | null ;
+    removePrecedentVersion?: boolean | null ;
+    mode?: number | null ;
+    errors?: string[] | null ; // When set, every error encountered (not warnings) is pushed here
 }
 
 export interface TSWriteStringOptions extends BasicWriteOptions {
-    encoding?: Nullable<StringEncoding | TSCharset>, // NOSONAR: optional
-    stringStart?: Nullable<number>, // NOSONAR: optional
-    stringEnd?: Nullable<number> // NOSONAR: optional
+    encoding?: EncodingOrCharset | null ;
+    stringStart?: number | null ;
+    stringEnd?: number | null ;
 }
 /** @deprecated use TSWriteStringOptions */
 export type $writeStringOptions = TSWriteStringOptions ;

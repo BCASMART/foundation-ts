@@ -1,5 +1,5 @@
 import { $isarray, $isobject, $issafekey, $isstring, $length, $ok, $value, $valueornull } from "./commons";
-import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringEncoding, StringTranslation, TSDictionary } from "./types";
+import { continent, ContinentNames, Countries, country, Currencies, currency, language, Languages, Nullable, StringDictionary, StringTranslation, TSDictionary } from "./types";
 import { $absolute, $isdirectory, $readBuffer } from "./fs";
 import os from 'os' // NOSONAR: no 'node:' prefix for webpack 5
 import { TSCountry } from "./tscountry";
@@ -8,9 +8,9 @@ import { $inbrowser, $logterm } from "./utils";
 import { $env } from "./env";
 import { $ascii, $ftrim, $strictascii } from "./strings";
 import { TSError } from "./tserrors";
-import { TSCharset } from "./tscharset";
+import { EncodingOrCharset } from "./tscharset";
 
-export type LocaleInfo = Nullable<language|country|TSCountry|Locales> ;
+export type LocaleInfo = language|country|TSCountry|Locales ;
 export interface Locales {
     names:StringTranslation;
     language: language,
@@ -43,10 +43,10 @@ export interface UnitDefinition {
 }
 
 export interface DefaultsConfigurationOptions {
-    encoding?:Nullable<StringEncoding|TSCharset> ;  // NOSONAR: optional
-    debug?:Nullable<boolean>                        // NOSONAR: optional
-    underscoreMax?:Nullable<number> ;               // NOSONAR: optional
-    variableMax?:Nullable<number> ;                 // NOSONAR: optional
+    encoding?:EncodingOrCharset|null ;
+    debug?:boolean | null ;
+    underscoreMax?:number | null ;
+    variableMax?:number | null ;
 }
 export type StringTranslations = { [key in Languages]?:StringDictionary } ;
 export type CurrenciesInfo = { [key in Currencies]?: { [key in Languages]?:Partial<CurrencyInfo> }} ;
@@ -287,7 +287,7 @@ export function $default(key:string):any { return TSDefaults.defaults().getValue
 export function $setdefault(key:string, value:any=undefined) { TSDefaults.defaults().setValue(key, value) ; }
 export function $removedefault(key:string) { TSDefaults.defaults().setValue(key, undefined) ; }
 
-export function $unitDefinition(key:string, locale?:LocaleInfo):Nullable<UnitDefinition> {
+export function $unitDefinition(key:string, locale?:Nullable<LocaleInfo>):Nullable<UnitDefinition> {
     const loc = !$ok(locale) || $isstring(locale) || (locale instanceof TSCountry) ? $locales(locale as any) : locale as Locales ;
     const a = loc.unitNames[key] ;
     if (!$ok(a)) { return undefined ; }

@@ -16,11 +16,11 @@ import { $logheader, $logterm } from "./utils";
  * cmykComponents()
  */
 export interface TSColorToStringOptions {
-    removeAlpha?:Nullable<boolean> ;        // NOSONAR: optional
-    uppercase?:Nullable<boolean>;           // NOSONAR: optional
-    shortestCSS?:Nullable<boolean> ;        // NOSONAR: optional
-    rgbaCSSLike?:Nullable<boolean> ;        // NOSONAR: optional
-    colorSpace?:Nullable<TSColorSpace> ;    // NOSONAR: optional
+    removeAlpha?:boolean| null ;    
+    uppercase?:boolean| null ;      
+    shortestCSS?:boolean| null ;    
+    rgbaCSSLike?:boolean| null ;    
+    colorSpace?:TSColorSpace| null ;
 }
 
 /**

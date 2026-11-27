@@ -4,6 +4,8 @@ import { $decodeBase64, $encodeBase64, $encodeBase64URL, __pureEncodeBase64, __p
 import { TSData } from '../src/tsdata';
 import { $charsetFromBytes, TSCharset } from '../src/tscharset';
 import { TSTest } from '../src/tstester';
+import { TSError } from '../src/tserrors';
+import { $bufferFromDataLike, $uint8ArrayFromDataLike } from '../src/data';
 import { TSEndianness } from '../src/types';
 
 export const dataGroups = [
@@ -329,6 +331,12 @@ export const dataGroups = [
         group.unary("$encodeHexa / $decodeHexa branches", async (t) => {
             t.expect0($encodeHexa(new TSData(Buffer.from([0xab, 0xcd])))).is('ABCD') ;
             t.expect1($encodeHexa(new Uint8Array([0xab, 0xcd]).buffer as ArrayBuffer)).is('ABCD') ;
+            // the lower case was forgotten for a TSData and an ArrayBuffer
+            t.expect($encodeHexa(new TSData(Buffer.from([0xab, 0xcd])), true), 'lower TSData').is('abcd') ;
+            t.expect($encodeHexa(new Uint8Array([0xab, 0xcd]).buffer as ArrayBuffer, true), 'lower ArrayBuffer').is('abcd') ;
+            const big = new Uint8Array(64).fill(0xab) ; // the native codec path (32 bytes and more)
+            t.expect($encodeHexa(new TSData(big), true), 'lower big TSData').is('ab'.repeat(64)) ;
+            t.expect($encodeHexa(big.buffer as ArrayBuffer), 'upper big ArrayBuffer').is('AB'.repeat(64)) ;
             t.expect2(() => $decodeHexa('nothexa!!')).throws() ;
             t.expect3((new Uint8Array([1, 2]).buffer as ArrayBuffer).base64String()).is('AQI=') ;
         }) ;
@@ -344,6 +352,69 @@ export const dataGroups = [
             t.expect6((u8.buffer as ArrayBuffer).hexaString()).is('FAFBFCFD') ;
             t.expect7(Buffer.from(new Uint8Array([0xff, 0x0f]).XOR(new Uint8Array([0x0f, 0xff])) as Uint8Array).toString('hex')).is('f0f0') ;
             t.expect8(Buffer.from((new Uint8Array([0xaa, 0xbb]).buffer as ArrayBuffer).XOR(new Uint8Array([0xff, 0xff])) as Uint8Array).toString('hex')).is('5544') ;
+        }) ;
+
+        group.unary("conversions refuse a plain array holding a non byte element (1.8.13)", async (t) => {
+            const nb = (fn:string, i:number, v:string) => (e:any) => e instanceof TSError && e.message === `${fn}: element #${i} (${v}) is not a byte (an integer from 0 to 255).` ;
+            t.expect0(() => $bufferFromBytes([0, 1, 258] as any)).throws(nb('$bufferFromBytes()', 2, '258')) ;
+            t.expect1(() => $bufferFromBytes([256, 1, 2] as any)).throws(nb('$bufferFromBytes()', 0, '256')) ;
+            t.expect2(() => $uint8ArrayFromBytes([-256, 1, 2] as any)).throws(nb('$uint8ArrayFromBytes()', 0, '-256')) ;
+            t.expect3(() => $arrayFromBytes([0, 1, 2.7] as any)).throws(nb('$arrayFromBytes()', 2, '2.7')) ;
+            t.expect4(() => $arrayBufferFromBytes(['0', 1, 2] as any)).throws(nb('$arrayBufferFromBytes()', 0, "'0'")) ;
+            t.expect5(() => $bufferFromDataLike([1, null, 2] as any)).throws(nb('$bufferFromDataLike()', 1, 'null')) ;
+            t.expect6(() => $uint8ArrayFromDataLike([1, Number.NaN] as any)).throws(nb('$uint8ArrayFromDataLike()', 1, 'NaN')) ;
+            t.expect7(() => $arrayFromDataLike([1, -1] as any)).throws(nb('$arrayFromDataLike()', 1, '-1')) ;
+            t.expect8(() => $arrayBufferFromDataLike([1, 256] as any)).throws(nb('$arrayBufferFromDataLike()', 1, '256')) ;
+            t.expect9(() => $bytesFromDataLike([1, 256] as any)).throws(nb('$bytesFromDataLike()', 1, '256')) ;
+            t.expectA(() => $bytesFromDataLike([1, 256] as any, { forceCopy:true })).throws(nb('$bytesFromDataLike()', 1, '256')) ;
+            t.expectB(() => $blobFromBytes([1, 256] as any)).throws(nb('$blobFromBytes()', 1, '256')) ;
+            t.expectC(() => $blobFromDataLike([1, 256] as any)).throws(nb('$blobFromDataLike()', 1, '256')) ;
+            t.expectD(() => $uint32ArrayFromDataLike([1, 2, 3, 256] as any)).throws(nb('$uint32ArrayFromDataLike()', 3, '256')) ;
+            t.expectE(() => $encodeBase64([1, 256] as any)).throws(nb('$encodeBase64()', 1, '256')) ;
+            t.expectF(() => $encodeBase64URL([1, 256] as any)).throws(nb('$encodeBase64URL()', 1, '256')) ;
+            t.expectG(() => $encodeHexa([1, 256] as any)).throws(nb('$encodeHexa()', 1, '256')) ;
+            t.expectH(() => $encodeBytesToHexa([1, 256] as any)).throws(nb('$encodeBytesToHexa()', 1, '256')) ;
+            t.expectI(() => $dataXOR([1, 2] as any, [1, 256] as any)).throws(nb('$dataXOR()', 1, '256')) ;
+            t.expectJ(() => $dataXOR([1, 2, 300] as any, [1] as any)).throws(nb('$dataXOR()', 2, '300')) ; // beyond the other operand
+            t.expectK(() => $bufferFromBytes([1, true] as any)).throws(nb('$bufferFromBytes()', 1, 'true')) ;
+            t.expectL(() => $bufferFromBytes([1, undefined] as any)).throws(nb('$bufferFromBytes()', 1, 'undefined')) ;
+            // values which cannot even be written in an Uint8Array still give a TSError
+            t.expectM(() => $uint8ArrayFromBytes([1, Symbol('s')] as any)).throws(nb('$uint8ArrayFromBytes()', 1, 'Symbol(s)')) ;
+            t.expectN(() => $arrayBufferFromBytes([1, 2, 10n] as any)).throws(nb('$arrayBufferFromBytes()', 2, '10')) ;
+            t.expectO(() => $bufferFromBytes([Object.create(null)] as any)).throws(nb('$bufferFromBytes()', 0, 'object')) ;
+            t.expectP(() => $bufferFromBytes([1, 2, 3, 256, 300] as any, { start:1 })).throws(nb('$bufferFromBytes()', 3, '256')) ; // the index in the source
+        }) ;
+
+        group.unary("conversions accept the valid arrays and the typed arrays, and only check the used part (1.8.13)", async (t) => {
+            const bad = [1, 2, 3, 256] as any ;
+            t.expect0(Array.from($bufferFromBytes(bad, { end:3 }))).is([1, 2, 3]) ;
+            t.expect1(Array.from($uint8ArrayFromBytes([256, 4, 5] as any, { start:1 }))).is([4, 5]) ;
+            t.expect2($arrayFromBytes(bad, { start:1, end:3 })).is([2, 3]) ;
+            t.expect3(Array.from(new Uint8Array($arrayBufferFromBytes(bad, { end:2 })))).is([1, 2]) ;
+            t.expect4(Array.from($bufferFromDataLike(bad, { end:3, forceCopy:true }))).is([1, 2, 3]) ;
+            const good = [0, 1, 127, 255] as any ;
+            t.expect5(Array.from($bufferFromBytes(good))).is(good) ;
+            t.expect6(Array.from($uint8ArrayFromBytes(good))).is(good) ;
+            t.expect7($arrayFromBytes(good) === good).true() ;          // still returned as it is
+            t.expect8($bytesFromDataLike(good) === good).true() ;
+            t.expect9($encodeHexa(good)).is('00017FFF') ;
+            t.expectA($encodeBase64(good)).is('AAF//w==') ;
+            t.expectB(Array.from($dataXOR(good, [255] as any))).is([255, 1, 127, 255]) ;
+            t.expectC(Array.from($arrayFromBytes(good, { forceCopy:true }))).is(good) ;
+            // typed arrays are always valid
+            const u8 = Uint8Array.from([0, 200, 255]) ;
+            const buf = Buffer.from([0, 200, 255]) ;
+            t.expectD(Array.from($bufferFromBytes(u8, { forceCopy:true }))).is([0, 200, 255]) ;
+            t.expectE($bufferFromBytes(buf) === buf).true() ;
+            t.expectF($uint8ArrayFromBytes(u8) === u8).true() ;
+            t.expectG($uint8ArrayFromBytes(buf, { forceCopy:true }).isGenuineUint8Array()).true() ;
+            t.expectH(Array.from(new Uint8Array($arrayBufferFromBytes(buf, { start:1 })))).is([200, 255]) ;
+            t.expectI($arrayFromBytes(u8)).is([0, 200, 255]) ;
+            t.expectJ($encodeBytesToHexa(u8)).is('00C8FF') ;
+            const c = $bufferFromBytes(buf, { forceCopy:true, start:1 }) ;
+            c[0] = 0 ;
+            t.expectK(buf[1]).is(200) ;                                 // a forced copy is a copy
+            t.expectL(Array.from($uint8ArrayFromBytes(buf, { start:1, end:2, forceCopy:true }))).is([200]) ;
         }) ;
     })
 ] ;

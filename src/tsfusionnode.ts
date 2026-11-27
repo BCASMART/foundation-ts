@@ -36,11 +36,11 @@ export interface TSFusionEnumeration {
     fusionEnumeration():any[] ;
 }
 export interface TSFusionOptions {
-    globalContext?:Nullable<TSDictionary> ; // NOSONAR: optional
-    procedures?:Nullable<TSDictionary<TSFusionProcedure>> ; // NOSONAR: optional
-    globalFunctions?:Nullable<TSDictionary<Function>> ; // NOSONAR: optional
-    errors?:Nullable<string[]> ; // NOSONAR: optional
-    addStandardGlobalFunctions?:Nullable<boolean> ; // NOSONAR: optional
+    globalContext?:TSDictionary | null ;
+    procedures?:TSDictionary<TSFusionProcedure> | null ;
+    globalFunctions?:TSDictionary<Function> | null ;
+    errors?:string[] | null ;
+    addStandardGlobalFunctions?:boolean | null ;
 }
 
 const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom') ;

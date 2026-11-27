@@ -741,6 +741,26 @@ export const TSURLGroups = [
             t.expect7(u.href).is('https://example.com/abc?x=1#top') ;
         }) ;
 
+        group.unary('compose() refuses what is not a path of the origin (1.8.13)', async (t) => {
+            // they used to give absurd URLs (eg. 'http://localhost/https://host/x' or 'http://h/api?x=1/b')
+            t.expect0(TSURL.compose(null, 'https://host/x')).null() ;
+            t.expect1(TSURL.compose('https://api.test', 'HTTP://host/x')).null() ;
+            t.expect2(TSURL.compose('https://api.test', 'svn+ssh://host/x')).null() ;
+            t.expect3(TSURL.compose('https://api.test', '//host/x')).null() ;
+            t.expect4(TSURL.compose('https://api.test', '  //host/x')).null() ;
+            t.expect5(TSURL.compose('https://api.test/v1?x=1', 'users')).null() ;
+            t.expect6(TSURL.compose('https://api.test/v1#top', 'users')).null() ;
+            t.expect7(() => TSURL.compose('https://api.test', 'https://host/x', { throwsError:true })).throws("TSURL.compose(): 'https://host/x' is not a path") ;
+            t.expect8(() => TSURL.compose('https://api.test/?x=1', 'a', { throwsError:true })).throws("TSURL.compose(): origin 'https://api.test/?x=1' has a query string or a fragment") ;
+            t.expect9(TSURL.compose('not an origin', 'x')).null() ;                    // as before, an invalid result
+            // the paths are unchanged, a ':' or a query string in the path included
+            t.expectA(TSURL.compose('https://api.test/v1', '/users')?.href).is('https://api.test/v1/users') ;
+            t.expectB(TSURL.compose('https://api.test/v1/', 'users?a=1#b')?.href).is('https://api.test/v1/users?a=1#b') ;
+            t.expectC(TSURL.compose('https://api.test', 'a:b/c')?.href).is('https://api.test/a:b/c') ;
+            t.expectD(TSURL.compose('https://api.test', '')?.href).is('https://api.test/') ;
+            t.expectE(TSURL.compose('', '/x')?.href).is('http://localhost/x') ;
+        }) ;
+
         group.unary('from() / compose() / TSObject conformance', async (t) => {
             const u = TSURL.url(U)! ;
             t.expect0(TSURL.from(new URL('https://foo.bar/baz'))?.href).is('https://foo.bar/baz') ;

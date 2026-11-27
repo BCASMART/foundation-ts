@@ -5,7 +5,8 @@ import { $removeFile, $temporarypath } from '../src/fs';
 import { FoundationBinaryNewLines, FoundationBinaryWhiteSpaces, FoundationBynaryStrictWhiteSpaces } from '../src/string_tables';
 import { TSData } from '../src/tsdata';
 import { TSTest } from '../src/tstester';
-import { Ascending, Same, TSEndianness, uint8 } from '../src/types';
+import { Ascending, Descending, Same, TSEndianness, uint8 } from '../src/types';
+import { TSError } from '../src/tserrors';
 import { $hexadump, $inbrowser } from '../src/utils';
 
 export const mutableDataGroups = [
@@ -349,7 +350,7 @@ export const mutableDataGroups = [
             t.expect7(Array.from(b)).is([0, 2, 3, 4]) ;
             t.expect8(d.isEqual($arrayBufferFromBytes(Buffer.from([1, 2, 3, 4, 5])))).true() ;
             t.expect9(d.isEqual($arrayBufferFromBytes(Buffer.from([1, 2, 3, 4])))).false() ;
-            t.expectA(d.isEqual([1, 2, 3, 4, 5])).false() ;              // arrays are not compared
+            t.expectA(d.isEqual([1, 2, 3, 4, 5])).true() ;               // an uint8[] is now compared (1.8.13)
         }) ;
 
         group.unary('data.length = n', async(t) => {
@@ -695,6 +696,98 @@ export const mutableDataGroups = [
             t.expect0(() => new TSData({} as any)).throws('TSData.constructor() : Bad parameters') ;
             t.expect1(() => new TSData('abc' as any)).throws('TSData.constructor() : Bad parameters') ;
             t.expect2(() => new TSData(true as any)).throws('TSData.constructor() : Bad parameters') ;
+        }) ;
+    }),
+    TSTest.group("TSData — plain arrays of bytes (1.8.13)", async (group) => {
+        const nb = (fn:string, i:number, v:string) => (e:any) => e instanceof TSError && e.message === `${fn}: element #${i} (${v}) is not a byte (an integer from 0 to 255).` ;
+        const nonBytes:any[] = [[256, 1, 2], [-1, 1, 2], [0, 1, 2.7], ['1', 1, 2], [null, 1, 2], [Number.NaN, 1, 2], [0, 1, 2, 256], [1, 1, 2, 256]] ;
+
+        group.unary('isEqual() and compare() with an uint8[]', async (t) => {
+            const d = new TSData(Buffer.from([0, 1, 2])) ;
+            t.expect0(d.isEqual([0, 1, 2])).true() ;
+            t.expect1(d.compare([0, 1, 2])).is(Same) ;
+            t.expect2(d.isEqual([0, 1])).false() ;
+            t.expect3(d.compare([0, 1])).is(Descending) ;              // shorter
+            t.expect4(d.isEqual([0, 1, 2, 3])).false() ;
+            t.expect5(d.compare([0, 1, 2, 3])).is(Ascending) ;         // longer
+            t.expect6(d.compare([0, 1, 3])).is(Ascending) ;            // greater
+            t.expect7(d.compare([0, 0, 255])).is(Descending) ;         // smaller
+            t.expect8(d.compare([1])).is(Ascending) ;                  // shorter but greater
+            t.expect9(new TSData().compare([])).is(Same) ;
+            t.expectA(new TSData().isEqual([])).true() ;
+            for (let i = 0 ; i < nonBytes.length ; i++) {
+                t.expect(d.isEqual(nonBytes[i]), `isEqual(nonBytes#${i})`).false() ;
+                t.expect(d.compare(nonBytes[i]), `compare(nonBytes#${i})`).undef() ;
+            }
+        }) ;
+
+        group.unary('isEqual() and compare() with an ArrayBuffer', async (t) => {
+            const d = new TSData(Buffer.from([1, 2, 3])) ;
+            t.expect0(d.isEqual(Uint8Array.from([1, 2, 3]).buffer)).true() ;
+            t.expect1(d.compare(Uint8Array.from([1, 2, 3]).buffer)).is(Same) ;
+            t.expect2(d.isEqual(Uint8Array.from([1, 2]).buffer)).false() ;
+            t.expect3(d.compare(Uint8Array.from([1, 2]).buffer)).is(Descending) ;
+            t.expect4(d.isEqual(Uint8Array.from([1, 2, 4]).buffer)).false() ;
+            t.expect5(d.compare(Uint8Array.from([1, 2, 4]).buffer)).is(Ascending) ;
+            t.expect6(d.isEqual(new ArrayBuffer(0))).false() ;
+            const e = new TSData(64) ;                                  // the length is used, not the capacity
+            e.appendBytes(Buffer.from([1, 2, 3])) ;
+            t.expect7(e.isEqual(Uint8Array.from([1, 2, 3]).buffer)).true() ;
+        }) ;
+
+        group.unary('compareToData() / isEqualToData() no longer truncate the elements of an array', async (t) => {
+            const d = new TSData(Buffer.from([0, 1, 2])) ;
+            const truncated:any[] = [[256, 1, 2], [0, 1, 258], [-256, 1, 2], [0, 1, 2.7], ['0', 1, 2]] ; // they were Same / true
+            for (let i = 0 ; i < truncated.length ; i++) {
+                t.expect(d.compareToData(truncated[i]), `compareToData(truncated#${i})`).undef() ;
+                t.expect(d.isEqualToData(truncated[i]), `isEqualToData(truncated#${i})`).false() ;
+            }
+            t.expect0(d.compareToData([0, 1, 2] as uint8[])).is(Same) ;
+            t.expect1(d.isEqualToData([0, 1, 2] as uint8[])).true() ;
+            t.expect2(d.compareToData([0, 1, 3] as uint8[])).is(Ascending) ;
+            t.expect3(d.compareToData(null)).undef() ;
+            t.expect4(d.isEqualToData(undefined)).false() ;
+            t.expect5(d.compareToData(d)).is(Same) ;
+            t.expect6(d.isEqualToData(Buffer.from([0, 1, 2]))).true() ;
+            t.expect7(d.compareToData(Uint8Array.from([0, 1, 2]).buffer)).is(Same) ;
+            t.expect8(d.compareToData(Uint8Array.from([0, 1]))).is(Descending) ;
+        }) ;
+
+        group.unary('a plain array holding a non byte element throws and leaves the data unchanged', async (t) => {
+            t.expect0(() => new TSData([1, 256] as any)).throws(nb('TSData.constructor()', 1, '256')) ;
+            const d = new TSData(Buffer.from([1, 2, 3, 4])) ;
+            t.expect1(() => d.appendBytes([5, 300] as any)).throws(nb('TSData.appendBytes()', 1, '300')) ;
+            t.expect2(() => d.appendData([5, -1] as any)).throws(nb('TSData.appendData()', 1, '-1')) ;
+            t.expect3(() => d.splice(1, 1, [7, 8, 2.5] as any)).throws(nb('TSData.splice()', 2, '2.5')) ;
+            t.expect4(() => d.replaceBytes([9, 256] as any, 0)).throws(nb('TSData.replaceBytes()', 1, '256')) ;
+            t.expect5(() => d.replaceData(['9'] as any, 1)).throws(nb('TSData.replaceData()', 0, "'9'")) ;
+            t.expect6(d.toArray()).is([1, 2, 3, 4]) ;
+            t.expect7(d.length).is(4) ;
+            // only the used part is checked
+            d.appendBytes([5, 6, 256] as any, 0, 2) ;
+            t.expect8(d.toArray()).is([1, 2, 3, 4, 5, 6]) ;
+            d.replaceBytes([256, 9] as any, 0, 1) ;
+            t.expect9(d.toArray()).is([9, 2, 3, 4, 5, 6]) ;
+            d.splice(1, 0, [7, 8] as uint8[]) ;
+            t.expectA(d.toArray()).is([9, 7, 8, 2, 3, 4, 5, 6]) ;
+            t.expectB(new TSData([0, 255] as uint8[]).toArray()).is([0, 255]) ;
+        }) ;
+
+        group.unary('searches with a plain array never throw', async (t) => {
+            const d = new TSData(Buffer.from([1, 2, 3])) ;
+            t.expect0(d.includes([2, 3] as uint8[])).true() ;
+            t.expect1(d.includes([2, 259] as any)).false() ;           // 259 used to be searched as 3
+            t.expect2(d.indexOf([258] as any)).is(-1) ;
+            t.expect3(d.lastIndexOf([2.5] as any)).is(-1) ;
+            t.expect4(d.startsWith([1, 258] as any)).false() ;
+            t.expect5(d.endsWith([2, '3'] as any)).false() ;
+            t.expect6(d.endsWith([2, 3] as uint8[])).true() ;
+            t.expect7(d.indexOf([2, 3] as uint8[])).is(1) ;
+            // an Uint8Array which is not a Buffer (the browsers Buffer only searched Buffers): it used to throw there
+            t.expect8(d.includes(new Uint8Array([2, 3]))).true() ;
+            t.expect9(d.indexOf(new Uint8Array([3]))).is(2) ;
+            t.expectA(d.lastIndexOf(new Uint8Array([1, 2]))).is(0) ;
+            t.expectB(d.includes(new Uint8Array([3, 1]))).false() ;
         }) ;
     })
 ] ;

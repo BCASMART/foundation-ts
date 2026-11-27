@@ -2,6 +2,7 @@ import "../src/mapset" ;
 import { $charset, $charsetFromBytes, TSCharset } from "../src/tscharset";
 import { TSData } from "../src/tsdata";
 import { TSTest } from "../src/tstester";
+import { TSError } from "../src/tserrors";
 
 export const charsetGroups = TSTest.group("TSCharset & $charset()", async (group) => {
     group.unary("undecodableIndex() of decodable bytes, inspection", async(t) => {
@@ -246,5 +247,43 @@ export const charsetGroups = TSTest.group("TSCharset & $charset()", async (group
         // the lenient conversions are unchanged
         t.expectG(ascii.stringFromBytes(Uint8Array.from([0x41, 0xE9]))).is('Ai') ;
         t.expectH(utf16le.stringFromBytes(Uint8Array.from([0x61, 0x00, 0x3D]))).is('a') ;
+    }) ;
+
+    group.unary("a plain array holding a non byte element is refused (1.8.13)", async(t) => {
+        const nb = (fn:string, i:number, v:string) => (e:any) => e instanceof TSError && e.message === `${fn}: element #${i} (${v}) is not a byte (an integer from 0 to 255).` ;
+        const bad = [0x41, 0x42, 0x43, 256] as any ;
+        const charsets = [TSCharset.utf8Charset(), TSCharset.latin1Charset(), TSCharset.asciiCharset(), TSCharset.unicodeCharset(),
+                          TSCharset.utf16BECharset(), TSCharset.ansiCharset(), TSCharset.macCharset(), TSCharset.charset('hex')!, TSCharset.charset('base64')!] ;
+        for (const cs of charsets) {
+            t.expect(() => cs.stringFromBytes(bad), `${cs.name}.stringFromBytes()`).throws(nb('TSCharset.stringFromBytes()', 3, '256')) ;
+            t.expect(() => cs.stringFromData(bad), `${cs.name}.stringFromData()`).throws(nb('TSCharset.stringFromData()', 3, '256')) ;
+            t.expect(() => cs.undecodableIndex(bad), `${cs.name}.undecodableIndex()`).throws(nb('TSCharset.undecodableIndex()', 3, '256')) ;
+            t.expect(() => cs.canDecode(bad), `${cs.name}.canDecode()`).throws(nb('TSCharset.canDecode()', 3, '256')) ;
+            t.expect(() => cs.strictStringFromBytes(bad), `${cs.name}.strictStringFromBytes()`).throws(nb('TSCharset.strictStringFromBytes()', 3, '256')) ;
+            t.expect(() => cs.strictStringFromData(bad), `${cs.name}.strictStringFromData()`).throws(nb('TSCharset.strictStringFromData()', 3, '256')) ;
+            // the name of the called method is not kept after an error: the next calls report their own name
+            t.expect(() => cs.undecodableIndex(bad), `${cs.name}.undecodableIndex() again`).throws(nb('TSCharset.undecodableIndex()', 3, '256')) ;
+            t.expect(() => cs.stringFromBytes(bad), `${cs.name}.stringFromBytes() again`).throws(nb('TSCharset.stringFromBytes()', 3, '256')) ;
+            // only the used part is checked
+            t.expect(cs.canDecode(bad, 0, 2), `${cs.name}.canDecode(0, 2)`).true() ;
+            t.expect(cs.stringFromBytes(bad, 0, 2), `${cs.name}.stringFromBytes(0, 2)`).is(cs.stringFromBytes(Uint8Array.from([0x41, 0x42]))) ;
+            t.expect(cs.stringFromBytes([0x41, 0x42] as any), `${cs.name}.stringFromBytes(valid)`).is(cs.stringFromBytes(Buffer.from([0x41, 0x42]))) ;
+        }
+        t.expect0(() => $charsetFromBytes(bad)).throws(nb('$charsetFromBytes()', 3, '256')) ;
+        t.expect1(() => TSCharset.charsetFromDataLike(bad)).throws(nb('TSCharset.charsetFromDataLike()', 3, '256')) ;
+        t.expect2(() => TSCharset.isUTF8Charset(bad)).throws(nb('TSCharset.isUTF8Charset()', 3, '256')) ;
+        t.expect3(() => TSCharset.stringFromDetectedData(bad)).throws(nb('TSCharset.stringFromDetectedData()', 3, '256')) ;
+        t.expect4(() => $charset(bad)).throws(nb('TSCharset.charsetFromDataLike()', 3, '256')) ;
+        t.expect5(() => TSCharset.utf8Charset().stringFromBytes([0xC3, '0xA9'] as any)).throws(nb('TSCharset.stringFromBytes()', 1, "'0xA9'")) ;
+        // valid arrays and typed arrays
+        t.expect6(TSCharset.utf8Charset().stringFromBytes([0xC3, 0xA9] as any)).is('é') ;
+        t.expect7(TSCharset.ansiCharset().stringFromBytes([0x80] as any)).is('€') ;
+        t.expect8(TSCharset.utf16BECharset().stringFromBytes([0, 0x41, 0] as any)).is('A') ;
+        t.expect9($charsetFromBytes([0x41] as any)).is(TSCharset.asciiCharset()) ;
+        t.expectA(TSCharset.latin1Charset().stringFromData(Uint8Array.from([0x41, 0x42]).buffer)).is('AB') ;
+        t.expectB(TSCharset.utf8Charset().stringFromBytes(Buffer.from('été', 'utf8'))).is('été') ;
+        const swapped = Buffer.from([0, 0x41]) ;
+        t.expectC(TSCharset.utf16BECharset().stringFromBytes(swapped)).is('A') ;
+        t.expectD(Array.from(swapped)).is([0, 0x41]) ;                 // the source is not swapped
     }) ;
 }) ;

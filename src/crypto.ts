@@ -2,12 +2,12 @@ import { createReadStream } from 'fs'; // NOSONAR: no 'node:' prefix for webpack
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'; // NOSONAR: no 'node:' prefix for webpack 5
 
 
-import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
+import { Nullable, StringDictionary, TSDataLike, TSDictionary, uint, uint16, uint32, UINT32_MAX, UINT_MAX, UUID, UUIDv1, UUIDv4, UUIDVersion } from './types';
 import { $isstring, $length, $ok, $tounsigned, $unsigned, $value, __uuidV1Regex, __uuidV4Regex } from './commons';
 import { $ftrim } from './strings';
-import { $bufferFromBytes, $bufferFromDataLike, $bufferFromHexaString, $uint8ArrayFromDataLike } from './data';
+import { $bufferFromBytes, $bufferFromHexaString, __bufferFromDataLike, __uint8ArrayFromDataLike } from './data';
 import { $declareMethods } from './object';
-import { $charset, TSCharset } from './tscharset';
+import { $charset, EncodingOrCharset, TSCharset } from './tscharset';
 import { TSData } from './tsdata';
 import { $logterm } from './utils';
 
@@ -116,17 +116,17 @@ const __TSNoSpecificIV = Buffer.from([3,67,0,14,2,95,191,0,217,255,7,6,1,67,13,8
 let __CommonInitializationVector: Buffer<ArrayBufferLike> = __TSNoSpecificIV ;
 
 export function $setCommonItializationVector(d?:Nullable<TSDataLike>)
-{ __CommonInitializationVector = $length(d) === 16 ? $bufferFromDataLike(d!) : __TSNoSpecificIV ; }
+{ __CommonInitializationVector = $length(d) === 16 ? __bufferFromDataLike('$setCommonItializationVector()', d!) : __TSNoSpecificIV ; }
 
 export function $commonInitializationVectorCopy():Buffer
 { return $bufferFromBytes(__CommonInitializationVector, { forceCopy:true }) ; }
 
 export interface TSEncryptOptions {
-    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default charset is binary
-    keyEncoding?:Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default key charset is binary
-    algorithm?: Nullable<EncryptionAlgorithm> ; // NOSONAR: optional
-    noInitializationVector?:Nullable<boolean> ; // NOSONAR: optional
-    dataOutput?: Nullable<boolean>; // NOSONAR: optional
+    encoding?: EncodingOrCharset|null ;     // default charset is binary
+    keyEncoding?: EncodingOrCharset|null ;  // default key charset is binary
+    algorithm?: EncryptionAlgorithm | null ;
+    noInitializationVector?: boolean | null ;
+    dataOutput?: boolean | null ;
 }
 /** @deprecated use TSEncryptOptions */
 export type $encryptOptions = TSEncryptOptions ;
@@ -138,10 +138,10 @@ export function $encrypt(src: string | TSDataLike, skey: string | TSDataLike, op
         TSError.throw(`$encrypt() : function createCipheriv() is not available in your system.`, { source:src, options:opts }) ;
     }
 
-    const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
+    const [charset, key, algo] = _charsetKeyAndAlgo('$encrypt()', skey, opts);
     if (!charset) { return null; }
     
-    const source = $isstring(src) ? charset!.uint8ArrayFromString(src) : $uint8ArrayFromDataLike(src);
+    const source = $isstring(src) ? charset!.uint8ArrayFromString(src) : __uint8ArrayFromDataLike('$encrypt()', src);
     if (!$length(source)) { return null; }
 
     let returnValue = null ;
@@ -182,12 +182,13 @@ export function $decrypt(source: string|TSDataLike, skey: string | TSDataLike, o
     const minimalLength = hasVector ? 2 * blockLength : blockLength ;
     if (len % blockLength !== 0 || len < minimalLength) { return null ; }
     
-    const [charset, key, algo] = _charsetKeyAndAlgo(skey, opts);
+    const [charset, key, algo] = _charsetKeyAndAlgo('$decrypt()', skey, opts);
     if (!charset) { return null ; }
 
+    // out of the try: a non byte element is a TSError, not a decryption failure
+    const parts = _encryptedParts(source, hasVector) ;
+    if (!parts) { return null ; }
     try {
-        const parts = _encryptedParts(source, hasVector) ;
-        if (!parts) { return null ; }
         const decipher = _createCipher(true, algo, key, parts.iv) ;
         const decrypted = new TSData(decipher.update(parts.data)) ;
         decrypted.appendBytes(decipher.final()) ;
@@ -207,26 +208,29 @@ function _encryptedParts(source:string|TSDataLike, hasVector:boolean):{ iv:Buffe
         const iv = hasVector ? $bufferFromHexaString(source.slice(0, 32)) : __CommonInitializationVector ;
         return $ok(data) && $ok(iv) ? { iv:iv, data:data } : null ;
     }
-    const data = $bufferFromDataLike(source, { start:hasVector ? 16 : 0 }) ;
-    const iv = hasVector ? $bufferFromDataLike(source, { end:16 }) : __CommonInitializationVector ;
+    const data = __bufferFromDataLike('$decrypt()', source, { start:hasVector ? 16 : 0 }) ;
+    const iv = hasVector ? __bufferFromDataLike('$decrypt()', source, { end:16 }) : __CommonInitializationVector ;
     return { iv:iv, data:data } ;
 }
 
 // CRC-16/ARC algorithm
-export function $crc16(source: string | TSDataLike, encoding?: Nullable<StringEncoding | TSCharset>): uint16
-{  return TSCrypto.crc16(_uint8ArrayFromStringOrDataLike(source, encoding)) ; }
+export function $crc16(source: string | TSDataLike, encoding?: Nullable<EncodingOrCharset>): uint16
+{  return TSCrypto.crc16(_uint8ArrayFromStringOrDataLike('$crc16()', source, encoding)) ; }
 
 // CRC-32 algorithm
-export function $crc32(source: string | TSDataLike, encoding?: Nullable<StringEncoding | TSCharset>): uint32
-{  return TSCrypto.crc32(_uint8ArrayFromStringOrDataLike(source, encoding)) ; }
+export function $crc32(source: string | TSDataLike, encoding?: Nullable<EncodingOrCharset>): uint32
+{  return TSCrypto.crc32(_uint8ArrayFromStringOrDataLike('$crc32()', source, encoding)) ; }
 
 // in this implementation we always tries $slowhash() if internal methods fails. Both calls are exception protected.
 // in browser, you may prefer to directly call $slowhash()
-export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
-    let ret = $nativeHash(buf, method, encoding) ;
+export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<EncodingOrCharset>): string | null {
+    // the data are converted once for both implementations, out of their try: a non byte element
+    // is a TSError, not a hash failure (a string is still converted in the try, as before)
+    const source = $isstring(buf) ? buf : __uint8ArrayFromDataLike('$hash()', buf) ;
+    let ret = $nativeHash(source, method, encoding) ;
     if ($ok(ret)) { return ret ; }
     try { 
-        ret = $slowhash(buf, { method:method, encoding:encoding }) as string ; 
+        ret = $slowhash(source, { method:method, encoding:encoding }) as string ; 
     }
     catch { 
         $logterm(`Warning: function $slowhash(buffer, { method:"${$length(method)?method:'SHA256'}" }) did fail`) ;    
@@ -235,12 +239,14 @@ export function $hash(buf: string | TSDataLike, method?: Nullable<HashMethod>, e
     return ret;
 }
 
-export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string | null {
+export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMethod>, encoding?: Nullable<EncodingOrCharset>): string | null {
     let ret: string | null = null;
     if (_hashAvailable()) {
-        // if we have an internal implementation, we use it
+        // if we have an internal implementation, we use it. The data are converted out of the try:
+        // a non byte element is a TSError, not a hash failure
+        const data = $isstring(buf) ? buf : __uint8ArrayFromDataLike('$nativeHash()', buf) ;
         try {
-            const source = _uint8ArrayFromStringOrDataLike(buf, encoding);
+            const source = _uint8ArrayFromStringOrDataLike('$nativeHash()', data, encoding);
             let hash = _createHash(method) ;
             hash.update(source) ;
             ret = hash.digest('hex');
@@ -254,17 +260,18 @@ export function $nativeHash(buf: string | TSDataLike, method?: Nullable<HashMeth
 }
 
 export interface TSHashOptions {
-    encoding?: Nullable<StringEncoding | TSCharset> ; // NOSONAR: optional. default charset is binary
-    method?: Nullable<HashMethod> ; // NOSONAR: optional
-    dataOutput?: Nullable<boolean>; // NOSONAR: optional
+    encoding?: EncodingOrCharset | null ; // default charset is binary
+    method?: HashMethod | null ;
+    dataOutput?: boolean | null ;
 }
+
 /** @deprecated use TSHashOptions */
 export type $hashOptions = TSHashOptions ;
 
 // $slowhash() is 5 to 7 times slower than node.js implementation
 // which, considering, is not so bad, since node.js implementation is written in C
 export function $slowhash(source: string | TSDataLike, options:TSHashOptions = {}):string|Uint8Array {
-    const buf = _uint8ArrayFromStringOrDataLike(source, options.encoding) ;
+    const buf = _uint8ArrayFromStringOrDataLike('$slowhash()', source, options.encoding) ;
     const outstring = !options.dataOutput ;
     if (!$ok(options.method) || options.method === SHA256) {
         return outstring ? TSCrypto.sha256String(buf) : TSCrypto.sha256(buf) ;
@@ -393,9 +400,9 @@ function _randomchar(b:string) { return b.charAt($random(b.length)) ; }
 
 declare global {
     export interface String {
-        crc16:    (this: string, encoding?: Nullable<StringEncoding | TSCharset>) => uint16;
-        crc32:    (this: string, encoding?: Nullable<StringEncoding | TSCharset>) => uint32;
-        hash:     (this: string, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>) => string|null;
+        crc16:    (this: string, encoding?: Nullable<EncodingOrCharset>) => uint16;
+        crc32:    (this: string, encoding?: Nullable<EncodingOrCharset>) => uint32;
+        hash:     (this: string, method?: Nullable<HashMethod>, encoding?: Nullable<EncodingOrCharset>) => string|null;
         slowhash: (this: string, options?:TSHashOptions) => string | Uint8Array ;
     }
     export interface Uint8Array {
@@ -420,9 +427,9 @@ declare global {
 }
 
 $declareMethods(String, {
-    crc16(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint16 { return $crc16(this, encoding) ; },
-    crc32(this: string, encoding?: Nullable<StringEncoding | TSCharset>): uint32 { return $crc32(this, encoding) ; },
-    hash(this: string, method?: Nullable<HashMethod>, encoding?: Nullable<StringEncoding | TSCharset>): string|null { return $hash(this, method, encoding) ; },
+    crc16(this: string, encoding?: Nullable<EncodingOrCharset>): uint16 { return $crc16(this, encoding) ; },
+    crc32(this: string, encoding?: Nullable<EncodingOrCharset>): uint32 { return $crc32(this, encoding) ; },
+    hash(this: string, method?: Nullable<HashMethod>, encoding?: Nullable<EncodingOrCharset>): string|null { return $hash(this, method, encoding) ; },
     slowhash(this: any, options?:TSHashOptions): string|Uint8Array { return $slowhash(this, options) ; },
 }) ;
 
@@ -451,27 +458,27 @@ $declareMethods(Array, {
 }) ;
 
 export function $sha1(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
+    const buf = $ok(source) ? __uint8ArrayFromDataLike('$sha1()', source) : undefined ;
     return !dataoutput ? TSCrypto.sha1String(buf) : TSCrypto.sha1(buf) ;
 }
 
 export function $sha224(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
+    const buf = $ok(source) ? __uint8ArrayFromDataLike('$sha224()', source) : undefined ;
     return !dataoutput ? TSCrypto.sha224String(buf) : TSCrypto.sha224(buf) ;
 }
 
 export function $sha256(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
+    const buf = $ok(source) ? __uint8ArrayFromDataLike('$sha256()', source) : undefined ;
     return !dataoutput ? TSCrypto.sha256String(buf) : TSCrypto.sha256(buf) ;
 }
 
 export function $sha384(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
+    const buf = $ok(source) ? __uint8ArrayFromDataLike('$sha384()', source) : undefined ;
     return !dataoutput ? TSCrypto.sha384String(buf) : TSCrypto.sha384(buf) ;
 }
 
 export function $sha512(source:Nullable<TSDataLike>, dataoutput?:Nullable<boolean>):string|Uint8Array {
-    const buf = $ok(source) ? $uint8ArrayFromDataLike(source) : undefined ;
+    const buf = $ok(source) ? __uint8ArrayFromDataLike('$sha512()', source) : undefined ;
     return !dataoutput ? TSCrypto.sha512String(buf) : TSCrypto.sha512(buf) ;
 }
 
@@ -494,10 +501,10 @@ const __TSHashMethodRef:StringDictionary = {
     'SHA1':   'sha1'
 } ;
 
-function _uint8ArrayFromStringOrDataLike(source:string|TSDataLike, encoding: Nullable<StringEncoding | TSCharset>) {
+function _uint8ArrayFromStringOrDataLike(fn:string, source:string|TSDataLike, encoding: Nullable<EncodingOrCharset>) {
     return $isstring(source) ?
            $charset(encoding, TSCharset.binaryCharset())!.uint8ArrayFromString(source) :
-           $uint8ArrayFromDataLike(source);
+           __uint8ArrayFromDataLike(fn, source);
 }
 
 function _algo(algo:Nullable<string>):string
@@ -576,11 +583,11 @@ function _decipherAvailable():boolean {
 }
 
 
-function _charsetKeyAndAlgo(skey: string | TSDataLike, opts?: Nullable<TSEncryptOptions>): [TSCharset | null, Uint8Array, string] {
+function _charsetKeyAndAlgo(fn:string, skey: string | TSDataLike, opts?: Nullable<TSEncryptOptions>): [TSCharset | null, Uint8Array, string] {
     const defaultCharset = TSCharset.binaryCharset() ;
     const keyCharset = $charset(opts?.keyEncoding, defaultCharset);
     const algo = _algo(opts?.algorithm) ;
-    const key = $isstring(skey) ? keyCharset.uint8ArrayFromString(skey) : $uint8ArrayFromDataLike(skey) ;
+    const key = $isstring(skey) ? keyCharset.uint8ArrayFromString(skey) : __uint8ArrayFromDataLike(fn, skey) ;
     if (key.length !== __TSEncryptKeyLength[algo]) { return [null, key, __TSEncryptAlgoRef[AES256]]; }
     return [$charset(opts?.encoding, defaultCharset), key, __TSEncryptAlgoRef[algo]]
 }

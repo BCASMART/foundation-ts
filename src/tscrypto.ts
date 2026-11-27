@@ -1,6 +1,7 @@
 import { $length, $ok } from "./commons";
 import { Nullable, uint16, uint32 } from "./types";
 
+/** @internal */
 export class TSCrypto {
 
     static sha1(data:Nullable<Uint8Array>):Uint8Array { return _Uint8ArrayFromUIntegers(TSCrypto._sha1(data)) ; }
@@ -396,7 +397,7 @@ function _padSHA1And256(data: Nullable<Uint8Array>): Uint8Array {
     return padded;
 }
 
-export function _padSHA512(data:Nullable<Uint8Array>) {
+function _padSHA512(data:Nullable<Uint8Array>) {
     const len = $length(data) ;
     const bitLen = len * 8 ;
     const blockSize = 128;

@@ -10,7 +10,7 @@ export const IntegerBoundaries:number[] = [
     INT32_MAX, INT32_MAX + 1, INT32_MAX - 1,
     INT32_MIN, INT32_MIN - 1, INT32_MIN + 1,
     UINT32_MAX, UINT32_MAX + 1, UINT32_MAX - 1,
-    0x1_0000_0000, 0x1_0000_0001,
+    UINT32_MAX + 2,
     Number.MAX_SAFE_INTEGER, -Number.MAX_SAFE_INTEGER,
 ] ;
 

@@ -1,5 +1,12 @@
 import { $arraycompare, $arrayequal, $bytescompare, $bytesequal, $bytesorder, $compare, $datecompare, $dateorder, $equal, $mapequal, $numcompare, $numorder, $order, $setequal, $unorderedEqual, $visualcompare, $visualequal, $visualorder } from "../src/compare";
 import { $arrayBufferFromBytes } from "../src/data";
+import "../src/array" ;
+import "../src/date" ;
+import "../src/mapset" ;
+import { TSColor } from "../src/tscolor";
+import { TSCouple } from "../src/tscouple";
+import { TSData } from "../src/tsdata";
+import { TSRange } from "../src/tsrange";
 import { TSDate } from "../src/tsdate";
 import { TSTest } from "../src/tstester";
 import { Ascending, Descending, Same, UINT_MAX } from "../src/types";
@@ -291,5 +298,86 @@ export const compareGroups = TSTest.group("Comparison functions", async (group) 
         t.expectV($setequal(set, set)).true() ;
         t.expectW($unorderedEqual(arr, arr)).true() ;
         t.expectX($unorderedEqual(null, arr)).false() ;
+    }) ;
+
+    group.unary("$compare() between binary data and another kind of object (1.8.13)", async(t) => {
+        const d = new TSData(Buffer.from([1, 2, 3])) ;
+        const pairs:[any, string][] = [
+            [Buffer.from([1, 2, 3]), 'Buffer'], [Buffer.from([1, 2, 4]), 'greater Buffer'], [new Uint8Array([1, 2]), 'shorter Uint8Array'],
+            [new Uint8Array([1, 2, 3]).buffer, 'ArrayBuffer'],
+        ] ;
+        // a Buffer first used to throw a TypeError (Buffer.prototype.compare() refuses a TSData)
+        for (const [b, label] of pairs) {
+            t.expect($compare(b, d), label).is(-($compare(d, b) as number) || 0) ;
+        }
+        t.expect0($compare(Buffer.from([1, 2, 3]), d)).is(Same) ;
+        t.expect1($compare(Buffer.from([1, 2, 4]), d)).is(Descending) ;
+        t.expect2($compare(new Uint8Array([1, 2]), d)).is(Ascending) ;
+        // still not comparable: no exception
+        t.expect3($compare(Buffer.from([1, 2]), [1, 2])).undef() ;
+        t.expect4($compare(Buffer.from([1, 2]), { a:1 })).undef() ;
+        t.expect5($compare(Buffer.from([1, 2]), new Date())).undef() ;
+        t.expect6($compare(new ArrayBuffer(2), 'ab')).undef() ;
+        // binary data between themselves: unchanged
+        t.expect7($compare(Buffer.from([1, 2]), new Uint8Array([1, 3]))).is(Ascending) ;
+        t.expect8($compare(Buffer.from([1, 2]), Buffer.from([1, 2]))).is(Same) ;
+    }) ;
+
+    group.unary("$equal() / $compare() are symmetric between an array and an object (1.8.13)", async(t) => {
+        const inverse = (c:any) => c === Ascending ? Descending : (c === Descending ? Ascending : c) ;
+        const data = new TSData(Buffer.from([0, 1, 2])) ;
+        const arrays:any[] = [[0, 1, 2], [0, 1], [0, 1, 2, 3], [0, 1, 3], [0, 0, 255], [256, 1, 2], [0, 1, 2.7], ['0', 1, 2], []] ;
+        for (let i = 0 ; i < arrays.length ; i++) {
+            const a = arrays[i] ;
+            t.expect($equal(a, data), `$equal(array#${i}, data)`).is($equal(data, a)) ;
+            t.expect($compare(a, data), `$compare(array#${i}, data)`).is(inverse($compare(data, a))) ;
+        }
+        t.expect0($equal([0, 1, 2], data)).true() ;
+        t.expect1($compare([0, 1, 2], data)).is(Same) ;
+        t.expect2($compare([0, 1], data)).is(Ascending) ;
+        t.expect3($compare([0, 1, 3], data)).is(Descending) ;
+        t.expect4($compare([256, 1, 2], data)).undef() ;
+        t.expect5($equal([256, 1, 2], data)).false() ;
+        // unchanged with the objects which do not compare themselves with arrays
+        const objects:any[] = [new Date(2024, 0, 1), new TSDate(2024, 1, 1), new Set([1]), new Map([[1, 1]]), new TSRange(0, 3), new TSCouple(1, 2), TSColor.rgb(1, 2, 3)] ;
+        for (let i = 0 ; i < objects.length ; i++) {
+            const o = objects[i] ;
+            t.expect($equal([1], o), `$equal([1], object#${i})`).false() ;
+            t.expect($equal(o, [1]), `$equal(object#${i}, [1])`).false() ;
+            t.expect($compare([1], o), `$compare([1], object#${i})`).undef() ;
+            t.expect($compare(o, [1]), `$compare(object#${i}, [1])`).undef() ;
+        }
+        // arrays with arrays: unchanged
+        t.expect6($equal([1, 2], [1, 2])).true() ;
+        t.expect7($compare([1, 2], [1, 3])).is(Ascending) ;
+        t.expect8($compare([1, 2, 3], [1, 2])).is(Descending) ;
+        // a typed array is never equal to a number[]
+        t.expect9($equal(Buffer.from([1, 2]), [1, 2])).false() ;
+        t.expectA($equal([1, 2], Buffer.from([1, 2]))).false() ;
+        t.expectB($equal(Uint8Array.from([1, 2]), [1, 2])).false() ;
+        t.expectC($equal([1, 2], Uint8Array.from([1, 2]))).false() ;
+        t.expectD($compare([1, 2], Buffer.from([1, 2]))).undef() ;
+        t.expectE($compare([1, 2], Uint8Array.from([1, 2]))).undef() ;
+        t.expectF($compare(Uint8Array.from([1, 2]), [1, 2])).undef() ;
+    }) ;
+
+    group.unary("$bytescompare() / $bytesequal() with plain arrays holding non bytes (1.8.13)", async(t) => {
+        const x = [1, 256] as any ;
+        t.expect0($bytesequal([256] as any, [256] as any)).false() ;
+        t.expect1($bytesequal([0, 1.5] as any, [0, 1.5] as any)).false() ;
+        t.expect2($bytesequal(x, x)).false() ;
+        t.expect3($bytesequal([1, 2] as any, [1, 2] as any)).true() ;
+        t.expect4($bytesequal([1, 2] as any, Uint8Array.from([1, 2]))).true() ;
+        t.expect5($bytesequal([1, 258] as any, Uint8Array.from([1, 2]))).false() ;
+        t.expect6($bytescompare([256] as any, [0] as any)).undef() ;
+        t.expect7($bytescompare([1, 2] as any, [2, 300] as any)).undef() ;
+        t.expect8($bytescompare(x, x)).undef() ;
+        t.expect9($bytescompare([1, 2] as any, [1, 3] as any)).is(Ascending) ;
+        t.expectA($bytescompare(Uint8Array.from([1, 2, 3]), [1, 2] as any)).is(Descending) ;
+        t.expectB($bytescompare([0, 1, 2] as any, [0, 1, 2, 256] as any)).undef() ; // beyond the common part
+        t.expectC($bytesequal(null, null)).true() ;
+        const u = Uint8Array.from([1, 2]) ;
+        t.expectD($bytescompare(u, u)).is(Same) ;
+        t.expectE($bytesequal(u, u)).true() ;
     }) ;
 }) ;

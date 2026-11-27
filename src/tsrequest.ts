@@ -1,18 +1,18 @@
-import { Nullable, StringDictionary, StringEncoding, TSDataLike, TSDictionary, UINT8_MAX } from './types';
+import { Nullable, StringDictionary, TSDataLike, TSDictionary, UINT8_MAX } from './types';
 import { $isnumber, $isstring, $length, $ok, $isarray, $tounsigned, $string, $isunsigned, $ismethod, $issafekey } from './commons';
 import { TSError, TSUniqueError } from './tserrors';
 import { $jsonparse, $timeout } from './utils';
 import { $ftrim } from './strings';
-import { $encodeBase64 } from './data';
+import { $encodeBase64, __encodeBase64 } from './data';
 import { TSData } from './tsdata';
-import { TSURL } from './tsurl';
+import { TSURL, __absoluteURLRegex } from './tsurl';
 import { $map } from './array';
-import { $charset, TSCharset } from './tscharset';
+import { $charset, EncodingOrCharset } from './tscharset';
 import { $iscollection } from './tsobject'
 import { $declareMethods } from "./object";
 
 
-export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEncoding|TSCharset>) : string
+export function $basicauth(login:string, pwd:string, encoding?:Nullable<EncodingOrCharset>) : string
 {
     // if we have password with accents, we need to manage charset. Since the new RFC 7617
     // we should analyse WWW-Authenticate header returned by the server to know wich charset
@@ -23,9 +23,13 @@ export function $basicauth(login:string, pwd:string, encoding?:Nullable<StringEn
 }
 
 export function $barerauth(base64StringOrData:string|TSDataLike) : string
+{ return _bearerAuth('$barerauth()', base64StringOrData) ; }
+
+// fn is the name reported for a plain array element which is not a byte
+function _bearerAuth(fn:string, base64StringOrData:string|TSDataLike) : string
 {
     // there's no charset in bareauth. Tokens are considered as ASCII strings
-    const tok = $isstring(base64StringOrData) ? base64StringOrData : $encodeBase64(base64StringOrData) ;
+    const tok = $isstring(base64StringOrData) ? base64StringOrData : __encodeBase64(fn, base64StringOrData, false) ;
 	return `Bearer ${tok}` ;
 }
 
@@ -159,7 +163,7 @@ export const NO_HEADERS = {} ;
 
 export type TSRequestHeaders = { [key:string]: string | string[] | number } ;
 export type TSResponseHeaders = Headers ;
-export type TSRequestAuth = { login:string, password:string, encoding?:Nullable<StringEncoding|TSCharset> } ; // NOSONAR: optional
+export type TSRequestAuth = { login:string, password:string, encoding?:EncodingOrCharset|null } ;
 
 export type TSResponseType = Nullable<object | string | number | boolean | ReadableStream> ;
 export interface TSResponse {
@@ -168,12 +172,14 @@ export interface TSResponse {
     headers:TSResponseHeaders
     statusDescription?:string ;
 } ;
+
+export type TSRequestOptionsAuth = TSRequestAuth|string|TSDataLike ;
 export interface TSRequestOptions {
-    headers?:Nullable<TSRequestHeaders> ;   // NOSONAR: optional
-    timeout?:Nullable<number> ;             // NOSONAR: optional
-    managesCredentials?:Nullable<boolean> ; // NOSONAR: optional
-    auth?:Nullable<TSRequestAuth|string|TSDataLike> ; // NOSONAR: optional. if TSDataLike, we need to convert it to base64
-    keepsTrailingSlash?:Nullable<boolean> ; // NOSONAR: optional. false by default: the final '/' of the request URLs is removed
+    headers?:TSRequestHeaders | null ;
+    timeout?:number | null ;
+    managesCredentials?:boolean | null ;
+    auth?:TSRequestOptionsAuth | null ;  // if TSDataLike, we need to convert it to base64
+    keepsTrailingSlash?:boolean | null ; // false by default: the final '/' of the request URLs is removed
 }
 
 export class TSRequest {
@@ -242,7 +248,7 @@ export class TSRequest {
 
     // if you pass a string it's a base64string. If you pass a data, it is converted to base64
 	public setToken(token?:Nullable<string|TSDataLike>) {
-		this.token = $length(token) ? $barerauth(token!) : '' ;
+		this.token = $length(token) ? _bearerAuth('TSRequest.setToken()', token!) : '' ;
 	}
 
     // we keep this method for backward compatibility
@@ -301,7 +307,10 @@ export class TSRequest {
             suplHeaders:suplHeaders,
             timeout:timeout
         } ;
-        let finalURL = TSURL.compose(this.baseURL, $string(relativeURL))?.href as Nullable<string> ;
+        // an absolute URL (with a scheme, eg. 'https://host/path') is used as it is, like fetch() or new URL() do:
+        // it used to be appended to the base URL (eg. 'http://localhost/https://host/path')
+        const rel = $string(relativeURL) ;
+        let finalURL = (__absoluteURLRegex.test(rel) ? TSURL.url(rel) : TSURL.compose(this.baseURL, rel))?.href as Nullable<string> ;
         if (!$ok(finalURL)) {
             TSError.throw('TSRequest.req(): impossible to compose base URL and relativeURL', errorInfo) ; 
         }
@@ -349,6 +358,8 @@ export class TSRequest {
     // or at the end of the base URL when the relative URL is empty
     private _keepsTrailingSlashOf(relativeURL:string):boolean {
         if (!this.keepsTrailingSlash) { return false ; }
+        // an absolute URL keeps its own final '/' only (the one TSURL adds to a bare host is removed)
+        if (__absoluteURLRegex.test(relativeURL)) { return relativeURL.endsWith('/') ; }
         return relativeURL.length ? relativeURL.endsWith('/') : this.baseURL.endsWith('/') ;
     }
 

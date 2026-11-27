@@ -9,10 +9,9 @@ import { TSError } from "./tserrors";
 import { TSURL } from "./tsurl";
 
 export interface TSEnvOptions extends DefaultsConfigurationOptions  {
-    merge?:Nullable<StringDictionary> ;     // NOSONAR: optional
-                                            // environment to be merged with interpreted variables.
-                                            // if merge is process.env, new values are overwriting process.env
-    reference?:Nullable<StringDictionary> ; // NOSONAR: optional. reference can be process.env
+    merge?:StringDictionary | null ;     // environment to be merged with interpreted variables.
+                                         // if merge is process.env, new values are overwriting process.env
+    reference?:StringDictionary | null ; // reference can be process.env
 } ;
 /** @deprecated use TSEnvOptions */
 export type $envOptions = TSEnvOptions ;
@@ -26,9 +25,9 @@ export function $env(source:Nullable<string|TSDataLike>, opts?:Nullable<TSEnvOpt
 }
 export interface TSParsedEnvOptions extends DefaultsConfigurationOptions {
     parser:Nullable<TSDictionary<TSLeafNode>>
-    merge?:Nullable<TSDictionary> ; // NOSONAR: optional
-    reference?:Nullable<TSDictionary> ; // NOSONAR: optional
-    acceptsUnparsed?:Nullable<boolean> ; // NOSONAR: optional
+    merge?:TSDictionary | null ;
+    reference?:TSDictionary | null ;
+    acceptsUnparsed?: boolean | null ;
 }
 /** @deprecated use TSParsedEnvOptions */
 export type $parsedEnvOptions = TSParsedEnvOptions ;
@@ -148,10 +147,10 @@ export interface TSArgument {
 }
 
 export interface TSArgsOptions {
-    errors?:Nullable<string[]> ;  // NOSONAR: optional
-    arguments?:Nullable<URL|TSURL|string[]> ;  // NOSONAR: optional
-    processName?:Nullable<string> ;  // NOSONAR: optional
-    exitError?:Nullable<number> ; // NOSONAR: optional
+    errors?:string[] | null ;
+    arguments?:URL|TSURL|string[] | null ;
+    processName?:string | null ;
+    exitError?:number | null ;
 }
 // if an url is specfied, we take the arguments from it
 // if there's nothin we try from the process itself

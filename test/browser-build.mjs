@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable */
 // =============================================================================
 // esbuild bundle for `npm run test:chrome`.
 //
@@ -21,8 +20,8 @@ import { fileURLToPath } from 'node:url' ;
 const here = dirname(fileURLToPath(import.meta.url)) ;
 const root = resolve(here, '..') ;
 
-// Redirect `buffer` to the feross `buffer` package: its Buffer#copy accepts a
-// plain Uint8Array target, unlike the jspm polyfill which the library relies on.
+// Redirect `buffer` to the feross `buffer` package, unpatched: it is the Buffer which the
+// users of the library get in their browser bundles (see shims/node-buffer.mjs).
 // (`crypto` needs no such shim any more -- src/crypto.ts only statically imports
 // createCipheriv/createDecipheriv/createHash/randomBytes, all provided by the
 // jspm polyfill; getRandomValues/randomUUID now go through globalThis.crypto.)

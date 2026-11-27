@@ -5,28 +5,48 @@ import { NormativeStringEncoding, StringEncoding } from "./types";
     Note the character VT (\u000b) is not condidered as a new line but as a whitespace
 */
 
+/** @internal */
 export const FoundationASCIINewLines = "\u000a\u000c\u000d" ;
+/** @internal */
 export const FoundationASCIIStrictWhiteSpaces = "\u0009\u000b\u0020" ;
+/** @internal */
 export const FoundationASCIIWhiteSpaces = FoundationASCIIStrictWhiteSpaces+FoundationASCIINewLines ;
 
+/** @internal */
 export const FoundationBinaryNewLines = FoundationASCIINewLines+"\u0085" ;
+/** @internal */
 export const FoundationBynaryStrictWhiteSpaces = FoundationASCIIStrictWhiteSpaces+"\u00A0" ;
+/** @internal */
 export const FoundationBinaryWhiteSpaces = FoundationBynaryStrictWhiteSpaces+FoundationBinaryNewLines ;
 
+/** @internal */
 export const FoundationNewLines = FoundationBinaryNewLines+"\u2028\u2029" ;
+/** @internal */
 export const FoundationStrictWhiteSpaces = FoundationBynaryStrictWhiteSpaces + "\u1680\u180E\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u202F\u205F\u3000\uFEFF" ;
+/** @internal */
 export const FoundationWhiteSpaces = FoundationStrictWhiteSpaces+FoundationNewLines ;
 
+/** @internal */
 export const FoundationFindAllWhitespacesRegex = new RegExp(`[${FoundationWhiteSpaces}]+`, 'g') ;
+
+/** @internal */
 export const FoundationFindStrictWhitespacesRegex = new RegExp(`[${FoundationStrictWhiteSpaces}]+`, 'g') ;
+/** @internal */
 export const FoundationLeftTrimRegex = new RegExp(`^[${FoundationWhiteSpaces}]+`) ;
+/** @internal */
 export const FoundationRightTrimRegex = new RegExp(`[${FoundationWhiteSpaces}]+$`) ;
 
+/** @internal */
 export const FoundationWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationWhiteSpaces) ;
+/** @internal */
 export const FoundationWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationWhiteSpaces) ;
+/** @internal */
 export const FoundationNewLineNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationNewLines) ;
+/** @internal */
 export const FoundationNewLineStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationNewLines) ;
+/** @internal */
 export const FoundationStricWhiteSpacesNumberCodeSet:Set<number> = _whiteSpacesAsNumberSet(FoundationStrictWhiteSpaces) ;
+/** @internal */
 export const FoundationStrictWhiteSpacesStringCodeSet:Set<string> = _whiteSpaceAsStringSet(FoundationStrictWhiteSpaces) ;
 
 function _whiteSpacesAsNumberSet(reference:string):Set<number> {
@@ -47,7 +67,7 @@ function _whiteSpaceAsStringSet(reference:string):Set<string> {
     return ret ;
 }
 
-
+/** @internal */
 export const FoundationEncodingsAliases:Array<{ name:NormativeStringEncoding, aliases:StringEncoding[]}> = [
     { name: 'ascii', aliases:['ASCII'] },
     { name: 'latin1', aliases:[
@@ -82,6 +102,7 @@ function _foundationStringEncodings(definitions:Array<{ name:NormativeStringEnco
     return ret ;
 }
 
+/** @internal */
 export const FoundationStringEncodingsMap = _foundationStringEncodings(FoundationEncodingsAliases) ;
 
 

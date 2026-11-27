@@ -369,7 +369,7 @@ export class TSUnaryTest extends TSGenericTest {
     private async _manageException(e:unknown):Promise<void> {
         if ($ok(this._catchFunction)) {
             try { await this._catchFunction!(this, e as Error) ; return ; }
-            catch (e2) { e = e2 ; }
+            catch (error_) { e = error_ ; }
         }
         this._expected ++ ;
         _logUnexpectedException(e) ;

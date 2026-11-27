@@ -73,7 +73,7 @@ function _zeroUnit(dm:number, minU:number, pluralUnitName:string, opts?:Nullable
     return '0.'.padEnd(2+dm, '0') + ' ' + pluralUnitName ;
 }
 
-export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:LocaleInfo) {
+export function $bytes(n: Nullable<number>, decimalPlaces:number = 2, locale?:Nullable<LocaleInfo>) {
     const unit = $value($unitDefinition('byte', locale), { singular:'byte', plural:'bytes', unit:'B'}) ;
     if (unit.unit.length === 0) { unit.unit = 'B' ; }
     return $unit(n, { 
@@ -104,7 +104,7 @@ for (let i = 0 ; i < 256 ; i++) {
 
 declare global {
     export interface Number {
-        bytes:              (this:number, decimalPlaces?:number, locale?:LocaleInfo) => string ;
+        bytes:              (this:number, decimalPlaces?:number, locale?:Nullable<LocaleInfo>) => string ;
         dateComponents:     (this:number) => TSDateComp ;
         durationComponents: (this:number) => TSDurationComp ;
         fpad:               (this:number, pad:number, failedChar?:string) => string ;
@@ -134,7 +134,7 @@ declare global {
 }
 
 $declareMethods(Number, {
-    bytes(this:number, decimalPlaces?:number, locale?:LocaleInfo):string { 
+    bytes(this:number, decimalPlaces?:number, locale?:Nullable<LocaleInfo>):string { 
         return $bytes(this, decimalPlaces, locale) ; 
     },
     dateComponents(this:number) { return $components(this) ; },

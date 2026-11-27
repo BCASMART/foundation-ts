@@ -11,6 +11,7 @@ import { TSEndPoint, TSEndPointController, TSEndPointsDefinitionDictionary, TSEn
 import { Nullable, TSDictionary } from "./types";
 import { $inspect, $jsonparse, $logterm, $readStreamBuffer } from "./utils";
 
+/** @internal */
 export class TSServerEndPoint {
 
     public readonly uri:string ;
@@ -99,6 +100,7 @@ export class TSServerEndPoint {
 
 }
 
+/** @internal */
 export interface TSEndPointRoute {
     endPoint:TSServerEndPoint ;
     parameters:TSDictionary ;
@@ -117,6 +119,7 @@ export interface TSEndPointRoute {
 // max depth" linear scan would — spelled out explicitly here (deepest match
 // wins, lowest registration rank wins a depth tie) so it stays correct
 // regardless of the order uri prefixes happen to be visited in.
+/** @internal */
 export class TSEndPointRouter {
     private readonly _endPointsByUri = new Map<string, TSServerEndPoint[]>() ;
     private readonly _uriPrefixes:string[] = [] ;

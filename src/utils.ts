@@ -5,7 +5,7 @@ import { $count, $defined, $isarray, $isfunction, $isint, $ismethod, $isproperty
 import { $HTML, $normspaces } from "./strings";
 import { FoundationHTMLEncoding } from "./string_tables";
 import { Nullable, TSDataLike } from './types';
-import { $bytesFromDataLike } from "./data";
+import { __bytesFromDataLike } from "./data";
 import { $unit } from "./number";
 import { TSError } from "./tserrors";
 import { TSCharset } from "./tscharset";
@@ -335,7 +335,7 @@ const __hexadumpChars:string[] = Array.from({ length:256 }, (_, c) => {
 }) ;
 
 export function $hexadump(source: Nullable<TSDataLike>) {
-    let data = $ok(source) ? $bytesFromDataLike(source!) : [];
+    let data = $ok(source) ? __bytesFromDataLike('$hexadump()', source!) : [];
     let sourceLen = data.length;
     let len = sourceLen % 16 > 0 ? sourceLen + 16 - sourceLen % 16 : sourceLen;
     $logterm("&0&x         00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F chars&0");

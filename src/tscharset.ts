@@ -1,6 +1,6 @@
 
 import { $count, $encoding, $isproperty, $length, $lse, $ok, $toint, $value } from './commons';
-import { $arrayFromBytes, $bufferFromBytes, $bytesFromDataLike, $decodeBase64URL, $encodeBase64URL, $uint8ArrayFromBytes } from './data';
+import { $arrayFromBytes, $bufferFromBytes, $decodeBase64URL, $encodeBase64URL, $uint8ArrayFromBytes, __bufferFromBytes, __bytesFromDataLike, __checkBytes, __checkedByte, __uncheckedBytesFromDataLike } from './data';
 import { FoundationEncodingsAliases } from './string_tables';
 import TSCharsetDefinitions from './tscharsets.json' ;
 import { TSData } from './tsdata';
@@ -8,7 +8,9 @@ import { TSError } from './tserrors';
 import { Bytes, Nullable, StringEncoding, TSDataLike, UINT16_MAX, uint8 } from './types';
 import { $inbrowser } from './utils';
 
-export function $charset(value:Nullable<StringEncoding|TSCharset|TSDataLike>, defaultCharset:TSCharset=TSCharset.utf8Charset()):TSCharset
+export type EncodingOrCharset = StringEncoding|TSCharset ;
+
+export function $charset(value:Nullable<EncodingOrCharset|TSDataLike>, defaultCharset:TSCharset=TSCharset.utf8Charset()):TSCharset
 {
     if (value instanceof TSCharset) { return value ; }
     if (typeof value === 'string') { return TSCharset.encoding(value as StringEncoding) ; }
@@ -45,21 +47,21 @@ export abstract class TSCharset {
     public static macCharset()        { return TSCharset._cachedCharset(TSCachedCharset.MAC,    'mac') ; }
 
     public static charsetFromDataLike(rawData:TSDataLike):TSCharset|null {
-        return $charsetFromBytes($bytesFromDataLike(rawData)) ;
+        return _charsetFromBytes(__bytesFromDataLike('TSCharset.charsetFromDataLike()', rawData)) ;
     }
 
     // detects the charset of the data (defaultCharset if it cannot be detected) and decodes them.
     // Like TextDecoder or a .NET StreamReader, a byte order mark is removed when it gave the charset
     // (the stringFromData() methods keep it, like Buffer.toString(): '\uFEFF' in the returned string)
     public static stringFromDetectedData(rawData:TSDataLike, defaultCharset:TSCharset = TSCharset.utf8Charset()):[string, TSCharset] {
-        const bytes = $bytesFromDataLike(rawData) ;
-        const detected = $charsetFromBytes(bytes) ;
+        const bytes = __bytesFromDataLike('TSCharset.stringFromDetectedData()', rawData) ;
+        const detected = _charsetFromBytes(bytes) ;
         if (!$ok(detected)) { return [defaultCharset.stringFromBytes(bytes), defaultCharset] ; }
         return [detected!.stringFromBytes(bytes, _bomLength(bytes, detected!)), detected!] ;
     }
 
     public static isUTF8Charset(rawData:TSDataLike):boolean {
-        const bytes = $bytesFromDataLike(rawData) ;
+        const bytes = __bytesFromDataLike('TSCharset.isUTF8Charset()', rawData) ;
         const len = $count(bytes) ;
         if (!len || (len > 2 && bytes[0] === 0xFF && bytes[1] === 0xFE)) { return false ; }
         return _isUTF8Charset(bytes, len) ; // ASCII is considered as a subset of UTF8
@@ -163,24 +165,28 @@ export abstract class TSCharset {
 
     // ===== bytes -> string (decoding), strict versions
     // index in source of the first byte which does not represent a character (or does not start a
-    // valid byte sequence) in this charset, or -1
+    // valid byte sequence) in this charset, or -1.
+    // A plain array element which is not a byte (eg. 256, -1, 2.7, '1') is not an undecodable byte but an
+    // invalid argument: like in all the decoding methods (stringFromBytes()...), it throws a TSError
     public abstract undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number ;
 
     // true if all the bytes of source represent characters of this charset
     public canDecode(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):boolean
-    { return this.undecodableIndex(source, sourceStart, sourceEnd) < 0 ; }
+    { return _reportedAs('TSCharset.canDecode()', () => this.undecodableIndex(source, sourceStart, sourceEnd) < 0) ; }
 
     // like stringFromBytes(), but null if a byte does not represent a character of this charset
-    public strictStringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string|null
-    { return this.canDecode(source, sourceStart, sourceEnd) ? this.stringFromBytes(source, sourceStart, sourceEnd) : null ; }
+    public strictStringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string|null {
+        return _reportedAs('TSCharset.strictStringFromBytes()', () => this.canDecode(source, sourceStart, sourceEnd) ? this.stringFromBytes(source, sourceStart, sourceEnd) : null) ;
+    }
 
     // like stringFromData(), but null if a byte does not represent a character of this charset
     public strictStringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string|null {
-        return this.strictStringFromBytes($bytesFromDataLike(source), sourceStart, sourceEnd) ;
+        // a plain array is checked when its used part is read
+        return _reportedAs('TSCharset.strictStringFromData()', () => this.strictStringFromBytes(__uncheckedBytesFromDataLike(source), sourceStart, sourceEnd)) ;
     }
 
     public stringFromData(source:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
-        return this.stringFromBytes($bytesFromDataLike(source), sourceStart, sourceEnd)
+        return _reportedAs('TSCharset.stringFromData()', () => this.stringFromBytes(__uncheckedBytesFromDataLike(source), sourceStart, sourceEnd)) ;
     }
     public bufferFromString(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Buffer {
         return $bufferFromBytes(this.stringToBytes(source, sourceStart, sourceEnd)) ;
@@ -268,20 +274,22 @@ class TSLoadedCharset extends TSCharset {
 
     public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
-        for (let i = start ; i < end ; i++) { if (!this._toUnicodeTable[source[i]]) { return i ; } }
+        const typed = source instanceof Uint8Array ; // only the elements of a plain array need a check
+        for (let i = start ; i < end ; i++) {
+            if (!this._toUnicodeTable[typed ? source[i] : __checkedByte(_reportedName('TSCharset.undecodableIndex()'), source, i)]) { return i ; }
+        }
         return -1 ;
     }
 
     public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string
     {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        const typed = source instanceof Uint8Array ; // only the elements of a plain array need a check
         let target = ''
 
-        if (start < end) {
-            for (let i = start ; i < end ; i++) {
-                const s = this._toUnicodeTable[source[i]] ;
-                if (s) { target += s ; }
-            }
+        for (let i = start ; i < end ; i++) {
+            const s = this._toUnicodeTable[typed ? source[i] : __checkedByte(_reportedName('TSCharset.stringFromBytes()'), source, i)] ;
+            if (s) { target += s ; }
         }
 
         return target ;
@@ -297,8 +305,10 @@ class TSUTF16BECharset extends TSCharset {
     public unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number
     { return _loneSurrogateIndex(source, sourceStart, sourceEnd) ; }
 
-    public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number
-    { return _utf16UndecodableIndex(source, sourceStart, sourceEnd, true) ; }
+    public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+        _checkUndecodableBytes(source, sourceStart, sourceEnd) ;
+        return _utf16UndecodableIndex(source, sourceStart, sourceEnd, true) ;
+    }
 
     public stringToBytes(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):Bytes {
         const [len, start, end,] = $lse(source, sourceStart, sourceEnd) ;
@@ -310,13 +320,12 @@ class TSUTF16BECharset extends TSCharset {
         const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
         const n = (end - start) & ~1 ; // an even number of bytes
         if (n <= 0) { return '' ; }
-        const swapped = Buffer.alloc(n) ;
-        for (let i = 0 ; i < n ; i += 2) { swapped[i] = source[start + i + 1] ; swapped[i + 1] = source[start + i] ; }
-        return swapped.toString('utf16le') ;
+        // always a copy (the source must not be swapped), a plain array being checked while it is copied
+        return __bufferFromBytes(_reportedName('TSCharset.stringFromBytes()'), source, { start:start, end:start + n, forceCopy:true }).swap16().toString('utf16le') ;
     }
 }
 
-export class TSSystemCharset extends TSCharset {
+class TSSystemCharset extends TSCharset {
     // ascii, latin1, utf8 and utf16le are text encodings. base64, base64url and hex are the other way
     // round: stringToBytes() decodes a text into bytes, and stringFromBytes() encodes bytes into a text
     public unencodableIndex(source:string, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
@@ -331,6 +340,7 @@ export class TSSystemCharset extends TSCharset {
     }
 
     public undecodableIndex(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):number {
+        _checkUndecodableBytes(source, sourceStart, sourceEnd) ;
         switch (this.name) {
             case 'ascii':   return _byteAboveIndex(source, 0x7F, sourceStart, sourceEnd) ;
             case 'utf8':    return _utf8UndecodableIndex(source, sourceStart, sourceEnd) ;
@@ -361,17 +371,44 @@ export class TSSystemCharset extends TSCharset {
     }
     
     public stringFromBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
-        return this._stringFromBuffer($bufferFromBytes(source), sourceStart, sourceEnd) ;
+        // only the used part is converted (and checked for a plain array)
+        const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+        return this._stringFromBuffer(__bufferFromBytes(_reportedName('TSCharset.stringFromBytes()'), source, { start:start, end:end })) ;
     }
 
     public override stringFromData(src:TSDataLike, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):string {
         if (src instanceof Buffer) { return this._stringFromBuffer(src, sourceStart, sourceEnd) ; }
         else if (src instanceof TSData) { return this._stringFromBuffer(src.mutableBuffer, sourceStart, sourceEnd) ; }
-        else { return this._stringFromBuffer($bufferFromBytes(src as Bytes), sourceStart, sourceEnd) ; }
+        // an ArrayBuffer is a view here, and a plain array is checked by stringFromBytes()
+        else { return _reportedAs('TSCharset.stringFromData()', () => this.stringFromBytes(__uncheckedBytesFromDataLike(src), sourceStart, sourceEnd)) ; }
     }
 }
 
+// ===== names reported for a plain array element which is not a byte
+// the public methods which delegate to undecodableIndex() or stringFromBytes() (canDecode(), stringFromData()...)
+// give their own name to the checks, so that the error names the method which was called. The outermost one
+// wins (eg. strictStringFromData() calls strictStringFromBytes()). The calls are synchronous: the name is
+// restored when the method returns or throws
+let __reportedName:string|undefined ;
+
+function _reportedAs<T>(name:string, f:() => T):T {
+    if ($ok(__reportedName)) { return f() ; }
+    __reportedName = name ;
+    try { return f() ; }
+    finally { __reportedName = undefined ; }
+}
+
+function _reportedName(ownName:string):string { return __reportedName ?? ownName ; }
+
 // ===== strict conversions helpers
+
+// the undecodableIndex() helpers read the bytes without copying them: the used part of a plain array is
+// checked first (a non byte element is an invalid argument, a TSError, not an undecodable byte)
+function _checkUndecodableBytes(source:Bytes, sourceStart?:Nullable<number>, sourceEnd?:Nullable<number>):void {
+    if (source instanceof Uint8Array) { return ; }
+    const [, start, end,] = $lse(source, sourceStart, sourceEnd) ;
+    __checkBytes(_reportedName('TSCharset.undecodableIndex()'), source, start, end) ;
+}
 
 function _isHighSurrogate(u:number):boolean { return u >= 0xD800 && u <= 0xDBFF ; }
 function _isLowSurrogate(u:number):boolean  { return u >= 0xDC00 && u <= 0xDFFF ; }
@@ -499,6 +536,12 @@ const __MacWeights = [
 ] ;
 
 export function $charsetFromBytes(bytes:Bytes):TSCharset|null {
+    if ($ok(bytes)) { __checkBytes('$charsetFromBytes()', bytes, 0, bytes.length) ; } // the detection may not read all the bytes
+    return _charsetFromBytes(bytes) ;
+}
+
+// the bytes are already checked
+function _charsetFromBytes(bytes:Bytes):TSCharset|null {
     const len = $count(bytes) ;
     if (!len) { return null ; }
 

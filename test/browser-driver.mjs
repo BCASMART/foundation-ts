@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable */
 // =============================================================================
 // Headless-browser driver for `npm run test:chrome` / `test:firefox` / `test:webkit`.
 //

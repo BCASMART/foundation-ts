@@ -30,7 +30,7 @@ function _isRespCodeError(args:IArguments):boolean {
 }
 
 function _respValueSet():Set<number> {
-    if (!_respValues) { // NOSONAR: we find it more readable like that
+    if (!_respValues) { // NOSONAR: more readable like that
         _respValues = new Set<number>(Object.values(Resp).filter(v => typeof v === 'number') as number[]) ; 
     }
     return _respValues ;
